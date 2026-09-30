@@ -1,0 +1,672 @@
+{
+ "blade": [
+  {
+   "f": "blade_0.mp3",
+   "dur": 0.34,
+   "src": "80-CC0-RPG-SFX/blade_01.ogg"
+  },
+  {
+   "f": "blade_1.mp3",
+   "dur": 0.37,
+   "src": "80-CC0-RPG-SFX/blade_02.ogg"
+  },
+  {
+   "f": "blade_2.mp3",
+   "dur": 0.44,
+   "src": "80-CC0-RPG-SFX/blade_03.ogg"
+  }
+ ],
+ "metal": [
+  {
+   "f": "metal_0.mp3",
+   "dur": 0.6,
+   "src": "80-CC0-RPG-SFX/metal_01.ogg"
+  },
+  {
+   "f": "metal_1.mp3",
+   "dur": 0.63,
+   "src": "80-CC0-RPG-SFX/metal_02.ogg"
+  },
+  {
+   "f": "metal_2.mp3",
+   "dur": 0.5,
+   "src": "80-CC0-RPG-SFX/metal_03.ogg"
+  },
+  {
+   "f": "metal_3.mp3",
+   "dur": 0.24,
+   "src": "kenney_impactsounds/Audio/impactMetal_heavy_000.ogg"
+  },
+  {
+   "f": "metal_4.mp3",
+   "dur": 0.42,
+   "src": "kenney_impactsounds/Audio/impactMetal_heavy_001.ogg"
+  },
+  {
+   "f": "metal_5.mp3",
+   "dur": 0.18,
+   "src": "kenney_impactsounds/Audio/impactMetal_heavy_002.ogg"
+  }
+ ],
+ "plate": [
+  {
+   "f": "plate_0.mp3",
+   "dur": 0.55,
+   "src": "kenney_impactsounds/Audio/impactPlate_heavy_000.ogg"
+  },
+  {
+   "f": "plate_1.mp3",
+   "dur": 0.42,
+   "src": "kenney_impactsounds/Audio/impactPlate_heavy_001.ogg"
+  },
+  {
+   "f": "plate_2.mp3",
+   "dur": 0.55,
+   "src": "kenney_impactsounds/Audio/impactPlate_heavy_002.ogg"
+  }
+ ],
+ "punch": [
+  {
+   "f": "punch_0.mp3",
+   "dur": 0.71,
+   "src": "kenney_impactsounds/Audio/impactPunch_heavy_000.ogg"
+  },
+  {
+   "f": "punch_1.mp3",
+   "dur": 0.6,
+   "src": "kenney_impactsounds/Audio/impactPunch_heavy_001.ogg"
+  },
+  {
+   "f": "punch_2.mp3",
+   "dur": 0.52,
+   "src": "kenney_impactsounds/Audio/impactPunch_heavy_002.ogg"
+  },
+  {
+   "f": "punch_3.mp3",
+   "dur": 0.55,
+   "src": "kenney_impactsounds/Audio/impactPunch_heavy_003.ogg"
+  }
+ ],
+ "soft": [
+  {
+   "f": "soft_0.mp3",
+   "dur": 0.6,
+   "src": "kenney_impactsounds/Audio/impactSoft_heavy_000.ogg"
+  },
+  {
+   "f": "soft_1.mp3",
+   "dur": 0.63,
+   "src": "kenney_impactsounds/Audio/impactSoft_heavy_001.ogg"
+  },
+  {
+   "f": "soft_2.mp3",
+   "dur": 0.63,
+   "src": "kenney_impactsounds/Audio/impactSoft_heavy_002.ogg"
+  }
+ ],
+ "wood": [
+  {
+   "f": "wood_0.mp3",
+   "dur": 0.37,
+   "src": "kenney_impactsounds/Audio/impactWood_heavy_000.ogg"
+  },
+  {
+   "f": "wood_1.mp3",
+   "dur": 0.37,
+   "src": "kenney_impactsounds/Audio/impactWood_heavy_001.ogg"
+  },
+  {
+   "f": "wood_2.mp3",
+   "dur": 0.37,
+   "src": "kenney_impactsounds/Audio/impactWood_heavy_002.ogg"
+  },
+  {
+   "f": "wood_3.mp3",
+   "dur": 0.37,
+   "src": "kenney_impactsounds/Audio/impactWood_heavy_003.ogg"
+  }
+ ],
+ "plank": [
+  {
+   "f": "plank_0.mp3",
+   "dur": 0.84,
+   "src": "kenney_impactsounds/Audio/impactPlank_medium_000.ogg"
+  },
+  {
+   "f": "plank_1.mp3",
+   "dur": 0.84,
+   "src": "kenney_impactsounds/Audio/impactPlank_medium_001.ogg"
+  },
+  {
+   "f": "plank_2.mp3",
+   "dur": 0.84,
+   "src": "kenney_impactsounds/Audio/impactPlank_medium_002.ogg"
+  }
+ ],
+ "step": [
+  {
+   "f": "step_0.mp3",
+   "dur": 0.57,
+   "src": "kenney_impactsounds/Audio/footstep_grass_000.ogg"
+  },
+  {
+   "f": "step_1.mp3",
+   "dur": 0.57,
+   "src": "kenney_impactsounds/Audio/footstep_grass_001.ogg"
+  },
+  {
+   "f": "step_2.mp3",
+   "dur": 0.57,
+   "src": "kenney_impactsounds/Audio/footstep_grass_002.ogg"
+  },
+  {
+   "f": "step_3.mp3",
+   "dur": 0.57,
+   "src": "kenney_impactsounds/Audio/footstep_grass_003.ogg"
+  },
+  {
+   "f": "step_4.mp3",
+   "dur": 0.57,
+   "src": "kenney_impactsounds/Audio/footstep_grass_004.ogg"
+  },
+  {
+   "f": "step_5.mp3",
+   "dur": 0.16,
+   "src": "kenney_impactsounds/Audio/footstep_concrete_000.ogg"
+  },
+  {
+   "f": "step_6.mp3",
+   "dur": 0.18,
+   "src": "kenney_impactsounds/Audio/footstep_concrete_001.ogg"
+  },
+  {
+   "f": "step_7.mp3",
+   "dur": 0.18,
+   "src": "kenney_impactsounds/Audio/footstep_concrete_002.ogg"
+  }
+ ],
+ "chain": [
+  {
+   "f": "chain_0.mp3",
+   "dur": 0.55,
+   "src": "80-CC0-RPG-SFX/chain_01.ogg"
+  },
+  {
+   "f": "chain_1.mp3",
+   "dur": 0.55,
+   "src": "80-CC0-RPG-SFX/chain_02.ogg"
+  },
+  {
+   "f": "chain_2.mp3",
+   "dur": 0.63,
+   "src": "audio/oga-rpg-pack/RPG Sound Pack/inventory/chainmail1.wav"
+  },
+  {
+   "f": "chain_3.mp3",
+   "dur": 0.81,
+   "src": "audio/oga-rpg-pack/RPG Sound Pack/inventory/chainmail2.wav"
+  },
+  {
+   "f": "chain_4.mp3",
+   "dur": 0.55,
+   "src": "audio/oga-rpg-pack/RPG Sound Pack/inventory/armor-light.wav"
+  }
+ ],
+ "unsheathe": [
+  {
+   "f": "unsheathe_0.mp3",
+   "dur": 0.6,
+   "src": "audio/oga-rpg-pack/RPG Sound Pack/battle/sword-unsheathe.wav"
+  },
+  {
+   "f": "unsheathe_1.mp3",
+   "dur": 0.42,
+   "src": "audio/oga-rpg-pack/RPG Sound Pack/battle/sword-unsheathe2.wav"
+  },
+  {
+   "f": "unsheathe_2.mp3",
+   "dur": 0.57,
+   "src": "audio/oga-rpg-pack/RPG Sound Pack/battle/sword-unsheathe3.wav"
+  },
+  {
+   "f": "unsheathe_3.mp3",
+   "dur": 0.52,
+   "src": "audio/oga-rpg-pack/RPG Sound Pack/battle/sword-unsheathe4.wav"
+  },
+  {
+   "f": "unsheathe_4.mp3",
+   "dur": 0.47,
+   "src": "audio/oga-rpg-pack/RPG Sound Pack/battle/sword-unsheathe5.wav"
+  },
+  {
+   "f": "unsheathe_5.mp3",
+   "dur": 0.37,
+   "src": "kenney_rpgaudio/Audio/drawKnife1.ogg"
+  },
+  {
+   "f": "unsheathe_6.mp3",
+   "dur": 0.5,
+   "src": "kenney_rpgaudio/Audio/drawKnife2.ogg"
+  },
+  {
+   "f": "unsheathe_7.mp3",
+   "dur": 0.47,
+   "src": "kenney_rpgaudio/Audio/drawKnife3.ogg"
+  }
+ ],
+ "swing": [
+  {
+   "f": "swing_0.mp3",
+   "dur": 0.26,
+   "src": "audio/oga-rpg-pack/RPG Sound Pack/battle/swing.wav"
+  },
+  {
+   "f": "swing_1.mp3",
+   "dur": 0.18,
+   "src": "audio/oga-rpg-pack/RPG Sound Pack/battle/swing2.wav"
+  },
+  {
+   "f": "swing_2.mp3",
+   "dur": 0.18,
+   "src": "audio/oga-rpg-pack/RPG Sound Pack/battle/swing3.wav"
+  },
+  {
+   "f": "swing_3.mp3",
+   "dur": 0.42,
+   "src": "Micro Pack - Organic Wooshes/Swish 1.wav"
+  },
+  {
+   "f": "swing_4.mp3",
+   "dur": 0.57,
+   "src": "Micro Pack - Organic Wooshes/Swish 2.wav"
+  },
+  {
+   "f": "swing_5.mp3",
+   "dur": 0.71,
+   "src": "Micro Pack - Organic Wooshes/Swish 3.wav"
+  },
+  {
+   "f": "swing_6.mp3",
+   "dur": 0.39,
+   "src": "audio/oga-battle/battle_sound_effects/swish_2.wav"
+  },
+  {
+   "f": "swing_7.mp3",
+   "dur": 0.65,
+   "src": "audio/oga-battle/battle_sound_effects/swish_3.wav"
+  },
+  {
+   "f": "swing_8.mp3",
+   "dur": 0.39,
+   "src": "audio/oga-battle/battle_sound_effects/swish_4.wav"
+  }
+ ],
+ "slash": [
+  {
+   "f": "slash_0.mp3",
+   "dur": 0.21,
+   "src": "Micro Pack - Organic Wooshes/Slash.wav"
+  },
+  {
+   "f": "slash_1.mp3",
+   "dur": 0.39,
+   "src": "Micro Pack - Organic Wooshes/Classic Swish 1.wav"
+  }
+ ],
+ "twirl": [
+  {
+   "f": "twirl_0.mp3",
+   "dur": 1.57,
+   "src": "Micro Pack - Organic Wooshes/Twirl 1.wav"
+  },
+  {
+   "f": "twirl_1.mp3",
+   "dur": 1.52,
+   "src": "Micro Pack - Organic Wooshes/Twirl 2.wav"
+  }
+ ],
+ "thunk": [
+  {
+   "f": "thunk_0.mp3",
+   "dur": 0.34,
+   "src": "Micro Pack - Organic Wooshes/Thunk 1.wav"
+  },
+  {
+   "f": "thunk_1.mp3",
+   "dur": 0.31,
+   "src": "Micro Pack - Organic Wooshes/Thunk 2.wav"
+  }
+ ],
+ "bow": [
+  {
+   "f": "bow_0.mp3",
+   "dur": 0.5,
+   "src": "audio/oga-battle/battle_sound_effects/Bow.wav"
+  }
+ ],
+ "chop": [
+  {
+   "f": "chop_0.mp3",
+   "dur": 0.31,
+   "src": "kenney_rpgaudio/Audio/chop.ogg"
+  },
+  {
+   "f": "chop_1.mp3",
+   "dur": 0.57,
+   "src": "kenney_rpgaudio/Audio/knifeSlice.ogg"
+  },
+  {
+   "f": "chop_2.mp3",
+   "dur": 0.63,
+   "src": "kenney_rpgaudio/Audio/knifeSlice2.ogg"
+  }
+ ],
+ "creak": [
+  {
+   "f": "creak_0.mp3",
+   "dur": 0.65,
+   "src": "kenney_rpgaudio/Audio/creak1.ogg"
+  },
+  {
+   "f": "creak_1.mp3",
+   "dur": 0.89,
+   "src": "kenney_rpgaudio/Audio/creak2.ogg"
+  },
+  {
+   "f": "creak_2.mp3",
+   "dur": 0.39,
+   "src": "kenney_rpgaudio/Audio/creak3.ogg"
+  }
+ ],
+ "cloth": [
+  {
+   "f": "cloth_0.mp3",
+   "dur": 0.71,
+   "src": "kenney_rpgaudio/Audio/cloth1.ogg"
+  },
+  {
+   "f": "cloth_1.mp3",
+   "dur": 0.44,
+   "src": "kenney_rpgaudio/Audio/cloth2.ogg"
+  },
+  {
+   "f": "cloth_2.mp3",
+   "dur": 0.52,
+   "src": "kenney_rpgaudio/Audio/cloth3.ogg"
+  },
+  {
+   "f": "cloth_3.mp3",
+   "dur": 0.44,
+   "src": "audio/oga-rpg-pack/RPG Sound Pack/inventory/cloth-heavy.wav"
+  }
+ ],
+ "cannon": [
+  {
+   "f": "cannon_0.mp3",
+   "dur": 1.28,
+   "src": "25-CC0-bang-sfx/cannon_01.ogg"
+  },
+  {
+   "f": "cannon_1.mp3",
+   "dur": 1.85,
+   "src": "25-CC0-bang-sfx/cannon_02.ogg"
+  },
+  {
+   "f": "cannon_2.mp3",
+   "dur": 0.89,
+   "src": "25-CC0-bang-sfx/cannon_03.ogg"
+  },
+  {
+   "f": "cannon_3.mp3",
+   "dur": 0.99,
+   "src": "25-CC0-bang-sfx/cannon_04.ogg"
+  },
+  {
+   "f": "cannon_4.mp3",
+   "dur": 0.97,
+   "src": "25-CC0-bang-sfx/cannon_05.ogg"
+  }
+ ],
+ "boom": [
+  {
+   "f": "boom_0.mp3",
+   "dur": 1.1,
+   "src": "25-CC0-bang-sfx/bang_01.ogg"
+  },
+  {
+   "f": "boom_1.mp3",
+   "dur": 0.91,
+   "src": "25-CC0-bang-sfx/bang_02.ogg"
+  },
+  {
+   "f": "boom_2.mp3",
+   "dur": 1.15,
+   "src": "25-CC0-bang-sfx/bang_03.ogg"
+  },
+  {
+   "f": "boom_3.mp3",
+   "dur": 1.15,
+   "src": "25-CC0-bang-sfx/bang_04.ogg"
+  },
+  {
+   "f": "boom_4.mp3",
+   "dur": 1.1,
+   "src": "25-CC0-bang-sfx/bang_05.ogg"
+  }
+ ],
+ "woodbreak": [
+  {
+   "f": "woodbreak_0.mp3",
+   "dur": 0.34,
+   "src": "75-cc0-breaking-falling-hit-sfx/bfh1_wood_breaking_01.ogg"
+  },
+  {
+   "f": "woodbreak_1.mp3",
+   "dur": 0.29,
+   "src": "75-cc0-breaking-falling-hit-sfx/bfh1_wood_breaking_02.ogg"
+  },
+  {
+   "f": "woodbreak_2.mp3",
+   "dur": 0.55,
+   "src": "75-cc0-breaking-falling-hit-sfx/bfh1_wood_breaking_03.ogg"
+  },
+  {
+   "f": "woodbreak_3.mp3",
+   "dur": 0.37,
+   "src": "75-cc0-breaking-falling-hit-sfx/bfh1_wood_breaking_04.ogg"
+  }
+ ],
+ "metalfall": [
+  {
+   "f": "metalfall_0.mp3",
+   "dur": 1.15,
+   "src": "75-cc0-breaking-falling-hit-sfx/bfh1_metal_falling_01.ogg"
+  },
+  {
+   "f": "metalfall_1.mp3",
+   "dur": 0.78,
+   "src": "75-cc0-breaking-falling-hit-sfx/bfh1_metal_falling_02.ogg"
+  },
+  {
+   "f": "metalfall_2.mp3",
+   "dur": 0.47,
+   "src": "75-cc0-breaking-falling-hit-sfx/bfh1_metal_falling_03.ogg"
+  }
+ ],
+ "rockfall": [
+  {
+   "f": "rockfall_0.mp3",
+   "dur": 0.97,
+   "src": "75-cc0-breaking-falling-hit-sfx/bfh1_rock_falling_01.ogg"
+  },
+  {
+   "f": "rockfall_1.mp3",
+   "dur": 0.57,
+   "src": "75-cc0-breaking-falling-hit-sfx/bfh1_rock_falling_02.ogg"
+  }
+ ],
+ "hit": [
+  {
+   "f": "hit_0.mp3",
+   "dur": 0.78,
+   "src": "75-cc0-breaking-falling-hit-sfx/bfh1_hit_01.ogg"
+  },
+  {
+   "f": "hit_1.mp3",
+   "dur": 0.84,
+   "src": "75-cc0-breaking-falling-hit-sfx/bfh1_hit_02.ogg"
+  },
+  {
+   "f": "hit_2.mp3",
+   "dur": 0.55,
+   "src": "75-cc0-breaking-falling-hit-sfx/bfh1_hit_03.ogg"
+  }
+ ],
+ "splash": [
+  {
+   "f": "splash_0.mp3",
+   "dur": 1.41,
+   "src": "40-cc0-water-splash-slime-sfx/splash_01.ogg"
+  },
+  {
+   "f": "splash_1.mp3",
+   "dur": 0.76,
+   "src": "40-cc0-water-splash-slime-sfx/splash_02.ogg"
+  },
+  {
+   "f": "splash_2.mp3",
+   "dur": 0.81,
+   "src": "40-cc0-water-splash-slime-sfx/splash_03.ogg"
+  },
+  {
+   "f": "splash_3.mp3",
+   "dur": 1.07,
+   "src": "40-cc0-water-splash-slime-sfx/splash_04.ogg"
+  },
+  {
+   "f": "splash_4.mp3",
+   "dur": 1.23,
+   "src": "40-cc0-water-splash-slime-sfx/splash_05.ogg"
+  }
+ ],
+ "water": [
+  {
+   "f": "water_0.mp3",
+   "dur": 3.45,
+   "src": "40-cc0-water-splash-slime-sfx/loop_water_01.ogg"
+  },
+  {
+   "f": "water_1.mp3",
+   "dur": 1.96,
+   "src": "30-cc0-sfx-loops/water_flowing.ogg"
+  }
+ ],
+ "rolling": [
+  {
+   "f": "rolling_0.mp3",
+   "dur": 1.12,
+   "src": "30-cc0-sfx-loops/rolling.ogg"
+  }
+ ],
+ "pain": [
+  {
+   "f": "pain_0.mp3",
+   "dur": 0.55,
+   "src": "warfork-cc0/sounds/players/male/pain25.ogg"
+  },
+  {
+   "f": "pain_1.mp3",
+   "dur": 0.47,
+   "src": "warfork-cc0/sounds/players/male/pain50.ogg"
+  },
+  {
+   "f": "pain_2.mp3",
+   "dur": 0.5,
+   "src": "warfork-cc0/sounds/players/male/pain75.ogg"
+  },
+  {
+   "f": "pain_3.mp3",
+   "dur": 0.68,
+   "src": "warfork-cc0/sounds/players/male/pain100.ogg"
+  }
+ ],
+ "death": [
+  {
+   "f": "death_0.mp3",
+   "dur": 1.1,
+   "src": "warfork-cc0/sounds/players/male/death.ogg"
+  },
+  {
+   "f": "death_1.mp3",
+   "dur": 1.7,
+   "src": "warfork-cc0/sounds/players/male/falldeath.ogg"
+  }
+ ],
+ "gasp": [
+  {
+   "f": "gasp_0.mp3",
+   "dur": 1.07,
+   "src": "warfork-cc0/sounds/players/male/gasp.ogg"
+  }
+ ],
+ "gibs": [
+  {
+   "f": "gibs_0.mp3",
+   "dur": 0.91,
+   "src": "warfork-cc0/sounds/misc/gibs_explosion.wav"
+  }
+ ],
+ "roar": [
+  {
+   "f": "roar_0.mp3",
+   "dur": 0.37,
+   "src": "80-CC0-creature-SFX/roar_01.ogg"
+  },
+  {
+   "f": "roar_1.mp3",
+   "dur": 0.97,
+   "src": "80-CC0-creature-SFX/roar_02.ogg"
+  },
+  {
+   "f": "roar_2.mp3",
+   "dur": 0.5,
+   "src": "80-CC0-creature-SFX/roar_03.ogg"
+  }
+ ],
+ "grunt": [
+  {
+   "f": "grunt_0.mp3",
+   "dur": 0.94,
+   "src": "80-CC0-creature-SFX/grunt_01.ogg"
+  },
+  {
+   "f": "grunt_1.mp3",
+   "dur": 0.57,
+   "src": "80-CC0-creature-SFX/grunt_02.ogg"
+  },
+  {
+   "f": "grunt_2.mp3",
+   "dur": 0.65,
+   "src": "80-CC0-creature-SFX/grunt_03.ogg"
+  }
+ ],
+ "breath": [
+  {
+   "f": "breath_0.mp3",
+   "dur": 0.71,
+   "src": "80-CC0-creature-SFX/breath.ogg"
+  }
+ ],
+ "stones": [
+  {
+   "f": "stones_0.mp3",
+   "dur": 0.73,
+   "src": "80-CC0-RPG-SFX/stones_01.ogg"
+  },
+  {
+   "f": "stones_1.mp3",
+   "dur": 0.73,
+   "src": "80-CC0-RPG-SFX/stones_02.ogg"
+  }
+ ]
+}
