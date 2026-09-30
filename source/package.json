@@ -1,0 +1,21 @@
+{
+  "name": "chuhan-3d-xiangqi",
+  "version": "1.0.0",
+  "description": "楚汉三维象棋",
+  "main": "index.js",
+  "scripts": {
+    "build": "node build.js",
+    "test": "node test/rules.test.js"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "dependencies": {
+    "qrcode-generator": "^2.0.4",
+    "three": "0.158.0"
+  },
+  "devDependencies": {
+    "aedes": "^0.51.3",
+    "ws": "^8.22.0"
+  }
+}
