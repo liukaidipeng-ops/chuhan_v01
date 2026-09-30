@@ -43,6 +43,7 @@ const Core = (() => {
     camera.aspect = w / h;
     camera.fov = w / h < 0.8 ? 58 : 42;
     camera.updateProjectionMatrix();
+    try { if (!Cam.cine) Cam.radius = Cam.fitRadius(); } catch (e) { /* 初始化时 Cam 尚未定义 */ }
   }
   window.addEventListener('resize', resize);
   resize();
@@ -92,10 +93,16 @@ const Core = (() => {
     setSide(side) {
       this.homeTheta = side === 'b' ? Math.PI : 0;
       this.theta = this.homeTheta; this.phi = 0.72;
-      this.radius = window.innerWidth / window.innerHeight < 0.8 ? 19 : 14.5;
+      this.radius = this.fitRadius();
       this.pos.copy(this.orbitPos()); this.look.copy(this.target);
     },
     homeDir() { return new THREE.Vector3(Math.sin(this.homeTheta), 0, Math.cos(this.homeTheta)); },
+    // 按屏幕宽高比算出能完整看到棋盘宽度的距离（竖屏手机会自动拉远）
+    fitRadius() {
+      const a = window.innerWidth / window.innerHeight;
+      const hh = Math.atan(Math.tan(camera.fov * Math.PI / 360) * a);
+      return Math.max(14.5, 5.4 / Math.tan(hh) + 3.5);
+    },
     // 平滑移动到某个机位
     async to(pos, look, dur = 1, e = ease.inOut) {
       this.cine = true;

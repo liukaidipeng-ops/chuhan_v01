@@ -2,8 +2,8 @@
 import time, subprocess, json, os, sys
 from playwright.sync_api import sync_playwright
 
-D = '/home/claude/xq'
-mq = subprocess.Popen(['node', 'mqttsrv.js'], cwd=D, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+D = '/home/claude/chuhan_v01/source'
+mq = subprocess.Popen(['node', 'tools/mqttsrv.js'], cwd=D, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
 http = subprocess.Popen([sys.executable, '-m', 'http.server', '8000', '--bind', '127.0.0.1'], cwd=D + '/dist/site', stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
 time.sleep(2)
 BASE = 'http://127.0.0.1:8000/'
