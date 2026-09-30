@@ -143,32 +143,26 @@ const Camp = (() => {
     scene.add(group);
 
     // 列阵护卫（棋盘两侧，面向棋盘）
-    const hq = Core.quality === 'high';
-    const guards = new Models.Army(s, 'spear', 44, K);
-    guards.mesh.castShadow = false; if (!hq) guards.outline.visible = false;
-    const gi = [];
+    const guards = new Models.Troop(s, 'spear', 44, K);
     let n = 0;
     for (const side of [-1, 1]) for (let line = 0; line < 2; line++) for (let i = 0; i < 11; i++) {
       const u = guards.units[n++];
       u.p.set(side * (5.25 + line * 0.36), 0, sg * (0.95 + i * 0.42));
       u.yaw = side > 0 ? -Math.PI / 2 : Math.PI / 2;
-      gi.push(u);
     }
-    guards.gait = 'idle';
     scene.add(guards.group);
     // 营门与大帐前的卫兵
-    const sentries = new Models.Army(s, 'sword', 6, K);
-    sentries.mesh.castShadow = false;
+    const sentries = new Models.Troop(s, 'sword', 6, K);
     [[-0.7, 10.35], [0.7, 10.35], [-1.3, 6.7], [1.3, 6.7], [-6.3, 7.4], [6.3, 7.4]].forEach(([x, z], i) => {
       const u = sentries.units[i]; u.p.set(x, 0, sg * z); u.yaw = sg > 0 ? Math.PI : 0;
     });
-    sentries.gait = 'idle';
     scene.add(sentries.group);
     // 望楼上的弓手
-    const archers = new Models.Army(s, 'archer', 2, K);
+    const archers = new Models.Troop(s, 'archer', 2, K);
     archers.units.forEach((u, i) => { u.p.set((i ? 1 : -1) * 6.3, 6.4 * K, sg * 6.6); u.yaw = sg > 0 ? Math.PI : 0; });
-    archers.gait = 'idle';
     scene.add(archers.group);
+    const troops = [guards, sentries, archers];
+    for (const tr of troops) for (const u of tr.units) { u.home = u.p.clone(); u.homeYaw = u.yaw; u.pose = 'idle'; }
 
     // 旌旗
     const banners = [];
@@ -187,11 +181,12 @@ const Camp = (() => {
       scene.add(f); return f;
     });
     let smokeT = 0, t = 0;
-    const camp = { s, group, guards, sentries, archers, banners, flames, fires };
+    const camp = { s, sg, group, guards, sentries, archers, troops, banners, flames, fires, drops: [], gen: 0, state: 'home' };
     camps.push(camp);
     onFrame(dt => {
       t += dt;
-      guards.update(dt); sentries.update(dt); archers.update(dt);
+      steer(camp, dt);
+      for (const tr of troops) tr.update(dt);
       for (const b of banners) b.update(dt);
       for (const f of flames) {
         const k = 0.7 + 0.3 * Math.sin(t * 13 + f.userData.ph) * Math.sin(t * 7.3 + f.userData.ph * 2);
@@ -208,30 +203,136 @@ const Camp = (() => {
     });
     return camp;
   }
-  // Army 的"待命"姿态：轻微呼吸与左右张望
-  const origUpdate = Models.Army.prototype.update;
-  Models.Army.prototype.update = function (dt) {
-    if (this.gait !== 'idle') return origUpdate.call(this, dt);
-    this.t += dt;
-    for (let i = 0; i < this.count; i++) {
-      const u = this.units[i];
-      this._e.set(u.lean, u.yaw + Math.sin(this.t * 0.4 + u.phase * 3) * 0.12, 0);
-      this._q.setFromEuler(this._e);
-      const s = this.scale * u.s * u.vis;
-      this._s.set(s, s * (1 + Math.sin(this.t * 1.6 + u.phase) * 0.012), s);
-      this._v.set(u.p.x, u.p.y + u.y, u.p.z);
-      this._m.compose(this._v, this._q, this._s);
-      this.mesh.setMatrixAt(i, this._m); this.outline.setMatrixAt(i, this._m);
-    }
-    this.mesh.instanceMatrix.needsUpdate = true; this.outline.instanceMatrix.needsUpdate = true;
-  };
   function init() { build('r'); build('b'); }
-  // 护卫为本方喝彩（吃子后）
-  function cheer(s) {
-    const c = camps.find(c => c.s === s);
-    if (!c) return;
-    const us = c.guards.units;
-    Core.tween(1.0, k => { for (const u of us) u.y = Math.abs(Math.sin(k * Math.PI * 3 + u.phase)) * 0.06 * (1 - k); }, Core.ease.linear);
+
+  // ======================================================================
+  //  士兵调度：每个士兵可有一个移动目标 u.mv
+  // ======================================================================
+  const angLerp = (a, b, k) => { let d = b - a; while (d > Math.PI) d -= 2 * Math.PI; while (d < -Math.PI) d += 2 * Math.PI; return a + d * k; };
+  function ground(p) {
+    if (Math.abs(p.x) > (Board.BX || 4.75) + 0.02 || Math.abs(p.z) > (Board.BZ || 5.37) + 0.02) return 0;
+    return Fx.groundY(p);
   }
-  return { init, camps, cheer, K };
+  function steer(camp, dt) {
+    const kY = 1 - Math.exp(-dt * 12);
+    for (const tr of camp.troops) for (const u of tr.units) {
+      const m = u.mv;
+      if (!m) continue;
+      if (m.delay > 0) { m.delay -= dt; continue; }
+      if (!m.started) { m.started = true; if (m.pose) u.pose = m.pose; if (m.onStart) m.onStart(u, tr); }
+      m.t = (m.t || 0) + dt;
+      if (m.to) {
+        const dx = m.to.x - u.p.x, dz = m.to.z - u.p.z, dist = Math.hypot(dx, dz);
+        const step = m.speed * dt;
+        if (dist <= step) {
+          u.p.x = m.to.x; u.p.z = m.to.z; m.to = null;
+          if (m.end) u.pose = m.end;
+          if (m.onArrive) m.onArrive(u, tr);
+        } else {
+          u.p.x += dx / dist * step; u.p.z += dz / dist * step;
+          u.yaw = angLerp(u.yaw, Math.atan2(dx, dz), 1 - Math.exp(-dt * 9));
+          if (Math.abs(u.p.z) < Board.HALF && Math.abs(u.p.x) < 4.8 && Math.random() < dt * 3) Fx.P.splash(u.p.clone().setY(0), 2, 0.3);
+        }
+      } else if (m.face != null) u.yaw = angLerp(u.yaw, m.face, 1 - Math.exp(-dt * 6));
+      if (tr !== camp.archers) u.p.y += (ground(u.p) - u.p.y) * kY;
+      if (m.fadeAt != null && m.t > m.fadeAt) { u.vis = Math.max(0, 1 - (m.t - m.fadeAt) / 0.8); if (u.vis <= 0 && !m.to) u.mv = null; }
+    }
+  }
+  const campOf = s => camps.find(c => c.s === s);
+
+  // —— 吃子助威：挥舞兵器、跳跃呐喊 ——
+  function cheer(s, dur = 2.4, loud = 1) {
+    const c = campOf(s);
+    if (!c || c.state !== 'home') return;
+    const gen = c.gen;
+    for (const tr of c.troops) for (const u of tr.units) {
+      if (u.mv) continue;
+      const d = Math.random() * 0.35;
+      setTimeout(() => { if (c.gen !== gen || c.state !== 'home') return; u.pose = 'wave'; if (Math.random() < 0.5) tr.act(u.i, 'raise', 0.5); }, d * 1000);
+      setTimeout(() => { if (c.gen !== gen || c.state !== 'home') return; if (u.pose === 'wave') u.pose = 'idle'; }, (dur + d + Math.random() * 0.5) * 1000);
+    }
+    try { Sfx.cheer(0.1, 0.55 * loud); } catch (e) { }
+  }
+  // —— 将死：全军冲上棋盘，持兵器包围敌方主帅 ——
+  function surround(s, center) {
+    const c = campOf(s);
+    if (!c) return 0;
+    c.state = 'surround'; c.gen++;
+    const units = [];
+    for (const tr of [c.guards, c.sentries]) for (const u of tr.units) units.push([tr, u]);
+    // 以距离排序：离得近的占内圈
+    units.sort((a, b) => a[1].p.distanceToSquared(center) - b[1].p.distanceToSquared(center));
+    const rings = [[0.62, 12], [1.0, 20], [1.4, 30]];
+    const slots = [];
+    for (const [r, n] of rings) for (let i = 0; i < n; i++) { const a = (i + (r > 0.8 ? 0.5 : 0)) / n * Math.PI * 2; slots.push(new V3(center.x + Math.cos(a) * r, 0, center.z + Math.sin(a) * r)); }
+    // 为每个士兵分配最近的空位（贪心）
+    const free = slots.slice();
+    let maxT = 0;
+    units.forEach(([tr, u], k) => {
+      let bi = 0, bd = 1e9;
+      free.forEach((p, i) => { const d = p.distanceToSquared(u.p); if (d < bd) { bd = d; bi = i; } });
+      const to = free.splice(bi, 1)[0];
+      const face = Math.atan2(center.x - to.x, center.z - to.z);
+      const speed = 2.1 + Math.random() * 0.5, delay = 0.1 + k * 0.025 + Math.random() * 0.2;
+      maxT = Math.max(maxT, delay + u.p.distanceTo(to) / speed);
+      u.act = null;
+      u.mv = { to, speed, delay, pose: 'charge', end: 'brace', face, onArrive: (uu, t) => { if (Math.random() < 0.4) t.act(uu.i, 'thrust', 0.35, Math.random() * 0.3); } };
+    });
+    // 弓手在望楼上张弓
+    c.archers.setPose('aim');
+    try { Sfx.roar(); } catch (e) { }
+    return maxT;
+  }
+  // —— 战败：丢盔弃甲，有人跪地请降，多数四散奔逃 ——
+  function rout(s) {
+    const c = campOf(s);
+    if (!c) return;
+    c.state = 'rout'; c.gen++;
+    const all = [];
+    for (const tr of c.troops) for (const u of tr.units) all.push([tr, u]);
+    all.forEach(([tr, u], k) => {
+      const delay = Math.random() * 1.2;
+      const surrender = tr !== c.archers && Math.random() < 0.28;
+      // 扔下兵器
+      setTimeout(() => {
+        if (c.state !== 'rout') return;
+        for (const part of Math.random() < 0.6 ? ['weapon', 'shield'] : ['weapon']) {
+          const o = tr.detach(u.i, part);
+          if (!o) continue;
+          scene.add(o); c.drops.push(o);
+          const p0 = o.position.clone(), q0 = o.quaternion.clone();
+          const q1 = new THREE.Quaternion().setFromEuler(new THREE.Euler(Math.PI / 2 * (Math.random() < 0.5 ? 1 : -1), Math.random() * 6.28, 0, 'YXZ'));
+          const p1 = p0.clone().add(new V3((Math.random() - 0.5) * 0.25, 0, (Math.random() - 0.5) * 0.25)); p1.y = ground(p1) + 0.02;
+          if (tr === c.archers) p1.y = 0.02;
+          Core.tween(0.35 + Math.random() * 0.2, k2 => { o.position.lerpVectors(p0, p1, k2); o.quaternion.slerpQuaternions(q0, q1, k2); }, Core.ease.in);
+        }
+        if (Math.random() < 0.08) try { Sfx.B.metalfall(0, 0.15); } catch (e) { }
+      }, delay * 1000);
+      if (tr === c.archers) { u.mv = { delay: delay + 0.2, pose: 'cower' }; return; }
+      if (surrender) {
+        const face = (c.sg > 0 ? Math.PI : 0) + (Math.random() - 0.5) * 0.6;
+        u.mv = { delay: delay + 0.3, pose: 'cower', face };
+      } else {
+        // 往营外逃
+        const dir = new V3(Math.sign(u.p.x || (Math.random() - 0.5)) * (0.6 + Math.random() * 0.6), 0, c.sg * (0.6 + Math.random() * 0.8)).normalize();
+        dir.x += (Math.random() - 0.5) * 0.5; dir.normalize();
+        const to = u.p.clone().addScaledVector(dir, 5 + Math.random() * 3);
+        u.mv = { to, speed: 1.6 + Math.random() * 0.8, delay: delay + 0.35, pose: 'flee', fadeAt: 2.4 + Math.random() * 1.5 };
+      }
+    });
+    try { Sfx.rout(); } catch (e) { }
+  }
+  // —— 复位（新一局） ——
+  function reset() {
+    for (const c of camps) {
+      c.gen++; c.state = 'home';
+      for (const o of c.drops) Core.disposeTree(o);
+      c.drops.length = 0;
+      for (const tr of c.troops) for (const u of tr.units) {
+        u.mv = null; u.p.copy(u.home); u.yaw = u.homeYaw; u.y = 0; u.vis = 1; u.lost = 0; u.act = null;
+        u.dead = false; u.fall = 0; u.falling = false; u.fly = null; u.spin = 0; u.pose = 'idle';
+      }
+    }
+  }
+  return { init, camps, cheer, surround, rout, reset, K };
 })();

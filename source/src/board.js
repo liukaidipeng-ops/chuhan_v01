@@ -11,13 +11,65 @@ const Board = (() => {
   // ---------- 棋盘面（木纹 + 墨线） ----------
   const PPU = 170;
   const FONT = '"KaiTi","STKaiti","Kaiti SC","楷体","BiauKai","Noto Serif CJK SC","Songti SC",serif';
+  // —— 纹样：回纹带、四合如意角花、海水纹 ——
+  function fretBand(g, x0, y0, x1, y1, w, col, hi) {
+    const L = Math.hypot(x1 - x0, y1 - y0), a = Math.atan2(y1 - y0, x1 - x0);
+    g.save(); g.translate(x0, y0); g.rotate(a);
+    const n = Math.max(1, Math.round(L / (w * 0.95))), u = L / n, h = w * 0.6, t = -h / 2 + w * 0.04, b = h / 2 + w * 0.04, q = h * 0.25;
+    const draw = (off, color, lw) => {
+      g.strokeStyle = color; g.lineWidth = lw; g.lineJoin = 'miter'; g.lineCap = 'butt';
+      g.beginPath();
+      g.moveTo(0, -w / 2 + off); g.lineTo(L, -w / 2 + off);
+      g.moveTo(0, w / 2 + off); g.lineTo(L, w / 2 + off);
+      g.moveTo(0, b + off); g.lineTo(L, b + off);
+      for (let i = 0; i < n; i++) {
+        const l = i * u + u * 0.12, r = (i + 1) * u - u * 0.12, m = (t + b) / 2;
+        g.moveTo(l, b + off); g.lineTo(l, t + off); g.lineTo(r, t + off); g.lineTo(r, b - q + off); g.lineTo(l + q, b - q + off); g.lineTo(l + q, t + q + off); g.lineTo(r - q, t + q + off); g.lineTo(r - q, m + off);
+      }
+      g.stroke();
+    };
+    draw(w * 0.04, 'rgba(50,28,8,.3)', w * 0.075);
+    draw(0, col, w * 0.062);
+    if (hi) draw(-w * 0.02, hi, w * 0.022);
+    g.restore();
+  }
+  function rosette(g, x, y, s, col, hi, rot = 0) {
+    g.save(); g.translate(x, y); g.rotate(rot);
+    const one = (color, lw, off) => {
+      g.strokeStyle = color; g.fillStyle = color; g.lineWidth = lw;
+      g.strokeRect(-s / 2 + off, -s / 2 + off, s, s);
+      g.strokeRect(-s * 0.4 + off, -s * 0.4 + off, s * 0.8, s * 0.8);
+      for (let k = 0; k < 4; k++) { const a = k * Math.PI / 2; g.beginPath(); g.arc(Math.cos(a) * s * 0.15 + off, Math.sin(a) * s * 0.15 + off, s * 0.15, 0, Math.PI * 2); g.stroke(); }
+      g.beginPath(); g.arc(off, off, s * 0.06, 0, 7); g.fill();
+      for (let k = 0; k < 4; k++) { const a = Math.PI / 4 + k * Math.PI / 2, r = s * 0.3; g.beginPath(); g.arc(Math.cos(a) * r + off, Math.sin(a) * r + off, s * 0.055, a + 0.6, a + 0.6 + Math.PI * 1.5); g.stroke(); }
+    };
+    one('rgba(50,28,8,.3)', s * 0.05, s * 0.02);
+    one(col, s * 0.045, 0);
+    if (hi) one(hi, s * 0.016, -s * 0.01);
+    g.restore();
+  }
+  function waveBand(g, x0, x1, y, r, col, up) {
+    const d = up ? -1 : 1;
+    g.lineCap = 'round';
+    for (let row = 0; row < 2; row++) {
+      const yy = y + row * r * 0.95 * d, off = row ? r : 0;
+      for (let x = x0 + off; x < x1 - r * 0.5; x += r * 2) {
+        for (const [rr, lw, a] of [[r, r * 0.2, 0.55], [r * 0.6, r * 0.14, 0.45], [r * 0.25, r * 0.12, 0.4]]) {
+          g.strokeStyle = col; g.globalAlpha = a; g.lineWidth = lw;
+          g.beginPath(); g.arc(x, yy, rr, up ? Math.PI : 0, up ? Math.PI * 2 : Math.PI, false); g.stroke();
+        }
+      }
+    }
+    g.globalAlpha = 1;
+  }
+  const GOLD = '#94692a', GOLD_HI = 'rgba(250,222,150,.55)';
   function drawHalf(isRed) {
     const zmin = isRed ? HALF : -BZ, zmax = isRed ? BZ : -HALF;
     const W = Math.round(2 * BX * PPU), H = Math.round((zmax - zmin) * PPU);
     return canvasTex(W, H, (g) => {
       // 木底
       const grd = g.createLinearGradient(0, 0, W, H);
-      grd.addColorStop(0, '#d9b47c'); grd.addColorStop(1, '#c99d62');
+      grd.addColorStop(0, '#e2bf85'); grd.addColorStop(0.5, '#d6ad70'); grd.addColorStop(1, '#c79a5c');
       g.fillStyle = grd; g.fillRect(0, 0, W, H);
       g.globalAlpha = 0.55;
       g.drawImage(Tex.wood.image, 0, 0, W, H);
@@ -55,21 +107,54 @@ const Board = (() => {
           g.beginPath(); g.moveTo(x + sx * d, y + sy * (d + L)); g.lineTo(x + sx * d, y + sy * d); g.lineTo(x + sx * (d + L), y + sy * d); g.stroke();
         }
       }
-      // 边角题字印章
+      // —— 外缘装饰：回纹带、四角如意、河岸海水纹、正中印章 ——
+      const sg = isRed ? 1 : -1, bw = 0.27 * PPU;
+      const sx = 4.46, zf = sg * 5.08, zn = sg * 0.4;
+      g.strokeStyle = 'rgba(148,105,42,.8)'; g.lineWidth = 3;
+      g.strokeRect(cx(-BX + 0.06), Math.min(cy(sg * (BZ - 0.06)), cy(sg * (HALF + 0.04))), (2 * BX - 0.12) * PPU, Math.abs(cy(sg * (BZ - 0.06)) - cy(sg * (HALF + 0.04))));
+      for (const x of [-sx, sx]) fretBand(g, cx(x), cy(zf) - sg * 0.2 * PPU * 0, cx(x), cy(zn), bw, GOLD, GOLD_HI);
+      fretBand(g, cx(-sx), cy(zf), cx(-0.36), cy(zf), bw, GOLD, GOLD_HI);
+      fretBand(g, cx(0.36), cy(zf), cx(sx), cy(zf), bw, GOLD, GOLD_HI);
+      for (const x of [-sx, sx]) { rosette(g, cx(x), cy(zf), 0.4 * PPU, GOLD, GOLD_HI); rosette(g, cx(x), cy(zn), 0.3 * PPU, GOLD, GOLD_HI, Math.PI / 4); }
+      waveBand(g, cx(-4.15), cx(4.15), cy(sg * 0.36), 0.075 * PPU, '#7a5424', isRed);
+      // 九宫角花
+      const pz = isRed ? [Z(0), Z(2)] : [Z(9), Z(7)];
+      for (const x of [X(3), X(5)]) for (const z of pz) { g.fillStyle = 'rgba(148,105,42,.5)'; g.beginPath(); g.arc(cx(x), cy(z), 9, 0, 7); g.fill(); }
+      // 正中朱印
       g.save();
-      g.translate(isRed ? W - 90 : 90, isRed ? H - 34 : 34);
+      g.translate(cx(0), cy(zf));
       if (!isRed) g.rotate(Math.PI);
-      g.fillStyle = 'rgba(170,40,26,.85)'; g.fillRect(-26, -26, 52, 52);
-      g.fillStyle = '#f3e6cc'; g.font = `bold 38px ${FONT}`; g.textAlign = 'center'; g.textBaseline = 'middle';
-      g.fillText(isRed ? '漢' : '楚', 0, 2);
+      const ss = 0.46 * PPU;
+      g.fillStyle = 'rgba(160,36,22,.92)'; g.fillRect(-ss / 2, -ss / 2, ss, ss);
+      g.strokeStyle = 'rgba(247,232,205,.85)'; g.lineWidth = 4; g.strokeRect(-ss / 2 + 7, -ss / 2 + 7, ss - 14, ss - 14);
+      g.fillStyle = '#f5e6c8'; g.font = `bold ${Math.round(ss * 0.66)}px ${FONT}`; g.textAlign = 'center'; g.textBaseline = 'middle';
+      g.fillText(isRed ? '漢' : '楚', 0, ss * 0.04);
+      g.globalCompositeOperation = 'destination-out';
+      for (let i = 0; i < 40; i++) { g.globalAlpha = rnd() * 0.5; g.beginPath(); g.arc((rnd() - 0.5) * ss, (rnd() - 0.5) * ss, 1 + rnd() * 3, 0, 7); g.fill(); }
       g.restore();
+      // 四周渐暗（包浆）
+      const vg = g.createRadialGradient(W / 2, H / 2, Math.min(W, H) * 0.35, W / 2, H / 2, Math.max(W, H) * 0.62);
+      vg.addColorStop(0, 'rgba(80,45,15,0)'); vg.addColorStop(1, 'rgba(80,45,15,.22)');
+      g.fillStyle = vg; g.fillRect(0, 0, W, H);
     });
   }
-  const woodSide = new THREE.MeshStandardMaterial({ map: Tex.wood, color: 0x8a5a30, roughness: 0.7 });
+  const lacquerTex = canvasTex(512, 282, (g, w, h) => {
+    const k = h / 0.55;
+    const grd = g.createLinearGradient(0, 0, 0, h); grd.addColorStop(0, '#8e2618'); grd.addColorStop(0.3, '#711d11'); grd.addColorStop(1, '#3a0e08');
+    g.fillStyle = grd; g.fillRect(0, 0, w, h);
+    for (let i = 0; i < 500; i++) { g.fillStyle = `rgba(0,0,0,${rnd() * 0.07})`; g.fillRect(rnd() * w, rnd() * h, 2 + rnd() * 40, 1); }
+    for (let i = 0; i < 120; i++) { g.fillStyle = `rgba(255,200,160,${rnd() * 0.05})`; g.fillRect(rnd() * w, rnd() * h * 0.4, 2 + rnd() * 30, 1); }
+    g.fillStyle = '#c9a045'; g.fillRect(0, 0.006 * k, w, 0.014 * k); g.fillRect(0, 0.178 * k, w, 0.01 * k);
+    fretBand(g, 0, 0.1 * k, w, 0.1 * k, 0.11 * k, '#c9a045', 'rgba(255,236,170,.55)');
+  }, { repeat: true });
+  const lacquerTop = new THREE.MeshStandardMaterial({ color: 0x5a160c, roughness: 0.4 });
+  const goldM = new THREE.MeshStandardMaterial({ color: 0xc9a045, metalness: 0.45, roughness: 0.36 });
+  const bronzeM = new THREE.MeshStandardMaterial({ color: 0x8a6a34, metalness: 0.55, roughness: 0.42 });
+  const sideMat = len => { const t = lacquerTex.clone(); t.wrapS = THREE.RepeatWrapping; t.wrapT = THREE.ClampToEdgeWrapping; t.repeat.set(len, 1); t.needsUpdate = true; return new THREE.MeshStandardMaterial({ map: t, roughness: 0.32, metalness: 0.04 }); };
   function makeHalf(isRed) {
     const depth = BZ - HALF;
     const g = new THREE.Group();
-    const box = new THREE.Mesh(new THREE.BoxGeometry(2 * BX, 0.55, depth), woodSide);
+    const box = new THREE.Mesh(new THREE.BoxGeometry(2 * BX, 0.55, depth), [sideMat(depth), sideMat(depth), lacquerTop, lacquerTop, sideMat(2 * BX), sideMat(2 * BX)]);
     box.position.y = TOP - 0.275 - 0.002;
     box.receiveShadow = true; box.castShadow = true;
     const topM = new THREE.MeshStandardMaterial({ map: drawHalf(isRed), roughness: 0.62 });
@@ -82,6 +167,26 @@ const Board = (() => {
     const edges = new THREE.LineSegments(new THREE.EdgesGeometry(box.geometry), new THREE.LineBasicMaterial({ color: INK.ink, transparent: true, opacity: 0.6 }));
     edges.position.copy(box.position);
     g.add(edges);
+    // 描金边框
+    const sg = isRed ? 1 : -1, zFar = sg * depth / 2, zRiv = -sg * depth / 2;
+    const bar = (w, d, x, z, y = TOP + 0.004, h = 0.03) => { const m = new THREE.Mesh(new THREE.BoxGeometry(w, h, d), goldM); m.position.set(x, y, z); g.add(m); return m; };
+    bar(0.05, depth, BX - 0.025, 0); bar(0.05, depth, -BX + 0.025, 0);
+    bar(2 * BX, 0.05, 0, zFar - sg * 0.025); bar(2 * BX, 0.05, 0, zRiv + sg * 0.025);
+    // 铜包角
+    for (const sx of [-1, 1]) {
+      const cxp = sx * (BX - 0.2), czp = zFar - sg * 0.2;
+      for (const [w, d, x, z] of [[0.42, 0.07, cxp, zFar - sg * 0.035], [0.07, 0.42, sx * (BX - 0.035), czp]]) {
+        const m = new THREE.Mesh(new THREE.BoxGeometry(w, 0.036, d), bronzeM); m.position.set(x, TOP + 0.008, z); g.add(m);
+      }
+      const cap = new THREE.Mesh(new THREE.BoxGeometry(0.1, 0.28, 0.1), bronzeM); cap.position.set(sx * (BX - 0.03), TOP - 0.12, zFar - sg * 0.03); g.add(cap);
+      for (const [x, z] of [[sx * (BX - 0.3), zFar - sg * 0.035], [sx * (BX - 0.035), zFar - sg * 0.3]]) { const r = new THREE.Mesh(new THREE.SphereGeometry(0.022, 8, 6), goldM); r.position.set(x, TOP + 0.03, z); g.add(r); }
+    }
+    // 须弥座：两级台基（河一侧不设）
+    const step1 = inked(new THREE.BoxGeometry(2 * BX + 0.36, 0.085, depth + 0.18), toon(0x3a2418));
+    step1.position.set(0, 0.0425, sg * 0.09); g.add(step1);
+    const step2 = inked(new THREE.BoxGeometry(2 * BX + 0.72, 0.04, depth + 0.36), toon(0x958d7f));
+    step2.position.set(0, 0.02, sg * 0.18); g.add(step2);
+    const gl = new THREE.Mesh(new THREE.BoxGeometry(2 * BX + 0.37, 0.012, depth + 0.19), goldM); gl.position.set(0, 0.08, sg * 0.09); g.add(gl);
     return g;
   }
   root.add(makeHalf(true), makeHalf(false));
@@ -196,6 +301,27 @@ const Board = (() => {
     bank.position.set(0, -0.08, s * 0.85); bank.rotation.x = s * 0.5;
     scene.add(bank);
   }
+
+  // 河岸石栏（棋盘两侧）
+  (() => {
+    const parts = [], stone = 0xa8a193, dark = 0x847d70;
+    const box = (w, h, d, c, x, y, z) => parts.push({ geo: new THREE.BoxGeometry(w, h, d), color: c, m: Core.M4(x, y, z) });
+    for (const sx of [-1, 1]) for (const sz of [-1, 1]) {
+      const z = sz * 0.9;
+      box(0.16, 0.42, 0.16, dark, sx * 5.05, 0.21, z);
+      parts.push({ geo: new THREE.SphereGeometry(0.085, 8, 6), color: stone, m: Core.M4(sx * 5.05, 0.47, z) });
+      for (let x = 5.05; x < 11.0; x += 0.55) {
+        const px = sx * (x + 0.55);
+        box(0.075, 0.27, 0.075, stone, px, 0.135, z);
+        box(0.1, 0.04, 0.1, dark, px, 0.29, z);
+        box(0.55, 0.035, 0.045, stone, sx * (x + 0.275), 0.22, z);
+        box(0.55, 0.03, 0.04, dark, sx * (x + 0.275), 0.07, z);
+        box(0.02, 0.1, 0.03, dark, sx * (x + 0.275), 0.14, z);
+      }
+    }
+    const rails = inked(Core.merge(parts), toon(0xffffff, { vertexColors: true }));
+    scene.add(rails);
+  })();
 
   function mountainTex(layer) {
     return canvasTex(1024, 512, (g, w, h) => {
@@ -313,25 +439,36 @@ const Board = (() => {
     if (faceCache[key]) return faceCache[key];
     const ch = XQ.NAMES[s][t];
     const col = s === 'r' ? '#a3241a' : '#1c1a18';
-    return (faceCache[key] = canvasTex(256, 256, (g, w) => {
+    return (faceCache[key] = canvasTex(512, 512, (g, w) => {
       g.clearRect(0, 0, w, w);
-      // 刻痕圈
-      g.strokeStyle = 'rgba(60,30,10,.55)'; g.lineWidth = 7; g.beginPath(); g.arc(w / 2 + 2, w / 2 + 2, w * 0.42, 0, 7); g.stroke();
-      g.strokeStyle = col; g.lineWidth = 6; g.beginPath(); g.arc(w / 2, w / 2, w * 0.42, 0, 7); g.stroke();
-      g.font = `bold 158px ${FONT}`; g.textAlign = 'center'; g.textBaseline = 'middle';
-      g.fillStyle = 'rgba(70,35,10,.55)'; g.fillText(ch, w / 2 + 3, w / 2 + 11);
-      g.fillStyle = col; g.fillText(ch, w / 2, w / 2 + 8);
-      g.fillStyle = 'rgba(255,240,210,.18)'; g.fillText(ch, w / 2 - 2, w / 2 + 6);
+      const c = w / 2;
+      const ring = (r, lw, color, d = 0) => { g.strokeStyle = color; g.lineWidth = lw; g.beginPath(); g.arc(c + d, c + d, r, 0, 7); g.stroke(); };
+      // 刻痕双圈 + 联珠纹
+      ring(w * 0.452, 12, 'rgba(60,30,10,.45)', 3); ring(w * 0.452, 10, col);
+      ring(w * 0.372, 6, 'rgba(60,30,10,.4)', 2); ring(w * 0.372, 5, col);
+      for (let i = 0; i < 40; i++) {
+        const a = i / 40 * Math.PI * 2, x = c + Math.cos(a) * w * 0.412, y = c + Math.sin(a) * w * 0.412;
+        g.fillStyle = 'rgba(60,30,10,.35)'; g.beginPath(); g.arc(x + 1.5, y + 1.5, 5.5, 0, 7); g.fill();
+        g.fillStyle = '#b8914a'; g.beginPath(); g.arc(x, y, 5, 0, 7); g.fill();
+      }
+      g.font = `bold 300px ${FONT}`; g.textAlign = 'center'; g.textBaseline = 'middle'; g.lineJoin = 'round';
+      g.fillStyle = 'rgba(70,35,10,.5)'; g.fillText(ch, c + 6, c + 22);
+      g.strokeStyle = '#c9a045'; g.lineWidth = 11; g.strokeText(ch, c, c + 16);
+      g.strokeStyle = 'rgba(255,236,170,.6)'; g.lineWidth = 3; g.strokeText(ch, c - 1, c + 14);
+      g.fillStyle = col; g.fillText(ch, c, c + 16);
+      g.fillStyle = 'rgba(255,240,210,.14)'; g.fillText(ch, c - 3, c + 12);
     }));
   }
   const faceGeo = new THREE.CircleGeometry(0.4, 40); faceGeo.rotateX(-Math.PI / 2); faceGeo.userData.keep = true;
+  const bandGeo = new THREE.CylinderGeometry(0.4222, 0.4222, 0.026, Core.quality === 'high' ? 40 : 28, 1, true); bandGeo.userData.keep = true;
   function makePiece(p) {
     const g = new THREE.Group();
     const body = new THREE.Mesh(pieceGeo, pieceWood);
     body.castShadow = true; body.receiveShadow = true;
     const face = new THREE.Mesh(faceGeo, new THREE.MeshStandardMaterial({ map: faceTex(p.s, p.t), transparent: true, roughness: 0.5, polygonOffset: true, polygonOffsetFactor: -2 }));
     face.position.y = PH + 0.001;
-    g.add(body, face);
+    const band = new THREE.Mesh(bandGeo, goldM); band.position.y = PH * 0.6;
+    g.add(body, face, band);
     g.userData = { id: p.id, s: p.s, t: p.t };
     // 面向本方：黑方棋子旋转180°
     g.rotation.y = p.s === 'b' ? Math.PI : 0;
@@ -372,31 +509,55 @@ const Board = (() => {
     m.scale.set(size, 1, size); m.position.set(x, y, z);
     return m;
   }
-  // 选中：灰绿圈 + 棋子悬浮；可吃目标：底部朱圈 + 头顶呼吸闪烁的"殺"
+  // 选中：灰绿罗盘圈 + 光柱 + 棋子悬浮；可吃目标：底部朱圈 + 头顶呼吸闪烁的"殺"朱印
+  const rrect = (g, x, y, w, h, r) => { g.beginPath(); g.moveTo(x + r, y); g.lineTo(x + w - r, y); g.quadraticCurveTo(x + w, y, x + w, y + r); g.lineTo(x + w, y + h - r); g.quadraticCurveTo(x + w, y + h, x + w - r, y + h); g.lineTo(x + r, y + h); g.quadraticCurveTo(x, y + h, x, y + h - r); g.lineTo(x, y + r); g.quadraticCurveTo(x, y, x + r, y); g.closePath(); };
   const killTex = canvasTex(256, 256, (g, w) => {
     g.clearRect(0, 0, w, w);
-    const gr = g.createRadialGradient(w / 2, w / 2, 10, w / 2, w / 2, w / 2);
-    gr.addColorStop(0, 'rgba(255,220,190,.55)'); gr.addColorStop(0.55, 'rgba(200,60,30,.18)'); gr.addColorStop(1, 'rgba(200,60,30,0)');
+    const gr = g.createRadialGradient(w / 2, w / 2, 20, w / 2, w / 2, w / 2);
+    gr.addColorStop(0, 'rgba(255,190,150,.55)'); gr.addColorStop(0.6, 'rgba(210,70,40,.16)'); gr.addColorStop(1, 'rgba(210,70,40,0)');
     g.fillStyle = gr; g.fillRect(0, 0, w, w);
-    g.font = `bold 170px ${FONT}`; g.textAlign = 'center'; g.textBaseline = 'middle';
-    g.lineWidth = 14; g.strokeStyle = 'rgba(30,12,8,.85)'; g.strokeText('殺', w / 2, w / 2 + 10);
-    g.fillStyle = '#c8321e'; g.fillText('殺', w / 2, w / 2 + 10);
-    g.fillStyle = 'rgba(255,200,160,.35)'; g.fillText('殺', w / 2 - 3, w / 2 + 6);
+    g.save(); g.translate(w / 2, w / 2); g.rotate(-0.07);
+    const s = w * 0.6;
+    g.fillStyle = 'rgba(40,10,5,.4)'; rrect(g, -s / 2 + 5, -s / 2 + 7, s, s, 16); g.fill();
+    g.fillStyle = '#b52d1b'; rrect(g, -s / 2, -s / 2, s, s, 16); g.fill();
+    g.strokeStyle = '#f7ead0'; g.lineWidth = 6; rrect(g, -s / 2 + 10, -s / 2 + 10, s - 20, s - 20, 9); g.stroke();
+    g.font = `bold ${Math.round(s * 0.72)}px ${FONT}`; g.textAlign = 'center'; g.textBaseline = 'middle'; g.fillStyle = '#f7ead0';
+    g.fillText('殺', 0, s * 0.05);
+    g.globalCompositeOperation = 'destination-out';
+    for (let i = 0; i < 80; i++) { g.globalAlpha = rnd() * 0.55; g.beginPath(); g.arc((rnd() - 0.5) * s, (rnd() - 0.5) * s, 1 + rnd() * 4, 0, 7); g.fill(); }
+    g.restore();
   });
+  const compassTex = canvasTex(512, 512, (g, w) => {
+    const c = w / 2; g.strokeStyle = '#fff'; g.fillStyle = '#fff';
+    g.lineWidth = 12; g.beginPath(); g.arc(c, c, w * 0.44, 0, 7); g.stroke();
+    g.lineWidth = 5; g.beginPath(); g.arc(c, c, w * 0.38, 0, 7); g.stroke();
+    for (let i = 0; i < 48; i++) { const a = i / 48 * Math.PI * 2, r0 = w * 0.39, r1 = w * (i % 4 === 0 ? 0.432 : 0.412); g.lineWidth = i % 4 === 0 ? 6 : 3; g.beginPath(); g.moveTo(c + Math.cos(a) * r0, c + Math.sin(a) * r0); g.lineTo(c + Math.cos(a) * r1, c + Math.sin(a) * r1); g.stroke(); }
+    for (let k = 0; k < 4; k++) { const a = k * Math.PI / 2; g.save(); g.translate(c + Math.cos(a) * w * 0.475, c + Math.sin(a) * w * 0.475); g.rotate(a); g.beginPath(); g.moveTo(-18, 0); g.lineTo(0, -11); g.lineTo(18, 0); g.lineTo(0, 11); g.closePath(); g.fill(); g.restore(); }
+  });
+  const colTex = canvasTex(64, 256, (g, w, h) => { const gr = g.createLinearGradient(0, h, 0, 0); gr.addColorStop(0, 'rgba(255,255,255,.85)'); gr.addColorStop(0.5, 'rgba(255,255,255,.25)'); gr.addColorStop(1, 'rgba(255,255,255,0)'); g.fillStyle = gr; g.fillRect(0, 0, w, h); });
+  const colGeo = new THREE.CylinderGeometry(0.4, 0.46, 0.7, 36, 1, true); colGeo.translate(0, 0.35, 0);
+  const haloGeo = new THREE.TorusGeometry(0.475, 0.016, 6, 56); haloGeo.rotateX(Math.PI / 2);
   const glowTex = canvasTex(128, 128, (g, w) => {
     const gr = g.createRadialGradient(w / 2, w / 2, w * 0.2, w / 2, w / 2, w / 2);
     gr.addColorStop(0, 'rgba(255,255,255,.9)'); gr.addColorStop(0.6, 'rgba(255,255,255,.35)'); gr.addColorStop(1, 'rgba(255,255,255,0)');
     g.fillStyle = gr; g.fillRect(0, 0, w, w);
   });
   const SEL_COL = 0x7f927c;
-  let selRing = null, selGlow = null, hovered = null, kills = [], hoverT = 0;
+  let selRing = null, selGlow = null, selShade = null, selCol = null, selHalo = null, selDrop = null, hovered = null, kills = [], killRings = [], hoverT = 0;
   const dropping = new Set();
   function showMoves(sel, moves, hints = true) {
     clearMoves(false);
     if (sel) {
-      selGlow = decal(glowTex, SEL_COL, 1.35, X(sel[0]), Z(sel[1]), TOP + 0.005, 0.55);
-      selRing = decal(ringTex, SEL_COL, 1.18, X(sel[0]), Z(sel[1]), TOP + 0.007, 0.95);
-      markRoot.add(selGlow, selRing);
+      const x = X(sel[0]), z = Z(sel[1]);
+      selGlow = decal(glowTex, SEL_COL, 1.6, x, z, TOP + 0.005, 0.5);
+      selShade = decal(compassTex, 0x1b1a19, 1.3, x, z, TOP + 0.006, 0.28);
+      selRing = decal(compassTex, SEL_COL, 1.24, x, z, TOP + 0.008, 0.98);
+      selDrop = decal(glowTex, 0x1b1a19, 0.9, x, z, TOP + 0.007, 0.35);
+      selCol = new THREE.Mesh(colGeo, new THREE.MeshBasicMaterial({ map: colTex, color: 0x9db39a, transparent: true, opacity: 0.55, depthWrite: false, side: THREE.DoubleSide }));
+      selCol.position.set(x, TOP, z);
+      selHalo = new THREE.Mesh(haloGeo, new THREE.MeshBasicMaterial({ color: 0xa8bca4, transparent: true, opacity: 0.95 }));
+      selHalo.position.set(x, TOP + PH * 0.6, z);
+      markRoot.add(selGlow, selShade, selRing, selDrop, selCol, selHalo);
       hovered = meshAt(sel[0], sel[1]);
       if (hovered) dropping.delete(hovered);
       hoverT = 0;
@@ -406,10 +567,10 @@ const Board = (() => {
       const occupied = !!meshAt(f, r);
       if (occupied) {
         if (!hints) continue;
-        const d = decal(ringTex, 0xb0301f, 1.12, X(f), Z(r), TOP + 0.006, 0.95);
-        markRoot.add(d);
+        const d = decal(ringTex, 0xb0301f, 1.14, X(f), Z(r), TOP + 0.006, 0.95);
+        markRoot.add(d); killRings.push(d);
         const sp = new THREE.Sprite(new THREE.SpriteMaterial({ map: killTex, transparent: true, depthWrite: false, depthTest: false }));
-        sp.position.set(X(f), TOP + PH + 0.62, Z(r));
+        sp.position.set(X(f), TOP + PH + 0.75, Z(r));
         sp.renderOrder = 20;
         sp.userData.ph = Math.random() * 6;
         markRoot.add(sp); kills.push(sp);
@@ -426,15 +587,30 @@ const Board = (() => {
       hovered = null;
     }
     if (immediate) { for (const m of dropping) { m.position.y = TOP; m.rotation.x = m.rotation.z = 0; } dropping.clear(); }
-    markRoot.clear(); selRing = selGlow = null; kills = [];
+    markRoot.traverse(o => { if (o.material && o.material !== goldM) o.material.dispose(); });
+    markRoot.clear(); selRing = selGlow = selShade = selCol = selHalo = selDrop = null; kills = []; killRings = [];
   }
   Core.onFrame(dt => {
     hoverT += dt;
-    if (selRing) { selRing.rotation.y += dt * 0.8; selGlow.material.opacity = 0.4 + 0.15 * Math.sin(hoverT * 3); }
+    if (selRing) {
+      selRing.rotation.y += dt * 0.6; selShade.rotation.y = selRing.rotation.y;
+      const b = 0.5 + 0.5 * Math.sin(hoverT * 3);
+      selGlow.material.opacity = 0.32 + 0.25 * b;
+      const k = Math.min(1, hoverT * 5);
+      selRing.scale.set(1.24 * (0.7 + 0.3 * k), 1, 1.24 * (0.7 + 0.3 * k)); selShade.scale.copy(selRing.scale).multiplyScalar(1.05);
+      selCol.material.opacity = (0.38 + 0.2 * b) * k; selCol.scale.y = k;
+    }
     if (hovered) {
-      const ty = TOP + 0.5 + Math.sin(hoverT * 2.4) * 0.04;
+      const ty = TOP + 0.58 + Math.sin(hoverT * 2.4) * 0.045;
       hovered.position.y += (ty - hovered.position.y) * (1 - Math.exp(-dt * 12));
-      hovered.rotation.x = Math.sin(hoverT * 1.7) * 0.04; hovered.rotation.z = Math.cos(hoverT * 1.3) * 0.04;
+      hovered.rotation.x = Math.sin(hoverT * 1.7) * 0.045; hovered.rotation.z = Math.cos(hoverT * 1.3) * 0.045;
+      if (selHalo) {
+        selHalo.position.set(hovered.position.x, hovered.position.y + PH * 0.6, hovered.position.z);
+        selHalo.rotation.x = hovered.rotation.x; selHalo.rotation.z = hovered.rotation.z;
+        const s2 = 1 + 0.04 * Math.sin(hoverT * 4); selHalo.scale.set(s2, 1, s2);
+        const hgt = hovered.position.y - TOP;
+        selDrop.material.opacity = 0.42 - hgt * 0.25; selDrop.scale.set(0.8 + hgt * 0.4, 1, 0.8 + hgt * 0.4);
+      }
     }
     for (const m of dropping) {
       m.position.y += (TOP - m.position.y) * (1 - Math.exp(-dt * 16));
@@ -442,11 +618,15 @@ const Board = (() => {
       if (Math.abs(m.position.y - TOP) < 0.003) { m.position.y = TOP; m.rotation.x = m.rotation.z = 0; dropping.delete(m); }
     }
     for (const k of kills) {
-      const b = 0.5 + 0.5 * Math.sin(hoverT * 3.4 + k.userData.ph);
-      k.material.opacity = 0.22 + 0.78 * b * b;
-      const s = 0.78 + 0.2 * b; k.scale.set(s, s, 1);
-      k.position.y = TOP + PH + 0.72 + b * 0.1;
+      // 呼吸：淡入—停留—淡出—隐去，周而复始
+      const ph = ((hoverT * 0.62 + k.userData.ph / 6.28) % 1);
+      const b = ph < 0.35 ? ph / 0.35 : ph < 0.6 ? 1 : ph < 0.85 ? 1 - (ph - 0.6) / 0.25 : 0;
+      const e = b * b * (3 - 2 * b);
+      k.material.opacity = e;
+      const s = 0.66 + 0.12 * e; k.scale.set(s, s, 1);
+      k.position.y = TOP + PH + 0.4 + e * 0.1;
     }
+    for (const r of killRings) { const b = 0.5 + 0.5 * Math.sin(hoverT * 3.8); r.material.opacity = 0.55 + 0.45 * b; r.rotation.y -= dt * 0.5; }
   });
   const lastRoot = new THREE.Group(); root.add(lastRoot);
   function showLast(from, to) {
@@ -481,6 +661,6 @@ const Board = (() => {
   return {
     root, TOP, PH, HALF, X, Z, pos, setPosition, pieces, piecesRoot, makePiece, faceViewer,
     showMoves, clearMoves, showLast, pick, meshAt, get hovered() { return hovered; }, ringTex, glowTex, wakes, water, waterMat, decal, flatGeo, pine, deco, FONT,
-    viewSide: 'r', pieceWood, RZ, faceTex, makeRiver, mtTex,
+    viewSide: 'r', pieceWood, RZ, BZ, BX, faceTex, makeRiver, mtTex,
   };
 })();

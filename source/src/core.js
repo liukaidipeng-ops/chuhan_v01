@@ -99,8 +99,9 @@ const Core = (() => {
     // 平滑移动到某个机位
     async to(pos, look, dur = 1, e = ease.inOut) {
       this.cine = true;
+      const id = this.moveId = (this.moveId || 0) + 1;
       const p0 = this.pos.clone(), l0 = this.look.clone();
-      await tween(dur, k => { this.pos.lerpVectors(p0, pos, k); this.look.lerpVectors(l0, look, k); }, e);
+      await tween(dur, k => { if (this.moveId !== id) return; this.pos.lerpVectors(p0, pos, k); this.look.lerpVectors(l0, look, k); }, e);
     },
     async home(dur = 1) {
       const p = this.orbitPos();

@@ -530,7 +530,9 @@ const AI = (() => {
       if (!worker) return new Promise(res => setTimeout(() => res(local.think(ms, level, level === 'hard' ? { time: 2000 } : {})), 30));
       return new Promise(res => { pending = { id, res, moves: ms, level }; worker.postMessage({ id, moves: ms, level }); });
     },
-    cancel() { pending = null; },
+    // 取消正在进行的思考：直接终止工作线程，避免占用后续计算
+    cancel() { if (pending && worker) { try { worker.terminate(); } catch (e) { } worker = null; } pending = null; },
+    get busy() { return !!pending; },
   };
 })();
 if (typeof module !== 'undefined' && module.exports) module.exports = { XQEngineFactory };

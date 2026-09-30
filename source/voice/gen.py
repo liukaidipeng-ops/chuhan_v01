@@ -3,10 +3,10 @@ import json, os, subprocess, sys, numpy as np, soundfile as sf
 from scipy.signal import fftconvolve, butter, sosfilt
 import sherpa_onnx
 
-D = '/tmp/claude-0/kokoro-multi-lang-v1_0/'
-OUT = '/home/claude/xq/voice/out'
+D = '/tmp/claude-0/-home-claude/b11a9c4e-e8a9-556b-a316-4b79381abfb8/scratchpad/kokoro-multi-lang-v1_0/'
+OUT = '/home/claude/chuhan_v01/source/voice/out'
 os.makedirs(OUT, exist_ok=True)
-lines = json.load(open('/home/claude/xq/voice/lines.json', encoding='utf8'))
+lines = json.load(open('/home/claude/chuhan_v01/source/voice/lines.json', encoding='utf8'))
 only = set(sys.argv[1:])
 
 cfg = sherpa_onnx.OfflineTtsConfig(model=sherpa_onnx.OfflineTtsModelConfig(kokoro=sherpa_onnx.OfflineTtsKokoroModelConfig(
@@ -50,15 +50,15 @@ for L in lines:
     sp = SPK[L['spk']]
     text = L.get('tts', L['text'])
     a = tts.generate(text, sid=sp['sid'], speed=L.get('speed', sp['speed']))
-    raw = f'/tmp/claude-0/v_{L["id"]}_raw.wav'
+    raw = f'/tmp/claude-0/-home-claude/b11a9c4e-e8a9-556b-a316-4b79381abfb8/scratchpad/v_{L["id"]}_raw.wav'
     sf.write(raw, np.array(a.samples), a.sample_rate)
-    shifted = f'/tmp/claude-0/v_{L["id"]}_sh.wav'
+    shifted = f'/tmp/claude-0/-home-claude/b11a9c4e-e8a9-556b-a316-4b79381abfb8/scratchpad/v_{L["id"]}_sh.wav'
     subprocess.run(['ffmpeg', '-y', '-loglevel', 'error', '-i', raw, '-af',
                     sp['ff'] + ',silenceremove=start_periods=1:start_threshold=-45dB,areverse,silenceremove=start_periods=1:start_threshold=-45dB,areverse',
                     '-ar', '24000', '-ac', '1', shifted], check=True)
     x, sr = sf.read(shifted)
     y = process(x, sr, sp)
-    wet = f'/tmp/claude-0/v_{L["id"]}_fx.wav'
+    wet = f'/tmp/claude-0/-home-claude/b11a9c4e-e8a9-556b-a316-4b79381abfb8/scratchpad/v_{L["id"]}_fx.wav'
     sf.write(wet, y / (np.max(np.abs(y)) + 1e-9) * 0.9, sr)
     mp3 = f'{OUT}/{L["id"]}.mp3'
     subprocess.run(['ffmpeg', '-y', '-loglevel', 'error', '-i', wet, '-af', 'loudnorm=I=-16:TP=-1.5:LRA=11',

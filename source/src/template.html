@@ -5,12 +5,14 @@
 <meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,viewport-fit=cover">
 <meta name="theme-color" content="#1b1a19">
 <meta name="apple-mobile-web-app-capable" content="yes">
-<meta name="description" content="楚汉三维象棋：可与朋友联机的水墨风三维中国象棋">
+<meta name="description" content="楚汉三维象棋：可与朋友联机、可人机对战的水墨风三维中国象棋">
 <title>楚汉·三维象棋</title>
 <style>
 :root{
-  --paper:#e9dfc9; --paper2:#f4ecdb; --ink:#1b1a19; --ink2:#3a3836; --ink3:#6b6862; --red:#b0301f; --red2:#8e2418; --gold:#b08a3a; --jade:#7f927c;
+  --paper:#ece2cb; --paper2:#f7f0e0; --paper3:#e2d5b6; --ink:#1b1a19; --ink2:#3a3836; --ink3:#6b6862;
+  --red:#a8321f; --red2:#7e2216; --gold:#b8914a; --gold2:#d9b877; --gold3:#8a6a30; --jade:#6f8a78;
   --font: "KaiTi","STKaiti","Kaiti SC","楷体","BiauKai","Noto Serif CJK SC","Songti SC",serif;
+  --num: "Iowan Old Style","Palatino Linotype",Palatino,Georgia,serif;
   --safe-b: env(safe-area-inset-bottom,0px); --safe-t: env(safe-area-inset-top,0px);
 }
 *{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
@@ -18,108 +20,173 @@ html,body{margin:0;height:100%;overflow:hidden;background:var(--paper);color:var
 body{-webkit-user-select:none;user-select:none;-webkit-touch-callout:none}
 input,textarea{-webkit-user-select:text;user-select:text;font-family:var(--font)}
 #gl{position:fixed;inset:0;width:100%;height:100%;display:block;touch-action:none}
-#paper{position:fixed;inset:0;pointer-events:none;mix-blend-mode:multiply;opacity:.36;background-size:256px}
-#vignette{position:fixed;inset:0;pointer-events:none;background:radial-gradient(ellipse at center,rgba(0,0,0,0) 55%,rgba(40,30,15,.3) 100%)}
+#paper{position:fixed;inset:0;pointer-events:none;mix-blend-mode:multiply;opacity:.34;background-size:256px}
+#vignette{position:fixed;inset:0;pointer-events:none;background:radial-gradient(ellipse at center,rgba(0,0,0,0) 55%,rgba(40,30,15,.32) 100%)}
 button{font-family:var(--font);cursor:pointer;color:inherit}
 .hidden{display:none!important}
-.btn{border:2px solid var(--ink);color:var(--ink);padding:.55em 1.3em;font-size:18px;letter-spacing:.2em;border-radius:4px;transition:.18s;background:rgba(244,236,219,.75);min-height:44px}
+
+/* ---------- 按钮 ---------- */
+.btn{position:relative;border:1.5px solid var(--ink);color:var(--ink);padding:.55em 1.3em;font-size:18px;letter-spacing:.2em;border-radius:3px;transition:background .18s,color .18s,transform .12s;background:rgba(247,240,224,.7);min-height:44px;display:inline-flex;flex-direction:column;align-items:center;justify-content:center;gap:1px}
+.btn b{font-weight:normal}
+.btn small{font-size:12px;letter-spacing:.15em;opacity:.7}
 .btn:active{transform:scale(.97)}
-.btn:hover{background:var(--ink);color:var(--paper2)}
+@media (hover:hover){.btn:hover{background:var(--ink);color:var(--paper2)}.btn.red:hover{background:var(--red);color:var(--paper2)}}
 .btn.red{border-color:var(--red);color:var(--red)}
-.btn.red:hover,.btn.red.solid{background:var(--red);color:var(--paper2)}
+.btn.red.solid{background:linear-gradient(#b43a26,#8f2818);color:#f7ecd6;border-color:#6e1c10;box-shadow:inset 0 0 0 2px rgba(255,220,170,.22),0 4px 12px rgba(120,30,10,.25)}
 .btn.solid{background:var(--ink);color:var(--paper2)}
 .btn.small{font-size:15px;padding:.35em .9em;letter-spacing:.1em;min-height:38px}
-.btn.wide{width:100%}
+.link{background:none;border:none;font-size:15px;color:var(--ink3);letter-spacing:.3em;padding:6px 4px}
+.link:hover{color:var(--red)}
 
 /* ---------- 加载 ---------- */
 #loading{position:fixed;inset:0;z-index:50;background:var(--paper);display:flex;flex-direction:column;align-items:center;justify-content:center;gap:18px;transition:opacity .8s}
-#loading .big{font-size:64px;letter-spacing:.3em;font-weight:bold}
-#loading .bar{width:200px;height:3px;background:rgba(0,0,0,.1);overflow:hidden}
+#loading .big{font-size:72px;letter-spacing:.3em;padding-left:.3em;font-weight:bold;animation:breathe 2.4s infinite ease-in-out}
+@keyframes breathe{50%{opacity:.55;filter:blur(1px)}}
+#loading .bar{width:200px;height:2px;background:rgba(0,0,0,.1);overflow:hidden}
 #loading .bar i{display:block;height:100%;width:30%;background:var(--red);animation:load 1.2s infinite ease-in-out}
 @keyframes load{0%{transform:translateX(-100%)}100%{transform:translateX(330%)}}
-
-/* ---------- 大厅 ---------- */
-#lobby{position:fixed;inset:0;display:flex;align-items:center;justify-content:center;background:radial-gradient(ellipse at center,rgba(233,223,201,.35),rgba(210,196,166,.7));z-index:20;padding:16px}
-.scroll{background:linear-gradient(#f5eddc,#ebe0c5);border:1px solid #bda980;box-shadow:0 24px 70px rgba(40,25,10,.4),inset 0 0 70px rgba(120,90,40,.16);padding:34px 40px 30px;width:min(600px,100%);max-height:calc(100% - 20px);overflow:auto;text-align:center;position:relative;border-radius:2px;-webkit-overflow-scrolling:touch}
-.scroll::-webkit-scrollbar{width:0}
-.rod{position:absolute;left:-12px;right:-12px;height:14px;background:linear-gradient(#6a4428,#2e1d10);border-radius:7px;box-shadow:0 3px 8px rgba(0,0,0,.35)}
-.rod.t{top:-8px}.rod.b{bottom:-8px}
-.title{font-size:74px;letter-spacing:.28em;margin:0;font-weight:bold;line-height:1.05;text-shadow:2px 3px 0 rgba(0,0,0,.08)}
-.title .seal{display:inline-block;background:var(--red);color:var(--paper2);font-size:20px;padding:6px 4px;writing-mode:vertical-rl;letter-spacing:.1em;vertical-align:middle;margin-left:4px;border-radius:3px;filter:url(#rough)}
-.sub{color:var(--ink3);letter-spacing:.45em;margin:6px 0 24px;font-size:15px}
-.menu{display:grid;gap:12px;max-width:340px;margin:0 auto}
-.menu .btn{font-size:20px}
 .note{font-size:14px;color:var(--ink3);line-height:1.8}
-.pane h3{font-size:24px;letter-spacing:.3em;margin:0 0 14px}
+
+/* ---------- 卷轴 ---------- */
+#lobby{position:fixed;inset:0;display:flex;align-items:center;justify-content:center;background:radial-gradient(ellipse at center,rgba(236,226,203,.25),rgba(200,184,150,.6));z-index:20;padding:22px 16px}
+.wrap{position:relative;width:min(620px,100%);max-height:100%;display:flex}
+.scroll{background:linear-gradient(#f6eedd,#ebdfc3);border:1px solid #b79c68;box-shadow:0 26px 80px rgba(40,25,10,.42),inset 0 0 80px rgba(130,95,40,.16);padding:36px 42px 32px;width:100%;max-height:calc(100dvh - 44px);overflow:auto;text-align:center;position:relative;border-radius:2px;-webkit-overflow-scrolling:touch}
+.scroll:before{content:"";position:absolute;inset:8px;border:1px solid rgba(184,145,74,.55);pointer-events:none;box-shadow:inset 0 0 0 3px rgba(246,238,221,.9),inset 0 0 0 4px rgba(184,145,74,.3)}
+.scroll::-webkit-scrollbar{width:0}
+.rod{position:absolute;left:-14px;right:-14px;height:16px;background:linear-gradient(#7a5030,#3a2414 60%,#2a190c);border-radius:8px;box-shadow:0 4px 10px rgba(0,0,0,.35);z-index:2}
+.rod:before,.rod:after{content:"";position:absolute;top:-3px;width:16px;height:22px;border-radius:5px;background:linear-gradient(90deg,#8a6a30,#e0c078 50%,#8a6a30)}
+.rod:before{left:-6px}.rod:after{right:-6px}
+.rod.t{top:-9px}.rod.b{bottom:-9px}
+.modal .wrap{width:min(500px,100%)}
+.modal .scroll{width:100%}
+.title{font-size:78px;letter-spacing:.28em;margin:4px 0 0;font-weight:bold;line-height:1.05;display:flex;align-items:center;justify-content:center;gap:4px;padding-left:.28em}
+.title .ttl{text-shadow:2px 3px 0 rgba(0,0,0,.08);background:radial-gradient(ellipse at 50% 60%,rgba(27,26,25,.08),transparent 70%)}
+.title .seal{display:inline-flex;align-items:center;justify-content:center;background:var(--red);color:#f7ecd6;font-size:17px;line-height:1.15;padding:7px 6px;letter-spacing:.05em;border-radius:3px;filter:url(#rough);transform:rotate(-4deg);box-shadow:inset 0 0 0 2px rgba(247,236,214,.5)}
+.sub{color:var(--ink3);letter-spacing:.45em;margin:8px 0 22px;font-size:15px;padding-left:.45em}
+.menu{display:grid;gap:11px;max-width:340px;margin:0 auto}
+.menu .btn{font-size:20px;padding:.5em 1em}
+.row{display:flex;gap:12px;justify-content:center;flex-wrap:wrap;margin:16px 0 4px;align-items:center}
+.row.mini{gap:6px;margin-top:14px;color:var(--ink3)}
+.pane h3{font-size:24px;letter-spacing:.3em;margin:0 0 14px;padding-left:.3em}
 .opt{display:flex;align-items:center;justify-content:space-between;gap:12px;padding:10px 0;border-bottom:1px dashed rgba(60,40,20,.2);text-align:left}
 .opt .lbl{font-size:17px;white-space:nowrap}
 .opt .lbl small{display:block;font-size:12px;color:var(--ink3)}
 .seg{display:flex;flex-wrap:wrap;gap:6px;justify-content:flex-end}
-.seg button{border:1.5px solid rgba(27,26,25,.55);background:transparent;padding:6px 11px;font-size:15px;border-radius:3px;min-height:36px}
+.seg button{border:1.5px solid rgba(27,26,25,.45);background:rgba(255,255,255,.2);padding:6px 11px;font-size:15px;border-radius:3px;min-height:36px;transition:.15s}
 .seg button.on{background:var(--ink);color:var(--paper2);border-color:var(--ink)}
 .seg button.on.r{background:var(--red);border-color:var(--red)}
-.row{display:flex;gap:12px;justify-content:center;flex-wrap:wrap;margin:16px 0 4px}
-.roomcode{font-size:52px;letter-spacing:.35em;color:var(--red);font-weight:bold;margin:2px 0 4px;padding-left:.35em}
+.roomcode{font-size:52px;letter-spacing:.35em;color:var(--red);font-weight:bold;margin:2px 0 4px;padding-left:.35em;font-family:var(--num)}
 #qr{display:inline-block;background:#fff;padding:8px;border:1px solid #cdbf9f;margin:6px 0}
 #qr canvas{display:block;width:150px;height:150px;image-rendering:pixelated}
 .chips{display:flex;flex-wrap:wrap;gap:6px;justify-content:center;margin:10px 0}
 .chip{font-size:13px;padding:3px 9px;border:1px solid rgba(60,40,20,.35);border-radius:20px;color:var(--ink2);background:rgba(255,255,255,.3)}
-input.code{font-size:30px;letter-spacing:.4em;text-align:center;width:8.5em;max-width:100%;padding:.25em .2em .25em .6em;border:none;border-bottom:2px solid var(--ink);background:rgba(255,255,255,.35);text-transform:uppercase;color:var(--ink);outline:none;border-radius:0}
+input.code{font-size:30px;letter-spacing:.4em;text-align:center;width:8.5em;max-width:100%;padding:.25em .2em .25em .6em;border:none;border-bottom:2px solid var(--ink);background:rgba(255,255,255,.35);text-transform:uppercase;color:var(--ink);outline:none;border-radius:0;font-family:var(--num)}
 .spin{display:inline-block;width:14px;height:14px;border:2px solid var(--ink3);border-top-color:transparent;border-radius:50%;animation:sp 1s linear infinite;vertical-align:-2px;margin-right:6px}
 @keyframes sp{to{transform:rotate(360deg)}}
 .lineinfo{font-size:12px;color:var(--ink3);margin-top:8px}
+/* 难度卡 */
+.lv{display:grid;grid-template-columns:repeat(3,1fr);gap:10px;margin:4px 0 8px}
+.lv button{position:relative;border:1.5px solid rgba(27,26,25,.35);background:rgba(255,255,255,.28);border-radius:4px;padding:14px 6px 10px;display:flex;flex-direction:column;align-items:center;gap:4px;transition:.18s;min-height:104px}
+.lv .rk{font-size:26px;letter-spacing:.2em;padding-left:.2em}
+.lv .st{color:var(--gold);letter-spacing:.2em;font-size:14px}
+.lv small{font-size:12px;color:var(--ink3);line-height:1.4}
+.lv button.on{border-color:var(--red);background:linear-gradient(#fff8ea,#f1e2c2);box-shadow:0 0 0 2px var(--red) inset,0 6px 16px rgba(120,30,10,.18)}
+.lv button.on .rk{color:var(--red)}
+.lv button.on:after{content:"選";position:absolute;top:-9px;right:-7px;background:var(--red);color:#f7ecd6;font-size:12px;padding:3px 4px;border-radius:2px;filter:url(#rough);transform:rotate(8deg)}
+
+/* 开场动画 */
+#lobby.intro .scroll{animation:unroll 1.25s cubic-bezier(.6,.05,.25,1) both}
+@keyframes unroll{from{clip-path:inset(calc(50% - 2px) -30px calc(50% - 2px) -30px)}to{clip-path:inset(-30px -30px -30px -30px)}}
+#lobby.intro .rod.t{animation:rodT 1.25s cubic-bezier(.6,.05,.25,1) both}
+#lobby.intro .rod.b{animation:rodB 1.25s cubic-bezier(.6,.05,.25,1) both}
+@keyframes rodT{from{top:calc(50% - 8px)}to{top:-9px}}
+@keyframes rodB{from{bottom:calc(50% - 8px)}to{bottom:-9px}}
+#lobby.intro .title .ttl{animation:inkbleed 1.7s .85s both}
+@keyframes inkbleed{from{opacity:0;filter:blur(16px);letter-spacing:.9em}to{opacity:1;filter:blur(0);letter-spacing:.28em}}
+#lobby.intro .title .seal{animation:stampIn .45s 2.0s both}
+@keyframes stampIn{0%{opacity:0;transform:scale(2.6) rotate(-14deg)}70%{opacity:1;transform:scale(.92) rotate(-4deg)}100%{opacity:1;transform:scale(1) rotate(-4deg)}}
+#lobby.intro .sub{animation:fadeUp .9s 2.2s both}
+#lobby.intro #pMain .menu>*{animation:fadeUp .6s both}
+#lobby.intro #pMain .menu>*:nth-child(1){animation-delay:2.45s}
+#lobby.intro #pMain .menu>*:nth-child(2){animation-delay:2.55s}
+#lobby.intro #pMain .menu>*:nth-child(3){animation-delay:2.65s}
+#lobby.intro #pMain .menu>*:nth-child(4){animation-delay:2.75s}
+#lobby.intro #pMain .row,#lobby.intro #pMain .note{animation:fadeUp .6s 2.9s both}
+@keyframes fadeUp{from{opacity:0;transform:translateY(10px)}to{opacity:1;transform:none}}
+.pane{animation:paneIn .35s ease both}
+@keyframes paneIn{from{opacity:0;transform:translateY(6px)}to{opacity:1;transform:none}}
 
 /* ---------- 对局界面 ---------- */
 #hud{position:fixed;inset:0;pointer-events:none;z-index:4}
-.pcard{position:absolute;left:12px;display:flex;align-items:center;gap:10px;padding:8px 12px 8px 8px;background:rgba(244,236,219,.86);border:1px solid rgba(60,40,20,.3);border-radius:6px;box-shadow:0 6px 20px rgba(40,25,10,.18);pointer-events:auto;width:min(330px,calc(100vw - 92px));transition:box-shadow .3s,transform .3s}
+#hud>*{transition:opacity .45s}
+.pcard{position:absolute;left:12px;display:flex;align-items:center;gap:12px;padding:8px 14px 8px 8px;background:linear-gradient(135deg,rgba(249,244,232,.95),rgba(236,226,202,.93));border:1px solid rgba(184,145,74,.8);border-radius:4px;box-shadow:inset 0 0 0 3px rgba(249,244,232,.85),inset 0 0 0 4px rgba(184,145,74,.35),0 8px 26px rgba(40,25,10,.2);pointer-events:auto;width:min(340px,calc(100vw - 88px));transition:box-shadow .35s,transform .35s}
+.pcard:before,.pcard:after{content:"";position:absolute;width:12px;height:12px;border:2px solid var(--gold);pointer-events:none}
+.pcard:before{top:-3px;left:-3px;border-right:none;border-bottom:none}
+.pcard:after{bottom:-3px;right:-3px;border-left:none;border-top:none}
 #cardOpp{top:calc(12px + var(--safe-t))}
 #cardMe{bottom:calc(12px + var(--safe-b))}
-.pcard.active{box-shadow:0 0 0 2px var(--jade),0 8px 24px rgba(40,25,10,.25)}
-.pcard .seal{width:48px;height:48px;flex:none;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:26px;font-weight:bold;color:var(--paper2);box-shadow:inset 0 0 0 3px rgba(255,255,255,.25)}
+.pcard.active{box-shadow:inset 0 0 0 3px rgba(249,244,232,.85),inset 0 0 0 4px rgba(184,145,74,.6),0 0 0 1px var(--gold2),0 0 22px rgba(217,184,119,.55),0 10px 28px rgba(40,25,10,.25)}
+.por{position:relative;width:70px;height:70px;flex:none}
+.por svg{position:absolute;inset:0;width:100%;height:100%;transform:rotate(-90deg)}
+.por .trk{fill:none;stroke:rgba(60,40,20,.12);stroke-width:4}
+.por .arc{fill:none;stroke:var(--jade);stroke-width:4;stroke-linecap:round;stroke-dasharray:226.2;stroke-dashoffset:0;transition:stroke-dashoffset .25s linear,stroke .3s;opacity:0}
+.pcard.active .por .arc{opacity:1}
+.por .arc.low{stroke:var(--red)}
+.por .face{position:absolute;inset:6px;width:58px;height:58px;border-radius:50%;object-fit:cover;background:radial-gradient(circle at 50% 40%,#f3e7cc,#cdb98f);border:2px solid var(--gold);box-shadow:0 2px 6px rgba(0,0,0,.25)}
+.por .seal{position:absolute;right:-4px;bottom:-2px;width:24px;height:24px;border-radius:3px;display:flex;align-items:center;justify-content:center;font-size:15px;font-weight:bold;color:#f7ecd6;box-shadow:0 1px 3px rgba(0,0,0,.3),inset 0 0 0 1.5px rgba(247,236,214,.45);transform:rotate(-6deg)}
 .pcard.r .seal{background:var(--red)}.pcard.b .seal{background:#262322}
 .pcard .info{flex:1;min-width:0}
-.pcard .nm{display:flex;align-items:baseline;gap:8px;font-size:18px;white-space:nowrap}
-.pcard .tag{font-size:12px;color:var(--ink3)}
-.pcard .clk{margin-left:auto;font-size:19px;font-variant-numeric:tabular-nums;letter-spacing:.04em;font-family:Georgia,var(--font)}
+.pcard .nm{display:flex;align-items:baseline;gap:8px;white-space:nowrap}
+.pcard .who{font-size:21px;letter-spacing:.12em;font-weight:bold}
+.pcard .tag{font-size:12px;color:var(--ink3);letter-spacing:.1em;overflow:hidden;text-overflow:ellipsis}
+.pcard .clk{font-size:22px;font-variant-numeric:tabular-nums;letter-spacing:.06em;font-family:var(--num);color:var(--ink2);line-height:1.2}
+.pcard .clk.inf{font-size:13px;letter-spacing:.3em;color:var(--ink3);font-family:var(--font)}
 .pcard .clk.low{color:var(--red);animation:pulse 1s infinite}
 @keyframes pulse{50%{opacity:.45}}
-.pcard .stepbar{height:4px;background:rgba(0,0,0,.08);margin:5px 0 4px;border-radius:2px;overflow:hidden}
-.pcard .stepbar i{display:block;height:100%;width:100%;background:var(--jade);transition:width .25s linear,background .3s}
-.pcard .stepbar i.low{background:var(--red)}
 .pcard .meta{display:flex;align-items:center;gap:8px;min-height:22px}
 .pcard .caps{display:flex;flex-wrap:wrap;gap:2px;flex:1;min-width:0}
-.capp{width:20px;height:20px;border-radius:50%;background:#dcb883;border:1px solid #8a6a40;display:flex;align-items:center;justify-content:center;font-size:12px;font-weight:bold;flex:none}
+.capp{width:20px;height:20px;border-radius:50%;background:radial-gradient(circle at 40% 35%,#ecc990,#c9a068);border:1px solid #8a6a40;display:flex;align-items:center;justify-content:center;font-size:12px;font-weight:bold;flex:none;box-shadow:0 1px 1px rgba(0,0,0,.25)}
 .capp.r{color:var(--red)}.capp.b{color:var(--ink)}
 .pcard .undo{font-size:12px;color:var(--ink3);white-space:nowrap}
-.bubble{position:absolute;left:12px;max-width:min(420px,calc(100vw - 110px));padding:10px 16px;font-size:19px;letter-spacing:.06em;border-radius:6px;opacity:0;transform:translateY(-6px) scale(.96);transition:opacity .25s,transform .25s;pointer-events:none;z-index:6}
+.pcard.think .tag:after{content:" · 思考中";color:var(--red);animation:pulse 1.2s infinite}
+.bubble{position:absolute;left:12px;max-width:min(420px,calc(100vw - 110px));padding:10px 18px;font-size:19px;letter-spacing:.06em;border-radius:3px;opacity:0;transform:translateY(-6px) scale(.96);transition:opacity .25s,transform .25s;pointer-events:none;z-index:6}
 .bubble.on{opacity:1;transform:none}
 .bubble b{display:block;font-size:12px;letter-spacing:.2em;opacity:.75;margin-bottom:2px;font-weight:normal}
-#bubOpp{top:calc(94px + var(--safe-t));background:#1f1c1b;color:#f1e6cf;border-left:5px solid var(--red);box-shadow:0 8px 24px rgba(0,0,0,.35)}
-#bubOpp:before{content:"";position:absolute;top:-8px;left:26px;border:8px solid transparent;border-top:0;border-bottom-color:#1f1c1b}
-#bubMe{bottom:calc(94px + var(--safe-b));background:#f7f0e0;color:var(--ink);border:1.5px solid var(--jade);border-right:5px solid var(--jade);box-shadow:0 8px 24px rgba(40,25,10,.2)}
-#bubMe:after{content:"";position:absolute;bottom:-8px;left:26px;border:8px solid transparent;border-bottom:0;border-top-color:#f7f0e0}
-#status{position:absolute;top:calc(14px + var(--safe-t));left:max(50%,calc(360px + 50% - 50vw + 160px));transform:translateX(-50%);font-size:16px;color:var(--ink);background:rgba(244,236,219,.82);padding:6px 16px;border-radius:20px;white-space:nowrap;border:1px solid rgba(60,40,20,.2)}
-#status.warn{color:var(--paper2);background:var(--red);border-color:var(--red)}
-#netbadge{position:absolute;right:12px;top:calc(12px + var(--safe-t));font-size:12px;color:var(--ink3);background:rgba(244,236,219,.8);padding:4px 10px;border-radius:12px;pointer-events:auto;border:1px solid rgba(60,40,20,.2)}
+#bubOpp{top:calc(106px + var(--safe-t));background:linear-gradient(#27231f,#1a1716);color:#f1e6cf;border-left:4px solid var(--red);box-shadow:0 8px 24px rgba(0,0,0,.35),inset 0 0 0 1px rgba(217,184,119,.3)}
+#bubOpp:before{content:"";position:absolute;top:-8px;left:30px;border:8px solid transparent;border-top:0;border-bottom-color:#27231f}
+#bubMe{bottom:calc(106px + var(--safe-b));background:linear-gradient(#fbf6ea,#f1e6cc);color:var(--ink);border:1px solid var(--gold);border-left:4px solid var(--jade);box-shadow:0 8px 24px rgba(40,25,10,.2)}
+#bubMe:after{content:"";position:absolute;bottom:-8px;left:30px;border:8px solid transparent;border-bottom:0;border-top-color:#f1e6cc}
+#status{position:absolute;top:calc(16px + var(--safe-t));left:50%;transform:translateX(-50%);font-size:16px;letter-spacing:.2em;color:#f1e3c2;background:linear-gradient(#2a2521,#1a1715);padding:7px 26px 7px calc(26px + .2em);white-space:nowrap;border:1px solid rgba(217,184,119,.65);box-shadow:0 6px 18px rgba(0,0,0,.25),inset 0 0 0 2px rgba(26,23,21,1),inset 0 0 0 3px rgba(217,184,119,.35);clip-path:polygon(10px 0,calc(100% - 10px) 0,100% 50%,calc(100% - 10px) 100%,10px 100%,0 50%)}
+#status.warn{background:linear-gradient(#b43a26,#8a2616);color:#fff2da}
+#netbadge{position:absolute;left:50%;transform:translateX(-50%);top:calc(60px + var(--safe-t));font-size:12px;color:var(--ink3);background:rgba(247,240,224,.85);padding:4px 10px;border-radius:12px;pointer-events:auto;border:1px solid rgba(60,40,20,.2)}
 #netbadge.bad{color:var(--paper2);background:var(--red)}
-#tools{position:absolute;right:12px;bottom:calc(12px + var(--safe-b));display:flex;flex-direction:column;gap:9px;pointer-events:auto}
-.tool{width:52px;height:52px;border-radius:50%;border:none;background:rgba(27,26,25,.86);color:var(--paper2);font-size:21px;font-weight:bold;box-shadow:0 4px 14px rgba(0,0,0,.25);display:flex;align-items:center;justify-content:center;position:relative}
-.tool:active{transform:scale(.94)}
-.tool.red{background:var(--red)}
+#tools{position:absolute;right:12px;bottom:calc(12px + var(--safe-b));display:flex;flex-direction:column;gap:8px;pointer-events:auto}
+.tool{width:48px;height:48px;border-radius:5px;border:none;background:linear-gradient(#302b27,#1c1917);color:#f1e3c2;font-size:21px;font-weight:bold;box-shadow:0 4px 12px rgba(0,0,0,.28),inset 0 0 0 2px rgba(217,184,119,.35),inset 0 0 0 4px #25201d,inset 0 0 0 5px rgba(217,184,119,.22);display:flex;align-items:center;justify-content:center;position:relative;transition:transform .12s}
+.tool:active{transform:scale(.93)}
+.tool.red{background:linear-gradient(#b43a26,#86241a);color:#fbe9cf;box-shadow:0 4px 12px rgba(120,30,10,.3),inset 0 0 0 2px rgba(255,220,170,.4),inset 0 0 0 4px #9a2c1c,inset 0 0 0 5px rgba(255,220,170,.25)}
 .tool[disabled]{opacity:.35}
-.tool small{position:absolute;bottom:-2px;right:-2px;background:var(--jade);color:#fff;font-size:10px;min-width:18px;height:18px;border-radius:9px;display:flex;align-items:center;justify-content:center;font-weight:normal}
+.tool small{position:absolute;bottom:-4px;right:-4px;background:var(--jade);color:#fff;font-size:10px;min-width:18px;height:18px;border-radius:9px;display:flex;align-items:center;justify-content:center;font-weight:normal;box-shadow:0 1px 3px rgba(0,0,0,.3)}
+.tool .lvl{position:absolute;left:-4px;top:-5px;font-size:10px;background:var(--gold);color:#1b1a19;border-radius:3px;padding:1px 3px;font-weight:normal;letter-spacing:0}
+/* 棋谱 */
+#log{position:absolute;right:12px;top:calc(12px + var(--safe-t));width:188px;max-height:min(46vh,380px);display:flex;flex-direction:column;background:linear-gradient(rgba(249,244,232,.94),rgba(236,226,202,.93));border:1px solid rgba(184,145,74,.8);box-shadow:inset 0 0 0 3px rgba(249,244,232,.85),inset 0 0 0 4px rgba(184,145,74,.3),0 8px 24px rgba(40,25,10,.2);border-radius:3px;pointer-events:auto;padding:8px 10px}
+#log .lh{text-align:center;letter-spacing:.5em;padding-left:.5em;font-size:15px;color:var(--ink2);border-bottom:1px solid rgba(184,145,74,.5);padding-bottom:4px;margin-bottom:4px}
+#logList{list-style:none;margin:0;padding:0;overflow:auto;font-size:15px;line-height:1.75;flex:1;scrollbar-width:thin}
+#logList li{display:grid;grid-template-columns:22px 1fr 1fr;gap:4px;white-space:nowrap}
+#logList li i{font-style:normal;color:var(--ink3);font-size:11px;font-family:var(--num);align-self:center}
+#logList .r{color:var(--red)}
+#logList .last{background:rgba(217,184,119,.35);border-radius:2px}
 
 /* ---------- 弹窗 ---------- */
-.modal{position:fixed;inset:0;z-index:30;display:flex;align-items:center;justify-content:center;background:rgba(20,16,12,.42);padding:16px}
-.modal .scroll{width:min(460px,100%)}
-.modal h3{margin:0 0 10px;font-size:24px;letter-spacing:.25em}
+.modal{position:fixed;inset:0;z-index:30;display:flex;align-items:center;justify-content:center;background:rgba(20,16,12,.45);padding:22px 16px;animation:fadeIn .2s both}
+@keyframes fadeIn{from{opacity:0}}
+.modal h3{margin:0 0 10px;font-size:24px;letter-spacing:.25em;padding-left:.25em}
 .modal p{font-size:17px;line-height:1.7;margin:8px 0}
 .cd{font-size:13px;color:var(--ink3)}
 #chat .phr{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin:6px 0 12px}
-#chat .phr button{border:1.5px solid rgba(27,26,25,.5);background:rgba(255,255,255,.4);padding:10px 6px;font-size:16px;border-radius:4px;min-height:44px}
+#chat .phr button{border:1.5px solid rgba(27,26,25,.45);background:rgba(255,255,255,.4);padding:10px 6px;font-size:16px;border-radius:3px;min-height:44px}
 #chat .phr button:active{background:var(--ink);color:var(--paper2)}
 #chat .free{display:flex;gap:8px}
-#chat .free input{flex:1;min-width:0;font-size:17px;padding:8px 10px;border:1.5px solid rgba(27,26,25,.5);background:rgba(255,255,255,.55);border-radius:4px;outline:none}
+#chat .free input{flex:1;min-width:0;font-size:17px;padding:8px 10px;border:1.5px solid rgba(27,26,25,.45);background:rgba(255,255,255,.55);border-radius:3px;outline:none}
 .vol{display:flex;align-items:center;gap:10px;flex:1;justify-content:flex-end}
 .vol input{width:min(180px,40vw);accent-color:var(--red)}
 
@@ -127,47 +194,58 @@ input.code{font-size:30px;letter-spacing:.4em;text-align:center;width:8.5em;max-
 #stamp{position:fixed;left:50%;top:44%;transform:translate(-50%,-50%) scale(3) rotate(-8deg);opacity:0;pointer-events:none;width:180px;height:180px;border:8px solid var(--red);color:var(--red);font-size:112px;font-weight:bold;display:flex;align-items:center;justify-content:center;border-radius:10px;background:rgba(243,236,220,.2);mix-blend-mode:multiply;filter:url(#rough);z-index:7}
 #stamp.show{animation:stamp 1.6s ease-out forwards}
 @keyframes stamp{0%{opacity:0;transform:translate(-50%,-50%) scale(3.2) rotate(-8deg)}14%{opacity:1;transform:translate(-50%,-50%) scale(1) rotate(-8deg)}20%{transform:translate(-50%,-50%) scale(1.08) rotate(-8deg)}28%{transform:translate(-50%,-50%) scale(1) rotate(-8deg)}78%{opacity:1}100%{opacity:0;transform:translate(-50%,-50%) scale(1) rotate(-8deg)}}
-#banner{position:fixed;left:0;right:0;top:38%;z-index:8;text-align:center;pointer-events:none;opacity:0;transition:opacity .6s}
+#banner{position:fixed;left:0;right:0;top:36%;z-index:8;text-align:center;pointer-events:none;opacity:0;transition:opacity .6s}
 #banner.on{opacity:1}
-#banner .t{display:inline-block;font-size:clamp(40px,8vw,86px);letter-spacing:.4em;padding:10px 0 10px .4em;color:var(--ink);text-shadow:0 0 30px rgba(244,236,219,.9)}
-#banner .s{font-size:18px;letter-spacing:.5em;color:var(--ink2)}
+#banner .t{display:inline-block;font-size:clamp(40px,8vw,86px);letter-spacing:.4em;padding:10px 0 10px .4em;color:var(--ink);text-shadow:0 0 30px rgba(244,236,219,.95),0 0 60px rgba(244,236,219,.8)}
+#banner .s{font-size:18px;letter-spacing:.5em;color:var(--ink2);text-shadow:0 0 12px rgba(244,236,219,.95)}
+#banner .ln{width:min(460px,70vw);height:2px;margin:6px auto;background:linear-gradient(90deg,transparent,var(--gold),transparent)}
 #flash{position:fixed;inset:0;pointer-events:none;background:#fff5e0;opacity:0;z-index:7}
 .cinebar{position:fixed;left:0;right:0;height:0;background:#0f0e0d;transition:height .8s ease;pointer-events:none;z-index:5}
 #cbTop{top:0}#cbBot{bottom:0}
 body.cine .cinebar{height:11vh}
-body.cine #hud .pcard,body.cine #status,body.cine .bubble{opacity:0;pointer-events:none}
+body.cine #hud>*{opacity:0!important;pointer-events:none!important}
 #subs{position:fixed;left:50%;bottom:13vh;transform:translateX(-50%);width:min(900px,92vw);text-align:center;z-index:10;pointer-events:none}
-#subs .spk{color:#d9b46a;font-size:18px;letter-spacing:.3em;margin-bottom:4px}
+#subs .spk{color:#d9b46a;font-size:18px;letter-spacing:.3em;margin-bottom:4px;text-shadow:0 1px 4px #000}
 #subs .line{color:#f3ecdc;font-size:clamp(19px,2.6vw,30px);letter-spacing:.12em;text-shadow:0 2px 8px #000,0 0 2px #000;line-height:1.5;opacity:0;transition:opacity .5s}
 #subs.on .line{opacity:1}
 #verse{position:fixed;inset:0;display:flex;align-items:center;justify-content:center;gap:28px;flex-direction:row-reverse;z-index:10;pointer-events:none}
 #verse span{writing-mode:vertical-rl;font-size:clamp(26px,4.2vw,48px);letter-spacing:.35em;color:var(--ink);opacity:0;transition:opacity 1.6s,filter 1.6s;filter:blur(6px)}
 #verse span.on{opacity:1;filter:blur(0)}
-#verse.dark span{color:#efe6d2;text-shadow:0 0 12px rgba(0,0,0,.6)}
+#verse.right{justify-content:flex-start;padding-right:max(9vw,24px)}
+#verse.dark span{color:#efe6d2;text-shadow:0 0 12px rgba(0,0,0,.8),0 0 3px #000}
 #fade{position:fixed;inset:0;background:#0f0e0d;opacity:0;pointer-events:none;transition:opacity 1.2s;z-index:8}
-#endcard{position:fixed;inset:0;z-index:11;display:flex;align-items:center;justify-content:center;flex-direction:column;gap:20px;background:radial-gradient(ellipse at center,#efe6d2 0%,#d9ccb0 100%);padding:20px}
+#endcard{position:fixed;inset:0;z-index:11;display:flex;align-items:center;justify-content:center;flex-direction:column;gap:20px;background:radial-gradient(ellipse at center,#f1e8d4 0%,#d9ccb0 100%);padding:20px}
+#endcard:before{content:"";position:absolute;inset:18px;border:1px solid rgba(184,145,74,.6);box-shadow:inset 0 0 0 4px rgba(241,232,212,.8),inset 0 0 0 5px rgba(184,145,74,.3);pointer-events:none}
 #endcard .cols{display:flex;flex-direction:row-reverse;gap:30px;align-items:flex-start}
 #endcard .cols div{writing-mode:vertical-rl;letter-spacing:.45em;font-size:clamp(16px,min(3vw,4vh),34px);opacity:0;animation:inkin 1.4s forwards}
 #endcard .cols div.big{font-size:clamp(30px,min(6vw,8vh),72px);font-weight:bold}
 #endcard .win{font-size:30px;color:var(--paper2);background:var(--red);padding:10px 18px;border-radius:4px;letter-spacing:.3em;opacity:0;animation:inkin 1s 3.2s forwards;filter:url(#rough)}
 #endcard .mine{font-size:20px;letter-spacing:.4em;opacity:0;animation:inkin 1s 3.6s forwards}
-#endcard .row{opacity:0;animation:inkin 1s 4s forwards}
+#endcard .row{opacity:0;animation:inkin 1s 4s forwards;position:relative}
 @keyframes inkin{from{opacity:0;filter:blur(8px)}to{opacity:1;filter:blur(0)}}
-#skip{position:fixed;right:16px;bottom:calc(16px + var(--safe-b));z-index:12;pointer-events:auto}
-#toast{position:fixed;left:50%;top:30%;transform:translateX(-50%);background:rgba(27,26,25,.9);color:var(--paper2);padding:10px 22px;border-radius:4px;font-size:17px;letter-spacing:.08em;opacity:0;transition:opacity .35s;pointer-events:none;z-index:40;text-align:center;max-width:90vw}
+#skip{position:fixed;left:50%;transform:translateX(-50%);bottom:calc(16px + var(--safe-b));z-index:12;pointer-events:auto;background:rgba(27,26,25,.78);color:#f1e3c2;border-color:rgba(217,184,119,.7)}
+body.cine #skip{bottom:calc(11vh + 12px)}
+#toast{position:fixed;left:50%;top:30%;transform:translateX(-50%);background:rgba(27,26,25,.92);color:var(--paper2);padding:10px 22px;border-radius:3px;font-size:17px;letter-spacing:.08em;opacity:0;transition:opacity .35s;pointer-events:none;z-index:40;text-align:center;max-width:90vw;box-shadow:inset 0 0 0 1px rgba(217,184,119,.4)}
 #toast.on{opacity:1}
 .help{text-align:left;font-size:16px;line-height:1.9}
-@media (max-width:1000px){ #status{left:auto;right:76px;transform:none} }
+@media (max-width:1100px){ #status{top:auto;bottom:calc(98px + var(--safe-b));left:auto;right:74px;transform:none;font-size:14px;padding:5px 18px 5px calc(18px + .2em)} }
 @media (max-width:640px){
-  .title{font-size:52px}.scroll{padding:26px 18px 22px}
+  .title{font-size:54px}.scroll{padding:28px 18px 22px}
   .opt{flex-direction:column;align-items:stretch;gap:6px}.seg{justify-content:flex-start}
   .roomcode{font-size:42px}
-  .pcard{padding:6px 10px 6px 6px}.pcard .seal{width:40px;height:40px;font-size:21px}.pcard .nm{font-size:16px}.pcard .clk{font-size:17px}
-  #bubOpp{top:calc(80px + var(--safe-t))}#bubMe{bottom:calc(82px + var(--safe-b))}
-  #status{top:auto;bottom:calc(88px + var(--safe-b));left:12px;transform:none;font-size:14px;padding:4px 12px}
-  #netbadge{top:auto;bottom:calc(304px + var(--safe-b))}
-  .tool{width:48px;height:48px;font-size:19px}
+  .lv .rk{font-size:21px}.lv button{min-height:92px;padding:12px 4px 8px}
+  .pcard{padding:6px 10px 6px 6px;gap:9px}.por{width:56px;height:56px}.por .face{inset:5px;width:46px;height:46px}.por .seal{width:20px;height:20px;font-size:13px}
+  .pcard .who{font-size:17px}.pcard .clk{font-size:18px}
+  #bubOpp{top:calc(84px + var(--safe-t))}#bubMe{bottom:calc(86px + var(--safe-b))}
+  #status{bottom:calc(82px + var(--safe-b));left:12px;right:auto;font-size:13px}
+  #netbadge{top:calc(90px + var(--safe-t));left:auto;right:12px;transform:none}
+  .tool{width:44px;height:44px;font-size:18px}
+  #log{right:12px;top:calc(96px + var(--safe-t));width:164px;font-size:14px;max-height:30vh}
   #stamp{width:140px;height:140px;font-size:86px}
+}
+@media (max-height:520px) and (orientation:landscape){
+  .tool{width:40px;height:40px;font-size:17px}#tools{gap:5px}
+  .pcard{transform:scale(.86);transform-origin:left top}#cardMe{transform-origin:left bottom}
 }
 </style>
 </head>
@@ -181,15 +259,18 @@ body.cine #hud .pcard,body.cine #status,body.cine .bubble{opacity:0;pointer-even
 
 <!-- 对局界面 -->
 <div id="hud" class="hidden">
-  <div class="pcard b" id="cardOpp"><div class="seal">楚</div><div class="info"><div class="nm"><span class="who">项羽</span><span class="tag">对手</span><span class="clk">--:--</span></div><div class="stepbar"><i></i></div><div class="meta"><div class="caps"></div><span class="undo"></span></div></div></div>
-  <div class="pcard r" id="cardMe"><div class="seal">漢</div><div class="info"><div class="nm"><span class="who">刘邦</span><span class="tag">你</span><span class="clk">--:--</span></div><div class="stepbar"><i></i></div><div class="meta"><div class="caps"></div><span class="undo"></span></div></div></div>
+  <div class="pcard b" id="cardOpp"><div class="por"><svg viewBox="0 0 80 80"><circle class="trk" cx="40" cy="40" r="36"/><circle class="arc" cx="40" cy="40" r="36"/></svg><img class="face" alt=""><div class="seal">楚</div></div><div class="info"><div class="nm"><span class="who">项羽</span><span class="tag">对手</span></div><div class="clk">--:--</div><div class="meta"><div class="caps"></div><span class="undo"></span></div></div></div>
+  <div class="pcard r" id="cardMe"><div class="por"><svg viewBox="0 0 80 80"><circle class="trk" cx="40" cy="40" r="36"/><circle class="arc" cx="40" cy="40" r="36"/></svg><img class="face" alt=""><div class="seal">漢</div></div><div class="info"><div class="nm"><span class="who">刘邦</span><span class="tag">你</span></div><div class="clk">--:--</div><div class="meta"><div class="caps"></div><span class="undo"></span></div></div></div>
   <div class="bubble" id="bubOpp"><b></b><span></span></div>
   <div class="bubble" id="bubMe"><b></b><span></span></div>
   <div id="status"></div>
   <div id="netbadge" class="hidden"></div>
+  <div id="log" class="hidden"><div class="lh">棋 譜</div><ol id="logList"></ol></div>
   <div id="tools">
-    <button class="tool" id="tChat" title="发言">言</button>
+    <button class="tool" id="tChat" title="阵前喊话">言</button>
     <button class="tool" id="tUndo" title="悔棋">悔<small id="undoLeft"></small></button>
+    <button class="tool" id="tLog" title="棋谱">譜</button>
+    <button class="tool" id="tVis" title="画面档位">鏡<span class="lvl" id="visLv">影</span></button>
     <button class="tool" id="tSet" title="设置">設</button>
     <button class="tool" id="tView" title="视角复位">視</button>
     <button class="tool red" id="tResign" title="认输">降</button>
@@ -197,19 +278,34 @@ body.cine #hud .pcard,body.cine #status,body.cine .bubble{opacity:0;pointer-even
 </div>
 
 <!-- 大厅 -->
-<div id="lobby" class="hidden">
-  <div class="scroll"><div class="rod t"></div><div class="rod b"></div>
-    <div class="title">楚漢<span class="seal">三维象棋</span></div>
+<div id="lobby" class="hidden intro">
+  <div class="wrap"><div class="rod t"></div><div class="rod b"></div>
+  <div class="scroll">
+    <div class="title"><span class="ttl">楚漢</span><span class="seal">三维<br>象棋</span></div>
     <div class="sub">楚 河 漢 界 · 逐 鹿 中 原</div>
 
     <div id="pMain" class="pane">
       <div class="menu">
-        <button class="btn red solid" id="bCreate">创 建 房 间</button>
-        <button class="btn" id="bJoinShow">加 入 房 间</button>
-        <button class="btn" id="bLocal">本 地 对 战</button>
-        <button class="btn small" id="bSetL">设 置</button>
+        <button class="btn red solid" id="bAI"><b>人 机 对 战</b><small>与霸王、汉王对弈</small></button>
+        <button class="btn" id="bCreate"><b>创 建 房 间</b><small>邀请好友联机</small></button>
+        <button class="btn" id="bJoinShow"><b>加 入 房 间</b><small>输入房间码入局</small></button>
+        <button class="btn" id="bLocal"><b>本 地 对 战</b><small>同屏两人对弈</small></button>
       </div>
-      <p class="note">创建房间后把邀请链接或房间码发给朋友即可联机。<br>手机、电脑均可，无需安装。</p>
+      <div class="row mini"><button class="link" id="bSetL">设 置</button><span>·</span><button class="link" id="bHelpL">玩 法</button></div>
+    </div>
+
+    <div id="pAI" class="pane hidden">
+      <h3>人 机 对 战</h3>
+      <div class="lv" id="aiLv">
+        <button data-v="easy"><span class="rk">新兵</span><span class="st">★</span><small>初学乍练<br>偶有失误</small></button>
+        <button data-v="mid"><span class="rk">校尉</span><span class="st">★★</span><small>攻守有度<br>需用心应对</small></button>
+        <button data-v="hard"><span class="rk">霸王</span><span class="st">★★★</span><small>每步深算<br>极难战胜</small></button>
+      </div>
+      <div class="opt"><div class="lbl">执子</div><div class="seg" data-a="side"><button data-v="r" class="r">红·汉（先手）</button><button data-v="b">黑·楚</button><button data-v="x">随机</button></div></div>
+      <div class="opt"><div class="lbl">悔棋<small>电脑总会同意</small></div><div class="seg" data-a="undo"><button data-v="0">不允许</button><button data-v="3">3 次</button><button data-v="99">不限</button></div></div>
+      <div class="opt"><div class="lbl">总时长<small>每方，用完判负</small></div><div class="seg" data-a="total"><button data-v="0">不限</button><button data-v="15">15 分</button><button data-v="30">30 分</button></div></div>
+      <div class="opt"><div class="lbl">显示可击杀的子</div><div class="seg" data-a="hints"><button data-v="1">开</button><button data-v="0">关</button></div></div>
+      <div class="row"><button class="btn red solid" id="bAIGo">开 战</button><button class="btn" id="bBack4">返 回</button></div>
     </div>
 
     <div id="pCreate" class="pane hidden">
@@ -241,51 +337,52 @@ body.cine #hud .pcard,body.cine #status,body.cine .bubble{opacity:0;pointer-even
       <p class="note" id="joinNote"></p>
       <div class="lineinfo" id="joinLine"></div>
     </div>
-  </div>
+  </div></div>
 </div>
 
 <!-- 设置 -->
-<div id="mSet" class="modal hidden"><div class="scroll"><div class="rod t"></div><div class="rod b"></div>
+<div id="mSet" class="modal hidden"><div class="wrap"><div class="rod t"></div><div class="rod b"></div><div class="scroll">
   <h3>设 置</h3>
+  <div class="opt"><div class="lbl">画面<small>镜头与战斗演出</small></div><div class="seg" data-s="vis"><button data-v="cine">完整电影镜头</button><button data-v="std">精简特效</button><button data-v="low">低特效</button></div></div>
+  <div class="opt"><div class="lbl">血腥程度</div><div class="seg" data-s="gore"><button data-v="3">高</button><button data-v="2">中</button><button data-v="1">低</button><button data-v="0">关</button></div></div>
   <div class="opt"><div class="lbl">背景音乐</div><div class="seg" data-s="music"><button data-v="zen">禅意</button><button data-v="war">战意</button><button data-v="off">关</button></div></div>
   <div class="opt"><div class="lbl">音乐音量</div><div class="vol"><input type="range" min="0" max="100" id="vMusic"></div></div>
   <div class="opt"><div class="lbl">音效音量</div><div class="vol"><input type="range" min="0" max="100" id="vSfx"></div></div>
   <div class="opt"><div class="lbl">配音</div><div class="seg" data-s="voice"><button data-v="1">开</button><button data-v="0">关</button></div></div>
-  <div class="opt"><div class="lbl">战斗特效<small>精简：只保留击杀与渡河</small></div><div class="seg" data-s="fx"><button data-v="1">完整</button><button data-v="0">精简</button></div></div>
   <div class="opt"><div class="lbl">画质<small>卡顿时调低</small></div><div class="seg" data-s="quality"><button data-v="high">高</button><button data-v="mid">中</button><button data-v="low">低</button></div></div>
   <div class="opt" id="optServer"><div class="lbl">自定义线路<small>一般不用填</small></div><input id="oServer" placeholder="wss://…/mqtt" style="flex:1;min-width:0;font-size:14px;padding:6px;border:1px solid #bba;background:rgba(255,255,255,.5)"></div>
   <div class="row"><button class="btn small" id="bHelp">玩法说明</button><button class="btn small solid" id="bSetClose">完 成</button></div>
-</div></div>
+</div></div></div>
 
 <!-- 发言 -->
-<div id="chat" class="modal hidden"><div class="scroll"><div class="rod t"></div><div class="rod b"></div>
+<div id="chat" class="modal hidden"><div class="wrap"><div class="rod t"></div><div class="rod b"></div><div class="scroll">
   <h3>阵 前 喊 话</h3>
   <div class="phr" id="phr"></div>
   <div class="free"><input id="chatIn" maxlength="24" placeholder="自己写一句（最多 24 字）" enterkeyhint="send"><button class="btn small solid" id="chatSend">发</button></div>
   <div class="row"><button class="btn small" id="chatClose">关 闭</button></div>
-</div></div>
+</div></div></div>
 
 <!-- 通用确认框 -->
-<div id="mAsk" class="modal hidden"><div class="scroll"><div class="rod t"></div><div class="rod b"></div>
+<div id="mAsk" class="modal hidden"><div class="wrap"><div class="rod t"></div><div class="rod b"></div><div class="scroll">
   <h3 id="askT"></h3><p id="askP"></p><div class="cd" id="askCd"></div>
   <div class="row"><button class="btn red solid" id="askYes">同 意</button><button class="btn" id="askNo">拒 绝</button></div>
-</div></div>
+</div></div></div>
 
-<div id="mHelp" class="modal hidden"><div class="scroll"><div class="rod t"></div><div class="rod b"></div>
+<div id="mHelp" class="modal hidden"><div class="wrap"><div class="rod t"></div><div class="rod b"></div><div class="scroll">
   <h3>玩 法</h3>
   <div class="help">
-  · 点己方棋子，棋子升起；再点墨点落子，点头顶"殺"字的敌子即吃子。<br>
-  · 拖动旋转视角，双指或滚轮缩放；「視」复位。<br>
+  · 点己方棋子，棋子浮起并圈出；再点墨点落子，头顶有"殺"字的敌子即可吃。<br>
+  · 拖动旋转视角，双指或滚轮缩放；「視」复位视角，「譜」看棋谱，「鏡」切换画面档位。<br>
   · 动画中按空格或点「跳过」加速。<br>
   · 规则为标准中国象棋：将死或困毙即负，将帅不可照面；计时用完或单步超时判负。<br>
-  · 悔棋需对方同意；「言」可向对手喊话。<br>
-  · 兵卒——步兵列阵；车——驷马战车；马——重甲骑兵；炮——铜炮齐射；相象——弓弩箭雨；士——刀盾近卫；帅将——主帅亲征。过河乘舟。
+  · 兵卒——步兵列阵；车——驷马战车；马——重甲骑兵；炮——铜炮齐射；相——汉军弩手；象——楚军战象；士——刀盾近卫；帅将——主帅亲征。步兵与炮乘船渡河，车马涉水。<br>
+  · 人机对战有新兵、校尉、霸王三档；霸王每步深算约五秒，极难战胜。
   </div>
   <div class="row"><button class="btn small solid" id="bHelpClose">知道了</button></div>
-</div></div>
+</div></div></div>
 
 <div id="stamp">將</div>
-<div id="banner"><div class="t" id="bannerT"></div><div class="s" id="bannerS"></div></div>
+<div id="banner"><div class="t" id="bannerT"></div><div class="ln"></div><div class="s" id="bannerS"></div></div>
 <div id="flash"></div>
 <div class="cinebar" id="cbTop"></div><div class="cinebar" id="cbBot"></div>
 <div id="subs"><div class="spk" id="subSpk"></div><div class="line" id="subLine"></div></div>
