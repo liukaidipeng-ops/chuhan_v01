@@ -370,7 +370,7 @@
     kingPos(s) { return findKing(this.board, s); }
   }
 
-  const XQ = { Game, W, H, NAMES, TYPE_CN, other, inPalace, allLegalMoves, inCheck, initialBoard, JQ_SQ, JQ_STD, JQ_COUNT, randomLayout, jieqiBoard, shuffle, rand, et };
+  const XQ = { Game, W, H, NAMES, TYPE_CN, other, inPalace, allLegalMoves, inCheck, initialBoard, JQ_SQ, JQ_STD, JQ_COUNT, randomLayout, jieqiBoard, shuffle, rand, et, pseudoMoves, findKing, inBoard, ownHalf, checkers };
   if (typeof module !== 'undefined' && module.exports) module.exports = XQ;
   global.XQ = XQ;
 })(typeof window !== 'undefined' ? window : globalThis);

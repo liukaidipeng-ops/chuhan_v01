@@ -392,6 +392,35 @@ const Fx = (() => {
     resultAt(t, B, d, side);
     m.position.copy(B);
   }
+  // 低特效档·兵法：攻击未下（扑上去再弹回）、拒马反伤、远射
+  async function lowStrike(c) {
+    const { A, B, d, m, tgt, info } = c;
+    const su = Sfx.unit(unitKey(info.piece.t, c.s));
+    if (c.ranged) {
+      su.release && su.release(); Sfx.B.arrows(0, 10);
+      for (let i = 0; i < 10; i++) spawn({ pos: A.clone().setY(TOP + 0.3), vel: B.clone().sub(A).multiplyScalar(R(2.6, 3.2)).add(rv(0.3, 1.2, 0.3)), color: 0x3a2a1a, size: 0.05, size2: 0.02, life: 0.35, g: 4 });
+      await sleep(0.32);
+      Sfx.B.thunks(0, 6); P.ink(B.clone().setY(TOP + 0.15), 8, 0.4, 0.3);
+      if (tgt && !c.survive) { const cc = tgt.position.clone(); removePiece(tgt); chunks(cc, d, 0.6, 8); flyFace(tgt, cc, d, 0.6, false); P.blood(cc, 10, 0.7, d); }
+      else if (tgt) { P.blood(B.clone().setY(TOP + 0.2), 8, 0.5, d); await tween(0.25, k => { tgt.position.copy(B).addScaledVector(d, Math.sin(k * Math.PI) * 0.12); }); }
+      return;
+    }
+    Sfx.lift();
+    const mid = A.clone().lerp(B, 0.62);
+    await tween(0.3, k => { m.position.lerpVectors(A, mid, k); m.position.y = TOP + Math.sin(k * Math.PI) * 0.35; }, ease.in);
+    Sfx.place(); Cam.shake(0.08); su.impact && su.impact();
+    if (c.counter) { Sfx.B.stab(0, 0.5); P.blood(m.position.clone().setY(TOP + 0.2), 10, 0.6, d.clone().negate()); P.wood(mid, 6, d.clone().negate(), 0.5); }
+    if (c.counter === 'die') { const cc = m.position.clone(); chunks(cc, d.clone().negate(), 0.7, 8); flyFace(m, cc, d.clone().negate(), 0.6, false); m.visible = false; return; }
+    if (c.survive) {
+      if (tgt) { P.blood(B.clone().setY(TOP + 0.2), 10, 0.6, d); P.sparks(B.clone().setY(TOP + 0.25), 8); await tween(0.2, k => { tgt.position.copy(B).addScaledVector(d, Math.sin(k * Math.PI) * 0.12); }); }
+      await tween(0.32, k => { m.position.lerpVectors(mid, A, k); m.position.y = TOP + Math.sin(k * Math.PI) * 0.2; }, ease.out);
+      Sfx.place();
+      return;
+    }
+    // 拒马之后余血吃下
+    await tween(0.2, k => { m.position.lerpVectors(mid, B, k); });
+    if (tgt && tgt.parent) { const cc = tgt.position.clone(); removePiece(tgt); chunks(cc, d, 0.8, 10); flyFace(tgt, cc, d, 0.8, false); P.blood(cc, 10, 0.7, d); }
+  }
   async function lowMove(c) {
     const { A, B, m, info } = c;
     const t = info.piece.t;
@@ -569,6 +598,7 @@ const Fx = (() => {
   };
   async function playMove(info, opts = {}) {
     const c = ctxOf(info);
+    if (opts.c) Object.assign(c, opts.c); // 兵法：survive（攻击未下）、counter（拒马反伤）、ranged（远射不动）、lv/dlv（等级换装）
     if (!c.m) return;
     const y0 = c.m.position.y;
     Board.clearMoves(true);
@@ -579,18 +609,25 @@ const Fx = (() => {
       // 兵种台词：击杀在冲锋那一刻喊，移动时约一半的步数说一句
       bark(info, c);
       if (state.level === 'low') {
-        if (c.tgt) await lowCapture(c);
+        if (c.tgt && (c.survive || c.counter || c.ranged)) await lowStrike(c);
+        else if (c.tgt) await lowCapture(c);
         else if (info.crossesRiver) await Squads.pieceBoat(c);
         else await lowMove(c);
       } else if (c.tgt) await Squads.capture(c);
       else await Squads.move(c);
-      if (c.tgt && typeof Camp !== 'undefined') Camp.onCapture(info.mover, info.streak || 1);
+      if (typeof Camp !== 'undefined') {
+        if (c.counter === 'die') Camp.onCapture(XQ.other(info.mover), 1);
+        else if (c.tgt && !c.survive && !opts.noCamp) Camp.onCapture(info.mover, info.streak || 1);
+      }
     } catch (e) {
       console.error('动画出错', e);
     }
     Time.scale = 1;
-    if (c.tgt && c.tgt.parent === Board.piecesRoot) removePiece(c.tgt);
-    c.m.visible = true; c.m.scale.set(1, 1, 1); c.m.position.copy(c.B);
+    const stay = c.survive || (c.ranged && !c.killed); // 远射：攻方不动；目标没死就留在原地
+    if (c.tgt && c.tgt.parent === Board.piecesRoot && !stay) removePiece(c.tgt);
+    if (c.tgt && stay) { c.tgt.visible = true; c.tgt.scale.set(1, 1, 1); c.tgt.position.copy(c.B); }
+    if (c.counter === 'die') { removePiece(c.m); cineOff(); if (Cam.cine) await Cam.home(0.8); return; }
+    c.m.visible = true; c.m.scale.set(1, 1, 1); c.m.position.copy(stay || c.ranged ? c.A : c.B);
     c.m.rotation.set(0, Board.viewSide === 'b' ? Math.PI : 0, 0);
     if (Cam.cine && !info.result) { cineOff(); await Cam.home(0.8); }
     cineOff();

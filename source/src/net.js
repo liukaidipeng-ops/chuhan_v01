@@ -85,7 +85,8 @@ const Net = (() => {
   }
 
   // ---------- 房间层 ----------
-  let clients = [], role = null, code = null, h = {}, seq = 0, seen = new Set(), seenQ = [];
+  // 消息序号从本次打开页面的时刻起算：同一台设备刷新后身份不变，若序号从 0 重来会被对方当成重复消息丢掉（刷新后要等很久才能入座）
+  let clients = [], role = null, code = null, h = {}, seq = Date.now(), seen = new Set(), seenQ = [];
   let peerSeen = 0, peerPid = null, peerState = 'none', hb = null;
   // 每个房间、每个座位一个固定身份：刷新或重开链接仍是同一个人
   let myPid = Math.random().toString(36).slice(2, 10);

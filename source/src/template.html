@@ -148,6 +148,56 @@ input.code{font-size:30px;letter-spacing:.4em;text-align:center;width:8.5em;max-
 .pcard .caps{display:flex;flex-wrap:wrap;gap:2px;flex:1;min-width:0}
 .capp{width:20px;height:20px;border-radius:50%;background:radial-gradient(circle at 40% 35%,#ecc990,#c9a068);border:1px solid #8a6a40;display:flex;align-items:center;justify-content:center;font-size:12px;font-weight:bold;flex:none;box-shadow:0 1px 1px rgba(0,0,0,.25)}
 .capp.r{color:var(--red)}.capp.b{color:var(--ink)}
+/* 兵法 */
+.pcard .bfm{display:flex;align-items:center;gap:6px;margin-top:3px;min-height:20px;flex-wrap:wrap}
+.pcard .mer{display:inline-flex;align-items:baseline;gap:2px;font-family:var(--num);color:var(--gold3);font-size:15px}
+.pcard .mer b{font-family:var(--font);font-weight:normal;font-size:11px;background:var(--gold3);color:#fbf1d8;border-radius:3px;padding:0 3px;margin-right:2px;align-self:center}
+.pcard .mer i{font-style:normal;font-weight:bold;color:#7a5418;font-size:17px;transition:transform .25s}
+.pcard .mer i.pop{transform:scale(1.5);color:var(--red)}
+.pcard .mer small{font-size:11px;color:var(--ink3)}
+.pcard .fxs{display:flex;gap:4px;flex-wrap:wrap}
+.pcard .fxs span{font-size:11px;padding:1px 6px;border-radius:9px;background:#2a2522;color:#f1e3c2;letter-spacing:.05em;white-space:nowrap}
+.pcard .fxs span.red{background:var(--red)}.pcard .fxs span.used{background:transparent;color:var(--ink3);border:1px solid rgba(60,40,20,.3);text-decoration:line-through}
+.pcard .fxs span.ok{background:transparent;color:#7a5418;border:1px solid var(--gold)}
+.merpop{position:fixed;z-index:30;pointer-events:none;font-size:15px;font-weight:bold;color:#8a5a12;text-shadow:0 1px 0 #fff8e6,0 0 6px rgba(255,236,190,.9);animation:merup 1.4s ease-out forwards;white-space:nowrap}
+@keyframes merup{0%{opacity:0;transform:translateY(6px) scale(.8)}15%{opacity:1;transform:translateY(0) scale(1.1)}100%{opacity:0;transform:translateY(-34px) scale(1)}}
+#bfBar{position:absolute;left:50%;bottom:calc(14px + var(--safe-b));transform:translateX(-50%);pointer-events:none;display:flex;flex-direction:column;align-items:center;gap:6px;max-width:calc(100vw - 24px);z-index:6}
+#bfHint{pointer-events:auto;font-size:14px;letter-spacing:.12em;color:#f1e3c2;background:rgba(26,23,21,.86);padding:4px 14px;border-radius:14px;border:1px solid rgba(217,184,119,.5);white-space:nowrap}
+#bfHint:empty{display:none}
+#bfBar.col{align-items:flex-end}
+#bfBar.col #bfHint{white-space:normal;max-width:150px;text-align:right;line-height:1.4;border-radius:8px}
+#bfBar.col #bfRow{flex-direction:column;align-items:stretch;flex-wrap:nowrap}
+#bfBar.col .sk{min-width:112px}
+#bfBar.cmp #bfRow{gap:5px}
+#bfBar.cmp .sk{min-width:0;height:46px;padding:3px 7px 2px;font-size:13px;letter-spacing:.04em;white-space:nowrap}
+#bfBar.cmp .sk small{font-size:10px}
+#bfBar.cmp #bfHint{font-size:12px;padding:3px 10px}
+#bfRow{display:flex;gap:6px;flex-wrap:wrap;justify-content:center}
+.sk{pointer-events:auto;position:relative;min-width:64px;height:54px;padding:4px 10px 3px;border-radius:5px;border:none;background:linear-gradient(#302b27,#1c1917);color:#f1e3c2;box-shadow:0 4px 12px rgba(0,0,0,.28),inset 0 0 0 2px rgba(217,184,119,.4),inset 0 0 0 4px #25201d;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:1px;font-size:16px;letter-spacing:.1em}
+.sk small{font-size:11px;color:var(--gold2);letter-spacing:.02em;font-family:var(--num)}
+.sk.up{background:linear-gradient(#c79b3c,#8a6420);color:#fff6dd}.sk.up small{color:#fff0c0}
+.sk.art{background:linear-gradient(#b43a26,#86241a)}.sk.ult{background:linear-gradient(#5b2a6a,#341a40)}
+.sk.on{box-shadow:0 0 0 2px #ffd27a,0 0 16px rgba(255,210,122,.7)}
+.sk:disabled{opacity:.62;filter:grayscale(.75) brightness(.8);cursor:default}
+.sk .cd{position:absolute;inset:0;border-radius:5px;background:conic-gradient(rgba(0,0,0,.55) var(--p),transparent 0);pointer-events:none}
+.sk .cdn{position:absolute;top:-7px;right:-7px;background:#1a1715;color:var(--gold2);border:1px solid var(--gold);border-radius:50%;width:20px;height:20px;font-size:12px;line-height:18px;letter-spacing:0;font-family:var(--num)}
+#bfReport{position:absolute;left:12px;top:42%;list-style:none;margin:0;padding:0;display:flex;flex-direction:column;gap:4px;pointer-events:none;max-width:min(340px,46vw);z-index:5}
+#bfReport li{font-size:14px;letter-spacing:.06em;color:#f1e3c2;background:linear-gradient(90deg,rgba(26,23,21,.88),rgba(26,23,21,.55));border-left:3px solid var(--gold);padding:4px 10px 4px 8px;border-radius:2px;animation:repin .4s ease-out;transition:opacity .8s}
+#bfReport li.r{border-left-color:var(--red)}
+#bfReport li.old{opacity:0}
+@keyframes repin{from{opacity:0;transform:translateX(-12px)}to{opacity:1;transform:none}}
+body.compact #bfReport{left:50%;transform:translateX(-50%);max-width:calc(100vw - 24px);align-items:center}
+body.compact #bfReport li{font-size:13px}
+#bfDebug{position:absolute;left:12px;top:calc(130px + var(--safe-t));width:300px;max-height:70vh;overflow:auto;background:linear-gradient(rgba(249,244,232,.97),rgba(236,226,202,.96));border:1px solid var(--gold);border-radius:4px;padding:8px 10px;pointer-events:auto;z-index:20;font-size:13px;box-shadow:0 8px 24px rgba(40,25,10,.25)}
+#bfDebug .dh{font-size:15px;letter-spacing:.3em;text-align:center;border-bottom:1px solid var(--gold);padding-bottom:4px;margin-bottom:6px;position:relative}
+#bfDebug .x{position:absolute;right:0;top:-2px;border:none;background:none;font-size:18px}
+#bfDebug .dsec{color:var(--ink3);font-size:12px;margin-bottom:4px}
+#bfDebug .dpal{display:flex;flex-wrap:wrap;gap:3px;margin-bottom:6px}
+#bfDebug .dpal button{width:30px;height:30px;border-radius:50%;border:1px solid #8a6a40;background:radial-gradient(circle at 40% 35%,#ecc990,#c9a068);font-weight:bold;font-size:15px}
+#bfDebug .dpal button.r{color:var(--red)}#bfDebug .dpal button.on{box-shadow:0 0 0 2px var(--ink)}
+#bfDebug .drow{margin:5px 0;display:flex;align-items:center;gap:4px;flex-wrap:wrap}
+#bfDebug .drow button{border:1px solid var(--ink3);background:rgba(255,255,255,.5);border-radius:3px;padding:2px 7px;font-size:13px}
+#bfDebug input{width:52px;font-size:13px;padding:2px 4px}
 #updBar{position:fixed;left:50%;top:calc(6px + var(--safe-t));transform:translateX(-50%);z-index:90;background:#a3241a;color:#f7ead0;border:1px solid #d9b877;border-radius:16px;padding:6px 16px;font-size:13px;letter-spacing:.1em;box-shadow:0 4px 14px rgba(40,10,5,.35);cursor:pointer;font-family:inherit}
 .capp.hid{background:radial-gradient(circle at 40% 35%,#7a2a1c,#45130d);color:rgba(236,206,140,.75);border-color:#b8914a;font-size:11px;cursor:default}
 .capp.hid.b{background:radial-gradient(circle at 40% 35%,#4a433d,#161312)}
@@ -302,13 +352,26 @@ body.compact #log{width:164px;max-height:34vh}
 
 <!-- 对局界面 -->
 <div id="hud" class="hidden">
-  <div class="pcard b" id="cardOpp"><div class="por"><svg viewBox="0 0 80 80"><circle class="trk" cx="40" cy="40" r="36"/><circle class="arc" cx="40" cy="40" r="36"/></svg><img class="face" alt=""><div class="seal">楚</div></div><div class="info"><div class="nm"><span class="who">项羽</span><span class="tag">对手</span></div><div class="clk">--:--</div><div class="meta"><div class="caps"></div><span class="undo"></span></div></div></div>
-  <div class="pcard r" id="cardMe"><div class="por"><svg viewBox="0 0 80 80"><circle class="trk" cx="40" cy="40" r="36"/><circle class="arc" cx="40" cy="40" r="36"/></svg><img class="face" alt=""><div class="seal">漢</div></div><div class="info"><div class="nm"><span class="who">刘邦</span><span class="tag">你</span></div><div class="clk">--:--</div><div class="meta"><div class="caps"></div><span class="undo"></span></div></div></div>
+  <div class="pcard b" id="cardOpp"><div class="por"><svg viewBox="0 0 80 80"><circle class="trk" cx="40" cy="40" r="36"/><circle class="arc" cx="40" cy="40" r="36"/></svg><img class="face" alt=""><div class="seal">楚</div></div><div class="info"><div class="nm"><span class="who">项羽</span><span class="tag">对手</span></div><div class="clk">--:--</div><div class="meta"><div class="caps"></div><span class="undo"></span></div><div class="bfm hidden"><span class="mer" title="军功"><b>功</b><i>3</i><small>/30</small></span><span class="fxs"></span></div></div></div>
+  <div class="pcard r" id="cardMe"><div class="por"><svg viewBox="0 0 80 80"><circle class="trk" cx="40" cy="40" r="36"/><circle class="arc" cx="40" cy="40" r="36"/></svg><img class="face" alt=""><div class="seal">漢</div></div><div class="info"><div class="nm"><span class="who">刘邦</span><span class="tag">你</span></div><div class="clk">--:--</div><div class="meta"><div class="caps"></div><span class="undo"></span></div><div class="bfm hidden"><span class="mer" title="军功"><b>功</b><i>3</i><small>/30</small></span><span class="fxs"></span></div></div></div>
   <div class="bubble" id="bubOpp"><b></b><span></span></div>
   <div class="bubble" id="bubMe"><b></b><span></span></div>
   <div id="status"><i class="dot hidden" id="netDot"></i><span id="statusT"></span><span id="specN"></span></div>
   <div id="netbadge" class="hidden"></div>
   <div id="log" class="hidden"><div class="lh">棋 譜</div><ol id="logList"></ol><div id="specBox" class="hidden"><div class="lh lh2">觀 戰 席</div><ol id="specFeed"></ol></div></div>
+  <div id="bfBar" class="hidden"><div id="bfHint"></div><div id="bfRow"></div></div>
+  <ol id="bfReport" class="hidden"></ol>
+  <div id="bfDebug" class="hidden">
+    <div class="dh">调 试 摆 子<button class="x" id="dbgClose">×</button></div>
+    <div class="dsec">点选下面的子，再点棋盘摆放；选“空”可清除。</div>
+    <div class="dpal" id="dbgPal"></div>
+    <div class="drow">已选中：<span id="dbgSel">—</span></div>
+    <div class="drow">等级 <button data-lv="1">一</button><button data-lv="2">二</button><button data-lv="3">三</button>　血 <button data-hp="-1">−</button><button data-hp="1">＋</button>　<button id="dbgCd">清冷却</button></div>
+    <div class="drow">军功 汉 <input id="dbgMr" type="number" min="0" max="30"> 楚 <input id="dbgMb" type="number" min="0" max="30"></div>
+    <div class="drow">回合 <input id="dbgRound" type="number" min="1" max="200"> 走棋 <button data-turn="r">汉</button><button data-turn="b">楚</button></div>
+    <div class="drow">兵法 <button id="dbgArts">重置已用</button> 状态 <button id="dbgFx">清除涣散/鸿门宴</button></div>
+    <div class="drow"><button id="dbgClear">清空棋盘（留将帅）</button><button id="dbgReset">恢复开局</button></div>
+  </div>
   <div id="tools">
     <button class="tool" id="tChat" title="阵前喊话">言</button>
     <button class="tool" id="tUndo" title="悔棋">悔<small id="undoLeft"></small></button>
@@ -318,6 +381,7 @@ body.compact #log{width:164px;max-height:34vh}
     <button class="tool" id="tView" title="视角复位">視</button>
     <button class="tool hidden" id="tLaugh" title="哈哈大笑">笑</button>
     <button class="tool red" id="tResign" title="认输">降</button>
+    <button class="tool hidden" id="tDebug" title="调试摆子">調</button>
     <button class="tool" id="tExit" title="退出">退</button>
   </div>
 </div>
@@ -355,7 +419,7 @@ body.compact #log{width:164px;max-height:34vh}
 
     <div id="pCreate" class="pane hidden">
       <h3 id="createTitle">房 间 设 置</h3>
-      <div class="opt"><div class="lbl">玩法<small id="jqNote">揭棋：十五子反扣，走动方知真身</small></div><div class="seg" data-k="jq"><button data-v="0">象棋</button><button data-v="1">揭棋</button></div></div>
+      <div class="opt"><div class="lbl">玩法<small id="varNote">揭棋：十五子反扣，走动方知真身</small></div><div class="seg" data-k="v"><button data-v="std">象棋</button><button data-v="jq">揭棋</button><button data-v="bf">兵法</button></div></div>
       <div class="opt"><div class="lbl">执子</div><div class="seg" data-k="side"><button data-v="r" class="r">红·汉（先手）</button><button data-v="b">黑·楚</button><button data-v="x">随机</button></div></div>
       <div class="opt"><div class="lbl">悔棋<small>需对方同意</small></div><div class="seg" data-k="undo"><button data-v="0">不允许</button><button data-v="1">1 次</button><button data-v="3">3 次</button><button data-v="99">不限</button></div></div>
       <div class="opt"><div class="lbl">总时长<small>每方，用完判负</small></div><div class="seg" data-k="total"><button data-v="0">不限</button><button data-v="10">10 分</button><button data-v="15">15 分</button><button data-v="20">20 分</button><button data-v="30">30 分</button></div></div>
@@ -437,7 +501,25 @@ body.compact #log{width:164px;max-height:34vh}
   · 被吃掉的暗子，只有吃子方知道它是什么。联机时由双方各持一半密钥洗牌，谁也偷看不到对方的牌；同屏对战时，吃子方可点开吃到的“暗”子偷看。<br>
   · 四十回合无吃子判和；同一子不能连续将军、或连续捉同一子超过六回合。其余同象棋：将死或困毙即负。
   </div>
+  <h3 style="margin-top:14px">兵 法</h3>
+  <div class="help">
+  · 走法、将死、困毙不变；帅将没有生命值、不能升级、不受技能伤害、也不能被吃。<br>
+  · <b>军功</b>：开局 3、上限 30。击杀兵卒 +1、士相象 +2、马炮 +3、车 +5（被杀的子每升一级再 +1）；将军 +1；兵卒过河 +1；己方被杀一子 +1；第 16 回合起每回合双方各 +1。<br>
+  · <b>升级</b>：每次行动前可花军功给一枚子升一级（不占行动）。二级 2 血并解锁兵种技能，三级 3 血。棋子腰带上的甲片 = 生命值，金星 = 等级。<br>
+  · <b>攻击</b>：走到敌子格时，敌子只剩 1 血就吃掉占位；2 血以上就只打掉 1 血，攻方退回原位。打不死将军的子不算解将。<br>
+  · <b>兵种技能</b>（二级解锁，占一次行动，有冷却）：兵卒「拒马」反伤来犯者；车「冲阵」吃子后再碾一格；马「踏营」无视蹩马腿；炮「霹雳」溅伤四周；汉弩手「齐射」不动身射斜线两格；楚战象「践踏」落地震伤四周；士「护驾」与帅将换位。<br>
+  · <b>主帅兵法</b>（每局一次）：刘邦「萧何追韩信」复活一子；项羽「破釜沉舟」连走两步（不能以将军收尾），之后三回合不用技能。<br>
+  · <b>终极兵法</b>（20 军功，每局一次）：楚「鸿门宴」——汉帅两回合不能动；汉「四面楚歌」——楚将 2 格内有 3 枚汉子时可发动，楚军两回合只能吃子、不能用技能。<br>
+  · 同一子连续将军不得超过六回合。
+  </div>
   <div class="row"><button class="btn small solid" id="bHelpClose">知道了</button></div>
+</div></div></div>
+
+<div id="mPick" class="modal hidden"><div class="wrap"><div class="rod t"></div><div class="rod b"></div><div class="scroll">
+  <h3 id="pickT">选 择</h3>
+  <p class="note" id="pickP"></p>
+  <div class="chips" id="pickList"></div>
+  <div class="row"><button class="btn small" id="pickNo">取 消</button></div>
 </div></div></div>
 
 <div id="mName" class="modal hidden"><div class="wrap"><div class="rod t"></div><div class="rod b"></div><div class="scroll">

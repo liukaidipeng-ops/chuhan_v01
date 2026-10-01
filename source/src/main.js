@@ -21,6 +21,7 @@
   };
   if (!VIS.includes(S.vis)) S.vis = 'cine';
   let ropts = Object.assign({ side: 'r', undo: 3, total: 15, step: 60, hints: 1, jq: 0 }, store.get('ropts', {}));
+  if (!ropts.v) ropts.v = ropts.jq ? 'jq' : 'std';
   let aopts = Object.assign({ level: 'mid', side: 'r', undo: 3, total: 0, hints: 1 }, store.get('aopts', {}));
 
   function applySettings() {
@@ -133,7 +134,9 @@
   const watching = () => mode === 'watch';
   let watchWaiting = false;
   // 揭棋：同屏对战时本地随机布子；联机/观战时暗子身份未知，靠双方密钥逐个揭开（见 jq.js）
-  const mkGame = o => (o && +o.jq ? new XQ.Game({ jq: true, layout: mode === 'local' ? XQ.randomLayout() : null }) : new XQ.Game());
+  const mkGame = o => (o && +o.bf ? new BF.Game() : o && +o.jq ? new XQ.Game({ jq: true, layout: mode === 'local' ? XQ.randomLayout() : null }) : new XQ.Game());
+  // 兵法：技能选择状态、升级记法、调试
+  let bfMode = null, bfUpNote = '', dbgOn = false, dbgPick = null, dbgSel = null;
   let JK = null, JC = { cin: {}, cout: {}, used: { r: {}, b: {} } }, jqBad = 0, pendingJ = null, lastJx = null;
   const jqOn = () => game.jq && online();
   const jqReady = () => !jqOn() || !!(JK && JC.cin[other(mySide)] && JC.cout[mySide]);
@@ -168,7 +171,29 @@
   }
   // 揭棋：翻出的子记在着法后，如“炮二進七=馬”
   const noteOf = (board, m, rv) => { const p = board[m.from[1]][m.from[0]]; return notation(board, m) + (rv && p ? '=' + PCH[p.s][rv] : ''); };
+  // 兵法记谱：升级记作“↑傌”，技能写技能名，攻击未下记“·攻”
+  function bfNote(g, e) {
+    const at = e.at || e.from, p = at ? g.at(at[0], at[1]) : null;
+    if (e.k === 'up') return p ? '↑' + PCH[p.s][p.t] : '';
+    if (e.k === 'mv') { const q = g.at(e.to[0], e.to[1]); const n = notation(g.board, e); return q && q.hp >= 2 ? n + '·攻' : n; }
+    if (e.k === 'sk' && p) {
+      const sk = BF.SKILL_OF(p.t, p.s), cn = BF.SKILL_CN[sk];
+      if (e.to && sk !== 'qishe') return cn + '·' + notation(g.board, { from: e.at, to: e.to });
+      if (sk === 'qishe') { const q = g.at(e.to[0], e.to[1]); return cn + '·' + (q ? PCH[q.s][q.t] : ''); }
+      return cn + '·' + PCH[p.s][p.t];
+    }
+    if (e.k === 'art') { if (g.turn === 'r') { const d = g.dead.r.find(x => x.id === e.id); return '追韓信·' + (d ? PCH.r[d.t] : ''); } return '破釜沉舟'; }
+    if (e.k === 'ult') return g.turn === 'r' ? '四面楚歌' : '鴻門宴';
+    if (e.k === 'pass') return '停著';
+    return '';
+  }
   function rebuildNotes() {
+    if (game.bf) {
+      const g = new BF.Game(); g.reset(game.base); notes = []; let up = '';
+      for (const e of game.entries) { const n = bfNote(g, e); if (!g.apply(e)) break; if (e.k === 'up') up = n; else { notes.push((up ? up + ' ' : '') + n); up = ''; } }
+      bfUpNote = up;
+      renderLog(); return;
+    }
     const g = game.jq ? new XQ.Game(game.opts) : new XQ.Game(); notes = [];
     for (const h of game.history) { notes.push(noteOf(g.board, h, h.rv)); g.play({ from: h.from, to: h.to, rv: h.rv }); }
     renderLog();
@@ -201,6 +226,7 @@
   }
   function capturedBy() {
     const by = { r: [], b: [] };
+    if (game.bf) { for (const h of game.history) for (const k of h.kills || []) by[other(k.s)].push({ s: k.s, t: k.t, id: k.id }); return by; }
     for (const h of game.history) if (h.cap) by[h.cap.s === 'r' ? 'b' : 'r'].push(h.cap);
     return by;
   }
@@ -225,6 +251,19 @@
       c.classList.toggle('think', mode === 'ai' && s === aiSide() && aiThinking);
       c.querySelector('.caps').innerHTML = by[s].map(capChip).join('');
       c.querySelector('.undo').textContent = opts.undo && !(mode === 'ai' && s === aiSide()) ? (opts.undo >= 99 ? '悔棋不限' : `悔 ${Math.max(0, opts.undo - undoUsed[s])}`) : '';
+      const bfm = c.querySelector('.bfm');
+      bfm.classList.toggle('hidden', !game.bf);
+      if (game.bf) {
+        const mi = bfm.querySelector('.mer i'); if (mi.textContent !== String(game.merit[s])) { mi.textContent = game.merit[s]; mi.classList.add('pop'); setTimeout(() => mi.classList.remove('pop'), 300); }
+        const fx = game.fx, used = game.used, U = BF.CFG.ultimates;
+        const chips = [];
+        chips.push(`<span class="${used.art[s] ? 'used' : 'ok'}" title="主帅兵法（每局一次）">${BF.ART_CN[s]}</span>`);
+        chips.push(`<span class="${used.ult[s] ? 'used' : game.merit[s] >= U.cost ? 'red' : 'ok'}" title="终极兵法：${U.cost} 军功">${BF.ULT_CN[s]}${used.ult[s] ? '' : '·' + U.cost}</span>`);
+        if (s === 'r' && fx.hm) chips.push(`<span class="red" title="汉帅不能移动">鸿门宴 ${fx.hm}</span>`);
+        if (s === 'b' && fx.sm) chips.push(`<span class="red" title="只能吃子、不能用技能">涣散 ${fx.sm}</span>`);
+        if (s === 'b' && fx.pf) chips.push(`<span title="破釜沉舟后不能用兵种技能">封技 ${fx.pf}</span>`);
+        bfm.querySelector('.fxs').innerHTML = chips.join('');
+      }
     }
     paintClocks();
     let st, warn = false;
@@ -248,7 +287,12 @@
       st = '揭棋 · ' + st;
       if (jqBad) { st += ' · ⚠对手揭子数据校验未通过'; warn = true; }
     }
+    if (game.bf && !game.result) {
+      if (started && game.mustPass() && !watching()) { st = `${SIDE_CN[game.turn]}方无子可走 · 请停着`; }
+      st = `兵法 · 第 ${game.round} 回合 · ` + st;
+    }
     $('statusT').textContent = st; $('status').classList.toggle('warn', warn);
+    renderBar();
     $('netDot').classList.toggle('hidden', !(online() || watching()));
     $('netDot').classList.toggle('bad', (online() && Net.peerState !== 'ok') || ((online() || watching()) && !Net.lineOk));
     $('specN').textContent = (online() || watching()) && Spect.count ? `观战 ${Spect.count}` : '';
@@ -273,6 +317,17 @@
     $('bubOpp').style.top = (below + 12) + 'px';
     $('bubMe').style.bottom = (H - m.top + 12) + 'px';
     $('log').style.top = compact ? (sr.bottom + 8) + 'px' : '';
+    // 兵法技能栏：手机上贴在自己卡片上方，电脑上居中靠下；气泡让到技能栏上面
+    const bar = $('bfBar');
+    if (!bar.classList.contains('hidden')) {
+      // 电脑：竖排在右侧工具栏左边，不压棋盘；手机：横排贴在自己卡片上方
+      bar.classList.toggle('col', !compact); bar.classList.toggle('cmp', compact);
+      if (compact) { bar.style.bottom = (H - m.top + 8) + 'px'; bar.style.left = '12px'; bar.style.right = '12px'; bar.style.transform = 'none'; }
+      else { const tr = $('tools').getBoundingClientRect(); bar.style.left = 'auto'; bar.style.transform = 'none'; bar.style.right = (W - tr.left + 12) + 'px'; bar.style.bottom = (H - tr.bottom) + 'px'; }
+      const br = bar.getBoundingClientRect();
+      $('bubMe').style.bottom = (H - Math.min(m.top, br.top) + 10) + 'px';
+    }
+    $('bfReport').style.top = compact ? (sr.bottom + 6) + 'px' : '';
   }
   window.addEventListener('resize', () => setTimeout(layoutHud, 60));
   if (window.ResizeObserver) { const ro = new ResizeObserver(() => layoutHud()); ro.observe($('cardOpp')); ro.observe($('cardMe')); }
@@ -395,7 +450,9 @@
     if (state) applyState(state);
     jqSetup(state);
     rebuildNotes();
-    $('log').classList.toggle('jq', game.jq);
+    $('log').classList.toggle('jq', game.jq || !!game.bf);
+    bfMode = null; dbgOn = false; $('bfDebug').classList.add('hidden'); $('bfReport').innerHTML = ''; $('bfReport').classList.toggle('hidden', !game.bf);
+    $('tDebug').classList.toggle('hidden', !(game.bf && m === 'local'));
     setView(mode === 'local' ? 'r' : side);
     $('lobby').classList.add('hidden'); $('hud').classList.remove('hidden');
     $('netbadge').classList.add('hidden');
@@ -414,6 +471,7 @@
       Sfx.B.gong(0, 0.9); Sfx.B.taiko(0.5, 0.8); Sfx.B.taiko(0.8, 0.8); Sfx.B.taiko(1.05, 0.9);
       let sub = mode === 'local' ? '红方先行' : mode === 'ai' ? `人机 · ${LV[opts.level]} · ${mySide === 'r' ? '你执红（汉）先行' : '你执黑（楚）后手'}` : mode === 'watch' ? '观战' : (mySide === 'r' ? '你执红（汉）· 先行' : '你执黑（楚）· 后手');
       if (game.jq) sub = '揭棋 · ' + sub;
+      if (game.bf) sub = '兵法 · ' + sub;
       banner('楚汉相争', sub, 2700);
       await Core.sleep(2.5);
       bubble('r', '汉王刘邦在此！项籍，可敢一战？', 3000); await Voice.play('r_start', { minDur: 2 });
@@ -421,6 +479,7 @@
     }
     if (mode !== m) return;
     if (game.jq && !game.history.length && intro) { bubble('r', '十五子尽数扣下，翻开方知是何兵马！', 2600); await Core.sleep(1.2); }
+    if (game.bf && !game.history.length && intro) { bubble('b', '论兵法，你还嫩了些！', 2400); await Core.sleep(1.0); }
     if (mode !== m) return;
     started = true; clock.last = performance.now(); clock.step = stepMax();
     turnStartAt = performance.now(); slowIdx = 0;
@@ -429,14 +488,16 @@
   }
   function snapshot() {
     const jq = game.jq && JK ? { gid: JK.gid, cin: JC.cin, cout: JC.cout } : undefined;
-    return { v: 2, code: Net.code, opts, hostSide, jq, moves: game.history.map(h => ({ from: h.from, to: h.to, rv: h.rv, cj: h.cj })), result: game.result, undo: { ...undoUsed }, clk: { r: clock.r, b: clock.b }, step: clock.step, t: Date.now() };
+    const bfe = game.bf ? game.entries : undefined;
+    return { v: 2, code: Net.code, opts, hostSide, jq, bfe, moves: game.bf ? [] : game.history.map(h => ({ from: h.from, to: h.to, rv: h.rv, cj: h.cj })), result: game.result, undo: { ...undoUsed }, clk: { r: clock.r, b: clock.b }, step: clock.step, t: Date.now() };
   }
   function applyState(st) {
     game = mkGame(opts);
-    for (const m of st.moves || []) game.play({ from: m.from, to: m.to, rv: m.rv, cj: m.cj });
+    if (game.bf) for (const e of st.bfe || []) { if (!game.apply(e)) break; }
+    else for (const m of st.moves || []) game.play({ from: m.from, to: m.to, rv: m.rv, cj: m.cj });
     if (st.result) game.result = st.result;
     undoUsed = { r: 0, b: 0, ...(st.undo || {}) };
-    if (st.clk && (st.moves || []).length) { clock.r = st.clk.r; clock.b = st.clk.b; }
+    if (st.clk && ((st.moves || []).length || (st.bfe || []).length)) { clock.r = st.clk.r; clock.b = st.clk.b; }
     if (st.step != null) clock.step = st.step;
     jqLearnAll();
     Board.setPosition(game); Board.faceViewer(viewSide);
@@ -546,6 +607,7 @@
     if (watching()) return false;
     if (!started || ended || busy || game.result || pendingUndo || pendingJ) return false;
     if (game.jq && !jqReady()) return false;
+    if (game.bf && mode === 'ai') return false;
     if (mode === 'local') return true;
     if (mode === 'ai') return game.turn === mySide && !aiThinking;
     return Net.connected && game.turn === mySide;
@@ -720,6 +782,8 @@
   // ---------- 点选 ----------
   $('gl').addEventListener('pointerup', e => {
     if (Core.lastDragMoved > 10 || Core.Cam.cine) return;
+    if (dbgOn && game.bf) { const p = Board.pick(e.clientX, e.clientY); if (p) dbgClick(p[0], p[1]); return; }
+    if (game.bf && canAct()) { const p = Board.pick(e.clientX, e.clientY); bfClick(p); return; }
     if (!canAct()) {
       if (started && !ended && !busy && online() && Net.connected && game.turn !== mySide) toast('还没轮到你');
       if (started && !ended && mode === 'ai' && game.turn !== mySide) toast(`${NAME[aiSide()]}正在思考`);
@@ -744,6 +808,308 @@
       if (!selMoves.length) toast('这枚棋子无路可走');
     } else { Board.clearMoves(false); sel = null; selMoves = []; }
   });
+
+  // ---------- 兵法：选子、技能栏、兵法 ----------
+  const SIDE_ARMY = { r: '汉军', b: '楚军' };
+  const pname = p => XQ.NAMES[p.s][p.t];
+  function exitBfMode(repaint = true) {
+    if (bfMode && bfMode.kind === 'pofu' && bfMode.m1) Board.reconcile(game);
+    bfMode = null;
+    if (repaint) renderBar();
+  }
+  function bfSelect(f, r) {
+    sel = [f, r];
+    selMoves = game.legalFrom(f, r).map(m => { const q = game.at(m.to[0], m.to[1]); return { ...m, atk: !!(q && q.hp >= 2) }; });
+    Board.showMoves(sel, selMoves, !!+opts.hints);
+    Sfx.select();
+  }
+  function bfClear() { Board.clearMoves(false); sel = null; selMoves = []; }
+  function bfClick(p) {
+    if (bfMode && bfMode.kind === 'pofu') { pofuClick(p); return; }
+    if (bfMode && bfMode.kind === 'sk') {
+      const a = p && bfMode.targets.find(x => x.to && x.to[0] === p[0] && x.to[1] === p[1]);
+      if (a) { doBF(a); return; }
+      exitBfMode(false);
+    }
+    if (!p) { bfClear(); renderBar(); return; }
+    const [f, r] = p;
+    const mv = selMoves.find(m => m.to[0] === f && m.to[1] === r);
+    if (sel && mv) { doBF({ k: 'mv', from: sel, to: [f, r] }); return; }
+    const pc = game.at(f, r);
+    if (pc && pc.s === actor()) {
+      if (sel && sel[0] === f && sel[1] === r) bfClear();
+      else bfSelect(f, r);
+    } else bfClear();
+    renderBar();
+  }
+  // 破釜沉舟：先选第一步，再选第二步，两步一起提交
+  function pofuClick(p) {
+    const M = bfMode;
+    const showFrom = (list, from) => { Board.showMoves(from, list.filter(m => m.from[0] === from[0] && m.from[1] === from[1]), true); };
+    if (!p) return;
+    const [f, r] = p;
+    const list = M.m1 ? M.seconds : M.firsts;
+    const hit = M.sel && list.find(m => m.from[0] === M.sel[0] && m.from[1] === M.sel[1] && m.to[0] === f && m.to[1] === r);
+    if (hit && !M.m1) {
+      M.m1 = { from: hit.from, to: hit.to };
+      M.seconds = game.pofuSecond(M.m1);
+      // 预览第一步：模型挪过去，被吃的子先藏起来
+      const pv = game.pofuPreview(M.m1);
+      for (const e of pv.ev) {
+        if (e.e === 'move') { const m = Board.pieces.get(e.id); if (m) m.position.copy(Board.pos(e.to[0], e.to[1])); }
+        if (e.e === 'kill') { const m = Board.pieces.get(e.id); if (m) m.visible = false; }
+      }
+      M.board = pv.S.board; M.sel = null;
+      Board.clearMoves(true); Sfx.place();
+      M.hint = '破釜沉舟 · 第二步：选子再走一步'; renderBar();
+      return;
+    }
+    if (hit && M.m1) { doBF({ k: 'art', steps: [M.m1, { from: hit.from, to: hit.to }] }); return; }
+    const board = M.m1 ? M.board : game.board;
+    const pc = board[r][f];
+    if (pc && pc.s === 'b' && list.some(m => m.from[0] === f && m.from[1] === r)) { M.sel = [f, r]; Sfx.select(); showFrom(list, M.sel); }
+    else { M.sel = null; Board.clearMoves(false); }
+  }
+  let barKey = '', barCache = null;
+  function bfAvail() {
+    const key = game.entries.length + '|' + (sel ? sel.join() : '') + '|' + game.turn + '|' + (game.result ? 1 : 0);
+    if (key === barKey && barCache) return barCache;
+    barKey = key;
+    const side = game.turn, o = { side };
+    if (sel) {
+      const p = game.at(sel[0], sel[1]);
+      if (p && p.s === side) {
+        o.p = p; o.cost = game.upgradeCost(p); o.canUp = game.canUpgrade(sel[0], sel[1]);
+        o.sk = game.skillOf(p); o.targets = p.lv >= 2 ? game.skillTargets(sel[0], sel[1]) : []; o.cd = game.cdLeft(p);
+      }
+    }
+    o.art = side === 'r' ? game.reviveOptions() : game.pofuFirst();
+    o.ult = game.ultReady();
+    o.pass = game.mustPass();
+    return (barCache = o);
+  }
+  function renderBar() {
+    const bar = $('bfBar');
+    const show = !!(game && game.bf && mode && started && !ended && !game.result && canAct() && !dbgOn);
+    bar.classList.toggle('hidden', !show);
+    if (!show) { $('bfRow').innerHTML = ''; $('bfHint').textContent = ''; return; }
+    const B = [];
+    let hint = '';
+    if (bfMode) {
+      hint = bfMode.hint;
+      B.push(`<button class="sk" data-a="cancel">取消<small>换一着</small></button>`);
+    } else {
+      const a = bfAvail();
+      if (a.p) {
+        hint = `${SIDE_ARMY[a.p.s]}${pname(a.p)} · ${['', '一', '二', '三'][a.p.lv]}级 · ${a.p.hp} 血`;
+        if (a.p.t !== 'k') {
+          if (a.p.lv < 3) B.push(`<button class="sk up" data-a="up" ${a.canUp ? '' : 'disabled'}>升${['', '', '二', '三'][a.p.lv + 1]}级<small>${game.upgraded ? '本回合已升' : a.cost + ' 功'}</small></button>`);
+          const cn = BF.SKILL_CN[a.sk];
+          if (a.p.lv < 2) B.push(`<button class="sk" disabled>${cn}<small>二级解锁</small></button>`);
+          else {
+            const cdTot = BF.CFG.skills[a.sk].cooldown;
+            const pct = a.cd ? Math.round(a.cd / cdTot * 100) : 0;
+            B.push(`<button class="sk" data-a="sk" ${a.targets.length ? '' : 'disabled'}>${cn}<small>${a.cd ? '冷却' : a.targets.length ? '可用' : '无目标'}</small>${a.cd ? `<span class="cd" style="--p:${pct}%"></span><span class="cdn">${a.cd}</span>` : ''}</button>`);
+          }
+        }
+      }
+      const side = a.side;
+      B.push(`<button class="sk art" data-a="art" ${a.art.length ? '' : 'disabled'}>${BF.ART_CN[side]}<small>${game.used.art[side] ? '已用' : '每局一次'}</small></button>`);
+      B.push(`<button class="sk ult" data-a="ult" ${a.ult ? '' : 'disabled'}>${BF.ULT_CN[side]}<small>${game.used.ult[side] ? '已用' : BF.CFG.ultimates.cost + ' 功'}</small></button>`);
+      if (a.pass) B.push(`<button class="sk" data-a="pass">停 着<small>无子可走</small></button>`);
+      if (!a.p) hint = `${SIDE_ARMY[side]}行动 · 军功 ${game.merit[side]}`;
+    }
+    $('bfHint').textContent = hint;
+    $('bfRow').innerHTML = B.join('');
+    $('bfRow').querySelectorAll('button[data-a]').forEach(b => b.onclick = ev => { ev.stopPropagation(); bfButton(b.dataset.a); });
+    layoutHud();
+  }
+  async function bfButton(a) {
+    if (!canAct()) return;
+    Sfx.select && Sfx.select();
+    if (a === 'cancel') { exitBfMode(false); Board.clearMoves(false); if (sel) bfSelect(sel[0], sel[1]); renderBar(); return; }
+    if (a === 'up' && sel) { doBF({ k: 'up', at: sel }); return; }
+    if (a === 'sk' && sel) {
+      const av = bfAvail(), cn = BF.SKILL_CN[av.sk];
+      if (av.targets.length === 1 && !av.targets[0].to) { doBF(av.targets[0]); return; }
+      bfMode = { kind: 'sk', targets: av.targets, hint: `${cn}：点选目标（${{ chongzhen: '冲向敌子', taying: '无视马腿', pili: '炮击敌子', qishe: '斜线两格内', jianta: '落点四周溅伤' }[av.sk] || ''}）` };
+      Board.showMoves(sel, av.targets.map(t => ({ from: t.at, to: t.to, atk: true })), true);
+      renderBar(); return;
+    }
+    if (a === 'art') {
+      if (game.turn === 'r') {
+        const opts2 = game.reviveOptions();
+        const id = await pick('萧 何 追 韩 信', '复活一枚被吃的子，放回它的开局位置（一级）。', opts2.map(o => ({ v: o.id, label: XQ.NAMES.r[o.t], cls: 'r' })));
+        if (id != null && canAct()) doBF({ k: 'art', id: +id });
+        return;
+      }
+      bfClear();
+      bfMode = { kind: 'pofu', firsts: game.pofuFirst(), hint: '破釜沉舟 · 第一步：选子走一步（两步走完不能将军）' };
+      renderBar(); return;
+    }
+    if (a === 'ult') {
+      const s = game.turn;
+      const ok = await ask(BF.ULT_CN[s], s === 'b' ? '花 20 军功：汉方接下来 2 回合，汉帅不能移动，也不能被护驾换位。' : '花 20 军功：楚方接下来 2 回合军心涣散——除楚将外只能吃子或攻击，不能用任何技能。', 0, '发 动', '再想想');
+      if (ok && canAct()) doBF({ k: 'ult' });
+      return;
+    }
+    if (a === 'pass') doBF({ k: 'pass' });
+  }
+  function pick(title, text, items) {
+    return new Promise(res => {
+      $('pickT').textContent = title; $('pickP').textContent = text;
+      $('pickList').innerHTML = items.map(i => `<button class="btn small ${i.cls || ''}" data-v="${i.v}">${i.label}</button>`).join('');
+      $('mPick').classList.remove('hidden');
+      const fin = v => { $('mPick').classList.add('hidden'); res(v); };
+      $('pickList').querySelectorAll('button').forEach(b => b.onclick = () => fin(b.dataset.v));
+      $('pickNo').onclick = () => fin(null);
+    });
+  }
+  // 执行一条兵法行动（本地或对手发来）
+  function doBF(e, remote = false, clk) {
+    if (e.k === 'art' && e.steps) Board.reconcile(game);
+    const note = bfNote(game, e);
+    const info = game.apply(e);
+    if (!info) { if (!remote) toast('这一步不合法'); return false; }
+    bfMode = null; sel = null; selMoves = []; Board.clearMoves();
+    barKey = '';
+    if (!remote && online()) Net.send({ t: 'bf', n: game.entries.length - 1, e, clk: clock[info.side] });
+    if (e.k === 'up') {
+      bfUpNote = note;
+      bfReport(info); bfMerit(info);
+      queueBF(info);
+      updateHud(); publish();
+      if (!remote) setTimeout(() => { if (canAct() && game.turn === info.side) { const p = game.board.flat().find(x => x && x.id === info.id); const pos = p && (() => { for (let r = 0; r < 10; r++) for (let f = 0; f < 9; f++) if (game.board[r][f] === p) return [f, r]; })(); if (pos) { bfSelect(pos[0], pos[1]); renderBar(); } } }, 50);
+      return true;
+    }
+    notes.push((bfUpNote ? bfUpNote + ' ' : '') + note); bfUpNote = ''; renderLog();
+    Fx.ply = game.history.length;
+    if (remote && clk != null) clock[info.mover] = clk;
+    clock.step = stepMax(); clock.oppStamp = 0;
+    turnStartAt = 0;
+    info.captured = info.cap; info.streak = captureStreak();
+    bfReport(info); bfMerit(info);
+    queueBF(info);
+    updateHud(); publish();
+    return true;
+  }
+  function queueBF(info) {
+    busy++;
+    $('skip').classList.remove('hidden'); $('skip').textContent = '跳过 ▸▸';
+    anim = anim.then(async () => {
+      await BFX.play(info, BF.view(info.after));
+      if (info.k !== 'up' && info.from) Board.showLast(info.from, info.to || info.from);
+    }).catch(e => console.error(e)).then(() => {
+      busy--;
+      Core.Time.skip = false;
+      if (!busy) $('skip').classList.add('hidden');
+      if (!busy) Board.reconcile(game);
+      if (info.k === 'up') { updateHud(); return; }
+      clock.step = stepMax(); clock.last = performance.now();
+      if (online() && game.turn === mySide) Net.send({ t: 'clk', side: mySide, total: clock[mySide], step: clock.step });
+      const kills = game.history.reduce((n, h) => n + (h.kills ? h.kills.length : 0), 0);
+      Sfx.Music.setIntensity(game.result ? 1 : game.inCheck() ? 0.95 : Math.min(0.72, 0.32 + kills * 0.03));
+      afterMoveLines(info);
+      if (info.captured) Spect.react(info.mover);
+      if (!busy && game.turn === mySide) { turnStartAt = performance.now(); slowIdx = 0; }
+      updateHud();
+      if (game.mustPass() && canAct() && (mode === 'local' || game.turn === mySide)) toast(`${SIDE_CN[game.turn]}方无子可走，请点「停着」`, 2600);
+      if (info.result && !busy) finishGame(info.result);
+    });
+  }
+  // 战报
+  function bfReport(info) {
+    const s = info.side, o = other(s), ev = info.ev || [];
+    const bd = info.before ? info.before.board : game.board;
+    const at = a => (a ? bd[a[1]][a[0]] : null);
+    const nm = (side, t) => SIDE_ARMY[side] + XQ.NAMES[side][t];
+    const kills = ev.filter(x => x.e === 'kill'), hits = ev.filter(x => x.e === 'hit');
+    let line = null;
+    if (info.k === 'up') line = `${nm(s, info.t)}升为${['', '一', '二', '三'][info.lv]}级`;
+    else if (info.k === 'mv') {
+      const P0 = at(info.from), T0 = at(info.to);
+      const died = kills.find(k => P0 && k.id === P0.id);
+      if (died && T0) line = `${nm(o, T0.t)}立拒马，${nm(s, P0.t)}撞阵身亡`;
+      else if (T0 && kills.some(k => k.id === T0.id)) line = `${nm(s, P0.t)}击杀${nm(o, T0.t)}`;
+      else if (T0) line = `${nm(s, P0.t)}强攻${nm(o, T0.t)}，未能拿下`;
+      else if (info.check) line = `${nm(s, P0.t)}将军！`;
+    } else if (info.k === 'sk') {
+      const P0 = at(info.from), sk = info.extra.sk, cn = BF.SKILL_CN[sk];
+      const foe = kills.filter(k => k.s === o), hurt = hits.filter(h => true);
+      if (sk === 'juma') line = `${nm(s, P0.t)}立起拒马`;
+      else if (sk === 'hujia') line = `${nm(s, P0.t)}护驾，与${s === 'r' ? '汉王' : '霸王'}换位`;
+      else if (sk === 'chongzhen') line = foe.length >= 2 ? `${SIDE_ARMY[s]}车冲阵，连破${SIDE_ARMY[o]}两阵` : foe.length ? `${SIDE_ARMY[s]}车冲阵，击破${nm(o, foe[0].t)}` : `${SIDE_ARMY[s]}车冲阵受阻`;
+      else line = `${nm(s, P0.t)}${cn}` + (foe.length ? `，击杀${foe.map(k => XQ.NAMES[o][k.t]).join('、')}` : '') + (hurt.length ? `，${hurt.length} 子负伤` : '');
+    } else if (info.k === 'art') line = s === 'r' ? `萧何月下追韩信：${nm('r', (ev.find(x => x.e === 'revive') || {}).t || 'p')}重回阵前` : `项羽破釜沉舟，楚军连进两步` + (kills.length ? `，击杀${kills.filter(k => k.s === o).map(k => XQ.NAMES[o][k.t]).join('、')}` : '');
+    else if (info.k === 'ult') line = s === 'b' ? '鸿门宴：汉王两回合不得移动' : '四面楚歌：楚军军心涣散';
+    else if (info.k === 'pass') line = `${SIDE_ARMY[s]}按兵不动`;
+    if (!line) return;
+    const L = $('bfReport'); L.classList.remove('hidden');
+    const li = document.createElement('li'); li.className = s; li.textContent = line; L.appendChild(li);
+    const max = document.body.classList.contains('compact') ? 1 : 4;
+    while (L.children.length > max) L.firstChild.remove();
+    setTimeout(() => { li.classList.add('old'); setTimeout(() => li.remove(), 900); }, 7000);
+  }
+  // 军功变动：卡片上飘字
+  function bfMerit(info) {
+    const sum = { r: 0, b: 0 }, why = { r: [], b: [] };
+    for (const x of info.ev || []) if (x.e === 'merit') { sum[x.s] += x.n; if (!why[x.s].includes(x.why)) why[x.s].push(x.why); }
+    if (info.k === 'up') sum[info.side] -= BF.CFG.upgrade.cost[info.t][info.lv - 2];
+    if (info.k === 'ult') sum[info.side] -= BF.CFG.ultimates.cost;
+    for (const s of ['r', 'b']) {
+      if (!sum[s]) continue;
+      const el = cardFor(s).querySelector('.mer'); if (!el) continue;
+      const rc = el.getBoundingClientRect();
+      const d = document.createElement('div'); d.className = 'merpop';
+      d.textContent = (sum[s] > 0 ? '+' : '') + sum[s] + ' 功' + (why[s].length && sum[s] > 0 ? ' · ' + why[s].join('') : '');
+      d.style.left = (rc.left) + 'px'; d.style.top = (rc.top - 6) + 'px';
+      document.body.appendChild(d); setTimeout(() => d.remove(), 1500);
+    }
+  }
+
+  // ---------- 兵法调试：自由摆子、改军功等级生命、回合 ----------
+  const DBG_TYPES = ['k', 'a', 'e', 'n', 'r', 'c', 'p'];
+  function dbgPaint() {
+    $('dbgPal').innerHTML = ['r', 'b'].map(s => DBG_TYPES.map(t => `<button class="${s}${dbgPick && dbgPick.s === s && dbgPick.t === t ? ' on' : ''}" data-s="${s}" data-t="${t}">${XQ.NAMES[s][t]}</button>`).join('')).join('') + `<button data-s="" data-t="" class="${dbgPick && !dbgPick.t ? 'on' : ''}">空</button>`;
+    $('dbgPal').querySelectorAll('button').forEach(b => b.onclick = () => { dbgPick = b.dataset.t ? { s: b.dataset.s, t: b.dataset.t } : { t: '' }; dbgPaint(); });
+    const p = dbgSel && game.at(dbgSel[0], dbgSel[1]);
+    $('dbgSel').textContent = p ? `${SIDE_ARMY[p.s]}${pname(p)} · ${p.lv}级 · ${p.hp}血 · 冷却${game.cdLeft(p)}` : '—';
+    $('dbgMr').value = game.merit.r; $('dbgMb').value = game.merit.b; $('dbgRound').value = game.round;
+  }
+  function dbgApply(fn) {
+    game.setup(fn);
+    notes = []; bfUpNote = ''; renderLog();
+    Board.setPosition(game); Board.faceViewer(viewSide); Board.showLast(null);
+    barKey = ''; dbgPaint(); updateHud();
+  }
+  function dbgClick(f, r) {
+    if (dbgPick) {
+      dbgApply(T => {
+        if (!dbgPick.t) { const q = T.board[r][f]; if (q && q.t !== 'k') T.board[r][f] = null; return; }
+        const ids = T.board.flat().filter(Boolean).map(x => x.id).concat(T.dead.r.map(x => x.id), T.dead.b.map(x => x.id));
+        if (dbgPick.t === 'k') { for (let rr = 0; rr < 10; rr++) for (let ff = 0; ff < 9; ff++) { const q = T.board[rr][ff]; if (q && q.t === 'k' && q.s === dbgPick.s) T.board[rr][ff] = null; } }
+        const old = T.board[r][f]; if (old && old.t === 'k') return;
+        T.board[r][f] = { s: dbgPick.s, t: dbgPick.t, id: Math.max(31, ...ids) + 1, lv: 1, hp: 1, cd: 0, jm: 0 };
+      });
+      dbgSel = [f, r]; dbgPaint(); return;
+    }
+    dbgSel = game.at(f, r) ? [f, r] : null; dbgPaint();
+    if (dbgSel) Board.showMoves(dbgSel, [], false); else Board.clearMoves(false);
+  }
+  function dbgPiece(fn) { if (!dbgSel) return; dbgApply(T => { const p = T.board[dbgSel[1]][dbgSel[0]]; if (p && p.t !== 'k') fn(p); }); }
+  $('bfDebug').querySelectorAll('[data-lv]').forEach(b => b.onclick = () => dbgPiece(p => { p.lv = +b.dataset.lv; p.hp = BF.CFG.hp[p.lv - 1]; }));
+  $('bfDebug').querySelectorAll('[data-hp]').forEach(b => b.onclick = () => dbgPiece(p => { p.hp = Math.max(1, Math.min(BF.CFG.hp[p.lv - 1], p.hp + +b.dataset.hp)); }));
+  $('dbgCd').onclick = () => dbgApply(T => { for (const p of T.board.flat()) if (p) { p.cd = 0; p.jm = 0; } });
+  $('dbgMr').onchange = () => dbgApply(T => { T.merit.r = Math.max(0, Math.min(30, +$('dbgMr').value || 0)); });
+  $('dbgMb').onchange = () => dbgApply(T => { T.merit.b = Math.max(0, Math.min(30, +$('dbgMb').value || 0)); });
+  $('dbgRound').onchange = () => dbgApply(T => { const n = Math.max(1, +$('dbgRound').value || 1) - 1; T.cnt = T.turn === 'r' ? { r: n, b: n } : { r: n + 1, b: n }; T.fx = { hm: 0, sm: 0, pf: 0 }; T.ckHist = { r: [], b: [] }; });
+  $('bfDebug').querySelectorAll('[data-turn]').forEach(b => b.onclick = () => dbgApply(T => { const n = Math.min(T.cnt.r, T.cnt.b); T.turn = b.dataset.turn; T.cnt = T.turn === 'r' ? { r: n, b: n } : { r: n + 1, b: n }; T.upgraded = false; }));
+  $('dbgArts').onclick = () => dbgApply(T => { T.used = { art: { r: 0, b: 0 }, ult: { r: 0, b: 0 } }; });
+  $('dbgFx').onclick = () => dbgApply(T => { T.fx = { hm: 0, sm: 0, pf: 0 }; });
+  $('dbgClear').onclick = () => dbgApply(T => { for (let r = 0; r < 10; r++) for (let f = 0; f < 9; f++) { const p = T.board[r][f]; if (p && p.t !== 'k') T.board[r][f] = null; } });
+  $('dbgReset').onclick = () => { game = new BF.Game(); dbgApply(() => { }); };
+  $('dbgClose').onclick = () => { dbgOn = false; dbgPick = null; $('bfDebug').classList.add('hidden'); Board.clearMoves(false); updateHud(); };
+  $('tDebug').onclick = () => { if (!game.bf || mode !== 'local') return; dbgOn = !dbgOn; $('bfDebug').classList.toggle('hidden', !dbgOn); if (dbgOn) { dbgPick = null; dbgSel = null; dbgPaint(); toast('调试摆子：选子后点棋盘；改完关掉面板即可接着下'); } updateHud(); };
 
   // ---------- 悔棋 ----------
   function undoPlies(side) { return game.turn === side ? 2 : 1; }
@@ -779,11 +1145,30 @@
     updateHud();
     setTimeout(() => { if (pendingUndo && pendingUndo.side === mySide && pendingUndo.n === game.history.length) { pendingUndo = null; updateHud(); } }, 22000);
   }
+  // 兵法：悔棋 = 按行动序列重放到悔棋前（军功、等级、生命、冷却、状态全部还原），棋盘墨晕一下重新摆好
+  async function bfRewind(n) {
+    bfMode = null; barKey = '';
+    Sfx.B.whoosh(0, 0.5, 0.3); Sfx.B.bell(0.1, 660, 0.08);
+    for (const m of Board.pieces.values()) Fx.P.ink(m.position.clone().setY(Board.TOP + 0.1), 2, 0.3, 0.25, 0.5);
+    await Core.sleep(0.25);
+    game.rebuild(n);
+    rebuildNotes();
+    Board.setPosition(game); Board.faceViewer(viewSide);
+    const last = game.history[game.history.length - 1];
+    Board.showLast(last && last.from ? last.from : null, last && last.from ? (last.to || last.from) : null);
+  }
+  function bfUndoTarget(plies) {
+    const E = game.entries; let n = E.length, left = plies;
+    while (n > 0 && left > 0) { n--; if (E[n].k !== 'up') left--; }
+    while (n > 0 && E[n - 1].k === 'up') n--;
+    return n;
+  }
   function applyUndo(plies, side) {
     undoUsed[side]++;
     Board.clearMoves(); sel = null; selMoves = [];
     busy++;
     anim = anim.then(async () => {
+      if (game.bf) { await bfRewind(bfUndoTarget(plies)); return; }
       for (let i = 0; i < plies; i++) { const h = game.undo(); if (h) { notes.pop(); await Fx.undoMove(h, game.at(h.from[0], h.from[1])); } }
       const last = game.history[game.history.length - 1];
       Board.showLast(last ? last.from : null, last ? last.to : null);
@@ -893,6 +1278,15 @@
         break;
       }
       case 'jx': jqResolve(d); break;
+      case 'bf': {
+        if (!game.bf) return;
+        const E = game.entries;
+        if (d.n < E.length && JSON.stringify(E[d.n]) === JSON.stringify(d.e)) return; // 重发的旧行动
+        if (d.n !== E.length) { Net.send(mode === 'guest' ? { t: 'syncReq' } : { t: 'sync', state: snapshot() }); return; }
+        if (game.turn === mySide) { Net.send(mode === 'guest' ? { t: 'syncReq' } : { t: 'sync', state: snapshot() }); return; }
+        if (!doBF(d.e, true, d.clk)) Net.send(mode === 'guest' ? { t: 'syncReq' } : { t: 'sync', state: snapshot() });
+        break;
+      }
       case 'jqc':
         if (mode !== 'host' || !JK || d.gid !== JK.gid || !Jieqi.validCommits(d.cin) || !Jieqi.validCommits(d.cout)) break;
         {
@@ -935,6 +1329,7 @@
     if (game.jq && st.jq && JK && st.jq.gid !== JK.gid) { restart(st); return; }
     if (game.jq && st.jq && st.jq.cin) { const opp = other(mySide); if (!JC.cin[opp] && Jieqi.validCommits(st.jq.cin[opp])) JC.cin[opp] = st.jq.cin[opp]; if (!JC.cout[mySide] && Jieqi.validCommits(st.jq.cout && st.jq.cout[mySide])) JC.cout[mySide] = st.jq.cout[mySide]; }
     if (game.jq && st.jq && JK && !(st.jq.cin && st.jq.cin[mySide])) Net.send({ t: 'jqc', gid: JK.gid, ...Jieqi.pub(JK) });
+    if (game.bf) { bfSync(st, false); return; }
     const mine = game.history, theirs = st.moves || [];
     const same = (a, b) => a.from[0] === b.from[0] && a.from[1] === b.from[1] && a.to[0] === b.to[0] && a.to[1] === b.to[1];
     const prefix = (a, b) => a.length <= b.length && a.every((m, i) => same(m, b[i]));
@@ -1054,7 +1449,33 @@
     }
     syncWatch(d);
   }
+  // 兵法：按行动序列对齐（快照里是完整的行动序列，重放即可还原全部状态）
+  function bfSync(st, watch) {
+    const E = game.entries, T = st.bfe || [];
+    const same = (a, b) => JSON.stringify(a) === JSON.stringify(b);
+    const prefix = (a, b) => a.length <= b.length && a.every((x, i) => same(x, b[i]));
+    if (prefix(E, T)) { for (const e of T.slice(E.length)) if (!doBF(e, true)) { applyState(st); break; } }
+    else if (prefix(T, E)) {
+      const extra = game.sides.slice(T.length);
+      if (!watch && extra.length && extra.every(x => x === mySide)) { E.slice(T.length).forEach((e, i) => Net.send({ t: 'bf', n: T.length + i, e, clk: clock[mySide] })); }
+      else if (!game.result) {
+        busy++;
+        anim = anim.then(() => bfRewind(T.length)).catch(e => console.error(e)).then(() => { busy--; Fx.ply = game.history.length; renderLog(); updateHud(); });
+        if (watch) toast('棋手悔棋');
+      }
+    } else applyState(st);
+    if (st.clk) { clock.r = st.clk.r; clock.b = st.clk.b; }
+    if (st.step != null) clock.step = st.step;
+    undoUsed = { r: 0, b: 0, ...(st.undo || {}) };
+    if (st.result && !game.result) { game.result = st.result; finishGame(st.result); }
+    updateHud();
+  }
   function syncWatch(st) {
+    if (game.bf) {
+      const T = st.bfe || [];
+      if (!T.length && !st.result && (game.entries.length || game.result || ended)) { if (Ending.running) { pendingRestart = st; Ending.skip(); } else restart(st); return; }
+      bfSync(st, true); return;
+    }
     const theirs = st.moves || [], mine = game.history;
     if (!theirs.length && !st.result && (mine.length || game.result || ended)) {
       if (Ending.running) { pendingRestart = st; Ending.skip(); } else restart(st);
@@ -1111,7 +1532,10 @@
   const panes = ['pMain', 'pAI', 'pCreate', 'pWait', 'pJoin'];
   const showPane = id => panes.forEach(p => $(p).classList.toggle('hidden', p !== id));
   setTimeout(() => $('lobby').classList.remove('intro'), 3800);
-  bindSeg($('pCreate'), 'data-k', k => ropts[k], (k, v) => { ropts[k] = k === 'side' ? v : +v; store.set('ropts', ropts); });
+  const VAR_NOTE = { std: '标准中国象棋', jq: '揭棋：十五子反扣，走动方知真身', bf: '兵法：升级、生命值、兵种技能与主帅兵法' };
+  const paintVar = () => { $('varNote').textContent = VAR_NOTE[ropts.v] || ''; };
+  bindSeg($('pCreate'), 'data-k', k => ropts[k], (k, v) => { ropts[k] = k === 'side' || k === 'v' ? v : +v; store.set('ropts', ropts); if (k === 'v') paintVar(); });
+  paintVar();
   bindSeg($('pAI'), 'data-a', k => aopts[k], (k, v) => { aopts[k] = k === 'side' ? v : +v; store.set('aopts', aopts); });
   const paintLv = () => $('aiLv').querySelectorAll('button').forEach(b => b.classList.toggle('on', b.dataset.v === aopts.level));
   $('aiLv').querySelectorAll('button').forEach(b => b.onclick = () => { aopts.level = b.dataset.v; store.set('aopts', aopts); paintLv(); Sfx.select && Sfx.select(); });
@@ -1135,13 +1559,13 @@
   const inviteUrl = code => location.origin + location.pathname + '?room=' + code;
   $('bCreateGo').onclick = () => {
     Sfx.init(); applySettings();
-    const o = { undo: ropts.undo, total: ropts.total, step: ropts.step, hints: ropts.hints, jq: +ropts.jq || 0 };
+    const o = { undo: ropts.undo, total: ropts.total, step: ropts.step, hints: ropts.hints, jq: ropts.v === 'jq' ? 1 : 0, bf: ropts.v === 'bf' ? 1 : 0 };
     const side = ropts.side === 'x' ? (Math.random() < 0.5 ? 'r' : 'b') : ropts.side;
     if (createFor === 'local') { startGame('local', 'r', o); return; }
     hostRoom(Net.gen(), o, side);
   };
   function chipsFor(o, side) {
-    return [o.jq ? '揭棋' : '象棋', `房主执${side === 'r' ? '红·汉' : '黑·楚'}`, o.undo ? (o.undo >= 99 ? '悔棋不限' : `悔棋 ${o.undo} 次`) : '不许悔棋', o.total ? `每方 ${o.total} 分钟` : '不限总时', o.step ? `每步 ${o.step >= 60 ? o.step / 60 + ' 分' : o.step + ' 秒'}` : '不限步时', o.hints ? '显示可杀' : '不显示可杀']
+    return [o.bf ? '兵法' : o.jq ? '揭棋' : '象棋', `房主执${side === 'r' ? '红·汉' : '黑·楚'}`, o.undo ? (o.undo >= 99 ? '悔棋不限' : `悔棋 ${o.undo} 次`) : '不许悔棋', o.total ? `每方 ${o.total} 分钟` : '不限总时', o.step ? `每步 ${o.step >= 60 ? o.step / 60 + ' 分' : o.step + ' 秒'}` : '不限步时', o.hints ? '显示可杀' : '不显示可杀']
       .map(t => `<span class="chip">${t}</span>`).join('');
   }
   function hostRoom(code, o, side, resumeState) {
@@ -1302,10 +1726,15 @@
   window.__xq = {
     get busy() { return busy; }, get started() { return started; }, get game() { return game; }, get mode() { return mode; }, get aiThinking() { return aiThinking; },
     doMove, startGame, finishGame, Ending, Fx, Board, Core, Camp, Squads, Spect, setView, onData, Net, requestUndo, sendEmote, get clock() { return clock; }, get opts() { return opts; }, joinRoom, notation, get notes() { return notes; }, aiSay,
+    doBF, bfButton, bfClick, get bfMode() { return bfMode; }, BF, BFX,
     get JK() { return JK; }, get JC() { return JC; }, get pendingJ() { return pendingJ; }, get jqBad() { return jqBad; }, jqReady, capChip, XQ,
   };
   if (location.hash === '#local') { startGame('local', 'r', { undo: 3, total: 15, step: 60, hints: 1 }, { intro: false }); return; }
   if (location.hash === '#jq') { startGame('local', 'r', { undo: 99, total: 0, step: 0, hints: 1, jq: 1 }, { intro: false }); return; }
+  if (location.hash === '#bf' || location.hash === '#bfdebug') {
+    startGame('local', 'r', { undo: 99, total: 0, step: 0, hints: 1, bf: 1 }, { intro: false }).then(() => { if (location.hash === '#bfdebug') $('tDebug').click(); });
+    return;
+  }
   if (location.hash.startsWith('#ai')) { const [, lv, sd] = location.hash.split('-'); startGame('ai', sd || 'r', { undo: 3, total: 0, step: 0, hints: 1, level: lv || 'easy' }, { intro: false }); return; }
   $('lobby').classList.remove('hidden');
   if (room && hostRec && hostRec.code === room && Date.now() - hostRec.t < 6 * 3600e3) {

@@ -38,6 +38,19 @@ const Squads = (() => {
         c.scale.copy(c.userData.bs).multiplyScalar(k);
       }
     }
+    // 兵法：升级后换装——二级执「銳」字小旗、甲胄泛金，三级执「精」字大旗、通身金甲
+    rank(lv) {
+      if (!lv || lv < 2) return this;
+      if (this.troop) this.troop.units.forEach((u, i) => this.troop.tint(i, lv >= 3 ? 0xffcf6a : 0xf0d6a0, lv >= 3 ? 0.4 : 0.22));
+      const flag = Models.makeBanner(this.side, lv >= 3 ? '精' : '銳');
+      const fs = lv >= 3 ? 0.1 : 0.075;
+      flag.group.scale.setScalar(fs); this.group.add(flag.group);
+      this.updaters.push(dt => {
+        const p = this.center(0).addScaledVector(rightOf(this.yaw), 0.34).addScaledVector(fwd(this.yaw), -0.28);
+        flag.group.position.set(p.x, gy(p), p.z); flag.group.rotation.y = this.yaw - Math.PI / 2 + 0.6; flag.update(dt);
+      });
+      return this;
+    }
     appear() {
       P.ink(this.center(0.05), 8, 0.4, 0.3, 0.7);
       this.setVis(0.001);
@@ -745,7 +758,11 @@ const Squads = (() => {
   }
 
   // ---------- 工厂 ----------
-  function make(t, side, anchor, yaw, role = 'move') {
+  function make(t, side, anchor, yaw, role = 'move', lv = 1) {
+    const sq = make0(t, side, anchor, yaw, role);
+    return lv >= 2 && sq.rank ? sq.rank(lv) : sq;
+  }
+  function make0(t, side, anchor, yaw, role) {
     switch (t) {
       case 'p': return new Infantry(side, anchor, yaw);
       case 'a': return new Guards(side, anchor, yaw);
@@ -920,16 +937,43 @@ const Squads = (() => {
     }
     // 双方化身
     Fx.sink(m); Fx.sink(tgt);
-    const att = make(t, s, A, t === 'n' && c.mt === 'n' ? yawOf(knightCorner(info).clone().sub(A)) : yaw, 'attack');
-    const def = make(dt_, ds, B, yaw + Math.PI, 'defend');
+    const counterDie = c.counter === 'die';
+    const att = make(t, s, A, t === 'n' && c.mt === 'n' ? yawOf(knightCorner(info).clone().sub(A)) : yaw, counterDie && t === 'c' ? 'move' : 'attack', c.lv);
+    const def = make(dt_, ds, B, yaw + Math.PI, 'defend', c.dlv);
     await Promise.all([att.appear(), sleep(0.15).then(() => def.appear())]);
     if (def.setPose) def.setPose('ready');
+    // 兵法·拒马：攻方先撞上木桩
+    if (c.counter) {
+      if (def.setPose) def.setPose('brace');
+      const hitAt = B.clone().addScaledVector(d, -0.55);
+      await charge(att, hitAt);
+      Sfx.B.stab(0, 0.5); Sfx.B.woodbreak(0.05, 0.35); Cam.shake(0.14);
+      Fx.P.blood(att.center(0.25), 14, 0.7, d.clone().negate()); Fx.P.wood(hitAt, 8, d.clone().negate(), 0.6);
+      if (counterDie) {
+        await att.die('stab', d.clone().negate(), 1, att.center(0));
+        await sleep(0.6);
+        att.dissolve(); await sleep(0.2); await def.dissolve();
+        if (tgt) await Fx.rise(tgt, B, 0.4);
+        return;
+      }
+      await sleep(0.2);
+      await retreat(att, A); // 余血再战：退回起点重新冲锋
+    }
+    if (c.survive) def.die = (hit, dir, power, center) => hurtSquad(def, hit, dir, power, center);
     if (cine && t !== 'c') {
       const ranged = t === 'e' && s === 'r';
       if (ranged) Fx.shot(mid.clone().addScaledVector(side, 2.2 + c.dist * 0.55).addScaledVector(d, -0.5).add(new V3(0, 1.1 + c.dist * 0.12, 0)), mid.clone().add(new V3(0, 0.2, 0)), 0.6);
       else Fx.shot(A.clone().lerp(B, 0.7).addScaledVector(side, 2.3).addScaledVector(d, -0.6).add(new V3(0, 0.95, 0)), A.clone().lerp(B, 0.82).add(new V3(0, 0.25, 0)), 0.6);
     }
     await att.attack(def, c);
+    // 兵法·攻击未下：攻方撤回原位，守方带伤留在原地；远射（齐射）攻方不动
+    if (c.survive || c.ranged) {
+      await sleep(0.3);
+      if (c.survive) await retreat(att, A);
+      att.dissolve(); await sleep(0.25); await def.dissolve();
+      await Promise.all([Fx.rise(m, A, 0.4), tgt && c.survive ? Fx.rise(tgt, B, 0.4) : null]);
+      return;
+    }
     // 收尾：尸体留一会儿再化墨
     const hold = gore() >= 3 ? 1.6 : gore() >= 1 ? 0.9 : 0.4;
     await sleep(0.2);
@@ -940,6 +984,46 @@ const Squads = (() => {
     // 被吃棋子的刻字面碎裂
     if (tgt) { const cc = B.clone(); cc.y = TOP + 0.1; Fx.chunks(cc, d, 0.5, 6, { small: true, lifeK: 0.7 }); }
     await Fx.rise(m, B, 0.4);
+  }
+
+  // ---------- 兵法：冲锋 / 撤回 / 受创不倒 ----------
+  function speedUp(sq, v) {
+    if (sq.riders) sq.riders.forEach(h => { h.speed = v; });
+    if (sq.m && 'speed' in sq.m) sq.m.speed = v;
+    if (sq.horse) sq.horse.speed = v * 0.5;
+    if (sq.walking !== undefined && !sq.mounted) sq.walking = v > 0 ? 1.4 : 0;
+  }
+  async function charge(sq, to) {
+    if (!sq.anchor) return;
+    const from = sq.anchor.clone(); if (from.distanceTo(to) < 0.05) return;
+    if (sq.setPose && sq.troop) sq.setPose('charge');
+    speedUp(sq, 1);
+    await walkPath(sq, [from, to], Math.max(0.35, from.distanceTo(to) / 2.2));
+    speedUp(sq, 0);
+  }
+  async function retreat(sq, A) {
+    if (!sq.anchor || sq.mode === 'battery') return;
+    const from = sq.anchor.clone(); if (from.distanceTo(A) < 0.05) return;
+    if (sq.troop) { sq.follow = true; sq.setPose('march'); }
+    speedUp(sq, 0.8);
+    await walkPath(sq, [from, A], Math.min(1.3, 0.35 + from.distanceTo(A) / 2.2));
+    speedUp(sq, 0);
+    if (sq.troop) sq.setPose('idle');
+  }
+  function hurtSquad(sq, hit, dir, power = 1, center) {
+    const c = sq.center(0.3);
+    if (sq.troop) {
+      const alive = sq.alive(), n = Math.max(1, Math.round(alive.length / 3));
+      alive.slice(0, n).forEach(u => killUnit(sq.troop, u.i, hit === 'bolts' ? 'bolts' : hit === 'blast' ? 'blast' : 'stab', dir, power * 0.8, center || c));
+      alive.slice(n).forEach(u => sq.troop.act(u.i, 'hit', 0.35, Math.random() * 0.2));
+      setTimeout(() => { if (!sq.dead && sq.setPose) sq.setPose('brace'); }, 500);
+      return sleep(0.7);
+    }
+    // 战车、骑兵、战象、炮：受创不倒，被打得后退半步
+    P.blood(c, 14, 0.8, dir); P.sparks(c, 12); Cam.shake(0.14);
+    if (hit === 'blast') { P.fire(c, 14, 0.6); P.smoke(c, 6, 0.6); }
+    const a0 = sq.anchor.clone();
+    return tween(0.45, k => { sq.anchor.copy(a0).addScaledVector(dir, Math.sin(k * Math.PI) * 0.18); });
   }
 
   // ======================================================================
@@ -978,5 +1062,5 @@ const Squads = (() => {
     return g;
   }
 
-  return { move, capture, pieceBoat, heroDefeat, make, Shade, Infantry, Guards, Crossbow, Elephant, Chariot, Cavalry, Cannon, General, killUnit, walkPath, turnTo, TroopSquad };
+  return { move, capture, pieceBoat, heroDefeat, make, charge, retreat, hurtSquad, yawOf, knightCorner, Shade, Infantry, Guards, Crossbow, Elephant, Chariot, Cavalry, Cannon, General, killUnit, walkPath, turnTo, TroopSquad };
 })();

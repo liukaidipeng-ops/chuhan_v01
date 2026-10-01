@@ -570,6 +570,89 @@ const Board = (() => {
       piecesRoot.add(m);
       pieces.set(p.id, m);
     }
+    if (game.bf) decorateAll(game);
+  }
+
+  // ---------- 兵法：甲片（一片 = 1 点生命）、金星（每升一级一颗）、拒马木桩、鸿门宴、涣散 ----------
+  const plateGeo = new THREE.BoxGeometry(0.105, 0.07, 0.03); plateGeo.userData.keep = true;
+  const plateOn = new THREE.MeshStandardMaterial({ color: 0xc9a045, metalness: 0.55, roughness: 0.32, emissive: 0x2a1a05 });
+  const plateOff = new THREE.MeshStandardMaterial({ color: 0x3b3633, metalness: 0.1, roughness: 0.9 });
+  const starGeo = (() => {
+    const sh = new THREE.Shape();
+    for (let i = 0; i < 10; i++) { const a = -Math.PI / 2 + i * Math.PI / 5, r = i % 2 ? 0.026 : 0.06; i ? sh.lineTo(Math.cos(a) * r, Math.sin(a) * r) : sh.moveTo(Math.cos(a) * r, Math.sin(a) * r); }
+    const g = new THREE.ShapeGeometry(sh); g.rotateX(-Math.PI / 2); g.userData.keep = true; return g;
+  })();
+  const starMat = new THREE.MeshBasicMaterial({ color: 0xffd25a, polygonOffset: true, polygonOffsetFactor: -4 });
+  const starRim = new THREE.MeshBasicMaterial({ color: 0x5a3a10, polygonOffset: true, polygonOffsetFactor: -3 });
+  const stakeGeo = new THREE.CylinderGeometry(0.012, 0.02, 0.36, 5); stakeGeo.translate(0, 0.18, 0); stakeGeo.userData.keep = true;
+  const stakeMat = toon(0x6e4a2c);
+  const ropeGeo = new THREE.TorusGeometry(0.5, 0.012, 4, 32); ropeGeo.rotateX(Math.PI / 2); ropeGeo.userData.keep = true;
+  const ropeMat = toon(0x8e2a1a);
+  const sealTex = (ch, col) => canvasTex(128, 128, (g, w) => {
+    g.fillStyle = col; rrect(g, 8, 8, w - 16, w - 16, 14); g.fill();
+    g.strokeStyle = '#f7ead0'; g.lineWidth = 5; rrect(g, 18, 18, w - 36, w - 36, 8); g.stroke();
+    g.font = `bold 72px ${FONT}`; g.textAlign = 'center'; g.textBaseline = 'middle'; g.fillStyle = '#f7ead0'; g.fillText(ch, w / 2, w / 2 + 4);
+  });
+  let feastTex = null;
+  function decorate(m, p, o = {}) {
+    if (m.userData.deco) { m.remove(m.userData.deco); m.userData.deco = null; }
+    const face = m.children[1];
+    if (face && face.material) face.material.color.set(o.dim ? 0x8f8a84 : 0xffffff);
+    if (!p || !p.lv) return;
+    const d = new THREE.Group(); m.add(d); m.userData.deco = d;
+    const max = BF.CFG.hp[p.lv - 1];
+    if (p.lv >= 2) for (let i = 0; i < max; i++) {
+      const a = (i - (max - 1) / 2) * 0.36;
+      const pl = new THREE.Mesh(plateGeo, i < p.hp ? plateOn : plateOff);
+      pl.position.set(Math.sin(a) * 0.432, PH * 0.6, Math.cos(a) * 0.432); pl.rotation.y = a;
+      pl.userData.plate = i; d.add(pl);
+    }
+    for (let i = 0; i < p.lv - 1; i++) {
+      const x = (i - (p.lv - 2) / 2) * 0.13;
+      const rim = new THREE.Mesh(starGeo, starRim); rim.scale.setScalar(1.25); rim.position.set(x, PH + 0.004, -0.305);
+      const st = new THREE.Mesh(starGeo, starMat); st.position.set(x, PH + 0.006, -0.305);
+      d.add(rim, st);
+    }
+    if (o.jm) {
+      for (let i = 0; i < 10; i++) {
+        const a = i / 10 * Math.PI * 2, sk = new THREE.Mesh(stakeGeo, stakeMat);
+        sk.position.set(Math.cos(a) * 0.5, 0, Math.sin(a) * 0.5); sk.rotation.set(Math.sin(a) * 0.55, 0, -Math.cos(a) * 0.55);
+        d.add(sk);
+      }
+      const rope = new THREE.Mesh(ropeGeo, ropeMat); rope.position.y = 0.14; d.add(rope);
+    }
+    if (o.hm) {
+      if (!feastTex) feastTex = sealTex('宴', '#8e2418');
+      const sp = new THREE.Sprite(new THREE.SpriteMaterial({ map: feastTex, transparent: true, depthWrite: false }));
+      sp.scale.set(0.42, 0.42, 1); sp.position.y = PH + 0.55; d.add(sp);
+      const rope = new THREE.Mesh(ropeGeo, ropeMat); rope.scale.setScalar(0.92); rope.position.y = PH * 0.5; d.add(rope);
+    }
+  }
+  function decoOpts(game, p) {
+    const fx = game.fx;
+    return { jm: game.jmActive(p), hm: p.s === 'r' && p.t === 'k' && fx.hm > 0, dim: p.s === 'b' && p.t !== 'k' && fx.sm > 0 };
+  }
+  function decorateAll(game) {
+    for (let r = 0; r < 10; r++) for (let f = 0; f < 9; f++) {
+      const p = game.board[r][f]; if (!p) continue;
+      const m = pieces.get(p.id); if (m) decorate(m, p, decoOpts(game, p));
+    }
+  }
+  // 兵法：动画之后把棋盘模型对齐到规则状态（补缺、删多、归位、换装饰）
+  function reconcile(game) {
+    const want = new Map();
+    for (let r = 0; r < 10; r++) for (let f = 0; f < 9; f++) { const p = game.board[r][f]; if (p) want.set(p.id, [p, f, r]); }
+    for (const [id, m] of [...pieces]) if (!want.has(id)) { if (m.parent) m.parent.remove(m); pieces.delete(id); }
+    for (const [id, [p, f, r]] of want) {
+      let m = pieces.get(id);
+      if (!m) { m = makePiece(p); piecesRoot.add(m); pieces.set(id, m); }
+      if (m.parent !== piecesRoot) piecesRoot.add(m);
+      m.visible = true; m.scale.set(1, 1, 1);
+      m.position.copy(pos(f, r));
+      m.rotation.set(0, Board.viewSide === 'b' ? Math.PI : 0, 0);
+      if (m.userData.t !== p.t) setFace(m, p);
+      if (game.bf) decorate(m, p, decoOpts(game, p));
+    }
   }
   // 棋子朝向：让字朝向当前观看方
   function faceViewer(side) {
@@ -743,6 +826,6 @@ const Board = (() => {
   return {
     root, TOP, PH, HALF, X, Z, pos, setPosition, pieces, piecesRoot, makePiece, faceViewer,
     showMoves, clearMoves, showLast, pick, meshAt, get hovered() { return hovered; }, ringTex, glowTex, wakes, water, waterMat, decal, flatGeo, pine, deco, FONT,
-    viewSide: 'r', pieceWood, RZ, BZ, BX, BRIDGE_X, faceTex, backTex, setFace, makeRiver, mtTex,
+    viewSide: 'r', pieceWood, RZ, BZ, BX, BRIDGE_X, faceTex, backTex, setFace, makeRiver, mtTex, decorate, decorateAll, reconcile, plateGeo, plateOn,
   };
 })();
