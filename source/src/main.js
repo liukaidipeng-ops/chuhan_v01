@@ -258,7 +258,12 @@
         const fx = game.fx, used = game.used, U = BF.CFG.ultimates;
         const chips = [];
         chips.push(`<span class="${used.art[s] ? 'used' : 'ok'}" title="主帅兵法（每局一次）">${BF.ART_CN[s]}</span>`);
-        chips.push(`<span class="${used.ult[s] ? 'used' : game.merit[s] >= U.cost ? 'red' : 'ok'}" title="终极兵法：${U.cost} 军功">${BF.ULT_CN[s]}${used.ult[s] ? '' : '·' + U.cost}</span>`);
+        // 四面楚歌除了 20 军功还要围住楚将（5×5 内 3 枚汉军子），条件没齐就不亮，并显示还差几枚
+        const need = U.simian.minPiecesInRadius, near = s === 'r' ? game.simianCount() : need;
+        const ultOk = game.merit[s] >= U.cost && near >= need;
+        const ultTxt = used.ult[s] ? '' : game.merit[s] >= U.cost && near < need ? `·将旁${near}/${need}` : '·' + U.cost;
+        const ultTip = s === 'r' ? `终极兵法：${U.cost} 军功，且楚将周围两格内（5×5）至少 ${need} 枚汉军棋子` : `终极兵法：${U.cost} 军功`;
+        chips.push(`<span class="${used.ult[s] ? 'used' : ultOk ? 'red' : 'ok'}" title="${ultTip}">${BF.ULT_CN[s]}${ultTxt}</span>`);
         if (s === 'r' && fx.hm) chips.push(`<span class="red" title="汉帅不能移动">鸿门宴 ${fx.hm}</span>`);
         if (s === 'b' && fx.sm) chips.push(`<span class="red" title="只能吃子、不能用技能">涣散 ${fx.sm}</span>`);
         if (s === 'b' && fx.pf) chips.push(`<span title="破釜沉舟后不能用兵种技能">封技 ${fx.pf}</span>`);
@@ -888,6 +893,40 @@
     o.pass = game.mustPass();
     return (barCache = o);
   }
+  // 主帅兵法 / 终极兵法不能用的原因：[按钮小字, 点击说明]；能用返回 null
+  function artWhy(side, a) {
+    if (a.art.length) return null;
+    const N = BF.ART_CN[side];
+    if (game.used.art[side]) return ['已用', `${N}每局只能用一次，已经用过了`];
+    if (side === 'b' && game.fx.sm > 0) return ['涣散中', `四面楚歌：楚军军心涣散，还有 ${game.fx.sm} 回合不能用兵法`];
+    if (side === 'r') {
+      if (!game.dead.r.length) return ['暂无阵亡', '萧何追韩信复活己方被吃的子；现在还没有子阵亡'];
+      return ['原位被占', '阵亡棋子的开局位置被占着（或复活后己方仍被将军），暂时不能复活'];
+    }
+    return ['无法连走', '破釜沉舟要连走两步普通走子：每步走完己方不被将军，两步走完不能将军对方；现在找不到这样的两步'];
+  }
+  function ultWhy(side, a) {
+    if (a.ult) return null;
+    const U = BF.CFG.ultimates, N = BF.ULT_CN[side], m = game.merit[side];
+    if (game.used.ult[side]) return ['已用', `${N}每局只能用一次，已经用过了`];
+    if (side === 'b' && game.fx.sm > 0) return ['涣散中', `四面楚歌：楚军军心涣散，还有 ${game.fx.sm} 回合不能用兵法`];
+    if (m < U.cost) return [`${m}/${U.cost} 功`, `${N}需要 ${U.cost} 军功，现在只有 ${m}`];
+    if (side === 'r') {
+      const n = game.simianCount(), need = U.simian.minPiecesInRadius;
+      if (n < need) return [`将旁 ${n}/${need}`, `四面楚歌还要围住项羽：楚将周围两格内（以楚将为中心的 5×5，棋盘上已标出）至少 ${need} 枚汉军棋子，现在 ${n} 枚`];
+    }
+    if (XQ.inCheck(game.board, side)) return ['先应将', `正被将军，${N}解不了将，先应将`];
+    return ['不可用', `${N}现在不能发动`];
+  }
+  // 四面楚歌的范围：楚将周围 5×5，标出已在范围内的汉军棋子
+  function simianZone() {
+    const R = BF.CFG.ultimates.simian.radius;
+    let k = null; for (let r = 0; r < 10; r++) for (let f = 0; f < 9; f++) { const p = game.at(f, r); if (p && p.s === 'b' && p.t === 'k') k = [f, r]; }
+    if (!k) return;
+    const hits = [];
+    for (let r = k[1] - R; r <= k[1] + R; r++) for (let f = k[0] - R; f <= k[0] + R; f++) { const p = game.at(f, r); if (p && p.s === 'r') hits.push([f, r]); }
+    Board.showZone([Math.max(0, k[0] - R), Math.max(0, k[1] - R)], [Math.min(8, k[0] + R), Math.min(9, k[1] + R)], hits);
+  }
   function renderBar() {
     const bar = $('bfBar');
     const show = !!(game && game.bf && mode && started && !ended && !game.result && canAct() && !dbgOn);
@@ -900,33 +939,50 @@
       B.push(`<button class="sk" data-a="cancel">取消<small>换一着</small></button>`);
     } else {
       const a = bfAvail();
+      // 按钮不可用时不用 disabled（点了没反应像坏了），改成灰色 + 点一下说明原因
+      const btn = (cls, act, ok, label, small, why, extra = '') => `<button class="sk ${cls}${ok ? '' : ' off'}" data-a="${act}" ${ok ? '' : `data-why="${why}" title="${why}"`}>${label}<small>${small}</small>${extra}</button>`;
       if (a.p) {
         hint = `${SIDE_ARMY[a.p.s]}${pname(a.p)} · ${['', '一', '二', '三'][a.p.lv]}级 · ${a.p.hp} 血`;
         if (a.p.t !== 'k') {
-          if (a.p.lv < 3) B.push(`<button class="sk up" data-a="up" ${a.canUp ? '' : 'disabled'}>升${['', '', '二', '三'][a.p.lv + 1]}级<small>${game.upgraded ? '本回合已升' : a.cost + ' 功'}</small></button>`);
+          if (a.p.lv < 3) {
+            const m = game.merit[a.p.s];
+            B.push(btn('up', 'up', a.canUp, `升${['', '', '二', '三'][a.p.lv + 1]}级`, game.upgraded ? '本回合已升' : a.cost + ' 功', game.upgraded ? '每次行动最多升级一次，下次行动再升' : `升级需要 ${a.cost} 军功，现在只有 ${m}`));
+          }
           const cn = BF.SKILL_CN[a.sk];
-          if (a.p.lv < 2) B.push(`<button class="sk" disabled>${cn}<small>二级解锁</small></button>`);
+          if (a.p.lv < 2) B.push(btn('', 'sk', false, cn, '二级解锁', `${cn}：升到二级才解锁兵种技能`));
           else {
             const cdTot = BF.CFG.skills[a.sk].cooldown;
             const pct = a.cd ? Math.round(a.cd / cdTot * 100) : 0;
-            B.push(`<button class="sk" data-a="sk" ${a.targets.length ? '' : 'disabled'}>${cn}<small>${a.cd ? '冷却' : a.targets.length ? '可用' : '无目标'}</small>${a.cd ? `<span class="cd" style="--p:${pct}%"></span><span class="cdn">${a.cd}</span>` : ''}</button>`);
+            const fx = game.fx, b = a.p.s === 'b';
+            let small = '可用', why = '';
+            if (b && fx.sm > 0) { small = '涣散中'; why = `四面楚歌：楚军军心涣散，还有 ${fx.sm} 回合不能用技能`; }
+            else if (b && fx.pf > 0) { small = '封锁中'; why = `破釜沉舟之后，楚军还有 ${fx.pf} 回合不能用兵种技能`; }
+            else if (a.cd) { small = '冷却'; why = `${cn}冷却中，还要 ${a.cd} 回合`; }
+            else if (!a.targets.length) { small = '无目标'; why = `${cn}现在没有可用的目标`; }
+            B.push(btn('', 'sk', !why, cn, small, why, a.cd ? `<span class="cd" style="--p:${pct}%"></span><span class="cdn">${a.cd}</span>` : ''));
           }
         }
       }
       const side = a.side;
-      B.push(`<button class="sk art" data-a="art" ${a.art.length ? '' : 'disabled'}>${BF.ART_CN[side]}<small>${game.used.art[side] ? '已用' : '每局一次'}</small></button>`);
-      B.push(`<button class="sk ult" data-a="ult" ${a.ult ? '' : 'disabled'}>${BF.ULT_CN[side]}<small>${game.used.ult[side] ? '已用' : BF.CFG.ultimates.cost + ' 功'}</small></button>`);
+      const aw = artWhy(side, a), uw = ultWhy(side, a);
+      B.push(btn('art', 'art', !aw, BF.ART_CN[side], aw ? aw[0] : '每局一次', aw ? aw[1] : ''));
+      B.push(btn('ult', 'ult', !uw, BF.ULT_CN[side], uw ? uw[0] : BF.CFG.ultimates.cost + ' 功', uw ? uw[1] : ''));
       if (a.pass) B.push(`<button class="sk" data-a="pass">停 着<small>无子可走</small></button>`);
       if (!a.p) hint = `${SIDE_ARMY[side]}行动 · 军功 ${game.merit[side]}`;
     }
     $('bfHint').textContent = hint;
     $('bfRow').innerHTML = B.join('');
-    $('bfRow').querySelectorAll('button[data-a]').forEach(b => b.onclick = ev => { ev.stopPropagation(); bfButton(b.dataset.a); });
+    $('bfRow').querySelectorAll('button[data-a]').forEach(b => b.onclick = ev => { ev.stopPropagation(); bfButton(b.dataset.a, b); });
     layoutHud();
   }
-  async function bfButton(a) {
+  async function bfButton(a, el) {
     if (!canAct()) return;
     Sfx.select && Sfx.select();
+    if (el && el.classList.contains('off')) {
+      toast(el.dataset.why || '现在不能用', 4200);
+      if (a === 'ult' && game.turn === 'r' && !game.used.ult.r) simianZone();
+      return;
+    }
     if (a === 'cancel') { exitBfMode(false); Board.clearMoves(false); if (sel) bfSelect(sel[0], sel[1]); renderBar(); return; }
     if (a === 'up' && sel) { doBF({ k: 'up', at: sel }); return; }
     if (a === 'sk' && sel) {
@@ -949,6 +1005,7 @@
     }
     if (a === 'ult') {
       const s = game.turn;
+      if (s === 'r') simianZone();
       const ok = await ask(BF.ULT_CN[s], s === 'b' ? '花 20 军功：汉方接下来 2 回合，汉帅不能移动，也不能被护驾换位。' : '花 20 军功：楚方接下来 2 回合军心涣散——除楚将外只能吃子或攻击，不能用任何技能。', 0, '发 动', '再想想');
       if (ok && canAct()) doBF({ k: 'ult' });
       return;

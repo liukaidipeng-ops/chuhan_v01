@@ -15,6 +15,7 @@ def check(cond, msg):
     global ok
     print(('PASS ' if cond else 'FAIL ') + msg, flush=True)
     ok = ok and bool(cond)
+    return cond
 def wait(fn, secs=30, step=0.5):
     t = time.time()
     while time.time() - t < secs:
@@ -61,7 +62,9 @@ try:
         code = A.inner_text('#roomCode').strip()
         check('兵法' in A.inner_text('#waitChips'), '等待页标签显示兵法')
         B, ctxB = page('B', BASE + '?room=' + code)
-        check(wait(lambda: ev(B, "window.__xq.mode") == 'guest' and ev(A, "window.__xq.mode") == 'host', 40), '两位棋手入局')
+        if not check(wait(lambda: ev(B, "window.__xq.mode") == 'guest' and ev(A, "window.__xq.mode") == 'host', 40), '两位棋手入局'):
+            print('   A mode', ev(A, "window.__xq.mode"), 'B mode', ev(B, "window.__xq.mode"), 'B note', ev(B, "document.getElementById('joinNote').innerText"))
+            for k, v in logs.items(): print('  ', k, v[:6])
         fast(A); fast(B)
         check(ev(B, "!!window.__xq.game.bf") and ev(A, "!!window.__xq.game.bf"), '双方都是兵法局')
         check(ev(A, "window.__xq.game.merit.r") == 3 and ev(B, "window.__xq.game.merit.b") == 3, '开局各 3 军功')

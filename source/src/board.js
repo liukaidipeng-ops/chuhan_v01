@@ -744,6 +744,23 @@ const Board = (() => {
       }
     }
   }
+  // 范围提示（四面楚歌：楚将周围 5×5）：淡朱底 + 虚线框，范围内的己方棋子套金圈；几秒后自动淡去
+  let zoneG = null;
+  function showZone(a, b, hits = []) {
+    clearMoves(false);
+    const g = new THREE.Group(); zoneG = g;
+    const x0 = X(a[0]) - 0.5, x1 = X(b[0]) + 0.5, zs = [Z(a[1]), Z(b[1])], z0 = Math.min(...zs) - 0.5, z1 = Math.max(...zs) + 0.5;
+    const cx = (x0 + x1) / 2, cz = (z0 + z1) / 2, w = x1 - x0, h = z1 - z0;
+    const mat = (c, o) => new THREE.MeshBasicMaterial({ color: c, transparent: true, opacity: o, depthWrite: false });
+    const fill = new THREE.Mesh(flatGeo, mat(0xb0301f, 0.16)); fill.scale.set(w, 1, h); fill.position.set(cx, TOP + 0.004, cz); g.add(fill);
+    const edge = (ex, ez, ew, eh) => { for (let i = 0; i < Math.max(ew, eh) / 0.3; i += 1) { const m = new THREE.Mesh(flatGeo, mat(0xb0301f, 0.85)); const t = (i * 0.3 + 0.1); if (ew > eh) { if (t + 0.18 > ew) break; m.scale.set(0.18, 1, eh); m.position.set(ex - ew / 2 + t + 0.09, TOP + 0.006, ez); } else { if (t + 0.18 > eh) break; m.scale.set(ew, 1, 0.18); m.position.set(ex, TOP + 0.006, ez - eh / 2 + t + 0.09); } g.add(m); } };
+    edge(cx, z0, w, 0.05); edge(cx, z1, w, 0.05); edge(x0, cz, 0.05, h); edge(x1, cz, 0.05, h);
+    for (const [f, r] of hits) g.add(decal(ringTex, 0xe0b04a, 1.16, X(f), Z(r), TOP + 0.007, 0.95));
+    markRoot.add(g);
+    const t0 = performance.now();
+    const fade = () => { if (zoneG !== g || !g.parent) return; const k = (performance.now() - t0) / 1000; if (k > 5) { const o = Math.max(0, 1 - (k - 5) / 0.8); g.traverse(m => { if (m.material) { if (m.material.userData.o0 == null) m.material.userData.o0 = m.material.opacity; m.material.opacity = m.material.userData.o0 * o; } }); if (o <= 0) { markRoot.remove(g); g.traverse(m => m.material && m.material.dispose()); return; } } requestAnimationFrame(fade); };
+    requestAnimationFrame(fade);
+  }
   // immediate=true：立即落回棋盘（走子时用）
   function clearMoves(immediate = true) {
     if (hovered) {
@@ -825,7 +842,7 @@ const Board = (() => {
 
   return {
     root, TOP, PH, HALF, X, Z, pos, setPosition, pieces, piecesRoot, makePiece, faceViewer,
-    showMoves, clearMoves, showLast, pick, meshAt, get hovered() { return hovered; }, ringTex, glowTex, wakes, water, waterMat, decal, flatGeo, pine, deco, FONT,
+    showMoves, clearMoves, showZone, showLast, pick, meshAt, get hovered() { return hovered; }, ringTex, glowTex, wakes, water, waterMat, decal, flatGeo, pine, deco, FONT,
     viewSide: 'r', pieceWood, RZ, BZ, BX, BRIDGE_X, faceTex, backTex, setFace, makeRiver, mtTex, decorate, decorateAll, reconcile, plateGeo, plateOn,
   };
 })();
