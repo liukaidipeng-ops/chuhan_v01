@@ -371,5 +371,285 @@
   "id": "ai_l_reply",
   "spk": "liu",
   "text": "匹夫之勇，何足挂齿！"
+ },
+ {
+  "id": "u_r_p_m1",
+  "spk": "unit",
+  "text": "稳住阵型，向前！"
+ },
+ {
+  "id": "u_r_p_m2",
+  "spk": "unit",
+  "text": "跟紧了，别掉队。"
+ },
+ {
+  "id": "u_r_p_k1",
+  "spk": "unit",
+  "text": "汉军威武！"
+ },
+ {
+  "id": "u_r_p_k2",
+  "spk": "unit",
+  "text": "拿下此阵！"
+ },
+ {
+  "id": "u_r_r_m1",
+  "spk": "unit",
+  "text": "战车出阵。"
+ },
+ {
+  "id": "u_r_r_m2",
+  "spk": "unit",
+  "text": "驾！稳着点。"
+ },
+ {
+  "id": "u_r_r_k1",
+  "spk": "unit",
+  "text": "碾过去！"
+ },
+ {
+  "id": "u_r_r_k2",
+  "spk": "unit",
+  "text": "冲垮他们！"
+ },
+ {
+  "id": "u_r_n_m1",
+  "spk": "unit",
+  "text": "骑兵，跟上！"
+ },
+ {
+  "id": "u_r_n_m2",
+  "spk": "unit",
+  "text": "灌将军有令，出发。"
+ },
+ {
+  "id": "u_r_n_k1",
+  "spk": "unit",
+  "text": "斩将夺旗！"
+ },
+ {
+  "id": "u_r_n_k2",
+  "spk": "unit",
+  "text": "踏破敌营！"
+ },
+ {
+  "id": "u_r_c_m1",
+  "spk": "unit",
+  "text": "炮车推上去。"
+ },
+ {
+  "id": "u_r_c_m2",
+  "spk": "unit",
+  "text": "炮位转移。"
+ },
+ {
+  "id": "u_r_c_k1",
+  "spk": "unit",
+  "text": "点火，放！"
+ },
+ {
+  "id": "u_r_c_k2",
+  "spk": "unit",
+  "text": "开炮！"
+ },
+ {
+  "id": "u_r_e_m1",
+  "spk": "unit",
+  "text": "弩手列阵。"
+ },
+ {
+  "id": "u_r_e_m2",
+  "spk": "unit",
+  "text": "上弦，备战。"
+ },
+ {
+  "id": "u_r_e_k1",
+  "spk": "unit",
+  "text": "万箭齐发！"
+ },
+ {
+  "id": "u_r_e_k2",
+  "spk": "unit",
+  "text": "放箭！"
+ },
+ {
+  "id": "u_r_a_m1",
+  "spk": "unit",
+  "text": "护住汉王。"
+ },
+ {
+  "id": "u_r_a_m2",
+  "spk": "unit",
+  "text": "近卫随行。"
+ },
+ {
+  "id": "u_r_a_k1",
+  "spk": "unit",
+  "text": "犯我汉王者，死！"
+ },
+ {
+  "id": "u_r_a_k2",
+  "spk": "unit",
+  "text": "樊哙在此！"
+ },
+ {
+  "id": "u_r_k_m1",
+  "spk": "unit",
+  "text": "随我来。"
+ },
+ {
+  "id": "u_r_k_m2",
+  "spk": "unit",
+  "text": "稳扎稳打。"
+ },
+ {
+  "id": "u_r_k_k1",
+  "spk": "unit",
+  "text": "拿下！"
+ },
+ {
+  "id": "u_r_k_k2",
+  "spk": "unit",
+  "text": "天命在汉！"
+ },
+ {
+  "id": "u_b_p_m1",
+  "spk": "unit",
+  "text": "勇往直前！"
+ },
+ {
+  "id": "u_b_p_m2",
+  "spk": "unit",
+  "text": "江东子弟，随我来。"
+ },
+ {
+  "id": "u_b_p_k1",
+  "spk": "unit",
+  "text": "为了江东！"
+ },
+ {
+  "id": "u_b_p_k2",
+  "spk": "unit",
+  "text": "楚军必胜！"
+ },
+ {
+  "id": "u_b_r_m1",
+  "spk": "unit",
+  "text": "车马就位。"
+ },
+ {
+  "id": "u_b_r_m2",
+  "spk": "unit",
+  "text": "驾——向前推进。"
+ },
+ {
+  "id": "u_b_r_k1",
+  "spk": "unit",
+  "text": "撞开敌阵！"
+ },
+ {
+  "id": "u_b_r_k2",
+  "spk": "unit",
+  "text": "碾碎他们！"
+ },
+ {
+  "id": "u_b_n_m1",
+  "spk": "unit",
+  "text": "马不停蹄。"
+ },
+ {
+  "id": "u_b_n_m2",
+  "spk": "unit",
+  "text": "快马加鞭！"
+ },
+ {
+  "id": "u_b_n_k1",
+  "spk": "unit",
+  "text": "踏平汉营！"
+ },
+ {
+  "id": "u_b_n_k2",
+  "spk": "unit",
+  "text": "楚骑天下无敌！"
+ },
+ {
+  "id": "u_b_c_m1",
+  "spk": "unit",
+  "text": "火炮就位。"
+ },
+ {
+  "id": "u_b_c_m2",
+  "spk": "unit",
+  "text": "炮车慢点推。"
+ },
+ {
+  "id": "u_b_c_k1",
+  "spk": "unit",
+  "text": "给我轰！"
+ },
+ {
+  "id": "u_b_c_k2",
+  "spk": "unit",
+  "text": "炸开他们的阵！"
+ },
+ {
+  "id": "u_b_e_m1",
+  "spk": "unit",
+  "text": "象阵前行。"
+ },
+ {
+  "id": "u_b_e_m2",
+  "spk": "unit",
+  "text": "稳住，别惊了大象。"
+ },
+ {
+  "id": "u_b_e_k1",
+  "spk": "unit",
+  "text": "踏碎他们！"
+ },
+ {
+  "id": "u_b_e_k2",
+  "spk": "unit",
+  "text": "象阵冲锋！"
+ },
+ {
+  "id": "u_b_a_m1",
+  "spk": "unit",
+  "text": "誓死护卫霸王。"
+ },
+ {
+  "id": "u_b_a_m2",
+  "spk": "unit",
+  "text": "守住大营。"
+ },
+ {
+  "id": "u_b_a_k1",
+  "spk": "unit",
+  "text": "霸王面前，休得放肆！"
+ },
+ {
+  "id": "u_b_a_k2",
+  "spk": "unit",
+  "text": "护驾！斩！"
+ },
+ {
+  "id": "u_b_k_m1",
+  "spk": "unit",
+  "text": "哼，不过如此。"
+ },
+ {
+  "id": "u_b_k_m2",
+  "spk": "unit",
+  "text": "江东子弟，随我前行。"
+ },
+ {
+  "id": "u_b_k_k1",
+  "spk": "unit",
+  "text": "力拔山兮！"
+ },
+ {
+  "id": "u_b_k_k2",
+  "spk": "unit",
+  "text": "挡我者，死！"
  }
 ]

@@ -53,7 +53,7 @@
   Core.onFrame(dt => { if (lobbySpin && !Core.Cam.cine) Core.Cam.theta += dt * 0.04; });
   setTimeout(() => { $('loading').style.opacity = 0; setTimeout(() => $('loading').remove(), 900); }, 500);
   // 首次触碰时解锁音频（iOS 必需）
-  const unlock = () => { Sfx.init(); applySettings(); setTimeout(() => Voice.preload(['r_start', 'b_start', 'r_check', 'b_check', 'r_mate', 'b_mate']), 300); setTimeout(() => Voice.preload(Object.keys(Voice.LINES).filter(k => /_t\d|^ai_/.test(k))), 2500); };
+  const unlock = () => { Sfx.init(); applySettings(); setTimeout(() => Voice.preload(['r_start', 'b_start', 'r_check', 'b_check', 'r_mate', 'b_mate']), 300); setTimeout(() => Voice.preload(Object.keys(Voice.LINES).filter(k => /_t\d|^ai_/.test(k))), 2500); setTimeout(() => Voice.preload(Object.keys(Voice.LINES).filter(k => /^u_/.test(k))), 4500); };
   window.addEventListener('pointerdown', unlock, { once: true });
   window.addEventListener('keydown', unlock, { once: true });
 
@@ -577,6 +577,7 @@
     jqLearn(game.history[game.history.length - 1]);
     if (info.captured && game.history[game.history.length - 1].cap) info.captured = { ...game.history[game.history.length - 1].cap };
     info.dt = capView(info);
+    if (info.captured) info.streak = captureStreak();
     notes.push(note); renderLog();
     Fx.ply = game.history.length;
     if (!remote && !sent && online()) Net.send({ t: 'move', n: info.ply, from: m.from, to: m.to, clk: clock[info.mover] });
@@ -589,6 +590,18 @@
     // 电脑在玩家的动画播放时就开始思考
     if (mode === 'ai' && info.mover === mySide && !info.result) maybeAI();
     return true;
+  }
+  // 连吃：同一方连续吃子、期间对方没吃回（对方一吃回就清零）
+  function captureStreak() {
+    let side = null, n = 0;
+    for (let i = game.history.length - 1; i >= 0; i--) {
+      const h = game.history[i]; if (!h.cap) continue;
+      const s = i % 2 ? 'b' : 'r';
+      if (side === null) side = s;
+      if (s !== side) break;
+      n++;
+    }
+    return n;
   }
   // 动画里被吃的子显示成什么：揭棋暗子只有联机的吃子方看得到真身
   function capView(info) {
@@ -1265,6 +1278,22 @@
   window.addEventListener('keydown', e => { if (e.code === 'Space' && !/INPUT|TEXTAREA/.test(e.target.tagName)) { e.preventDefault(); skipNow(); } });
   window.addEventListener('beforeunload', () => { if (online()) Net.send({ t: 'bye' }); });
   applySettings();
+
+  // ---------- 版本：显示在设置里；发现新版本时提示刷新（微信等内置浏览器缓存很顽固） ----------
+  const APPV = window.APP_VERSION && !/APPVER/.test(window.APP_VERSION) ? window.APP_VERSION : 'dev';
+  $('verTag').textContent = '版本 ' + APPV;
+  async function checkVersion() {
+    if (!/^https?:$/.test(location.protocol) || APPV === 'dev') return;
+    try {
+      const r = await fetch('version.json?t=' + Date.now(), { cache: 'no-store' });
+      const j = await r.json();
+      if (j && j.v && j.v !== APPV) {
+        $('updBar').classList.remove('hidden');
+        $('updBar').onclick = () => { const q = new URLSearchParams(location.search); q.set('v', j.v); location.replace(location.pathname + '?' + q.toString()); };
+      }
+    } catch (e) { }
+  }
+  setTimeout(checkVersion, 5000); setInterval(checkVersion, 5 * 60 * 1000);
 
   // ---------- 入口：邀请链接自动入局 / 房主恢复 ----------
   const q = new URLSearchParams(location.search);

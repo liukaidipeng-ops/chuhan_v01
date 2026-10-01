@@ -148,6 +148,7 @@ input.code{font-size:30px;letter-spacing:.4em;text-align:center;width:8.5em;max-
 .pcard .caps{display:flex;flex-wrap:wrap;gap:2px;flex:1;min-width:0}
 .capp{width:20px;height:20px;border-radius:50%;background:radial-gradient(circle at 40% 35%,#ecc990,#c9a068);border:1px solid #8a6a40;display:flex;align-items:center;justify-content:center;font-size:12px;font-weight:bold;flex:none;box-shadow:0 1px 1px rgba(0,0,0,.25)}
 .capp.r{color:var(--red)}.capp.b{color:var(--ink)}
+#updBar{position:fixed;left:50%;top:calc(6px + var(--safe-t));transform:translateX(-50%);z-index:90;background:#a3241a;color:#f7ead0;border:1px solid #d9b877;border-radius:16px;padding:6px 16px;font-size:13px;letter-spacing:.1em;box-shadow:0 4px 14px rgba(40,10,5,.35);cursor:pointer;font-family:inherit}
 .capp.hid{background:radial-gradient(circle at 40% 35%,#7a2a1c,#45130d);color:rgba(236,206,140,.75);border-color:#b8914a;font-size:11px;cursor:default}
 .capp.hid.b{background:radial-gradient(circle at 40% 35%,#4a433d,#161312)}
 .capp.hid.know{background:radial-gradient(circle at 40% 35%,#ecc990,#c9a068);border:1px dashed #6b4a2a;font-size:12px}
@@ -397,6 +398,7 @@ body.compact #log{width:164px;max-height:34vh}
   <div class="opt"><div class="lbl">画质<small>卡顿时调低</small></div><div class="seg" data-s="quality"><button data-v="high">高</button><button data-v="mid">中</button><button data-v="low">低</button></div></div>
   <div class="opt" id="optServer"><div class="lbl">自定义线路<small>一般不用填</small></div><input id="oServer" placeholder="wss://…/mqtt" style="flex:1;min-width:0;font-size:14px;padding:6px;border:1px solid #bba;background:rgba(255,255,255,.5)"></div>
   <div class="row"><button class="btn small" id="bHelp">玩法说明</button><button class="btn small solid" id="bSetClose">完 成</button></div>
+  <p class="note" id="verTag" style="text-align:center;margin:6px 0 0;font-size:12px;opacity:.7"></p>
 </div></div></div>
 
 <!-- 发言 -->
@@ -455,9 +457,11 @@ body.compact #log{width:164px;max-height:34vh}
 <div id="endcard" class="hidden"></div>
 <button class="btn small hidden" id="skip">跳过 ▸▸</button>
 <div id="toast"></div>
+<button id="updBar" class="hidden">有新版本 · 点此刷新</button>
 
 <script>/*THREE*/</script>
 <script>/*QR*/</script>
+<script>window.APP_VERSION='/*APPVER*/';</script>
 <script>/*VOICE*/</script>
 <script>/*APP*/</script>
 </body>

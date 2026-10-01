@@ -198,6 +198,10 @@ const Models = (() => {
           J.hop = Math.abs(k) * 0.03;
           break;
         }
+        // 摇头：头左右摆，兵器垂下
+        case 'shake': set({ crouch: 0.03, lean: 0.1, twist: 0, sway: 0, hx: 0.28, hy: Math.sin(T * 10) * 0.6, aW: kp.aW * 0.5, wAbs: kp.wAbs, aS: kp.aS * 0.5, sAbs: kp.sAbs }); break;
+        // 垂头丧气：弯腰低头，双臂耷拉
+        case 'slump': set({ crouch: 0.1, lean: 0.38, twist: 0, sway: 0, hx: 0.7, hy: Math.sin(T * 0.4) * 0.12, aW: 0.12, aWz: 0.08, wAbs: 0.7, aS: 0.12, aSz: -0.08, sAbs: 0.5 }); break;
         case 'ready': set({ crouch: 0.08, lean: 0.15, aW: kp.chargeW, wAbs: kp.chargeAbs, aS: -1.0, sAbs: 0.1, hx: -0.1 }); break;
       }
       // 一次性动作

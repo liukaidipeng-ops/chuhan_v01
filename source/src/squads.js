@@ -28,15 +28,24 @@ const Squads = (() => {
     }
     center(h = 0.2) { const c = this.anchor.clone(); c.y = gy(c) + h; return c; }
     dispose() { this.off(); Core.disposeTree(this.group); }
-    // 默认：整体缩放出现 / 消失
+    // 出场 / 消失：每个模型在自己的位置原地缩放（小队的 group 在世界原点，直接缩放 group 会让模型滑向棋盘中心）
+    setVis(k) {
+      k = Math.max(0.001, k);
+      for (const c of this.group.children) {
+        const tr = c.userData.troop;
+        if (tr) { for (const u of tr.units) if (!u.dead) u.vis = Math.min(1, k); continue; }
+        if (!c.userData.bs) c.userData.bs = c.scale.clone();
+        c.scale.copy(c.userData.bs).multiplyScalar(k);
+      }
+    }
     appear() {
       P.ink(this.center(0.05), 8, 0.4, 0.3, 0.7);
-      this.group.scale.setScalar(0.001);
-      return tween(0.4, k => this.group.scale.setScalar(Math.max(0.001, k)), ease.outBack);
+      this.setVis(0.001);
+      return tween(0.4, k => this.setVis(k), ease.outBack);
     }
     dissolve() {
       P.ink(this.center(0.1), 10, 0.45, 0.35, 0.8);
-      return tween(0.4, k => this.group.scale.setScalar(Math.max(0.001, 1 - k)), ease.in).then(() => this.dispose());
+      return tween(0.4, k => this.setVis(1 - k), ease.in).then(() => this.dispose());
     }
   }
 
@@ -286,6 +295,7 @@ const Squads = (() => {
     center(h = 0.3) { return super.center(h); }
     async march(path, dur) {
       this.m.speed = 0.7; let last = 0;
+      snd('e', this.side).move(dur || 1.4); // 战象行军：重步、低吼、象鸣（之前漏了，行进时一点声音都没有）
       await walkPath(this, path, dur, k => { if (k - last > 0.18) { last = k; Cam.shake(0.03); Fx.Marks.foot(this.anchor.clone().addScaledVector(rightOf(this.yaw), R(-0.1, 0.1))); } });
       this.m.speed = 0;
     }
@@ -518,7 +528,7 @@ const Squads = (() => {
         this.gun = Models.makeCannon(side, { crew: false, torch: mode !== 'march' }); this.gun.group.scale.setScalar(CN);
         this.group.add(this.gun.group);
         if (mode === 'march') { this.horse = Models.makeHorse({ color: 0x6b5a48 }); this.horse.group.scale.setScalar(0.2); this.group.add(this.horse.group); }
-        this.crew = new Models.Troop(side, 'crew', 2, SC); this.group.add(this.crew.group);
+        this.crew = new Models.Troop(side, 'crew', 2, SC); this.group.add(this.crew.group); this.crew.group.userData.troop = this.crew;
         this.crew.units.forEach(u => { u.vis = 1; });
         this.crew.setPose(mode === 'march' ? 'push' : 'idle');
         this.updaters.push(dt => { this.sync(); this.crew.update(dt); if (this.horse) this.horse.update(dt); });

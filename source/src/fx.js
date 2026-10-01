@@ -543,6 +543,21 @@ const Fx = (() => {
     }
   }
 
+  // ---------- 兵种台词 ----------
+  let lastBark = '';
+  function bark(info, c) {
+    if (typeof Voice === 'undefined' || !Voice.enabled) return;
+    const p = info.piece, kill = !!c.tgt;
+    if (!kill && Math.random() > 0.55) return;
+    const base = `u_${p.s}_${p.t}_${kill ? 'k' : 'm'}`;
+    let id = `${base}${Math.random() < 0.5 ? 1 : 2}`;
+    if (id === lastBark) id = `${base}${id.endsWith('1') ? 2 : 1}`;
+    if (!Voice.has(id)) return;
+    lastBark = id;
+    const pan = Math.max(-0.7, Math.min(0.7, c.A.x / 6)) * (Board.viewSide === 'b' ? -1 : 1);
+    sleep(kill ? 0.35 : 0.1).then(() => Voice.bark(id, { vol: kill ? 1 : 0.8, pan, skipIfBusy: !kill }));
+  }
+
   // ======================================================================
   //  走子总入口
   // ======================================================================
@@ -561,13 +576,15 @@ const Fx = (() => {
     try {
       // 揭棋：暗子先翻开，再由真身出阵
       if (info.reveal) { c.m.position.y = y0; await reveal(c.m, info.piece); }
+      // 兵种台词：击杀在冲锋那一刻喊，移动时约一半的步数说一句
+      bark(info, c);
       if (state.level === 'low') {
         if (c.tgt) await lowCapture(c);
         else if (info.crossesRiver) await Squads.pieceBoat(c);
         else await lowMove(c);
       } else if (c.tgt) await Squads.capture(c);
       else await Squads.move(c);
-      if (c.tgt && typeof Camp !== 'undefined') Camp.cheer(info.mover);
+      if (c.tgt && typeof Camp !== 'undefined') Camp.onCapture(info.mover, info.streak || 1);
     } catch (e) {
       console.error('动画出错', e);
     }

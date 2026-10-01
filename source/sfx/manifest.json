@@ -685,5 +685,154 @@
    "dur": 3.45,
    "src": "MMRetroArcadeSoundsPack1_0_5/Vocal/wav/Laugh3.wav (降调)"
   }
+ ],
+ "drum": [
+  {
+   "f": "drum_0.mp3",
+   "dur": 0.76,
+   "src": "BB_2HTC Samples Vol 4/Drums/2022-01-08 Slowly Being Erased - Nice Kick.wav"
+  },
+  {
+   "f": "drum_1.mp3",
+   "dur": 0.26,
+   "src": "BB_2HTC Samples Vol 4 Addendum/Drums/2023-09-27 200ms - Big Kick.wav"
+  },
+  {
+   "f": "drum_2.mp3",
+   "dur": 0.55,
+   "src": "BB_2HTC Samples Vol 4 Addendum/Drums/2024-01-03 Project 56 - Bassy Kick.wav"
+  }
+ ],
+ "drumroll": [
+  {
+   "f": "drumroll_0.mp3",
+   "dur": 0.91,
+   "src": "BB_2HTC Samples Vol 4/Drums/2022-05-25 Camera Obscura - Tom Fill.wav"
+  },
+  {
+   "f": "drumroll_1.mp3",
+   "dur": 0.97,
+   "src": "BB_2HTC Samples Vol 4/Drums/2023-06-14 The Ascent - Tom Fill.wav"
+  }
+ ],
+ "gong": [
+  {
+   "f": "gong_0.mp3",
+   "dur": 1.49,
+   "src": "100-CC0-SFX/gong_01.ogg"
+  },
+  {
+   "f": "gong_1.mp3",
+   "dur": 1.25,
+   "src": "100-CC0-SFX/gong_02.ogg"
+  }
+ ],
+ "bell": [
+  {
+   "f": "bell_0.mp3",
+   "dur": 1.36,
+   "src": "100-CC0-SFX/bell_01.ogg"
+  },
+  {
+   "f": "bell_1.mp3",
+   "dur": 0.57,
+   "src": "100-CC0-SFX/bell_02.ogg"
+  },
+  {
+   "f": "bell_2.mp3",
+   "dur": 1.78,
+   "src": "100-CC0-SFX/bell_03.ogg"
+  }
+ ],
+ "stomp": [
+  {
+   "f": "stomp_0.mp3",
+   "dur": 0.5,
+   "src": "80-CC0-creature-sfx-2/stomp_01.ogg"
+  }
+ ],
+ "rumble": [
+  {
+   "f": "rumble_0.mp3",
+   "dur": 2.82,
+   "src": "beast_or_animal/Growl.wav"
+  },
+  {
+   "f": "rumble_1.mp3",
+   "dur": 2.82,
+   "src": "beast_or_animal/Growl 2.wav"
+  }
+ ],
+ "trumpet": [
+  {
+   "f": "trumpet_0.mp3",
+   "dur": 0.94,
+   "src": "80-CC0-creature-sfx-2/roar_04.ogg"
+  },
+  {
+   "f": "trumpet_1.mp3",
+   "dur": 0.84,
+   "src": "80-CC0-creature-SFX/monster_06.ogg"
+  },
+  {
+   "f": "trumpet_2.mp3",
+   "dur": 0.65,
+   "src": "80-CC0-creature-sfx-2/monster_12.ogg"
+  }
+ ],
+ "cheer": [
+  {
+   "f": "cheer_0.mp3",
+   "dur": 2.21,
+   "src": "Kokoro TTS 多声线齐喊（本项目生成）"
+  },
+  {
+   "f": "cheer_1.mp3",
+   "dur": 2.06,
+   "src": "Kokoro TTS 多声线齐喊（本项目生成）"
+  },
+  {
+   "f": "cheer_2.mp3",
+   "dur": 2.2,
+   "src": "Kokoro TTS 多声线齐喊（本项目生成）"
+  }
+ ],
+ "warcry": [
+  {
+   "f": "warcry_0.mp3",
+   "dur": 1.58,
+   "src": "Kokoro TTS 多声线齐喊（本项目生成）"
+  },
+  {
+   "f": "warcry_1.mp3",
+   "dur": 1.78,
+   "src": "Kokoro TTS 多声线齐喊（本项目生成）"
+  }
+ ],
+ "jeer_r": [
+  {
+   "f": "jeer_r_0.mp3",
+   "dur": 2.61,
+   "src": "Kokoro TTS 多声线齐喊（本项目生成）"
+  }
+ ],
+ "jeer_b": [
+  {
+   "f": "jeer_b_0.mp3",
+   "dur": 2.91,
+   "src": "Kokoro TTS 多声线齐喊（本项目生成）"
+  }
+ ],
+ "groan": [
+  {
+   "f": "groan_0.mp3",
+   "dur": 2.18,
+   "src": "Kokoro TTS 多声线齐喊（本项目生成）"
+  },
+  {
+   "f": "groan_1.mp3",
+   "dur": 2.13,
+   "src": "Kokoro TTS 多声线齐喊（本项目生成）"
+  }
  ]
 }

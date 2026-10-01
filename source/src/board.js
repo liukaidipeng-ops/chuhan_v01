@@ -213,7 +213,7 @@ const Board = (() => {
       #include <fog_pars_vertex>
       void main(){
         vec3 p = position;
-        float h = sin(p.x*2.1 - uTime*2.4)*0.012 + sin(p.x*3.7 + p.y*5.0 - uTime*3.1)*0.008;
+        float h = sin(p.x*2.1 - mod(uTime*2.4, 6.2831853))*0.012 + sin(p.x*3.7 + p.y*5.0 - mod(uTime*3.1, 6.2831853))*0.008;
         p.z += h; vH = h;
         vec4 wp = modelMatrix * vec4(p,1.0); vW = wp.xyz;
         vec4 mvPosition = viewMatrix * wp;
@@ -224,7 +224,8 @@ const Board = (() => {
       uniform float uTime; uniform sampler2D uText; uniform vec3 uDeep, uLight, uInk; uniform vec4 uBoard; uniform vec4 uRiver; uniform vec4 uWakes[4];
       varying vec3 vW; varying float vH;
       #include <fog_pars_fragment>
-      float hash(vec2 p){ return fract(sin(dot(p, vec2(127.1,311.7)))*43758.5453); }
+      // 不用 sin 的哈希：手机显卡对大数取 sin 精度很差，时间一长河面会糊成一片白
+      float hash(vec2 p){ vec3 p3 = fract(vec3(p.xyx) * 0.1031); p3 += dot(p3, p3.yzx + 33.33); return fract((p3.x + p3.y) * p3.z); }
       float noise(vec2 p){ vec2 i=floor(p), f=fract(p); f=f*f*(3.0-2.0*f);
         return mix(mix(hash(i),hash(i+vec2(1,0)),f.x), mix(hash(i+vec2(0,1)),hash(i+vec2(1,1)),f.x), f.y); }
       float fbm(vec2 p){ float s=0.0, a=0.5; for(int i=0;i<5;i++){ s+=a*noise(p); p*=2.03; a*=0.5; } return s; }
@@ -243,7 +244,7 @@ const Board = (() => {
           vec4 w = uWakes[i];
           if(w.w > 0.0){
             float d = length(q - w.xy);
-            float ring = sin(d*26.0 - uTime*9.0) * exp(-d*2.2) * w.w;
+            float ring = sin(d*26.0 - mod(uTime*9.0, 6.2831853)) * exp(-d*2.2) * w.w;
             col += vec3(ring*0.22);
           }
         }
@@ -267,14 +268,15 @@ const Board = (() => {
   const water = new THREE.Mesh(new THREE.PlaneGeometry(160, 1.8, 480, 10), waterMat);
   water.rotation.x = -Math.PI / 2; water.position.y = 0.02;
   scene.add(water);
-  Core.onFrame(dt => { waterMat.uniforms.uTime.value += dt; });
+  // 时间每小时回绕一次，避免数值越来越大导致精度下降
+  Core.onFrame(dt => { const u = waterMat.uniforms.uTime; u.value = (u.value + dt) % 3600; });
   // 结算场景用的河（无字、自定义河岸）
   function makeRiver(len, width, centerZ, deep, light) {
     const m = waterMat.clone();
     m.uniforms.uRiver.value.set(centerZ, width / 2, 0, 0);
     if (deep) m.uniforms.uDeep.value.set(deep);
     if (light) m.uniforms.uLight.value.set(light);
-    Core.onFrame(dt => { m.uniforms.uTime.value += dt; });
+    Core.onFrame(dt => { const u = m.uniforms.uTime; u.value = (u.value + dt) % 3600; });
     const w = new THREE.Mesh(new THREE.PlaneGeometry(len, width, Math.round(len * 2), 12), m);
     w.rotation.x = -Math.PI / 2;
     return w;
@@ -438,7 +440,12 @@ const Board = (() => {
     s.scale.set(14 + rnd() * 10, 4 + rnd() * 3, 1);
     s.userData.v = 0.2 + rnd() * 0.3;
     deco.add(s);
-    Core.onFrame(dt => { s.position.x += s.userData.v * dt; if (s.position.x > 40) s.position.x = -40; });
+    Core.onFrame(dt => {
+      s.position.x += s.userData.v * dt; if (s.position.x > 40) s.position.x = -40;
+      const cam = Core.camera.position, dB = cam.length(), d = s.position.distanceTo(cam);
+      s.material.opacity = 0.45 * Math.max(0, Math.min(1, (d - (dB - 3)) / 6));
+      s.visible = s.material.opacity > 0.01;
+    });
   }
 
   // ---------- 棋子 ----------

@@ -24,8 +24,14 @@ const app = order.filter(n => fs.existsSync(path.join(D, 'src', n + '.js')))
 const safe = s => s.replace(/<\/script/gi, '<\\/script');
 // 行楷字体子集（志莽行书，SIL OFL 1.1，见 fonts/OFL.txt）
 const xk = 'data:font/woff2;base64,' + fs.readFileSync(path.join(D, 'fonts/xingkai-subset.woff2')).toString('base64');
-const out = tpl.replace('/*XKFONT*/', () => xk).replace('/*THREE*/', () => safe(three)).replace('/*QR*/', () => safe(qr)).replace('/*VOICE*/', () => data).replace('/*APP*/', () => safe(app));
+// 版本号：日期 + 内容摘要；version.json 供页面检查更新（微信等内置浏览器缓存很顽固）
+const crypto = require('crypto');
+const now = new Date(Date.now() + 8 * 3600e3);
+const ver = now.toISOString().slice(0, 10).replace(/-/g, '.') + '-' + crypto.createHash('sha1').update(app + data.length).digest('hex').slice(0, 6);
+const out = tpl.replace('/*APPVER*/', ver).replace('/*XKFONT*/', () => xk).replace('/*THREE*/', () => safe(three)).replace('/*QR*/', () => safe(qr)).replace('/*VOICE*/', () => data).replace('/*APP*/', () => safe(app));
 fs.mkdirSync(path.join(D, 'dist/site'), { recursive: true });
 fs.writeFileSync(path.join(D, 'dist', '楚汉三维象棋.html'), out);
 fs.writeFileSync(path.join(D, 'dist/site/index.html'), out);
+fs.writeFileSync(path.join(D, 'dist/site/version.json'), JSON.stringify({ v: ver }));
+console.log('version', ver);
 console.log('built', (out.length / 1024).toFixed(0) + ' KB', 'voice:', Object.keys(C).length, 'sfx:', Object.values(S).reduce((a, b) => a + b.length, 0));

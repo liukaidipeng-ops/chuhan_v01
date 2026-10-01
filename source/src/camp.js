@@ -181,7 +181,7 @@ const Camp = (() => {
       scene.add(f); return f;
     });
     let smokeT = 0, t = 0;
-    const camp = { s, sg, group, guards, sentries, archers, troops, banners, flames, fires, drops: [], gen: 0, state: 'home' };
+    const camp = { s, sg, group, guards, sentries, archers, troops, banners, flames, fires, drops: [], gen: 0, state: 'home', goneN: 0, total: guards.count + sentries.count };
     camps.push(camp);
     onFrame(dt => {
       t += dt;
@@ -196,7 +196,9 @@ const Camp = (() => {
       smokeT += dt;
       if (smokeT > 0.35 && Fx.P) {
         smokeT = 0;
-        const p = fires[Math.floor(Math.random() * fires.length)];
+        // 河边两只火盆紧挨棋盘中线：只留火光，不冒烟，免得烟飘到棋盘上
+        const far = fires.filter(f => Math.abs(f.z) > 2);
+        const p = far[Math.floor(Math.random() * far.length)];
         Fx.spawn({ pos: p.clone().add(new V3(0, 0.12, 0)), vel: new V3(0.05, 0.35, 0), color: 0x4a4540, size: 0.12, size2: 0.9, life: 3.2, op: 0.28, drag: 0.3, fadeIn: 0.4 });
         if (Math.random() < 0.5) Fx.spawn({ pos: p.clone().add(new V3(0, 0.1, 0)), vel: new V3((Math.random() - 0.5) * 0.3, 0.8, (Math.random() - 0.5) * 0.3), tex: Tex.spark, add: true, color: 0xffb060, size: 0.04, size2: 0.01, life: 1.1, op: 1, drag: 0.5 });
       }
@@ -209,7 +211,16 @@ const Camp = (() => {
   //  士兵调度：每个士兵可有一个移动目标 u.mv
   // ======================================================================
   const angLerp = (a, b, k) => { let d = b - a; while (d > Math.PI) d -= 2 * Math.PI; while (d < -Math.PI) d += 2 * Math.PI; return a + d * k; };
+  // 观战木桥桥面高度（拱桥，两端各有一小段坡道）
+  function bridgeY(p) {
+    if (Math.abs(Math.abs(p.x) - Board.BRIDGE_X) > 0.72) return null;
+    const a = Math.abs(p.z);
+    if (a <= 1.2) return 0.185 + 0.1 * Math.cos(a / 1.2 * Math.PI / 2);
+    if (a < 1.5) return 0.185 * (1 - (a - 1.2) / 0.3);
+    return null;
+  }
   function ground(p) {
+    const by = bridgeY(p); if (by != null) return by;
     if (Math.abs(p.x) > (Board.BX || 4.75) + 0.02 || Math.abs(p.z) > (Board.BZ || 5.37) + 0.02) return 0;
     return Fx.groundY(p);
   }
@@ -241,17 +252,129 @@ const Camp = (() => {
   const campOf = s => camps.find(c => c.s === s);
 
   // —— 吃子助威：挥舞兵器、跳跃呐喊 ——
-  function cheer(s, dur = 2.4, loud = 1) {
+  function cheer(s, dur = 2.4, loud = 1, big = false) {
     const c = campOf(s);
     if (!c || c.state !== 'home') return;
     const gen = c.gen;
     for (const tr of c.troops) for (const u of tr.units) {
-      if (u.mv) continue;
+      if (u.mv || u.gone) continue;
       const d = Math.random() * 0.35;
       setTimeout(() => { if (c.gen !== gen || c.state !== 'home') return; u.pose = 'wave'; if (Math.random() < 0.5) tr.act(u.i, 'raise', 0.5); }, d * 1000);
       setTimeout(() => { if (c.gen !== gen || c.state !== 'home') return; if (u.pose === 'wave') u.pose = 'idle'; }, (dur + d + Math.random() * 0.5) * 1000);
     }
-    try { Sfx.cheer(0.1, 0.55 * loud); } catch (e) { }
+    try { Sfx.celebrate ? Sfx.celebrate(0.75 * loud, big) : Sfx.cheer(0.1, 0.55 * loud); } catch (e) { }
+  }
+  // 多段路线：依次走过各点
+  function route(c, u, pts, { speed = 2.4, pose = 'run', delay = 0, onDone } = {}) {
+    const gen = c.gen;
+    let i = 0;
+    const next = () => {
+      if (c.gen !== gen) return;
+      if (i >= pts.length) { if (onDone) onDone(u); return; }
+      const to = pts[i++];
+      u.mv = { to, speed, delay: i === 1 ? delay : 0, pose, onArrive: () => next() };
+    };
+    next();
+  }
+  const present = c => [...c.guards.units.map(u => [c.guards, u]), ...c.sentries.units.map(u => [c.sentries, u])].filter(([, u]) => !u.gone);
+  // —— 被吃子：全营摇头、垂头丧气 ——
+  function dismay(s) {
+    const c = campOf(s);
+    if (!c || c.state !== 'home') return;
+    const gen = c.gen;
+    for (const [, u] of present(c)) {
+      if (u.mv) continue;
+      const d = Math.random() * 0.5;
+      const ok = () => c.gen === gen && !u.mv && !u.gone;
+      setTimeout(() => { if (ok()) u.pose = 'shake'; }, d * 1000);
+      setTimeout(() => { if (ok() && u.pose === 'shake') u.pose = 'slump'; }, (d + 1.3 + Math.random() * 0.4) * 1000);
+      setTimeout(() => { if (ok() && u.pose === 'slump') u.pose = 'idle'; }, (d + 3.3 + Math.random() * 0.6) * 1000);
+    }
+    try { Sfx.groan && Sfx.groan(0.4); } catch (e) { }
+  }
+  // —— 连吃三子：几名护卫过桥冲到对方营前叫阵，再跑回来 ——
+  function taunt(s) {
+    const c = campOf(s), o = campOf(XQ.other(s));
+    if (!c || c.state !== 'home') return;
+    const gen = c.gen, sg = c.sg, BXr = Board.BRIDGE_X;
+    const cand = c.guards.units.filter(u => !u.gone && !u.mv).sort((a, b) => Math.abs(a.p.z) - Math.abs(b.p.z));
+    const picked = cand.slice(0, Math.min(cand.length, 4 + Math.floor(Math.random() * 3)));
+    picked.forEach((u, j) => {
+      const sx = Math.sign(u.home.x) || 1;
+      const lane = sx * (BXr - 0.4 + (j % 2) * 0.18);
+      const w1 = new V3(lane, 0, sg * 1.6), w2 = new V3(lane, 0, -sg * 1.6);
+      const spot = new V3(sx * (6.4 + (j % 3) * 0.22), 0, -sg * (1.95 + Math.floor(j / 2) * 0.42));
+      const face = sx > 0 ? -Math.PI / 2 : Math.PI / 2; // 面朝对方营里的护卫
+      route(c, u, [w1, w2, spot], {
+        speed: 2.3 + Math.random() * 0.4, pose: 'run', delay: j * 0.12 + Math.random() * 0.15,
+        onDone: () => {
+          if (c.gen !== gen) return;
+          u.mv = { face, pose: 'wave' }; c.guards.act(u.i, 'raise', 0.5, Math.random() * 0.3);
+          setTimeout(() => { if (c.gen === gen && u.mv && u.mv.face === face) u.pose = 'laugh'; }, 900 + Math.random() * 300);
+          setTimeout(() => { if (c.gen === gen && u.mv && u.mv.face === face) { u.pose = 'wave'; c.guards.act(u.i, 'raise', 0.5); } }, 2000);
+          setTimeout(() => {
+            if (c.gen !== gen) return;
+            route(c, u, [w2, w1, u.home.clone()], {
+              speed: 2.1 + Math.random() * 0.3, pose: 'run',
+              onDone: () => { const m = { face: u.homeYaw, pose: 'idle' }; u.mv = m; setTimeout(() => { if (u.mv === m) u.mv = null; }, 900); },
+            });
+          }, 3200);
+        },
+      });
+    });
+    // 到位时叫阵；对方营中靠近的护卫转身举兵戒备
+    setTimeout(() => {
+      if (c.gen !== gen) return;
+      try { Sfx.jeer && Sfx.jeer(s, 0.8); } catch (e) { }
+      if (!o || o.state !== 'home') return;
+      const og = o.gen;
+      for (const u of o.guards.units) {
+        if (u.gone || u.mv || Math.abs(u.p.z) > 4.2) continue;
+        const sx = Math.sign(u.p.x) || 1;
+        const m = { face: sx > 0 ? Math.PI / 2 : -Math.PI / 2, pose: 'ready' };
+        u.mv = m;
+        setTimeout(() => { if (o.gen !== og || u.mv !== m) return; const m2 = { face: u.homeYaw, pose: 'idle' }; u.mv = m2; setTimeout(() => { if (u.mv === m2) u.mv = null; }, 900); }, 3000 + Math.random() * 500);
+      }
+    }, 2100);
+  }
+  // —— 连吃三子：被吃方有几人丢盔弃甲逃走，本局不再回来（最多逃掉三分之二） ——
+  function desert(s, n) {
+    const c = campOf(s);
+    if (!c || c.state !== 'home') return 0;
+    n = Math.min(n, Math.floor(c.total * 2 / 3) - c.goneN);
+    if (n <= 0) return 0;
+    const cand = present(c).filter(([, u]) => !u.mv);
+    for (let i = cand.length - 1; i > 0; i--) { const j = Math.floor(Math.random() * (i + 1)); [cand[i], cand[j]] = [cand[j], cand[i]]; }
+    const picked = cand.slice(0, n);
+    const gen = c.gen;
+    picked.forEach(([tr, u], k) => {
+      u.gone = true; c.goneN++;
+      const delay = 0.2 + k * 0.25 + Math.random() * 0.3;
+      setTimeout(() => {
+        if (c.gen !== gen) return;
+        for (const part of ['weapon', 'shield']) {
+          const ob = tr.detach(u.i, part);
+          if (!ob) continue;
+          scene.add(ob); c.drops.push(ob);
+          const p0 = ob.position.clone(), q0 = ob.quaternion.clone();
+          const q1 = new THREE.Quaternion().setFromEuler(new THREE.Euler(Math.PI / 2 * (Math.random() < 0.5 ? 1 : -1), Math.random() * 6.28, 0, 'YXZ'));
+          const p1 = p0.clone().add(new V3((Math.random() - 0.5) * 0.3, 0, (Math.random() - 0.5) * 0.3)); p1.y = ground(p1) + 0.02;
+          Core.tween(0.35 + Math.random() * 0.2, k2 => { ob.position.lerpVectors(p0, p1, k2); ob.quaternion.slerpQuaternions(q0, q1, k2); }, Core.ease.in);
+        }
+      }, delay * 1000);
+      const sx = Math.sign(u.p.x) || 1;
+      const dir = new V3(sx, 0, c.sg * (0.5 + Math.random() * 0.9)).normalize();
+      u.mv = { to: u.p.clone().addScaledVector(dir, 6 + Math.random() * 2), speed: 2.2 + Math.random() * 0.6, delay: delay + 0.3, pose: 'flee', fadeAt: 2 + Math.random() };
+    });
+    try { Sfx.desert && Sfx.desert(0.6); } catch (e) { }
+    return n;
+  }
+  // —— 吃子总入口：吃子方欢呼擂鼓、被吃方垂头丧气；连吃三子起，叫阵 + 逃兵 ——
+  function onCapture(s, streak = 1) {
+    const big = streak >= 3;
+    cheer(s, big ? 3.2 : 2.4, 1, big);
+    dismay(XQ.other(s));
+    if (big) { taunt(s); setTimeout(() => desert(XQ.other(s), 3 + (Math.random() < 0.5 ? 1 : 0)), 1300); }
   }
   // —— 将死：全军冲上棋盘，持兵器包围敌方主帅 ——
   function surround(s, center) {
@@ -259,7 +382,7 @@ const Camp = (() => {
     if (!c) return 0;
     c.state = 'surround'; c.gen++;
     const units = [];
-    for (const tr of [c.guards, c.sentries]) for (const u of tr.units) units.push([tr, u]);
+    for (const tr of [c.guards, c.sentries]) for (const u of tr.units) if (!u.gone) units.push([tr, u]);
     // 以距离排序：离得近的占内圈
     units.sort((a, b) => a[1].p.distanceToSquared(center) - b[1].p.distanceToSquared(center));
     const rings = [[0.62, 12], [1.0, 20], [1.4, 30]];
@@ -289,7 +412,7 @@ const Camp = (() => {
     if (!c) return;
     c.state = 'rout'; c.gen++;
     const all = [];
-    for (const tr of c.troops) for (const u of tr.units) all.push([tr, u]);
+    for (const tr of c.troops) for (const u of tr.units) if (!u.gone) all.push([tr, u]);
     all.forEach(([tr, u], k) => {
       const delay = Math.random() * 1.2;
       const surrender = tr !== c.archers && Math.random() < 0.28;
@@ -325,14 +448,14 @@ const Camp = (() => {
   // —— 复位（新一局） ——
   function reset() {
     for (const c of camps) {
-      c.gen++; c.state = 'home';
+      c.gen++; c.state = 'home'; c.goneN = 0;
       for (const o of c.drops) Core.disposeTree(o);
       c.drops.length = 0;
       for (const tr of c.troops) for (const u of tr.units) {
         u.mv = null; u.p.copy(u.home); u.yaw = u.homeYaw; u.y = 0; u.vis = 1; u.lost = 0; u.act = null;
-        u.dead = false; u.fall = 0; u.falling = false; u.fly = null; u.spin = 0; u.pose = 'idle';
+        u.dead = false; u.fall = 0; u.falling = false; u.fly = null; u.spin = 0; u.pose = 'idle'; u.gone = false;
       }
     }
   }
-  return { init, camps, cheer, surround, rout, reset, K };
+  return { init, camps, cheer, surround, rout, reset, K, onCapture, taunt, desert, dismay, get gone() { return camps.map(c => c.goneN); } };
 })();

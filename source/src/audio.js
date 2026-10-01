@@ -136,8 +136,16 @@ const Sfx = (() => {
   // ======================================================================
   //  基础音效
   // ======================================================================
+  const has = id => !!(samples[id] && samples[id].length);
   const B = {
+    // 战鼓：真实大鼓录音降调 + 鼓皮拍击，合成低频只作补底
     taiko(t = 0, v = 0.9, p = 1, pan, dest) {
+      if (has('drum')) {
+        smp('drum', { t, vol: v * 0.95, rate: 0.72 * p, rj: 0.05, pan, dest });
+        smp('soft', { t, vol: v * 0.22, rate: 0.55 * p, pan, dest });
+        tn({ t, f: 62 * p, f2: 40 * p, dur: 0.55, vol: v * 0.3, pan, glide: 0.3, dest });
+        return;
+      }
       tn({ t, f: 72 * p, f2: 44 * p, dur: 0.7, vol: v, pan, glide: 0.3, dest });
       tn({ t, f: 120 * p, f2: 80 * p, dur: 0.25, vol: v * 0.4, pan, dest });
       nz({ t, dur: 0.08, type: 'bandpass', f: 900 * p, q: 1.2, vol: v * 0.35, pan, dest });
@@ -156,7 +164,13 @@ const Sfx = (() => {
     whoosh(t = 0, dur = 0.35, v = 0.35, pan) { smp('swing', { t, vol: v, pan, rate: R(0.8, 1.1) / Math.max(0.5, dur / 0.4) }); },
     stab(t = 0, v = 0.45) { smp('punch', { t, vol: v, rate: R(0.9, 1.2) }); smp('chop', { t: t + 0.01, vol: v * 0.5 }); },
     thud(t = 0, v = 0.6) { smp('soft', { t, vol: v, rate: R(0.6, 0.9) }); tn({ t, f: 90, f2: 45, dur: 0.25, vol: v * 0.6 }); },
+    // 人群呐喊：多人齐喊录音（Kokoro 多声线合成的真人声），没有素材时退回合成
     shout(t = 0, n = 8, v = 0.12, len = 0.6) {
+      if (has('warcry')) {
+        smp('warcry', { t, vol: Math.min(1, v * n * 0.55), rate: R(0.94, 1.06) * (len < 0.55 ? 1.12 : 1), rj: 0.03 });
+        if (n >= 14) smp('warcry', { t: t + 0.14, vol: Math.min(0.8, v * n * 0.35), rate: R(0.88, 0.96), rj: 0.03 });
+        return;
+      }
       for (let i = 0; i < n; i++) {
         const tt = t + R(0, 0.15), f = R(95, 170), pan = R(-0.8, 0.8), d = len * R(0.7, 1.3);
         if (!ok()) return;
@@ -174,7 +188,9 @@ const Sfx = (() => {
         const off = R(0, rate), pan = R(-0.6, 0.6);
         for (let k = 0; k * rate < dur; k++) for (const s of [0, 0.07, 0.15]) {
           const tt = t + off + k * rate + s + R(0, 0.012);
-          nz({ t: tt, dur: 0.06, type: 'lowpass', f: R(170, 260), vol: v, pan });
+          // 马蹄：木块撞击录音升调（拟音师的老办法），加一点泥土低频
+          if (has('wood')) { smp('wood', { t: tt, vol: v * 0.5, rate: R(1.5, 2.0), pan, lp: 2400, rj: 0.04 }); nz({ t: tt, dur: 0.05, type: 'lowpass', f: R(160, 220), vol: v * 0.45, pan }); }
+          else nz({ t: tt, dur: 0.06, type: 'lowpass', f: R(170, 260), vol: v, pan });
           if (k % 2 === 0 && s === 0) smp('step', { t: tt, vol: v * 0.35, rate: R(0.5, 0.65), pan, lp: 1200 });
         }
       }
@@ -212,7 +228,9 @@ const Sfx = (() => {
     woodbreak(t = 0, v = 0.6) { smp('woodbreak', { t, vol: v, rate: R(0.7, 1) }); },
     crack(t = 0) { smp('woodbreak', { t, vol: 0.6 }); smp('hit', { t: t + 0.02, vol: 0.3 }); },
     metalfall(t = 0, v = 0.4) { smp('metalfall', { t, vol: v, rate: R(0.9, 1.2) }); },
-    gong(t = 0, v = 1, dest) { for (const [f, g, d] of [[98, 0.45, 5], [147, 0.25, 4], [233, 0.15, 3.5], [311, 0.1, 3], [415, 0.06, 2]]) tn({ t, f, f2: f * 0.985, dur: d, vol: g * v, a: 0.01, dest }); nz({ t, dur: 0.3, type: 'bandpass', f: 600, q: 1, vol: 0.15 * v, dest }); },
+    gong(t = 0, v = 1, dest) {
+      if (has('gong')) { smp('gong', { t, vol: 0.85 * v, rate: 0.62, rj: 0.03, dest }); smp('gong', { t: t + 0.012, vol: 0.4 * v, rate: 0.45, rj: 0.02, dest }); tn({ t, f: 98, f2: 96, dur: 4, vol: 0.16 * v, a: 0.02, dest }); return; }
+      for (const [f, g, d] of [[98, 0.45, 5], [147, 0.25, 4], [233, 0.15, 3.5], [311, 0.1, 3], [415, 0.06, 2]]) tn({ t, f, f2: f * 0.985, dur: d, vol: g * v, a: 0.01, dest }); nz({ t, dur: 0.3, type: 'bandpass', f: 600, q: 1, vol: 0.15 * v, dest }); },
     bell(t = 0, f = 880, v = 0.12) { for (const [r, g, d] of [[1, 1, 2.4], [2.7, 0.4, 1.4], [5.1, 0.2, 0.8]]) tn({ t, f: f * r, dur: d, vol: v * g, dest: musicBus }); },
     tick(t = 0, v = 0.3) { tn({ t, f: 1150, f2: 900, dur: 0.05, vol: v }); nz({ t, dur: 0.015, type: 'highpass', f: 4000, vol: v * 0.5 }); },
     trumpet(t = 0, v = 0.22, fall = false) { // 象鸣
@@ -221,16 +239,22 @@ const Sfx = (() => {
       const o = ctx.createOscillator(); o.type = 'sawtooth';
       o.frequency.setValueAtTime(fall ? 700 : 380, T); o.frequency.linearRampToValueAtTime(fall ? 900 : 760, T + 0.2); o.frequency.linearRampToValueAtTime(fall ? 260 : 640, T + (fall ? 1.6 : 1.1));
       const l = ctx.createOscillator(); l.frequency.value = 23; const lg = ctx.createGain(); lg.gain.value = 60; l.connect(lg); lg.connect(o.frequency);
-      const g = ctx.createGain(); g.gain.setValueAtTime(0.0001, T); g.gain.linearRampToValueAtTime(v, T + 0.1); g.gain.setValueAtTime(v, T + (fall ? 1.2 : 0.8)); g.gain.linearRampToValueAtTime(0.0001, T + (fall ? 1.8 : 1.2));
+      const vs = has('trumpet') ? v * 0.45 : v;
+      const g = ctx.createGain(); g.gain.setValueAtTime(0.0001, T); g.gain.linearRampToValueAtTime(vs, T + 0.1); g.gain.setValueAtTime(vs, T + (fall ? 1.2 : 0.8)); g.gain.linearRampToValueAtTime(0.0001, T + (fall ? 1.8 : 1.2));
       const bp = ctx.createBiquadFilter(); bp.type = 'bandpass'; bp.frequency.value = 1200; bp.Q.value = 1.5;
       o.connect(bp); bp.connect(g); g.connect(sfxBus); o.start(T); l.start(T); o.stop(T + 2); l.stop(T + 2);
-      smp('roar', { t, vol: v * 0.8, rate: fall ? 0.9 : 1.3 });
+      if (has('trumpet')) smp('trumpet', { t, vol: v * 2.4, rate: fall ? 1.15 : R(1.55, 1.8), rj: 0.03 });
+      else smp('roar', { t, vol: v * 0.8, rate: fall ? 0.9 : 1.3 });
     },
-    stompHeavy(t = 0, v = 0.6) { tn({ t, f: 50, f2: 30, dur: 0.4, vol: v }); nz({ t, dur: 0.2, type: 'lowpass', f: 180, vol: v * 0.6 }); },
+    stompHeavy(t = 0, v = 0.6) {
+      if (has('stomp')) { smp('stomp', { t, vol: v, rate: R(0.7, 0.85) }); smp('drum', { t, vol: v * 0.5, rate: 0.5, rj: 0.05 }); return; }
+      tn({ t, f: 50, f2: 30, dur: 0.4, vol: v }); nz({ t, dur: 0.2, type: 'lowpass', f: 180, vol: v * 0.6 }); },
     heave(t = 0) { // 炮手号子"嘿——呦"
       for (const [dt, f0, f1] of [[0, 180, 150], [0.5, 150, 200]]) for (let i = 0; i < 3; i++) voiceOsc({ t: t + dt + R(0, 0.04), f: f0 * R(0.95, 1.05), dur: 0.38, vol: 0.05, cut: 1100, q: 3, a: 0.04, rel: 0.2, bend: f1 / f0 });
     },
-    cheer(t = 0, v = 1) { B.shout(t, 12, 0.07 * v, 1.0); for (let i = 0; i < 6; i++) smp('plate', { t: t + i * 0.16 + R(0, 0.05), vol: 0.14 * v, rate: R(0.8, 1.2) }); for (let i = 0; i < 3; i++) B.taiko(t + i * 0.2, 0.3 * v); },
+    cheer(t = 0, v = 1) {
+      if (has('cheer')) { smp('cheer', { t, vol: 0.75 * v, rj: 0.04 }); for (let i = 0; i < 5; i++) smp('plate', { t: t + 0.1 + i * 0.17 + R(0, 0.05), vol: 0.12 * v, rate: R(0.8, 1.2) }); for (let i = 0; i < 3; i++) B.taiko(t + i * 0.2, 0.35 * v); return; }
+      B.shout(t, 12, 0.07 * v, 1.0); for (let i = 0; i < 6; i++) smp('plate', { t: t + i * 0.16 + R(0, 0.05), vol: 0.14 * v, rate: R(0.8, 1.2) }); for (let i = 0; i < 3; i++) B.taiko(t + i * 0.2, 0.3 * v); },
   };
 
   // 受伤、惨叫（按血腥度）
@@ -288,7 +312,7 @@ const Sfx = (() => {
     },
     // 象（楚战象）：沉重低频脚步 + 象鸣；冲锋：象嘶 + 践踏 + 火把
     ele: {
-      move(dur = 1.4) { for (let k = 0; k * 0.55 < dur; k++) B.stompHeavy(k * 0.55, 0.45); B.trumpet(0.2, 0.12); smp('chain', { t: 0.3, vol: 0.1, rate: 0.6 }); },
+      move(dur = 1.4) { for (let k = 0; k * 0.55 < dur; k++) B.stompHeavy(k * 0.55, 0.55); smp('rumble', { t: 0.15, vol: 0.4, rate: 0.75, dur: Math.min(3, dur + 0.6) }); B.trumpet(0.25, 0.14); smp('chain', { t: 0.3, vol: 0.12, rate: 0.6 }); smp('chain', { t: 0.3 + dur * 0.5, vol: 0.1, rate: 0.55 }); },
       trumpet() { B.trumpet(0, 0.24); },
       charge(dur = 1.2) { for (let k = 0; k * 0.3 < dur; k++) B.stompHeavy(k * 0.3, 0.55); nz({ dur, type: 'bandpass', f: 600, f2: 1400, q: 0.8, vol: 0.12, a: 0.3 }); B.shout(0.2, 5, 0.07); },
       stomp() { B.boom(0, 0.5); B.stompHeavy(0, 0.9); smp('rockfall', { t: 0.05, vol: 0.5 }); for (let i = 0; i < 4; i++) B.stab(R(0.02, 0.2), 0.3); },
@@ -494,6 +518,18 @@ const Sfx = (() => {
     setVol(k, v) { vol[k] = v; const bus = { sfx: sfxBus, music: musicBus, voice: voiceBus }[k]; if (bus) bus.gain.setTargetAtTime(v, now(), 0.05); },
     vol,
     place() { B.wood(0, 0.45); },
+    // 吃子：战鼓擂动 + 全营欢呼；big=连吃时更响更长，还夹着喊杀
+    celebrate(v = 1, big = false) {
+      const n = big ? 14 : 9;
+      for (let i = 0; i < n; i++) B.taiko(i * (big ? 0.13 : 0.16) + R(0, 0.02), (i % 4 === 0 ? 0.8 : 0.5) * v, i % 2 ? 1.1 : 0.9);
+      smp('drumroll', { t: 0.05, vol: 0.45 * v, rate: 0.85 });
+      if (big) { smp('drumroll', { t: 0.75, vol: 0.45 * v, rate: 0.8 }); smp('warcry', { t: 0.5, vol: 0.7 * v }); }
+      smp('cheer', { t: 0.15, vol: 0.8 * v, rj: 0.04 });
+      for (let i = 0; i < 5; i++) smp('plate', { t: 0.2 + i * 0.18 + R(0, 0.05), vol: 0.12 * v, rate: R(0.8, 1.2) });
+    },
+    groan(v = 0.45) { smp('groan', { vol: v, rj: 0.04 }); },
+    jeer(side, v = 0.8) { smp(side === 'b' ? 'jeer_b' : 'jeer_r', { vol: v, rj: 0.03 }); smp('laugh', { t: 0.5, vol: v * 0.45 }); },
+    desert(v = 0.5) { for (let i = 0; i < 5; i++) smp('metalfall', { t: R(0, 0.6), vol: 0.22 * v * 2, rate: R(0.8, 1.2) }); smp('groan', { t: 0.3, vol: 0.3 * v }); },
     lift() { nz({ dur: 0.05, type: 'highpass', f: 2500, vol: 0.08 }); },
     select() { B.wood(0, 0.3); tn({ f: 1320, dur: 0.5, vol: 0.025 }); },
     checkHit() { B.taiko(0, 1, 0.9); B.taiko(0.16, 0.9, 0.9); B.clang(0.02, 0.4); },
@@ -519,7 +555,8 @@ const Voice = (() => {
   const CLIPS = window.VOICE_CLIPS || {};
   const SPK = { narr: '', xiang: '项王', liu: '汉王', elder: '乌江亭长' };
   const bufs = new Map();
-  let enabled = true, cur = null;
+  let enabled = true, cur = null, barkSrc = null;
+  const barkCut = () => { if (barkSrc) { try { barkSrc.stop(); } catch (e) { } barkSrc = null; } };
   function b64ToBuf(b64) { const bin = atob(b64); const u = new Uint8Array(bin.length); for (let i = 0; i < bin.length; i++) u[i] = bin.charCodeAt(i); return u.buffer; }
   function decode(id) {
     if (bufs.has(id)) return bufs.get(id);
@@ -546,11 +583,26 @@ const Voice = (() => {
       s.connect(Sfx.voiceBus);
       const d = buf.duration / rate;
       onDur && onDur(Math.max(d, minDur));
-      this.cancel();
+      if (cur) { try { cur.stop(); } catch (e) { } }
       cur = s;
       s.start();
-      return new Promise(res => { let done = false; const fin = () => { if (!done) { done = true; res(); } }; s.onended = fin; setTimeout(fin, (d + 0.5) * 1000); }).then(() => (minDur > d ? Core.sleep(minDur - d) : null));
+      return new Promise(res => { let done = false; const fin = () => { if (cur === s) cur = null; if (!done) { done = true; res(); } }; s.onended = fin; setTimeout(fin, (d + 0.5) * 1000); }).then(() => (minDur > d ? Core.sleep(minDur - d) : null));
     },
-    cancel() { if (cur) { try { cur.stop(); } catch (e) { } cur = null; } },
+    cancel() { if (cur) { try { cur.stop(); } catch (e) { } cur = null; } barkCut(); },
+    // 兵种台词：单独一路，不打断主帅/旁白，也不被它们打断；新的一句会接替上一句
+    async bark(id, { vol = 0.9, pan = 0, skipIfBusy = false } = {}) {
+      if (!enabled || !Sfx.ctx || !CLIPS[id]) return;
+      if (skipIfBusy && cur) return;
+      const buf = await decode(id); if (!buf) return;
+      const ctx = Sfx.ctx;
+      barkCut();
+      const s = ctx.createBufferSource(); s.buffer = buf;
+      const g = ctx.createGain(); g.gain.value = vol;
+      let node = g;
+      if (ctx.createStereoPanner) { const p = ctx.createStereoPanner(); p.pan.value = pan; g.connect(p); node = p; }
+      s.connect(g); node.connect(Sfx.voiceBus);
+      barkSrc = s; s.onended = () => { if (barkSrc === s) barkSrc = null; };
+      s.start();
+    },
   };
 })();
