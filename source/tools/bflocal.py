@@ -24,7 +24,7 @@ CHECK = """(()=>{const x=window.__xq, g=x.game, B=x.Board; const bad=[];
 PICK = """((seed)=>{let s=seed; const rnd=()=>{s=(s*1103515245+12345)%2147483648; return s/2147483648;};
  const x=window.__xq, g=x.game, side=g.turn; const acts=[];
  const ups=[]; for(let r=0;r<10;r++)for(let f=0;f<9;f++){ if(g.canUpgrade(f,r)) ups.push([f,r]); }
- const up = ups.length && rnd()<0.45 ? ups[Math.floor(rnd()*ups.length)] : null;
+ let up = ups.length && rnd()<0.45 ? ups[Math.floor(rnd()*ups.length)] : null;
  const mv=[], sk=[];
  for(let r=0;r<10;r++)for(let f=0;f<9;f++){ const p=g.at(f,r); if(!p||p.s!==side) continue; for(const m of g.legalFrom(f,r)) mv.push({k:'mv',from:m.from,to:m.to}); for(const a of g.skillTargets(f,r)) sk.push(a); }
  const art = side==='r' ? g.reviveOptions().map(o=>({k:'art',id:o.id})) : [];
@@ -42,6 +42,8 @@ PICK = """((seed)=>{let s=seed; const rnd=()=>{s=(s*1103515245+12345)%2147483648
  else if (caps.length && r0<0.75) a=caps[Math.floor(rnd()*caps.length)];
  else if (mv.length) a=mv[Math.floor(rnd()*mv.length)];
  else if (sk.length) a=sk[0]; else if (art.length) a=art[0]; else if (pass.length) a=pass[0];
+ // 终极兵法要 20 功：选了它就不先升级（否则升级花掉军功后发不出来）
+ if (a && a.k==='ult') up=null;
  return JSON.stringify({up, a, n:{mv:mv.length, sk:sk.length, art:art.length, ult:ult.length}});})"""
 ok = True
 with sync_playwright() as p:

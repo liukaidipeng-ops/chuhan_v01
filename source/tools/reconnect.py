@@ -100,6 +100,21 @@ try:
         check(wait(lambda: ev(A, HL) == 4, 25), '心跳对账后自动补发，房主收到第 4 步')
         wait(lambda: ev(A, IDLE) and ev(B, IDLE), 40)
 
+        # ---- 2b. 悔棋“同意”的回复丢了：房主已悔，客人靠对账照样悔棋（不会把那步又补发回去） ----
+        ev(A, """(()=>{ const N = window.__xq.Net, orig = N.send; window.__droppedU = 0;
+            N.send = function(o){ if (o && o.t === 'undoRes' && !window.__droppedU) { window.__droppedU = 1; N.send = orig; return true; } return orig.apply(N, arguments); }; })()""")
+        ev(B, "window.__xq.requestUndo()")
+        check(wait(lambda: ev(A, "!document.getElementById('mAsk').classList.contains('hidden')"), 15), '房主收到悔棋请求')
+        A.evaluate("document.querySelector('#askYes').click()")
+        check(wait(lambda: ev(A, HL) == 3, 15) and ev(A, "window.__droppedU") == 1, '房主同意并悔棋，回复在路上丢了')
+        check(wait(lambda: ev(B, HL) == 3 and ev(B, IDLE), 30), '客人靠心跳对账照样悔棋（双方都回到第 3 步）')
+        time.sleep(4)
+        check(ev(A, HL) == 3 and ev(B, HL) == 3, '悔掉的那步没有被补发回来')
+        wait(lambda: '轮到你' in ev(B, STATUS), 20)
+        ev(B, "window.__xq.doMove({from:[1,9],to:[2,7]})")
+        check(wait(lambda: ev(A, HL) == 4, 20), '客人重新走第 4 步')
+        wait(lambda: ev(A, IDLE) and ev(B, IDLE), 40)
+
         # ---- 3. 系统报告断网（手机切网络）→ 立刻显示断网；恢复后续局 ----
         ctxB.set_offline(True)
         ev(B, "window.dispatchEvent(new Event('offline'))")

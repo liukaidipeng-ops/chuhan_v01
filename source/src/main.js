@@ -1635,8 +1635,11 @@
     const mine = game.history, theirs = st.moves || [];
     const same = (a, b) => a.from[0] === b.from[0] && a.from[1] === b.from[1] && a.to[0] === b.to[0] && a.to[1] === b.to[1];
     const prefix = (a, b) => a.length <= b.length && a.every((m, i) => same(m, b[i]));
+    // 我请求的悔棋对方已经同意、但“同意”的消息丢了：对方棋局正好少了这几步 → 照样悔棋
+    if (pendingUndo && pendingUndo.side === mySide && prefix(theirs, mine) && mine.length - theirs.length === pendingUndo.plies) { applyUndo(pendingUndo.plies, mySide); undoUsed = { r: 0, b: 0, ...(st.undo || {}) }; updateHud(); return; }
     if (prefix(mine, theirs)) { for (const m of theirs.slice(mine.length)) doMove({ from: m.from, to: m.to, rv: m.rv, cj: m.cj }, true); }
     else if (prefix(theirs, mine) && mine.length - theirs.length === 1 && game.turn !== mySide) { const m = mine[mine.length - 1]; Net.send({ t: 'move', n: mine.length - 1, from: m.from, to: m.to, clk: clock[mySide] }); }
+    else if (prefix(theirs, mine) && mine.length - theirs.length === 1 && game.turn === mySide) { /* 对方自己的那步还没落定（揭棋等揭示），不回滚，等它补上 */ }
     else { applyState(st); }
     undoUsed = { r: 0, b: 0, ...(st.undo || {}) };
     if (st.result && !game.result) { game.result = st.result; finishGame(st.result); }
@@ -1793,6 +1796,8 @@
     const E = game.entries, T = st.bfe || [];
     const same = (a, b) => JSON.stringify(a) === JSON.stringify(b);
     const prefix = (a, b) => a.length <= b.length && a.every((x, i) => same(x, b[i]));
+    // 我请求的悔棋对方已同意、但“同意”的消息丢了 → 照样悔棋
+    if (!watch && pendingUndo && pendingUndo.side === mySide && T.length < E.length && prefix(T, E) && T.length === bfUndoTarget(pendingUndo.plies)) { applyUndo(pendingUndo.plies, mySide); undoUsed = { r: 0, b: 0, ...(st.undo || {}) }; updateHud(); return; }
     if (prefix(E, T)) { for (const e of T.slice(E.length)) if (!doBF(e, true)) { applyState(st); break; } }
     else if (prefix(T, E)) {
       const extra = game.sides.slice(T.length);
