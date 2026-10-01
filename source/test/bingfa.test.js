@@ -3,7 +3,7 @@ global.XQ = require('../src/rules.js');
 const BF = require('../src/bingfa.js');
 const assert = require('assert');
 let id = 200;
-const P = (s, t, lv = 1, extra = {}) => ({ s, t, id: id++, lv, hp: BF.CFG.hp[lv - 1], cd: 0, jm: 0, ...extra });
+const P = (s, t, lv = 1, extra = {}) => ({ s, t, id: id++, lv, hp: BF.CFG.hp[lv - 1], cd: 0, jm: 0, xp: 0, ...extra });
 // 摆局面：pieces = [[f, r, piece]...]
 function setup(pieces, opt = {}) {
   const g = new BF.Game();
@@ -43,10 +43,24 @@ const ok = (x, msg) => { assert(x, msg); };
   const u = g.apply({ k: 'up', at: [0, 3] });
   ok(u && g.at(0, 3).lv === 2 && g.at(0, 3).hp === 2 && g.merit.r === 0, '升二级回满 2 血、扣 3 军功');
   ok(!g.apply({ k: 'up', at: [2, 3] }), '每次行动最多升一次');
-  ok(!g.skillTargets(0, 3).length, '刚升二级当次不能用技能');
   g.apply({ k: 'mv', from: [2, 3], to: [2, 4] });
   g.apply({ k: 'mv', from: [0, 6], to: [0, 5] });
-  ok(g.skillTargets(0, 3).length === 1, '下一次行动起可用拒马');
+  ok(!g.skillTargets(0, 3).length, '二级只长血、没有技能');
+  // 三级解锁技能，刚升三级当次不能用
+  const g2 = setup([[4, 0, K('r')], [3, 9, K('b')], [0, 3, P('r', 'p', 2)], [8, 3, P('r', 'p')], [5, 9, P('b', 'a')]], { merit: { r: 5, b: 3 } });
+  ok(g2.upgradeCost(g2.at(0, 3)) === 5 && g2.apply({ k: 'up', at: [0, 3] }) && g2.at(0, 3).lv === 3 && g2.at(0, 3).hp === 3, '升三级 5 功、3 血');
+  ok(!g2.skillTargets(0, 3).length, '刚升三级当次不能用技能');
+  g2.apply({ k: 'mv', from: [8, 3], to: [8, 4] });
+  g2.apply({ k: 'mv', from: [5, 9], to: [4, 8] });
+  ok(g2.skillTargets(0, 3).length === 1, '下一次行动起可用拒马');
+  // 只有车能升四级（20 功、4 血）
+  const g3 = setup([[4, 0, K('r')], [3, 9, K('b')], [0, 0, P('r', 'r', 3)], [1, 0, P('r', 'n', 3)]], { merit: { r: 25, b: 3 } });
+  ok(g3.upgradeCost(g3.at(1, 0)) === null && !g3.canUpgrade(1, 0), '马最高三级');
+  ok(g3.upgradeCost(g3.at(0, 0)) === 20 && g3.apply({ k: 'up', at: [0, 0] }) && g3.at(0, 0).lv === 4 && g3.at(0, 0).hp === 4 && g3.merit.r === 5, '车升四级 20 功、4 血');
+  ok(g3.upgradeCost(g3.at(0, 0)) === null, '车最高四级');
+  // 士象相降价
+  const g4 = new BF.Game();
+  ok(g4.upgradeCost(g4.at(3, 0)) === 2 && g4.upgradeCost(g4.at(2, 0)) === 2, '士、相升二级 2 功');
   console.log('升级 OK');
 }
 // 4. 攻击：目标 2 血只扣 1，攻方退回
@@ -68,32 +82,74 @@ const ok = (x, msg) => { assert(x, msg); };
   ok(!g.isLegal({ from: [0, 7], to: [4, 7] }), '攻击将军的子不算解将');
   console.log('解将判定 OK');
 }
-// 6. 拒马
+// 5b. 士二级起攻击 2：一刀砍死 2 血的子，可以硬解 2 血单位的将军
 {
-  const pawn = P('b', 'p', 2);
+  const g = setup([[4, 0, K('r')], [3, 9, K('b')], [4, 1, P('b', 'r', 2)], [3, 0, P('r', 'a', 2)], [8, 3, P('r', 'p')]]);
+  ok(g.inCheck('r'), '2 血黑车贴脸将军');
+  ok(g.atkOf(g.at(3, 0)) === 2 && g.atkOf(P('r', 'a', 1)) === 1, '二级士攻击 2，一级士攻击 1');
+  ok(g.isLegal({ from: [3, 0], to: [4, 1] }), '二级士一刀砍死 2 血车解将');
+  const i = g.apply({ k: 'mv', from: [3, 0], to: [4, 1] });
+  ok(i && g.at(4, 1).t === 'a' && g.at(4, 1).s === 'r' && g.at(4, 1).xp === 1, '士吃车占位、攒一片甲');
+  const g2 = setup([[4, 0, K('r')], [3, 9, K('b')], [4, 1, P('b', 'r', 3)], [3, 0, P('r', 'a', 2)], [8, 3, P('r', 'p')]]);
+  ok(!g2.isLegal({ from: [3, 0], to: [4, 1] }), '3 血车只被砍掉 2 点、将军仍在，不合法');
+  console.log('士攻击 2 OK');
+}
+// 5c. 击杀攒甲片，抵下次升级价，升级后清零，最少 1 功
+{
+  const g = setup([[4, 0, K('r')], [3, 9, K('b')], [0, 3, P('r', 'r')], [0, 6, P('b', 'p')], [0, 7, P('b', 'p')], [0, 8, P('b', 'p')], [8, 9, P('b', 'r')]], { merit: { r: 3, b: 3 } });
+  g.apply({ k: 'mv', from: [0, 3], to: [0, 6] });
+  ok(g.at(0, 6).xp === 1 && g.upgradeCost(g.at(0, 6)) === 5, '车杀一个：升二级 6→5 功');
+  g.apply({ k: 'mv', from: [8, 9], to: [8, 8] });
+  g.apply({ k: 'mv', from: [0, 6], to: [0, 7] });
+  g.apply({ k: 'mv', from: [8, 8], to: [8, 9] });
+  ok(g.at(0, 7).xp === 2 && g.upgradeCost(g.at(0, 7)) === 4, '杀两个：4 功');
+  const m = g.merit.r;
+  g.apply({ k: 'up', at: [0, 7] });
+  ok(g.at(0, 7).lv === 2 && g.at(0, 7).xp === 0 && g.merit.r === m - 4, '升级用掉甲片');
+  const g2 = setup([[4, 0, K('r')], [3, 9, K('b')], [0, 3, P('r', 'p', 1, { xp: 9 })]]);
+  ok(g2.upgradeCost(g2.at(0, 3)) === 1, '最少 1 功');
+  console.log('击杀抵扣 OK');
+}
+// 6. 拒马：不占行动，架完还要再走一步，架拒马的兵本回合不能动
+{
+  const pawn = P('b', 'p', 3);
   const g = setup([[4, 0, K('r')], [3, 9, K('b')], [0, 4, P('r', 'r')], [0, 6, pawn], [8, 0, P('r', 'r', 2)], [5, 9, P('b', 'a')]], { turn: 'b' });
   ok(g.apply({ k: 'sk', at: [0, 6] }), '黑卒拒马');
+  ok(g.turn === 'b' && g.freeUsed, '拒马不换手，还要再走一步');
+  ok(!g.legalFrom(0, 6).length, '架拒马的卒本回合不能动');
+  ok(!g.skillTargets(0, 6).length && !g.apply({ k: 'pass' }), '不能再用技能或停着');
+  ok(g.apply({ k: 'mv', from: [5, 9], to: [4, 8] }) && g.turn === 'r', '再走一步后换手');
   const i = g.apply({ k: 'mv', from: [0, 4], to: [0, 6] });
-  ok(i && !g.at(0, 4) && g.at(0, 6).hp === 2, '一级车撞拒马直接阵亡，卒无损');
-  ok(i.kills.some(k => k.t === 'r'), '车阵亡记为击杀');
-  // 拒马只持续到对方下一次行动结束
-  g.apply({ k: 'mv', from: [5, 9], to: [4, 8] });
-  const i2 = g.apply({ k: 'mv', from: [8, 0], to: [8, 1] });
-  ok(i2, '红走闲着');
+  ok(i && !g.at(0, 4) && g.at(0, 6).hp === 3, '一级车撞拒马直接阵亡，卒无损');
+  ok(i.kills.some(k => k.t === 'r') && g.at(0, 6).xp === 1, '车阵亡记为卒的击杀');
+  ok(g.history.length === 2 && g.entries.length === 3, '拒马不算一步棋谱');
+  g.undoActions(1);
+  ok(g.entries.length === 2 && g.turn === 'r', '悔一步只退红方');
+  g.undoActions(1);
+  ok(g.entries.length === 0 && g.turn === 'b', '再悔一步连拒马一起退回');
   console.log('拒马 OK');
 }
 {
   // 二级攻方撞拒马：扣 1 后继续结算
-  const pawn = P('b', 'p', 1, { hp: 1 });
-  const g = setup([[4, 0, K('r')], [3, 9, K('b')], [0, 4, P('r', 'r', 2)], [0, 6, { ...P('b', 'p', 2), hp: 1 }], [5, 9, P('b', 'a')]], { turn: 'b' });
-  ok(g.apply({ k: 'sk', at: [0, 6] }), '1 血的二级卒也能拒马');
+  const g = setup([[4, 0, K('r')], [3, 9, K('b')], [0, 4, P('r', 'r', 2)], [0, 6, { ...P('b', 'p', 3), hp: 1 }], [5, 9, P('b', 'a')]], { turn: 'b' });
+  ok(g.apply({ k: 'sk', at: [0, 6] }), '1 血的三级卒也能拒马');
+  g.apply({ k: 'mv', from: [5, 9], to: [4, 8] });
   const i = g.apply({ k: 'mv', from: [0, 4], to: [0, 6] });
   ok(i && g.at(0, 6).t === 'r' && g.at(0, 6).hp === 1, '二级车扣 1 血后吃掉卒');
   console.log('拒马反伤后继续 OK');
 }
+{
+  // 被将军时也能架拒马，但后面那一步必须应将；没有别的子能走就不能架
+  const g = setup([[4, 0, K('r')], [4, 9, K('b')], [0, 6, P('b', 'p', 3)], [4, 5, P('r', 'r')]], { turn: 'b' });
+  ok(g.inCheck('b'), '黑将被将');
+  ok(g.skillTargets(0, 6).length === 1, '被将时可架拒马（之后将要走开）');
+  g.apply({ k: 'sk', at: [0, 6] });
+  ok(g.legalFrom(4, 9).length > 0 && !g.legalFrom(0, 6).length, '之后只能走将应将');
+  console.log('拒马应将 OK');
+}
 // 7. 冲阵
 {
-  const g = setup([[4, 0, K('r')], [3, 9, K('b')], [0, 0, P('r', 'r', 2)], [0, 5, P('b', 'p')], [0, 6, P('b', 'n')], [0, 8, P('b', 'c', 2)]]);
+  const g = setup([[4, 0, K('r')], [3, 9, K('b')], [0, 0, P('r', 'r', 3)], [0, 5, P('b', 'p')], [0, 6, P('b', 'n')], [0, 8, P('b', 'c', 2)]]);
   const tg = g.skillTargets(0, 0);
   ok(tg.length === 1 && tg[0].to[1] === 5, '冲阵只能对敌子发动');
   const i = g.apply({ k: 'sk', at: [0, 0], to: [0, 5] });
@@ -102,50 +158,62 @@ const ok = (x, msg) => { assert(x, msg); };
   console.log('冲阵 OK');
 }
 {
-  const g = setup([[4, 0, K('r')], [3, 9, K('b')], [0, 0, P('r', 'r', 2)], [0, 5, P('b', 'p')], [0, 6, P('b', 'n', 2)]]);
+  const g = setup([[4, 0, K('r')], [3, 9, K('b')], [0, 0, P('r', 'r', 3)], [0, 5, P('b', 'p')], [0, 6, P('b', 'n', 2)]]);
   g.apply({ k: 'sk', at: [0, 0], to: [0, 5] });
   ok(g.at(0, 5).t === 'r' && g.at(0, 6).hp === 2, '碾到带血敌子就停');
-  const g2 = setup([[4, 0, K('r')], [3, 9, K('b')], [0, 0, P('r', 'r', 2)], [0, 5, P('b', 'p')]]);
+  const g2 = setup([[4, 0, K('r')], [3, 9, K('b')], [0, 0, P('r', 'r', 3)], [0, 5, P('b', 'p')]]);
   g2.apply({ k: 'sk', at: [0, 0], to: [0, 5] });
   ok(g2.at(0, 6) && g2.at(0, 6).t === 'r', '空格则前进一格');
   console.log('冲阵边界 OK');
 }
 // 8. 踏营
 {
-  const g = setup([[4, 0, K('r')], [3, 9, K('b')], [1, 0, P('r', 'n', 2)], [1, 1, P('r', 'p')]]);
+  const g = setup([[4, 0, K('r')], [3, 9, K('b')], [1, 0, P('r', 'n', 3)], [1, 1, P('r', 'p')]]);
   ok(!g.isLegal({ from: [1, 0], to: [2, 2] }), '马腿被蹩');
   ok(g.skillTargets(1, 0).some(a => a.to[0] === 2 && a.to[1] === 2), '踏营无视蹩马腿');
   console.log('踏营 OK');
 }
 // 9. 霹雳
 {
-  const g = setup([[4, 0, K('r')], [3, 9, K('b')], [1, 2, P('r', 'c', 2)], [1, 5, P('r', 'p')], [1, 7, P('b', 'p')], [0, 7, P('b', 'n', 2)], [2, 7, P('b', 'r')], [1, 8, P('b', 'a', 3)]]);
+  const g = setup([[4, 0, K('r')], [3, 9, K('b')], [1, 2, P('r', 'c', 3)], [1, 5, P('r', 'p')], [1, 7, P('b', 'p')], [0, 7, P('b', 'n', 2)], [2, 7, P('b', 'r')], [1, 8, P('b', 'a', 3)]]);
   const i = g.apply({ k: 'sk', at: [1, 2], to: [1, 7] });
   ok(i && g.at(1, 7).t === 'c', '霹雳吃掉目标');
   ok(g.at(0, 7).hp === 1 && g.at(2, 7) && g.at(2, 7).hp === 1 && g.at(1, 8).hp === 2, '溅射只伤二级以上敌子 ' + [g.at(0, 7).hp, g.at(1, 8).hp]);
+  ok(i.ev.some(x => x.e === 'splash' && x.at.join() === '1,7') && g.at(1, 7).xp === 1, '记录落弹中心、炮攒一片甲');
   console.log('霹雳 OK');
 }
 // 10. 齐射
 {
-  const g = setup([[4, 0, K('r')], [3, 9, K('b')], [2, 4, P('r', 'e', 2)], [4, 6, P('b', 'p')], [0, 6, P('b', 'n')], [1, 5, P('r', 'p')]]);
+  const g = setup([[4, 0, K('r')], [3, 9, K('b')], [2, 4, P('r', 'e', 3)], [4, 6, P('b', 'p')], [0, 6, P('b', 'n')], [1, 5, P('r', 'p')]]);
   const tg = g.skillTargets(2, 4).map(a => a.to.join());
   ok(tg.includes('4,6') && !tg.includes('0,6'), '射 2 格中间有子被挡 ' + tg);
   g.apply({ k: 'sk', at: [2, 4], to: [4, 6] });
   ok(!g.at(4, 6) && g.at(2, 4).t === 'e', '一级子直接阵亡、弩手不动');
   console.log('齐射 OK');
 }
-// 11. 践踏
+// 11. 践踏（三级楚战象被动，无冷却）
 {
-  const g = setup([[4, 0, K('r')], [4, 9, K('b')], [2, 9, P('b', 'e', 2)], [4, 8, P('b', 'a')], [4, 6, P('r', 'n', 2)], [3, 7, P('r', 'p')]], { turn: 'b' });
-  const i = g.apply({ k: 'sk', at: [2, 9], to: [4, 7] });
-  ok(i && g.at(4, 7).t === 'e' && g.at(4, 6).hp === 1 && g.at(3, 7).hp === 1, '落下后四周二级敌子扣 1，一级不受');
+  const g = setup([[4, 0, K('r')], [4, 9, K('b')], [2, 9, P('b', 'e', 3)], [4, 8, P('b', 'a')], [4, 6, P('r', 'n', 2)], [3, 7, P('r', 'p')], [8, 0, P('r', 'r')]], { turn: 'b' });
+  ok(!g.skillTargets(2, 9).length, '践踏是被动，没有主动技能');
+  const i = g.apply({ k: 'mv', from: [2, 9], to: [4, 7] });
+  ok(i && g.at(4, 7).t === 'e' && g.at(4, 6).hp === 1 && g.at(3, 7).hp === 1, '普通落子后四周二级敌子扣 1，一级不受');
+  g.apply({ k: 'mv', from: [8, 0], to: [8, 1] });
+  g.apply({ k: 'mv', from: [4, 7], to: [2, 9] });
+  g.apply({ k: 'mv', from: [8, 1], to: [8, 0] });
+  g.apply({ k: 'mv', from: [2, 9], to: [4, 7] });
+  ok(!g.at(4, 6) && g.at(4, 7).xp === 1, '再次落子立即再踩（无冷却），踩死记为战象击杀');
+  const g2 = setup([[4, 0, K('r')], [4, 9, K('b')], [2, 9, P('b', 'e', 2)], [4, 6, P('r', 'n', 2)]], { turn: 'b' });
+  g2.apply({ k: 'mv', from: [2, 9], to: [4, 7] });
+  ok(g2.at(4, 6).hp === 2, '二级战象不踩');
   console.log('践踏 OK');
 }
 // 12. 护驾
 {
   const g = setup([[4, 0, K('r')], [5, 9, K('b')], [3, 0, P('r', 'a', 2)]]);
+  ok(!g.skillTargets(3, 0).length, '二级士没有护驾');
+  g.setup(T => { T.board[0][3].lv = 3; T.board[0][3].hp = 3; });
   g.apply({ k: 'sk', at: [3, 0] });
-  ok(g.at(3, 0).t === 'k' && g.at(4, 0).t === 'a', '士与帅互换');
+  ok(g.at(3, 0).t === 'k' && g.at(4, 0).t === 'a' && g.cdLeft(g.at(4, 0)) === 4, '三级士与帅互换，冷却 4');
   console.log('护驾 OK');
 }
 // 13. 萧何追韩信
@@ -245,7 +313,7 @@ const ok = (x, msg) => { assert(x, msg); };
 }
 // 19. 将死要看技能应着：护驾能解将就不算将死
 {
-  const g = setup([[4, 0, K('r')], [4, 9, K('b')], [3, 9, P('b', 'a', 2)], [4, 5, P('r', 'r')], [3, 7, P('r', 'r')], [5, 7, P('r', 'r')]], { turn: 'r' });
+  const g = setup([[4, 0, K('r')], [4, 9, K('b')], [3, 9, P('b', 'a', 3)], [4, 5, P('r', 'r')], [3, 7, P('r', 'r')], [5, 7, P('r', 'r')]], { turn: 'r' });
   // 红车已在 4 线将军；黑将只能靠护驾和士换位
   const i = g.apply({ k: 'mv', from: [5, 7], to: [5, 8] });
   ok(i && !g.result, '护驾可解将，不判将死 ' + JSON.stringify(g.result));

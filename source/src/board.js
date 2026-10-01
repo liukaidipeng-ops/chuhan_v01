@@ -594,6 +594,28 @@ const Board = (() => {
     g.font = `bold 72px ${FONT}`; g.textAlign = 'center'; g.textBaseline = 'middle'; g.fillStyle = '#f7ead0'; g.fillText(ch, w / 2, w / 2 + 4);
   });
   let feastTex = null;
+  // 头顶血条：细长一条，朱红小格 = 剩余生命，淡格 = 已掉的血（朝向镜头）
+  const hpTexCache = new Map();
+  function hpTex(hp, max) {
+    const key = hp + '/' + max;
+    if (hpTexCache.has(key)) return hpTexCache.get(key);
+    const seg = 50, gap = 6, pad = 5, W = pad * 2 + max * seg + (max - 1) * gap, H = 26;
+    const t = canvasTex(W, H, (g) => {
+      g.clearRect(0, 0, W, H);
+      g.fillStyle = 'rgba(28,22,18,.62)'; rrect(g, 1, 1, W - 2, H - 2, 6); g.fill();
+      g.strokeStyle = 'rgba(226,196,130,.75)'; g.lineWidth = 1.5; rrect(g, 1.5, 1.5, W - 3, H - 3, 6); g.stroke();
+      for (let i = 0; i < max; i++) {
+        const x = pad + i * (seg + gap), y = 6, h = H - 12;
+        if (i < hp) {
+          const gr = g.createLinearGradient(0, y, 0, y + h); gr.addColorStop(0, '#f2674a'); gr.addColorStop(1, '#b3261a');
+          g.fillStyle = gr; rrect(g, x, y, seg, h, 3); g.fill();
+          g.fillStyle = 'rgba(255,235,210,.45)'; g.fillRect(x + 3, y + 1, seg - 6, 2);
+        } else { g.fillStyle = 'rgba(240,226,200,.16)'; rrect(g, x, y, seg, h, 3); g.fill(); }
+      }
+    });
+    t.userData = { w: W, h: H }; hpTexCache.set(key, t);
+    return t;
+  }
   function decorate(m, p, o = {}) {
     if (m.userData.deco) { m.remove(m.userData.deco); m.userData.deco = null; }
     const face = m.children[1];
@@ -601,11 +623,19 @@ const Board = (() => {
     if (!p || !p.lv) return;
     const d = new THREE.Group(); m.add(d); m.userData.deco = d;
     const max = BF.CFG.hp[p.lv - 1];
-    if (p.lv >= 2) for (let i = 0; i < max; i++) {
-      const a = (i - (max - 1) / 2) * 0.36;
-      const pl = new THREE.Mesh(plateGeo, i < p.hp ? plateOn : plateOff);
+    // 腰带甲片 = 攒下的击杀数（每片抵下次升级 1 功，升级时用掉）
+    const nx = Math.min(8, p.xp || 0);
+    for (let i = 0; i < nx; i++) {
+      const a = (i - (nx - 1) / 2) * 0.36;
+      const pl = new THREE.Mesh(plateGeo, plateOn);
       pl.position.set(Math.sin(a) * 0.432, PH * 0.6, Math.cos(a) * 0.432); pl.rotation.y = a;
       pl.userData.plate = i; d.add(pl);
+    }
+    if (p.lv >= 2) {
+      const tx = hpTex(p.hp, max), sc = (window.innerWidth <= 760 ? 1.25 : 1) * 0.003;
+      const sp = new THREE.Sprite(new THREE.SpriteMaterial({ map: tx, transparent: true, depthWrite: false }));
+      sp.scale.set(tx.userData.w * sc, tx.userData.h * sc, 1); sp.position.y = PH + 0.34; sp.renderOrder = 6;
+      sp.userData.hpBar = { hp: p.hp, max }; d.add(sp);
     }
     for (let i = 0; i < p.lv - 1; i++) {
       const x = (i - (p.lv - 2) / 2) * 0.13;
@@ -744,6 +774,24 @@ const Board = (() => {
       }
     }
   }
+  // 兵法：本回合技能可用的子，脚下金圈呼吸闪烁
+  const glowRoot = new THREE.Group(); root.add(glowRoot);
+  let glowKey = '';
+  function setGlow(cells) {
+    const key = cells.map(c => c.join(',')).join(';');
+    if (key === glowKey) return;
+    glowKey = key;
+    glowRoot.traverse(o => { if (o.material) o.material.dispose(); }); glowRoot.clear();
+    for (const [f, r] of cells) {
+      const a = decal(glowTex, 0xffc95a, 1.5, X(f), Z(r), TOP + 0.003, 0.5), b = decal(ringTex, 0xffd27a, 1.18, X(f), Z(r), TOP + 0.005, 0.9);
+      glowRoot.add(a, b);
+    }
+  }
+  Core.onFrame(() => {
+    if (!glowRoot.children.length) return;
+    const k = 0.5 + 0.5 * Math.sin(performance.now() / 1000 * 3.2);
+    glowRoot.children.forEach((m, i) => { m.material.opacity = (i % 2 ? 0.35 + 0.6 * k : 0.15 + 0.45 * k); });
+  });
   // 范围提示（四面楚歌：楚将周围 5×5）：淡朱底 + 虚线框，范围内的己方棋子套金圈；几秒后自动淡去
   let zoneG = null;
   function showZone(a, b, hits = []) {
@@ -842,7 +890,7 @@ const Board = (() => {
 
   return {
     root, TOP, PH, HALF, X, Z, pos, setPosition, pieces, piecesRoot, makePiece, faceViewer,
-    showMoves, clearMoves, showZone, showLast, pick, meshAt, get hovered() { return hovered; }, ringTex, glowTex, wakes, water, waterMat, decal, flatGeo, pine, deco, FONT,
+    showMoves, clearMoves, showZone, setGlow, showLast, pick, meshAt, get hovered() { return hovered; }, ringTex, glowTex, wakes, water, waterMat, decal, flatGeo, pine, deco, FONT,
     viewSide: 'r', pieceWood, RZ, BZ, BX, BRIDGE_X, faceTex, backTex, setFace, makeRiver, mtTex, decorate, decorateAll, reconcile, plateGeo, plateOn,
   };
 })();

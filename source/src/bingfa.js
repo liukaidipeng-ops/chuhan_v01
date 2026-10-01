@@ -1,6 +1,7 @@
-// ===== 楚汉·兵法 模式规则引擎（规则底稿 v1） =====
+// ===== 楚汉·兵法 模式规则引擎（规则底稿 v2） =====
 // 走法、将死、困毙不变；技能和生命值只改“吃子的结果”和“每回合能做什么”。没有随机数，同样的行动序列结果永远相同。
 // 一方一次行动 = 可选一次升级（不占行动）+ 走子 / 兵种技能 / 兵法 三选一。
+// v2：二级只长血，三级长血并解锁技能；车可升四级；士二级起攻击 2；击杀攒甲片抵升级价；拒马不占行动；楚战象践踏改为三级被动。
 (function (global) {
   const XQ = global.XQ || require('./rules.js');
   const { pseudoMoves, inCheck, findKing, inBoard, ownHalf, other, initialBoard, checkers } = XQ;
@@ -12,16 +13,19 @@
       killReward: { p: 1, a: 2, e: 2, n: 3, c: 3, r: 5 }, killRewardPerLevel: 1,
       checkReward: 1, pawnCrossRiverReward: 1, lostPieceCompensation: 1,
     },
-    upgrade: { cost: { p: [3, 5], a: [4, 6], e: [4, 6], n: [5, 7], c: [5, 7], r: [6, 8] }, maxPerTurn: 1, healOnUpgrade: true, cooldownOnUnlock: 1 },
-    hp: [1, 2, 3],
+    // cost[兵种] = [升二级, 升三级, 升四级(只有车)]；每击杀一个单位攒一片甲，下次升级少花 killDiscount 功，升级后清零，最少 minCost 功
+    upgrade: { cost: { p: [3, 5], a: [2, 3], e: [2, 3], n: [5, 7], c: [5, 7], r: [6, 8, 20] }, maxLevel: { r: 4 }, defaultMaxLevel: 3, maxPerTurn: 1, healOnUpgrade: true, cooldownOnUnlock: 1, killDiscount: 1, minCost: 1 },
+    hp: [1, 2, 3, 4],
+    attack: { a: [1, 2, 2] }, // 按等级的攻击力（一次攻击扣的血）；没列出的兵种都是 1
+    skillLevel: 3, // 几级解锁兵种技能
     skills: {
-      juma: { cooldown: 2, duration: 1, damage: 1 },
+      juma: { cooldown: 2, duration: 1, damage: 1, free: true }, // free：不占行动，架完还要再走一步棋（这枚兵本回合不能动）
       chongzhen: { cooldown: 3, extraSquares: 1 },
       taying: { cooldown: 2 },
       pili: { cooldown: 4, splashDamage: 1, splashMinLevel: 2 },
       qishe: { cooldown: 3, range: 2, damage: 1 },
-      jianta: { cooldown: 3, splashDamage: 1, splashMinLevel: 2 },
-      hujia: { cooldown: 3 },
+      jianta: { passive: true, splashDamage: 1, splashMinLevel: 2 }, // 被动：三级战象每次落子都溅伤四周，无冷却
+      hujia: { cooldown: 4 },
     },
     generalArts: { xiaohe: { usesPerGame: 1 }, pofu: { usesPerGame: 1, steps: 2, mayEndInCheck: false, skillLockRounds: 3 } },
     ultimates: { cost: 20, hongmen: { usesPerGame: 1, rounds: 2 }, simian: { usesPerGame: 1, rounds: 2, radius: 2, minPiecesInRadius: 3 } },
@@ -31,6 +35,16 @@
   const SKILL_CN = { juma: '拒马', chongzhen: '冲阵', taying: '踏营', pili: '霹雳', qishe: '齐射', jianta: '践踏', hujia: '护驾' };
   const ART_CN = { r: '萧何追韩信', b: '破釜沉舟' }, ULT_CN = { r: '四面楚歌', b: '鸿门宴' };
   const ORTHO = [[1, 0], [-1, 0], [0, 1], [0, -1]];
+  // 技能说明（界面悬停 / 长按用）
+  const SKILL_DESC = {
+    juma: '原地架矛，不占本回合行动：架完还要再走一步棋（这枚兵本回合不能动，也不能再用技能或兵法）。持续到对方下一次行动结束；期间敌子来吃或攻击它，攻方先挨 1 点伤害，一级攻方直接阵亡。对帅将无效。',
+    chongzhen: '按车的走法吃子或攻击；吃掉第一个目标后沿同方向再碾一格：空格就前进，一级敌子直接碾死占位，遇到帅将、带血敌子或己方子就停下。',
+    taying: '本次走子无视蹩马腿，其余同普通走子。',
+    pili: '按炮的吃子走法炮击一个敌子（按吃子或攻击结算），目标和前后左右四格同时落弹：四格内二级以上的敌子各扣 1 点。',
+    qishe: '不移动，射击斜线 1～2 格内的一个敌子，扣 1 点，一级子直接阵亡；射 2 格时中间有子会被挡，可以射过河。',
+    jianta: '被动，无冷却：三级战象每次落子（含吃子）后，前后左右四格内二级以上的敌子各扣 1 点；攻击没得手、退回原位时不触发。',
+    hujia: '与己方帅/将互换位置，九宫内即可，不要求相邻，可用来解将。鸿门宴期间不能用。',
+  };
   // 每枚子的开局位置（复活用）
   const START = {};
   (() => { const b = initialBoard(); for (let r = 0; r < 10; r++) for (let f = 0; f < 9; f++) if (b[r][f]) START[b[r][f].id] = [f, r]; })();
@@ -38,11 +52,12 @@
   // ---------- 状态 ----------
   function newState(cfg) {
     const b = initialBoard();
-    for (const row of b) for (const p of row) if (p) { p.lv = 1; p.hp = 1; p.cd = 0; p.jm = 0; }
+    for (const row of b) for (const p of row) if (p) { p.lv = 1; p.hp = 1; p.cd = 0; p.jm = 0; p.xp = 0; }
     return {
       board: b, turn: 'r', cnt: { r: 0, b: 0 }, merit: { r: cfg.merit.start, b: cfg.merit.start },
       used: { art: { r: 0, b: 0 }, ult: { r: 0, b: 0 } }, fx: { hm: 0, sm: 0, pf: 0 },
       crossed: {}, dead: { r: [], b: [] }, upgraded: false, ckHist: { r: [], b: [] },
+      freeUsed: false, jmLock: null, // 本回合已用过不占行动的拒马（还得再走一步棋）；架拒马的那枚兵本回合不能动
     };
   }
   function cloneState(S) {
@@ -50,6 +65,7 @@
       board: S.board.map(row => row.map(p => (p ? { ...p } : null))), turn: S.turn, cnt: { ...S.cnt }, merit: { ...S.merit },
       used: { art: { ...S.used.art }, ult: { ...S.used.ult } }, fx: { ...S.fx }, crossed: { ...S.crossed },
       dead: { r: S.dead.r.slice(), b: S.dead.b.slice() }, upgraded: S.upgraded, ckHist: { r: S.ckHist.r.slice(), b: S.ckHist.b.slice() },
+      freeUsed: !!S.freeUsed, jmLock: S.jmLock == null ? null : S.jmLock,
     };
   }
   const at = (S, f, r) => (inBoard(f, r) ? S.board[r][f] : null);
@@ -59,7 +75,12 @@
   const pfActive = S => S.cnt.b < S.fx.pf; // 破釜沉舟后楚方兵种技能封锁
   const restricted = (S, s) => (s === 'r' ? hmActive(S) : smActive(S));
   const jmActive = (S, p) => p && p.t === 'p' && p.jm > S.cnt[other(p.s)];
-  const skillReady = (S, p) => p.lv >= 2 && S.cnt[p.s] >= p.cd && !(p.s === 'b' && (pfActive(S) || smActive(S)));
+  const maxLv = t => (t === 'k' ? 1 : CFG_CUR.upgrade.maxLevel[t] || CFG_CUR.upgrade.defaultMaxLevel);
+  const atk = p => (p.t === 'k' ? 1 : ((CFG_CUR.attack[p.t] || [])[p.lv - 1] || 1));
+  const isPassive = sk => !!(sk && CFG_CUR.skills[sk] && CFG_CUR.skills[sk].passive);
+  const skillReady = (S, p) => p.lv >= CFG_CUR.skillLevel && !isPassive(SKILL_OF(p.t, p.s)) && S.cnt[p.s] >= p.cd && !S.freeUsed && !(p.s === 'b' && (pfActive(S) || smActive(S)));
+  // 升级价：基础价减去攒下的甲片（击杀数），最少 minCost
+  const upCost = p => { const U = CFG_CUR.upgrade; if (!p || p.t === 'k' || p.lv >= maxLv(p.t)) return null; const base = U.cost[p.t][p.lv - 1]; return Math.max(U.minCost, base - (p.xp || 0) * U.killDiscount); };
 
   // ---------- 军功 ----------
   function addMerit(S, s, n, ev, why) {
@@ -69,22 +90,24 @@
     if (ev && S.merit[s] !== before) ev.push({ e: 'merit', s, n: S.merit[s] - before, why });
   }
   let CFG_CUR = CFG;
-  function kill(S, f, r, killerSide, ev, how) {
+  // by：出手的那枚子（攒一片甲 = 击杀数，抵下次升级价）
+  function kill(S, f, r, killerSide, ev, how, by) {
     const v = S.board[r][f];
     if (!v) return null;
     S.board[r][f] = null;
     S.dead[v.s].push({ id: v.id, t: v.t, s: v.s });
-    const m = CFG_CUR.merit;
-    ev.push({ e: 'kill', id: v.id, t: v.t, s: v.s, lv: v.lv, at: [f, r], how });
-    addMerit(S, killerSide, (m.killReward[v.t] || 0) + (v.lv - 1) * m.killRewardPerLevel, ev, '击杀');
+    const m = CFG_CUR.merit, gain = (m.killReward[v.t] || 0) + (v.lv - 1) * m.killRewardPerLevel;
+    ev.push({ e: 'kill', id: v.id, t: v.t, s: v.s, lv: v.lv, at: [f, r], how, by: by ? by.id : null, gain });
+    addMerit(S, killerSide, gain, ev, '击杀');
     addMerit(S, v.s, m.lostPieceCompensation, ev, '哀兵');
+    if (by && by.s === killerSide && by.t !== 'k') { by.xp = (by.xp || 0) + 1; ev.push({ e: 'xp', id: by.id, xp: by.xp }); }
     return v;
   }
-  function damage(S, f, r, n, killerSide, ev, how) {
+  function damage(S, f, r, n, killerSide, ev, how, by) {
     const v = S.board[r][f];
     if (!v || v.t === 'k') return;
     v.hp -= n;
-    if (v.hp <= 0) kill(S, f, r, killerSide, ev, how);
+    if (v.hp <= 0) kill(S, f, r, killerSide, ev, how, by);
     else ev.push({ e: 'hit', id: v.id, at: [f, r], hp: v.hp, how });
   }
   function moveTo(S, from, to, ev) {
@@ -101,20 +124,27 @@
     if (jmActive(S, T) && P.t !== 'k') {
       ev.push({ e: 'counter', id: P.id, at: from.slice(), by: T.id, target: to.slice() });
       P.hp -= CFG_CUR.skills.juma.damage;
-      if (P.hp <= 0) { kill(S, from[0], from[1], T.s, ev, 'juma'); return 'died'; }
+      if (P.hp <= 0) { kill(S, from[0], from[1], T.s, ev, 'juma', T); return 'died'; }
     }
-    if (T.hp <= 1) { kill(S, to[0], to[1], side, ev, how || 'capture'); moveTo(S, from, to, ev); return 'kill'; }
-    T.hp -= 1;
+    const A = atk(P);
+    if (T.hp <= A) { kill(S, to[0], to[1], side, ev, how || 'capture', P); moveTo(S, from, to, ev); return 'kill'; }
+    T.hp -= A;
     ev.push({ e: 'hit', id: T.id, at: to.slice(), hp: T.hp, how: how || 'attack' });
     ev.push({ e: 'repel', id: P.id, from: from.slice(), to: to.slice() });
     return 'hit';
   }
-  function splash(S, c, side, ev, how) {
+  function splash(S, c, side, ev, how, by) {
     const minLv = CFG_CUR.skills[how].splashMinLevel, n = CFG_CUR.skills[how].splashDamage;
+    ev.push({ e: 'splash', how, at: c.slice() });
     for (const [df, dr] of ORTHO) {
       const f = c[0] + df, r = c[1] + dr, q = at(S, f, r);
-      if (q && q.s !== side && q.t !== 'k' && q.lv >= minLv) damage(S, f, r, n, side, ev, how);
+      if (q && q.s !== side && q.t !== 'k' && q.lv >= minLv) damage(S, f, r, n, side, ev, how, by);
     }
+  }
+  // 楚战象被动「践踏」：三级战象落子（走到空格或吃掉）后溅伤四周
+  function trample(S, P, to, res, side, ev) {
+    if (!P || SKILL_OF(P.t, P.s) !== 'jianta' || P.lv < CFG_CUR.skillLevel) return;
+    if (res === 'move' || res === 'kill') splash(S, to, side, ev, 'jianta', P);
   }
 
   // ---------- 走法 ----------
@@ -157,10 +187,14 @@
     const own = (f, r) => { const p = at(S, f, r); return p && p.s === side ? p : null; };
     const has = (list, to) => list.some(m => m.to[0] === to[0] && m.to[1] === to[1]);
     let kind = a.k, extra = {};
+    // 用过拒马后只能再走一步棋，且架拒马的兵不能动
+    if (S.freeUsed && a.k !== 'mv') return null;
     if (a.k === 'mv') {
       const p = own(a.from[0], a.from[1]); if (!p) return null;
+      if (S.jmLock != null && p.id === S.jmLock) return null;
       if (!has(moveTargets(S, a.from[0], a.from[1]), a.to)) return null;
       extra.res = strike(S, a.from, a.to, side, ev);
+      trample(S, p, a.to, extra.res, side, ev);
     } else if (a.k === 'sk') {
       const p = own(a.at[0], a.at[1]); if (!p || !skillReady(S, p)) return null;
       const sk = SKILL_OF(p.t, p.s); if (!sk) return null;
@@ -169,6 +203,7 @@
       if (sk === 'juma') {
         p.jm = S.cnt[other(side)] + CFG_CUR.skills.juma.duration;
         ev.push({ e: 'juma', id: p.id, at: a.at.slice() });
+        if (CFG_CUR.skills.juma.free) { cd(); S.freeUsed = true; S.jmLock = p.id; return { kind, ev, extra, free: true }; }
       } else if (sk === 'chongzhen') {
         const tg = moveTargets(S, a.at[0], a.at[1]).filter(m => S.board[m.to[1]][m.to[0]]);
         if (!a.to || !has(tg, a.to)) return null;
@@ -196,15 +231,10 @@
         if (p.s === 'b' && smActive(S)) return null;
         const res = strike(S, a.at, a.to, side, ev, 'pili');
         extra.res = res;
-        if (res !== 'died') splash(S, a.to, side, ev, 'pili');
+        if (res !== 'died') splash(S, a.to, side, ev, 'pili', p);
       } else if (sk === 'qishe') {
         if (!a.to || !has(arrowTargets(S, a.at[0], a.at[1]), a.to)) return null;
-        damage(S, a.to[0], a.to[1], CFG_CUR.skills.qishe.damage, side, ev, 'qishe');
-      } else if (sk === 'jianta') {
-        if (!a.to || !has(moveTargets(S, a.at[0], a.at[1]), a.to)) return null;
-        const res = strike(S, a.at, a.to, side, ev, 'jianta');
-        extra.res = res;
-        if (res === 'move' || res === 'kill') splash(S, a.to, side, ev, 'jianta');
+        damage(S, a.to[0], a.to[1], CFG_CUR.skills.qishe.damage, side, ev, 'qishe', p);
       } else if (sk === 'hujia') {
         if (side === 'r' && hmActive(S)) return null;
         const k = findKing(S.board, side); if (!k) return null;
@@ -221,7 +251,7 @@
         const d = S.dead.r[i], st = START[d.id];
         if (!st || at(S, st[0], st[1])) return null;
         S.dead.r.splice(i, 1);
-        S.board[st[1]][st[0]] = { s: 'r', t: d.t, id: d.id, lv: 1, hp: CFG_CUR.hp[0], cd: 0, jm: 0 };
+        S.board[st[1]][st[0]] = { s: 'r', t: d.t, id: d.id, lv: 1, hp: CFG_CUR.hp[0], cd: 0, jm: 0, xp: 0 };
         ev.push({ e: 'revive', id: d.id, t: d.t, at: st.slice() });
       } else {
         const steps = a.steps || [];
@@ -232,6 +262,7 @@
           if (!has(moveTargets(S, m.from[0], m.from[1]), m.to)) return null;
           const n0 = ev.length;
           const res = strike(S, m.from, m.to, side, ev);
+          trample(S, p, m.to, res, side, ev);
           extra.steps.push({ from: m.from, to: m.to, res, ev0: n0, ev1: ev.length });
           if (inCheck(S.board, side)) return null;
         }
@@ -274,7 +305,7 @@
     S.ckHist[side].push(ck);
     if (inCheck(S.board, opp)) { addMerit(S, side, CFG_CUR.merit.checkReward, ev, '将军'); ev.push({ e: 'check', s: opp }); }
     S.cnt[side]++;
-    S.upgraded = false;
+    S.upgraded = false; S.freeUsed = false; S.jmLock = null;
     S.turn = opp;
     if (side === 'b' && round(S) >= CFG_CUR.merit.autoIncomeFromRound) {
       addMerit(S, 'r', CFG_CUR.merit.autoIncomePerRound, ev, '回合'); addMerit(S, 'b', CFG_CUR.merit.autoIncomePerRound, ev, '回合');
@@ -285,6 +316,8 @@
     const T = cloneState(S);
     const r = resolve(T, a);
     if (!r) return null;
+    // 不占行动的拒马：之后必须还有一步合法的棋可走（含应将），不换手
+    if (r.free) { if (!legalMoves(T, T.turn).length) return null; return { S: T, ...r }; }
     // 长将：同一子连续将军不能超过 6 回合
     const lim = CFG_CUR.longCheckLimit, side = S.turn;
     if (lim) {
@@ -318,21 +351,20 @@
     const tg = sk === 'chongzhen' ? moveTargets(S, f, r).filter(m => S.board[m.to[1]][m.to[0]])
       : sk === 'taying' ? moveTargets(S, f, r, true)
         : sk === 'pili' ? cannonShots(S, f, r)
-          : sk === 'qishe' ? arrowTargets(S, f, r)
-            : sk === 'jianta' ? moveTargets(S, f, r) : null;
+          : sk === 'qishe' ? arrowTargets(S, f, r) : null;
     if (tg) { for (const m of tg) { const a = { k: 'sk', at: [f, r], to: m.to }; if (attempt(S, a)) out.push(a); } }
     else { const a = { k: 'sk', at: [f, r] }; if (attempt(S, a)) out.push(a); }
     return out;
   }
   function reviveOptions(S) {
-    if (S.turn !== 'r' || S.used.art.r >= CFG_CUR.generalArts.xiaohe.usesPerGame) return [];
+    if (S.turn !== 'r' || S.freeUsed || S.used.art.r >= CFG_CUR.generalArts.xiaohe.usesPerGame) return [];
     const seen = new Set(), out = [];
     for (const d of S.dead.r) { if (seen.has(d.id)) continue; seen.add(d.id); const a = { k: 'art', id: d.id }; if (attempt(S, a)) out.push({ ...a, t: d.t, at: START[d.id] }); }
     return out;
   }
   // 破釜沉舟第一步的可选着法（必须存在能合法走完的第二步）
   function pofuFirst(S) {
-    if (S.turn !== 'b' || S.used.art.b >= CFG_CUR.generalArts.pofu.usesPerGame || smActive(S)) return [];
+    if (S.turn !== 'b' || S.freeUsed || S.used.art.b >= CFG_CUR.generalArts.pofu.usesPerGame || smActive(S)) return [];
     const out = [];
     for (let r = 0; r < 10; r++) for (let f = 0; f < 9; f++) {
       const p = S.board[r][f]; if (!p || p.s !== 'b') continue;
@@ -356,6 +388,7 @@
   }
   function ultReady(S) {
     const side = S.turn, U = CFG_CUR.ultimates;
+    if (S.freeUsed) return false;
     if (S.merit[side] < U.cost || S.used.ult[side] >= U[side === 'r' ? 'simian' : 'hongmen'].usesPerGame) return false;
     return !!attempt(S, { k: 'ult' });
   }
@@ -367,7 +400,7 @@
   }
   // 普通走子里“非攻击”的（空格或只剩 1 点的敌子）——困毙只看这些
   function plainMoves(S) {
-    return legalMoves(S, S.turn).filter(a => { const q = at(S, a.to[0], a.to[1]); return !q || q.hp <= 1; });
+    return legalMoves(S, S.turn).filter(a => { const q = at(S, a.to[0], a.to[1]); return !q || q.hp <= atk(at(S, a.from[0], a.from[1])); });
   }
   // 轮到 S.turn 时：将死 / 困毙 / 只能停着
   function evaluate(S) {
@@ -389,7 +422,8 @@
     reset(base) {
       this.base = base ? cloneState(base) : newState(this.cfg);
       this.S = cloneState(this.base);
-      this.entries = []; this.sides = []; this.history = []; this.result = null; this.last = null; this.status = evaluate(this.S);
+      // ends[i]：第 i 条行动是否结束了这一方的回合（升级、拒马不结束）
+      this.entries = []; this.sides = []; this.ends = []; this.history = []; this.result = null; this.last = null; this.status = evaluate(this.S);
     }
     get bf() { return true; }
     get board() { return this.S.board; }
@@ -409,11 +443,18 @@
     pofuSecond(m1) { return pofuSecond(this.S, m1); }
     pofuPreview(m1) { return pofuPreview(this.S, m1); }
     ultReady() { return !this.result && ultReady(this.S); }
-    upgradeCost(p) { if (!p || p.t === 'k' || p.lv >= 3) return null; return this.cfg.upgrade.cost[p.t][p.lv - 1]; }
+    upgradeCost(p) { CFG_CUR = this.cfg; return upCost(p); }
+    baseCost(p) { if (!p || p.t === 'k' || p.lv >= maxLv(p.t)) return null; return this.cfg.upgrade.cost[p.t][p.lv - 1]; }
+    maxLv(p) { CFG_CUR = this.cfg; return p ? maxLv(p.t) : 1; }
+    atkOf(p) { CFG_CUR = this.cfg; return p ? atk(p) : 1; }
+    isPassive(sk) { CFG_CUR = this.cfg; return isPassive(sk); }
+    get freeUsed() { return !!this.S.freeUsed; }
+    get jmLock() { return this.S.jmLock; }
     canUpgrade(f, r) {
+      CFG_CUR = this.cfg;
       const p = this.at(f, r), S = this.S;
-      if (this.result || !p || p.s !== S.turn || p.t === 'k' || p.lv >= 3 || S.upgraded) return false;
-      return S.merit[p.s] >= this.upgradeCost(p);
+      if (this.result || !p || p.s !== S.turn || p.t === 'k' || p.lv >= maxLv(p.t) || S.upgraded) return false;
+      return S.merit[p.s] >= upCost(p);
     }
     // 记录一条行动（升级或主行动）并执行；返回动画信息
     apply(e) {
@@ -423,12 +464,14 @@
       if (e.k === 'up') {
         if (!this.canUpgrade(e.at[0], e.at[1])) return null;
         const p = this.at(e.at[0], e.at[1]);
-        S.merit[p.s] -= this.upgradeCost(p);
+        const cost = upCost(p), xp = p.xp || 0;
+        S.merit[p.s] -= cost;
         p.lv++; p.hp = this.cfg.upgrade.healOnUpgrade ? this.cfg.hp[p.lv - 1] : p.hp + 1;
-        if (p.lv === 2) p.cd = Math.max(p.cd, S.cnt[p.s] + this.cfg.upgrade.cooldownOnUnlock);
+        p.xp = 0; // 甲片在升级时用掉
+        if (p.lv === this.cfg.skillLevel) p.cd = Math.max(p.cd, S.cnt[p.s] + this.cfg.upgrade.cooldownOnUnlock);
         S.upgraded = true;
-        this.entries.push({ k: 'up', at: e.at.slice() }); this.sides.push(p.s);
-        const info = { k: 'up', side: p.s, id: p.id, t: p.t, at: e.at.slice(), lv: p.lv, hp: p.hp, ev: [], after: S };
+        this.entries.push({ k: 'up', at: e.at.slice() }); this.sides.push(p.s); this.ends.push(0);
+        const info = { k: 'up', side: p.s, id: p.id, t: p.t, at: e.at.slice(), lv: p.lv, hp: p.hp, cost, usedXp: xp, ev: [], after: S };
         this.last = info;
         return info;
       }
@@ -436,7 +479,15 @@
       const r = attempt(S, e);
       if (!r) return null;
       this.S = r.S;
-      this.entries.push(JSON.parse(JSON.stringify(e))); this.sides.push(side);
+      this.entries.push(JSON.parse(JSON.stringify(e))); this.sides.push(side); this.ends.push(r.free ? 0 : 1);
+      if (r.free) {
+        // 不占行动的拒马：不进棋谱主行动、不换手，状态只记“还要再走一步”
+        const piece = before.board[e.at[1]][e.at[0]];
+        this.status = { free: true, check: inCheck(this.S.board, side) };
+        const info = { k: 'sk', free: true, side, mover: side, from: e.at.slice(), to: null, pid: piece ? piece.id : null, cap: null, kills: [], ev: r.ev, extra: r.extra, e, check: false, result: null, before, after: this.S };
+        this.last = info;
+        return info;
+      }
       const kills = r.ev.filter(x => x.e === 'kill');
       const capE = kills.find(x => x.s !== side);
       const piece = e.from ? before.board[e.from[1]][e.from[0]] : e.at ? before.board[e.at[1]][e.at[0]] : null;
@@ -458,11 +509,13 @@
       return true;
     }
     // 悔掉最近 k 次主行动（连同其前面的升级）
-    undoActions(k) {
+    undoActions(k) { return this.rebuild(this.undoTarget(k)); }
+    // 悔 k 次主行动应退回到第几条（连同同一回合里前面的升级、拒马）
+    undoTarget(k) {
       let n = this.entries.length, left = k;
-      while (n > 0 && left > 0) { n--; if (this.entries[n].k !== 'up') left--; }
-      while (n > 0 && this.entries[n - 1].k === 'up') n--;
-      return this.rebuild(n);
+      while (n > 0 && left > 0) { n--; if (this.ends[n]) left--; }
+      while (n > 0 && !this.ends[n - 1]) n--;
+      return n;
     }
     timeout(side) { if (this.result) return null; this.result = { winner: other(side), loser: side, reason: 'timeout' }; return this.result; }
     resign(side) { if (this.result) return null; this.result = { winner: other(side), loser: side, reason: 'resign' }; return this.result; }
@@ -494,7 +547,12 @@
     strike(T, m1.from, m1.to, 'b', ev);
     return { S: T, ev };
   }
-  const BF = { Game, CFG, view, pofuPreview, SKILL_OF, SKILL_CN, ART_CN, ULT_CN, START, newState, cloneState, attempt, evaluate };
+  // 某兵种某一级的数值（界面说明用）
+  function levelInfo(t, s, lv, cfg = CFG) {
+    const sk = t === 'k' ? null : SKILL_OF(t, s);
+    return { hp: cfg.hp[lv - 1], atk: t === 'k' ? 1 : ((cfg.attack[t] || [])[lv - 1] || 1), skill: sk && lv >= cfg.skillLevel ? sk : null, maxLv: t === 'k' ? 1 : (cfg.upgrade.maxLevel[t] || cfg.upgrade.defaultMaxLevel) };
+  }
+  const BF = { Game, CFG, view, pofuPreview, SKILL_OF, SKILL_CN, SKILL_DESC, ART_CN, ULT_CN, START, newState, cloneState, attempt, evaluate, levelInfo };
   if (typeof module !== 'undefined' && module.exports) module.exports = BF;
   global.BF = BF;
 })(typeof window !== 'undefined' ? window : globalThis);

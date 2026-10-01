@@ -175,7 +175,7 @@
   function bfNote(g, e) {
     const at = e.at || e.from, p = at ? g.at(at[0], at[1]) : null;
     if (e.k === 'up') return p ? '↑' + PCH[p.s][p.t] : '';
-    if (e.k === 'mv') { const q = g.at(e.to[0], e.to[1]); const n = notation(g.board, e); return q && q.hp >= 2 ? n + '·攻' : n; }
+    if (e.k === 'mv') { const q = g.at(e.to[0], e.to[1]); const n = notation(g.board, e); return q && p && q.hp > g.atkOf(p) ? n + '·攻' : n; }
     if (e.k === 'sk' && p) {
       const sk = BF.SKILL_OF(p.t, p.s), cn = BF.SKILL_CN[sk];
       if (e.to && sk !== 'qishe') return cn + '·' + notation(g.board, { from: e.at, to: e.to });
@@ -190,7 +190,7 @@
   function rebuildNotes() {
     if (game.bf) {
       const g = new BF.Game(); g.reset(game.base); notes = []; let up = '';
-      for (const e of game.entries) { const n = bfNote(g, e); if (!g.apply(e)) break; if (e.k === 'up') up = n; else { notes.push((up ? up + ' ' : '') + n); up = ''; } }
+      for (const e of game.entries) { const n = bfNote(g, e); if (!g.apply(e)) break; if (!g.ends[g.ends.length - 1]) up = (up ? up + ' ' : '') + n; else { notes.push((up ? up + ' ' : '') + n); up = ''; } }
       bfUpNote = up;
       renderLog(); return;
     }
@@ -261,16 +261,18 @@
         const tap = canAct() && game.turn === s && !bfMode && !game.result;
         const av = tap ? bfAvail() : null, aw = av && artWhy(s, av), uw = av && ultWhy(s, av);
         const tapAttr = (act, why) => tap ? ` data-a="${act}"${why ? ` data-why="${why[1]}"` : ''}` : '';
-        chips.push(`<span class="${used.art[s] ? 'used' : tap && !aw ? 'go' : 'ok'}${tap ? ' tap' : ''}${tap && aw ? ' off' : ''}" title="主帅兵法（每局一次）"${tapAttr('art', aw)}>${BF.ART_CN[s]}</span>`);
+        chips.push(`<span class="${used.art[s] ? 'used' : tap && !aw ? 'go' : 'ok'}${tap ? ' tap' : ''}${tap && aw ? ' off' : ''}" data-tip="${escTip(artTip(s) + (aw ? '<br><em>' + aw[1] + '</em>' : ''))}"${tapAttr('art', aw)}>${BF.ART_CN[s]}</span>`);
         // 四面楚歌除了 20 军功还要围住楚将（5×5 内 3 枚汉军子），条件没齐就不亮，并显示还差几枚
         const need = U.simian.minPiecesInRadius, near = s === 'r' ? game.simianCount() : need;
         const ultOk = game.merit[s] >= U.cost && near >= need;
         const ultTxt = used.ult[s] ? '' : game.merit[s] >= U.cost && near < need ? `·将旁${near}/${need}` : '·' + U.cost;
-        const ultTip = s === 'r' ? `终极兵法：${U.cost} 军功，且楚将周围两格内（5×5）至少 ${need} 枚汉军棋子` : `终极兵法：${U.cost} 军功`;
-        chips.push(`<span class="${used.ult[s] ? 'used' : tap ? (uw ? 'ok' : 'go') : ultOk ? 'red' : 'ok'}${tap ? ' tap' : ''}${tap && uw ? ' off' : ''}" title="${ultTip}"${tapAttr('ult', uw)}>${BF.ULT_CN[s]}${ultTxt}</span>`);
-        if (s === 'r' && fx.hm) chips.push(`<span class="red" title="汉帅不能移动">鸿门宴 ${fx.hm}</span>`);
-        if (s === 'b' && fx.sm) chips.push(`<span class="red" title="只能吃子、不能用技能">涣散 ${fx.sm}</span>`);
-        if (s === 'b' && fx.pf) chips.push(`<span title="破釜沉舟后不能用兵种技能">封技 ${fx.pf}</span>`);
+        chips.push(`<span class="${used.ult[s] ? 'used' : tap ? (uw ? 'ok' : 'go') : ultOk ? 'red' : 'ok'}${tap ? ' tap' : ''}${tap && uw ? ' off' : ''}" data-tip="${escTip(ultTip(s) + (uw ? '<br><em>' + uw[1] + '</em>' : ''))}"${tapAttr('ult', uw)}>${BF.ULT_CN[s]}${ultTxt}</span>`);
+        if (s === 'r' && fx.hm) chips.push(`<span class="red" data-tip="${escTip(ultTip('b'))}">鸿门宴 ${fx.hm}</span>`);
+        if (s === 'b' && fx.sm) chips.push(`<span class="red" data-tip="${escTip(ultTip('r'))}">涣散 ${fx.sm}</span>`);
+        if (s === 'b' && fx.pf) chips.push(`<span data-tip="破釜沉舟之后楚军暂时不能用兵种技能">封技 ${fx.pf}</span>`);
+        // 本回合还有技能没用：呼吸闪烁的签，点一下依次选中这些子
+        const rs = tap ? readySkills() : [];
+        if (rs.length) chips.push(`<span class="go tap sk-ready" data-a="pickSkill" data-tip="本回合还未使用技能：有 ${rs.length} 枚子的技能可以用（棋盘上脚下闪光的子）。点一下依次选中它们。">技能可用 ${rs.length}</span>`);
         const fxs = bfm.querySelector('.fxs'), html = chips.join('');
         if (fxs.innerHTML !== html) fxs.innerHTML = html;
         fxs.onclick = e => { const t = e.target.closest('[data-a]'); if (!t) return; e.stopPropagation(); bfButton(t.dataset.a, t); };
@@ -300,6 +302,7 @@
     }
     if (game.bf && !game.result) {
       if (started && game.mustPass() && !watching()) { st = `${SIDE_CN[game.turn]}方无子可走 · 请停着`; }
+      else if (started && game.freeUsed && !watching()) { st = `${SIDE_CN[game.turn]}方已架拒马 · 请再走一步棋`; }
       st = `兵法 · 第 ${game.round} 回合 · ` + st;
     }
     $('statusT').textContent = st; $('status').classList.toggle('warn', warn);
@@ -790,8 +793,65 @@
     location.href = location.pathname;
   }
 
+  // ---------- 说明浮窗：电脑鼠标悬停、手机长按（按钮、卡片上的签、棋盘上的棋子） ----------
+  const tipEl = $('tip');
+  let tipT = 0, lpT = 0, tipFor = null, tipHold = false, boardHold = false;
+  function showTip(html, r) {
+    tipEl.innerHTML = html; tipEl.classList.remove('hidden');
+    const W = innerWidth, H = innerHeight, w = tipEl.offsetWidth, h = tipEl.offsetHeight;
+    let x = Math.min(W - w - 8, Math.max(8, (r.left + r.right) / 2 - w / 2));
+    let y = r.top - h - 10; if (y < 8) y = Math.min(H - h - 8, r.bottom + 10);
+    tipEl.style.left = x + 'px'; tipEl.style.top = y + 'px';
+  }
+  function hideTip() { tipEl.classList.add('hidden'); tipFor = null; }
+  const pieceAt = (x, y) => { if (!game || !game.bf || !started) return null; const q = Board.pick(x, y); const p = q && game.at(q[0], q[1]); return p ? { p, q } : null; };
+  const pointRect = (x, y) => ({ left: x - 30, right: x + 30, top: y - 40, bottom: y + 30 });
+  document.addEventListener('pointerover', e => {
+    if (e.pointerType !== 'mouse') return;
+    const el = e.target.closest && e.target.closest('[data-tip]');
+    if (el && el === tipFor) return;
+    clearTimeout(tipT); if (tipFor && tipFor !== 'board') hideTip();
+    if (!el || !el.dataset.tip) return;
+    tipT = setTimeout(() => { tipFor = el; showTip(el.dataset.tip, el.getBoundingClientRect()); }, 260);
+  });
+  document.addEventListener('pointerdown', e => {
+    tipHold = false; clearTimeout(lpT);
+    if (!tipEl.classList.contains('hidden')) hideTip();
+    if (e.pointerType === 'mouse') return;
+    const el = e.target.closest && e.target.closest('[data-tip]');
+    const onBoard = e.target.id === 'gl';
+    if (!el && !onBoard) return;
+    const x0 = e.clientX, y0 = e.clientY;
+    const mv = ev => { if (Math.hypot(ev.clientX - x0, ev.clientY - y0) > 10) { clearTimeout(lpT); document.removeEventListener('pointermove', mv); } };
+    document.addEventListener('pointermove', mv);
+    lpT = setTimeout(() => {
+      document.removeEventListener('pointermove', mv);
+      if (el && el.dataset.tip) { tipHold = true; tipFor = el; showTip(el.dataset.tip, el.getBoundingClientRect()); }
+      else if (onBoard) { const hit = pieceAt(x0, y0); if (hit) { boardHold = true; tipFor = 'board'; showTip(pieceTip(hit.p), pointRect(x0, y0)); } }
+      if (tipFor && navigator.vibrate) try { navigator.vibrate(12); } catch (err) { }
+    }, 450);
+  }, true);
+  document.addEventListener('pointerup', () => clearTimeout(lpT), true);
+  document.addEventListener('click', e => { if (tipHold) { tipHold = false; e.stopPropagation(); e.preventDefault(); } }, true);
+  document.addEventListener('contextmenu', e => { if (e.target.closest && (e.target.closest('[data-tip]') || e.target.id === 'gl')) e.preventDefault(); });
+  // 电脑：鼠标停在棋子上一会儿就显示这枚子的说明
+  let hoverKey = '', hoverMoveT = 0;
+  $('gl').addEventListener('pointermove', e => {
+    if (e.pointerType !== 'mouse' || e.buttons) return;
+    const now = performance.now(); if (now - hoverMoveT < 90) return; hoverMoveT = now;
+    const hit = pieceAt(e.clientX, e.clientY), key = hit ? hit.p.id + '|' + game.entries.length : '';
+    if (key === hoverKey) return;
+    hoverKey = key; clearTimeout(tipT);
+    if (tipFor === 'board') hideTip();
+    if (!hit || Core.Cam.cine) return;
+    const x = e.clientX, y = e.clientY;
+    tipT = setTimeout(() => { tipFor = 'board'; showTip(pieceTip(hit.p), pointRect(x, y)); }, 380);
+  });
+  $('gl').addEventListener('pointerleave', () => { hoverKey = ''; clearTimeout(tipT); if (tipFor === 'board') hideTip(); });
+
   // ---------- 点选 ----------
   $('gl').addEventListener('pointerup', e => {
+    if (boardHold) { boardHold = false; return; }
     if (Core.lastDragMoved > 10 || Core.Cam.cine) return;
     if (dbgOn && game.bf) { const p = Board.pick(e.clientX, e.clientY); if (p) dbgClick(p[0], p[1]); return; }
     if (game.bf && canAct()) { const p = Board.pick(e.clientX, e.clientY); bfClick(p); return; }
@@ -830,7 +890,8 @@
   }
   function bfSelect(f, r) {
     sel = [f, r];
-    selMoves = game.legalFrom(f, r).map(m => { const q = game.at(m.to[0], m.to[1]); return { ...m, atk: !!(q && q.hp >= 2) }; });
+    const me = game.at(f, r);
+    selMoves = game.legalFrom(f, r).map(m => { const q = game.at(m.to[0], m.to[1]); return { ...m, atk: !!(q && q.hp > game.atkOf(me)) }; });
     Board.showMoves(sel, selMoves, !!+opts.hints);
     Sfx.select();
   }
@@ -890,14 +951,64 @@
     if (sel) {
       const p = game.at(sel[0], sel[1]);
       if (p && p.s === side) {
-        o.p = p; o.cost = game.upgradeCost(p); o.canUp = game.canUpgrade(sel[0], sel[1]);
-        o.sk = game.skillOf(p); o.targets = p.lv >= 2 ? game.skillTargets(sel[0], sel[1]) : []; o.cd = game.cdLeft(p);
+        o.p = p; o.cost = game.upgradeCost(p); o.base = game.baseCost(p); o.canUp = game.canUpgrade(sel[0], sel[1]);
+        o.sk = game.skillOf(p); o.passive = game.isPassive(o.sk); o.targets = p.lv >= BF.CFG.skillLevel ? game.skillTargets(sel[0], sel[1]) : []; o.cd = game.cdLeft(p);
       }
     }
     o.art = side === 'r' ? game.reviveOptions() : game.pofuFirst();
     o.ult = game.ultReady();
     o.pass = game.mustPass();
     return (barCache = o);
+  }
+  const LVCN = ['', '一', '二', '三', '四'];
+  const escTip = t => String(t || '').replace(/&/g, '&amp;').replace(/"/g, '&quot;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+  const ART_DESC = { r: '复活一枚己方被吃的子，放回它的开局位置（一级 1 血）；开局位置被占着就不能复活。可用来挡将。每局一次，占用本次行动，不花军功。', b: '本次行动连走两步普通走子（可吃子、攻击，不能用技能），每步走完己方不能被将军，两步走完不能将军对方。之后 3 回合楚军不能用兵种技能。每局一次，不花军功。' };
+  const ULT_DESC = { r: `花 ${BF.CFG.ultimates.cost} 军功，且楚将周围两格内（以楚将为中心 5×5）至少 ${BF.CFG.ultimates.simian.minPiecesInRadius} 枚汉军棋子。楚军 2 回合军心涣散：除楚将外只能吃子或攻击，不能用任何技能和兵法。每局一次。`, b: `花 ${BF.CFG.ultimates.cost} 军功。汉方 2 回合汉帅不能移动，也不能被士护驾换位。每局一次。` };
+  const artTip = s => `<b>主帅兵法 · ${BF.ART_CN[s]}</b><br>${ART_DESC[s]}`;
+  const ultTip = s => `<b>终极兵法 · ${BF.ULT_CN[s]}</b><br>${ULT_DESC[s]}`;
+  // 某一级的能力（血、攻、技能）
+  function lvGain(p, lv) {
+    const a = BF.levelInfo(p.t, p.s, lv - 1), b = BF.levelInfo(p.t, p.s, lv), out = [];
+    if (b.hp > a.hp) out.push(`生命 ${b.hp}`);
+    if (b.atk > a.atk) out.push(`攻击 ${b.atk}`);
+    if (b.skill && !a.skill) out.push(`解锁技能「${BF.SKILL_CN[b.skill]}」`);
+    return out.join('、');
+  }
+  function skillTip(p) {
+    const sk = BF.SKILL_OF(p.t, p.s); if (!sk) return '';
+    const c = BF.CFG.skills[sk];
+    return `<b>${BF.SKILL_CN[sk]}</b>（${LVCN[BF.CFG.skillLevel]}级解锁${c.passive ? '，被动' : `，冷却 ${c.cooldown} 回合`}${c.free ? '，不占行动' : ''}）<br>${BF.SKILL_DESC[sk]}`;
+  }
+  function upTip(p, cost, base) {
+    const nx = p.lv + 1;
+    return `<b>升${LVCN[nx]}级</b>：${lvGain(p, nx)}，升级回满血。<br>花 ${cost} 军功` + (base > cost ? `（原价 ${base}，用掉 ${p.xp} 片甲省 ${base - cost}）` : '') + `。<br><small>每击杀一个单位镶一片甲，下次升级少花 1 功。</small>`;
+  }
+  // 棋子说明（悬停 / 长按棋子）
+  function pieceTip(p) {
+    const nm = `${SIDE_ARMY[p.s]}${pname(p)}`;
+    if (p.t === 'k') return `<b>${nm}</b><br>主帅没有生命值，不能升级，免疫技能伤害；不能被吃，只能被将死。` + (p.s === 'r' && game.fx.hm ? `<br><em>鸿门宴：还有 ${game.fx.hm} 回合不能移动</em>` : '');
+    const info = BF.levelInfo(p.t, p.s, p.lv), mx = info.maxLv;
+    let h = `<b>${nm} · ${LVCN[p.lv]}级</b><br>生命 ${p.hp}/${info.hp} · 攻击 ${game.atkOf(p)} · 甲片 ${p.xp || 0}`;
+    const sk = BF.SKILL_OF(p.t, p.s);
+    if (sk) {
+      const c = BF.CFG.skills[sk], cd = game.cdLeft(p);
+      h += `<br><br><b>技能「${BF.SKILL_CN[sk]}」</b>` + (p.lv >= BF.CFG.skillLevel ? (c.passive ? '（被动）' : cd ? `（冷却还剩 ${cd} 回合）` : '（可用）') : `（${LVCN[BF.CFG.skillLevel]}级解锁）`) + `<br>${BF.SKILL_DESC[sk]}`;
+    }
+    if (p.lv < mx) { const cost = game.upgradeCost(p), base = game.baseCost(p); h += `<br><br><b>下一级</b>：${lvGain(p, p.lv + 1)}（${cost} 功${base > cost ? `，甲片已省 ${base - cost}` : ''}）`; }
+    else h += '<br><br>已到最高级';
+    if (game.jmActive(p)) h += '<br><em>拒马中：敌子来吃或攻击它先挨 1 点伤害</em>';
+    if (p.s === 'b' && game.fx.sm) h += `<br><em>军心涣散：还有 ${game.fx.sm} 回合</em>`;
+    return h;
+  }
+  // 本回合技能可用的子（有目标、不在冷却）
+  let rsKey = '', rsS = null, rsCache = [];
+  function readySkills() {
+    if (!game || !game.bf || game.result || game.freeUsed) return [];
+    const key = game.entries.length + '|' + game.turn;
+    if (key === rsKey && rsS === game.S) return rsCache;
+    rsKey = key; rsS = game.S; rsCache = [];
+    for (let r = 0; r < 10; r++) for (let f = 0; f < 9; f++) { const p = game.at(f, r); if (p && p.s === game.turn && game.skillReady(p) && game.skillTargets(f, r).length) rsCache.push([f, r]); }
+    return rsCache;
   }
   // 主帅兵法 / 终极兵法不能用的原因：[按钮小字, 点击说明]；能用返回 null
   function artWhy(side, a) {
@@ -936,6 +1047,7 @@
   const isCompact = () => innerWidth <= 760 || innerWidth / innerHeight < 0.8;
   function renderBar() {
     const bar = $('bfBar');
+    Board.setGlow(game && game.bf && mode && started && !ended && !busy && !bfMode && !dbgOn && canAct() ? readySkills() : []);
     const show = !!(game && game.bf && mode && started && !ended && !game.result && canAct() && !dbgOn);
     bar.classList.toggle('hidden', !show);
     if (!show) { $('bfRow').innerHTML = ''; $('bfHint').textContent = ''; return; }
@@ -946,27 +1058,29 @@
       B.push(`<button class="sk" data-a="cancel">取消<small>换一着</small></button>`);
     } else {
       const a = bfAvail();
-      // 按钮不可用时不用 disabled（点了没反应像坏了），改成灰色 + 点一下说明原因
-      const btn = (cls, act, ok, label, small, why, extra = '') => `<button class="sk ${cls}${ok ? '' : ' off'}" data-a="${act}" ${ok ? '' : `data-why="${why}" title="${why}"`}>${label}<small>${small}</small>${extra}</button>`;
+      // 按钮不可用时不用 disabled（点了没反应像坏了），改成灰色 + 点一下说明原因；所有按钮悬停 / 长按看说明
+      const btn = (cls, act, ok, label, small, why, extra = '', tip = '') => `<button class="sk ${cls}${ok ? '' : ' off'}" data-a="${act}" ${ok ? '' : `data-why="${why}"`} data-tip="${escTip(tip || why)}">${label}<small>${small}</small>${extra}</button>`;
       if (a.p) {
-        hint = `${SIDE_ARMY[a.p.s]}${pname(a.p)} · ${['', '一', '二', '三'][a.p.lv]}级 · ${a.p.hp} 血`;
+        hint = `${SIDE_ARMY[a.p.s]}${pname(a.p)} · ${LVCN[a.p.lv]}级 · ${a.p.hp} 血` + (game.atkOf(a.p) > 1 ? ` · 攻 ${game.atkOf(a.p)}` : '') + (a.p.xp ? ` · 甲 ${a.p.xp}` : '');
         if (a.p.t !== 'k') {
-          if (a.p.lv < 3) {
-            const m = game.merit[a.p.s];
-            B.push(btn('up', 'up', a.canUp, `升${['', '', '二', '三'][a.p.lv + 1]}级`, game.upgraded ? '本回合已升' : a.cost + ' 功', game.upgraded ? '每次行动最多升级一次，下次行动再升' : `升级需要 ${a.cost} 军功，现在只有 ${m}`));
+          if (a.cost != null) {
+            const m = game.merit[a.p.s], save = a.base - a.cost;
+            B.push(btn('up', 'up', a.canUp, `升${LVCN[a.p.lv + 1]}级`, game.upgraded ? '本回合已升' : `${a.cost} 功` + (save ? `·省${save}` : ''), game.upgraded ? '每次行动最多升级一次，下次行动再升' : `升级需要 ${a.cost} 军功，现在只有 ${m}`, '', upTip(a.p, a.cost, a.base)));
           }
-          const cn = BF.SKILL_CN[a.sk];
-          if (a.p.lv < 2) B.push(btn('', 'sk', false, cn, '二级解锁', `${cn}：升到二级才解锁兵种技能`));
+          const cn = BF.SKILL_CN[a.sk], skTip = skillTip(a.p);
+          if (a.p.lv < BF.CFG.skillLevel) B.push(btn('', 'sk', false, cn, `${LVCN[BF.CFG.skillLevel]}级解锁`, `${cn}：升到${LVCN[BF.CFG.skillLevel]}级才解锁兵种技能`, '', skTip));
+          else if (a.passive) B.push(btn('', 'sk', false, cn, '被动', `${cn}是被动技能，走子落下时自动发动`, '', skTip));
           else {
-            const cdTot = BF.CFG.skills[a.sk].cooldown;
+            const cdTot = BF.CFG.skills[a.sk].cooldown || 1;
             const pct = a.cd ? Math.round(a.cd / cdTot * 100) : 0;
             const fx = game.fx, b = a.p.s === 'b';
-            let small = '可用', why = '';
-            if (b && fx.sm > 0) { small = '涣散中'; why = `四面楚歌：楚军军心涣散，还有 ${fx.sm} 回合不能用技能`; }
+            let small = BF.CFG.skills[a.sk].free ? '不占行动' : '可用', why = '';
+            if (game.freeUsed) { small = '已用拒马'; why = '本回合已经用过拒马，现在要再走一步棋'; }
+            else if (b && fx.sm > 0) { small = '涣散中'; why = `四面楚歌：楚军军心涣散，还有 ${fx.sm} 回合不能用技能`; }
             else if (b && fx.pf > 0) { small = '封锁中'; why = `破釜沉舟之后，楚军还有 ${fx.pf} 回合不能用兵种技能`; }
             else if (a.cd) { small = '冷却'; why = `${cn}冷却中，还要 ${a.cd} 回合`; }
             else if (!a.targets.length) { small = '无目标'; why = `${cn}现在没有可用的目标`; }
-            B.push(btn('', 'sk', !why, cn, small, why, a.cd ? `<span class="cd" style="--p:${pct}%"></span><span class="cdn">${a.cd}</span>` : ''));
+            B.push(btn(why ? '' : 'ready', 'sk', !why, cn, small, why, a.cd ? `<span class="cd" style="--p:${pct}%"></span><span class="cdn">${a.cd}</span>` : '', skTip + (why ? '<br><em>' + why + '</em>' : '')));
           }
         }
       }
@@ -974,12 +1088,12 @@
       // 手机：主帅兵法 / 终极兵法放在自己卡片上（点卡片上的签发动），技能栏只在选中棋子时出现，不压棋盘
       if (!isCompact()) {
         const aw = artWhy(side, a), uw = ultWhy(side, a);
-        B.push(btn('art', 'art', !aw, BF.ART_CN[side], aw ? aw[0] : '每局一次', aw ? aw[1] : ''));
-        B.push(btn('ult', 'ult', !uw, BF.ULT_CN[side], uw ? uw[0] : BF.CFG.ultimates.cost + ' 功', uw ? uw[1] : ''));
+        B.push(btn('art', 'art', !aw, BF.ART_CN[side], aw ? aw[0] : '每局一次', aw ? aw[1] : '', '', artTip(side) + (aw ? '<br><em>' + aw[1] + '</em>' : '')));
+        B.push(btn('ult', 'ult', !uw, BF.ULT_CN[side], uw ? uw[0] : BF.CFG.ultimates.cost + ' 功', uw ? uw[1] : '', '', ultTip(side) + (uw ? '<br><em>' + uw[1] + '</em>' : '')));
       }
       if (a.pass) B.push(`<button class="sk" data-a="pass">停 着<small>无子可走</small></button>`);
-      if (!a.p) hint = `${SIDE_ARMY[side]}行动 · 军功 ${game.merit[side]}`;
-      if (isCompact()) hint = '';
+      if (!a.p) { const rs = readySkills(); hint = game.freeUsed ? '已架拒马 · 请再走一步棋' : rs.length ? `本回合还未使用技能 · ${rs.length} 枚子可用` : `${SIDE_ARMY[side]}行动 · 军功 ${game.merit[side]}`; }
+      if (isCompact() && !game.freeUsed) hint = '';
     }
     if (!B.length) { bar.classList.add('hidden'); $('bfRow').innerHTML = ''; $('bfHint').textContent = ''; layoutHud(); return; }
     $('bfHint').textContent = hint;
@@ -987,9 +1101,11 @@
     $('bfRow').querySelectorAll('button[data-a]').forEach(b => b.onclick = ev => { ev.stopPropagation(); bfButton(b.dataset.a, b); });
     layoutHud();
   }
+  let skillCycle = 0;
   async function bfButton(a, el) {
     if (!canAct()) return;
     Sfx.select && Sfx.select();
+    if (a === 'pickSkill') { const rs = readySkills(); if (!rs.length) return; const p = rs[skillCycle++ % rs.length]; exitBfMode(false); bfSelect(p[0], p[1]); renderBar(); return; }
     if (el && el.classList.contains('off')) {
       toast(el.dataset.why || '现在不能用', 4200);
       if (a === 'ult' && game.turn === 'r' && !game.used.ult.r) simianZone();
@@ -1043,11 +1159,12 @@
     bfMode = null; sel = null; selMoves = []; Board.clearMoves();
     barKey = '';
     if (!remote && online()) Net.send({ t: 'bf', n: game.entries.length - 1, e, clk: clock[info.side] });
-    if (e.k === 'up') {
-      bfUpNote = note;
+    if (e.k === 'up' || info.free) {
+      bfUpNote = (bfUpNote ? bfUpNote + ' ' : '') + note;
       bfReport(info); bfMerit(info);
       queueBF(info);
       updateHud(); publish();
+      if (info.free) return true;
       if (!remote) setTimeout(() => { if (canAct() && game.turn === info.side) { const p = game.board.flat().find(x => x && x.id === info.id); const pos = p && (() => { for (let r = 0; r < 10; r++) for (let f = 0; f < 9; f++) if (game.board[r][f] === p) return [f, r]; })(); if (pos) { bfSelect(pos[0], pos[1]); renderBar(); } } }, 50);
       return true;
     }
@@ -1073,7 +1190,7 @@
       Core.Time.skip = false;
       if (!busy) $('skip').classList.add('hidden');
       if (!busy) Board.reconcile(game);
-      if (info.k === 'up') { updateHud(); return; }
+      if (info.k === 'up' || info.free) { updateHud(); return; }
       clock.step = stepMax(); clock.last = performance.now();
       if (online() && game.turn === mySide) Net.send({ t: 'clk', side: mySide, total: clock[mySide], step: clock.step });
       const kills = game.history.reduce((n, h) => n + (h.kills ? h.kills.length : 0), 0);
@@ -1094,7 +1211,7 @@
     const nm = (side, t) => SIDE_ARMY[side] + XQ.NAMES[side][t];
     const kills = ev.filter(x => x.e === 'kill'), hits = ev.filter(x => x.e === 'hit');
     let line = null;
-    if (info.k === 'up') line = `${nm(s, info.t)}升为${['', '一', '二', '三'][info.lv]}级`;
+    if (info.k === 'up') line = `${nm(s, info.t)}升为${LVCN[info.lv]}级` + (info.usedXp ? `（用掉 ${info.usedXp} 片甲）` : '');
     else if (info.k === 'mv') {
       const P0 = at(info.from), T0 = at(info.to);
       const died = kills.find(k => P0 && k.id === P0.id);
@@ -1123,7 +1240,7 @@
   function bfMerit(info) {
     const sum = { r: 0, b: 0 }, why = { r: [], b: [] };
     for (const x of info.ev || []) if (x.e === 'merit') { sum[x.s] += x.n; if (!why[x.s].includes(x.why)) why[x.s].push(x.why); }
-    if (info.k === 'up') sum[info.side] -= BF.CFG.upgrade.cost[info.t][info.lv - 2];
+    if (info.k === 'up') sum[info.side] -= info.cost;
     if (info.k === 'ult') sum[info.side] -= BF.CFG.ultimates.cost;
     for (const s of ['r', 'b']) {
       if (!sum[s]) continue;
@@ -1142,7 +1259,7 @@
     $('dbgPal').innerHTML = ['r', 'b'].map(s => DBG_TYPES.map(t => `<button class="${s}${dbgPick && dbgPick.s === s && dbgPick.t === t ? ' on' : ''}" data-s="${s}" data-t="${t}">${XQ.NAMES[s][t]}</button>`).join('')).join('') + `<button data-s="" data-t="" class="${dbgPick && !dbgPick.t ? 'on' : ''}">空</button>`;
     $('dbgPal').querySelectorAll('button').forEach(b => b.onclick = () => { dbgPick = b.dataset.t ? { s: b.dataset.s, t: b.dataset.t } : { t: '' }; dbgPaint(); });
     const p = dbgSel && game.at(dbgSel[0], dbgSel[1]);
-    $('dbgSel').textContent = p ? `${SIDE_ARMY[p.s]}${pname(p)} · ${p.lv}级 · ${p.hp}血 · 冷却${game.cdLeft(p)}` : '—';
+    $('dbgSel').textContent = p ? `${SIDE_ARMY[p.s]}${pname(p)} · ${p.lv}级 · ${p.hp}血 · 甲${p.xp || 0} · 冷却${game.cdLeft(p)}` : '—';
     $('dbgMr').value = game.merit.r; $('dbgMb').value = game.merit.b; $('dbgRound').value = game.round;
   }
   function dbgApply(fn) {
@@ -1158,7 +1275,7 @@
         const ids = T.board.flat().filter(Boolean).map(x => x.id).concat(T.dead.r.map(x => x.id), T.dead.b.map(x => x.id));
         if (dbgPick.t === 'k') { for (let rr = 0; rr < 10; rr++) for (let ff = 0; ff < 9; ff++) { const q = T.board[rr][ff]; if (q && q.t === 'k' && q.s === dbgPick.s) T.board[rr][ff] = null; } }
         const old = T.board[r][f]; if (old && old.t === 'k') return;
-        T.board[r][f] = { s: dbgPick.s, t: dbgPick.t, id: Math.max(31, ...ids) + 1, lv: 1, hp: 1, cd: 0, jm: 0 };
+        T.board[r][f] = { s: dbgPick.s, t: dbgPick.t, id: Math.max(31, ...ids) + 1, lv: 1, hp: 1, cd: 0, jm: 0, xp: 0 };
       });
       dbgSel = [f, r]; dbgPaint(); return;
     }
@@ -1166,13 +1283,14 @@
     if (dbgSel) Board.showMoves(dbgSel, [], false); else Board.clearMoves(false);
   }
   function dbgPiece(fn) { if (!dbgSel) return; dbgApply(T => { const p = T.board[dbgSel[1]][dbgSel[0]]; if (p && p.t !== 'k') fn(p); }); }
-  $('bfDebug').querySelectorAll('[data-lv]').forEach(b => b.onclick = () => dbgPiece(p => { p.lv = +b.dataset.lv; p.hp = BF.CFG.hp[p.lv - 1]; }));
+  $('bfDebug').querySelectorAll('[data-lv]').forEach(b => b.onclick = () => dbgPiece(p => { const mx = BF.levelInfo(p.t, p.s, 1).maxLv; p.lv = Math.min(mx, +b.dataset.lv); p.hp = BF.CFG.hp[p.lv - 1]; }));
+  $('bfDebug').querySelectorAll('[data-xp]').forEach(b => b.onclick = () => dbgPiece(p => { p.xp = Math.max(0, (p.xp || 0) + +b.dataset.xp); }));
   $('bfDebug').querySelectorAll('[data-hp]').forEach(b => b.onclick = () => dbgPiece(p => { p.hp = Math.max(1, Math.min(BF.CFG.hp[p.lv - 1], p.hp + +b.dataset.hp)); }));
   $('dbgCd').onclick = () => dbgApply(T => { for (const p of T.board.flat()) if (p) { p.cd = 0; p.jm = 0; } });
   $('dbgMr').onchange = () => dbgApply(T => { T.merit.r = Math.max(0, Math.min(30, +$('dbgMr').value || 0)); });
   $('dbgMb').onchange = () => dbgApply(T => { T.merit.b = Math.max(0, Math.min(30, +$('dbgMb').value || 0)); });
   $('dbgRound').onchange = () => dbgApply(T => { const n = Math.max(1, +$('dbgRound').value || 1) - 1; T.cnt = T.turn === 'r' ? { r: n, b: n } : { r: n + 1, b: n }; T.fx = { hm: 0, sm: 0, pf: 0 }; T.ckHist = { r: [], b: [] }; });
-  $('bfDebug').querySelectorAll('[data-turn]').forEach(b => b.onclick = () => dbgApply(T => { const n = Math.min(T.cnt.r, T.cnt.b); T.turn = b.dataset.turn; T.cnt = T.turn === 'r' ? { r: n, b: n } : { r: n + 1, b: n }; T.upgraded = false; }));
+  $('bfDebug').querySelectorAll('[data-turn]').forEach(b => b.onclick = () => dbgApply(T => { const n = Math.min(T.cnt.r, T.cnt.b); T.turn = b.dataset.turn; T.cnt = T.turn === 'r' ? { r: n, b: n } : { r: n + 1, b: n }; T.upgraded = false; T.freeUsed = false; T.jmLock = null; }));
   $('dbgArts').onclick = () => dbgApply(T => { T.used = { art: { r: 0, b: 0 }, ult: { r: 0, b: 0 } }; });
   $('dbgFx').onclick = () => dbgApply(T => { T.fx = { hm: 0, sm: 0, pf: 0 }; });
   $('dbgClear').onclick = () => dbgApply(T => { for (let r = 0; r < 10; r++) for (let f = 0; f < 9; f++) { const p = T.board[r][f]; if (p && p.t !== 'k') T.board[r][f] = null; } });
@@ -1226,12 +1344,7 @@
     const last = game.history[game.history.length - 1];
     Board.showLast(last && last.from ? last.from : null, last && last.from ? (last.to || last.from) : null);
   }
-  function bfUndoTarget(plies) {
-    const E = game.entries; let n = E.length, left = plies;
-    while (n > 0 && left > 0) { n--; if (E[n].k !== 'up') left--; }
-    while (n > 0 && E[n - 1].k === 'up') n--;
-    return n;
-  }
+  function bfUndoTarget(plies) { return game.undoTarget(plies); }
   function applyUndo(plies, side) {
     undoUsed[side]++;
     Board.clearMoves(); sel = null; selMoves = [];

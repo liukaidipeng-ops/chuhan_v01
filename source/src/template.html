@@ -163,6 +163,16 @@ input.code{font-size:30px;letter-spacing:.4em;text-align:center;width:8.5em;max-
 .pcard .fxs span.go{background:linear-gradient(#c0432b,#8e2717);color:#fff6dd;border:1px solid #e9b25a;box-shadow:0 0 0 1px rgba(233,178,90,.35),0 0 10px rgba(192,67,43,.55);animation:goGlow 1.6s ease-in-out infinite}
 .pcard .fxs span.tap.off{opacity:.75}
 @keyframes goGlow{50%{box-shadow:0 0 0 2px rgba(233,178,90,.55),0 0 16px rgba(192,67,43,.8)}}
+#tip{position:fixed;z-index:45;max-width:min(300px,calc(100vw - 16px));background:rgba(24,20,18,.95);color:#f1e3c2;border:1px solid rgba(217,184,119,.7);box-shadow:0 8px 24px rgba(0,0,0,.35),inset 0 0 0 3px rgba(24,20,18,.9),inset 0 0 0 4px rgba(217,184,119,.25);border-radius:4px;padding:9px 12px;font-size:13px;line-height:1.65;letter-spacing:.03em;pointer-events:none;text-align:left}
+#tip b{color:#ffd98a;font-weight:bold;letter-spacing:.08em}#tip em{font-style:normal;color:#ff9a7a}#tip small{color:#bfae8a;font-size:12px}
+.sk,.pcard .fxs span{-webkit-touch-callout:none;-webkit-user-select:none;user-select:none}
+.sk.ready{box-shadow:0 0 0 2px rgba(255,210,122,.8),0 0 14px rgba(255,200,90,.6);animation:skGlow 1.6s ease-in-out infinite}
+@keyframes skGlow{50%{box-shadow:0 0 0 2px rgba(255,210,122,1),0 0 22px rgba(255,200,90,.9)}}
+.gainpop{position:fixed;z-index:31;pointer-events:none;transform:translate(-50%,-50%);font-size:22px;font-weight:bold;letter-spacing:.06em;white-space:nowrap;text-align:center;line-height:1.1;animation:gainup 1.7s ease-out forwards;font-family:var(--num)}
+.gainpop.r{color:#ffd37a;text-shadow:0 0 2px #7a1a0c,0 2px 0 #7a1a0c,0 0 12px rgba(200,40,20,.9)}
+.gainpop.b{color:#ffe7a8;text-shadow:0 0 2px #111,0 2px 0 #111,0 0 12px rgba(0,0,0,.9)}
+.gainpop small{display:block;font-size:13px;color:#f3e2b8;font-family:var(--font)}
+@keyframes gainup{0%{opacity:0;transform:translate(-50%,-30%) scale(.6)}15%{opacity:1;transform:translate(-50%,-60%) scale(1.15)}30%{transform:translate(-50%,-70%) scale(1)}100%{opacity:0;transform:translate(-50%,-190%) scale(1)}}
 .merpop{position:fixed;z-index:30;pointer-events:none;font-size:15px;font-weight:bold;color:#8a5a12;text-shadow:0 1px 0 #fff8e6,0 0 6px rgba(255,236,190,.9);animation:merup 1.4s ease-out forwards;white-space:nowrap}
 @keyframes merup{0%{opacity:0;transform:translateY(6px) scale(.8)}15%{opacity:1;transform:translateY(0) scale(1.1)}100%{opacity:0;transform:translateY(-34px) scale(1)}}
 #bfBar{position:absolute;left:50%;bottom:calc(14px + var(--safe-b));transform:translateX(-50%);pointer-events:none;display:flex;flex-direction:column;align-items:center;gap:6px;max-width:calc(100vw - 24px);z-index:6}
@@ -384,7 +394,8 @@ body.compact #log{width:164px;max-height:34vh}
     <div class="dsec">点选下面的子，再点棋盘摆放；选“空”可清除。</div>
     <div class="dpal" id="dbgPal"></div>
     <div class="drow">已选中：<span id="dbgSel">—</span></div>
-    <div class="drow">等级 <button data-lv="1">一</button><button data-lv="2">二</button><button data-lv="3">三</button>　血 <button data-hp="-1">−</button><button data-hp="1">＋</button>　<button id="dbgCd">清冷却</button></div>
+    <div class="drow">等级 <button data-lv="1">一</button><button data-lv="2">二</button><button data-lv="3">三</button><button data-lv="4" title="只有车能升四级">四</button>　血 <button data-hp="-1">−</button><button data-hp="1">＋</button></div>
+    <div class="drow">甲片（击杀数） <button data-xp="-1">−</button><button data-xp="1">＋</button>　<button id="dbgCd">清冷却</button></div>
     <div class="drow">军功 汉 <input id="dbgMr" type="number" min="0" max="30"> 楚 <input id="dbgMb" type="number" min="0" max="30"></div>
     <div class="drow">回合 <input id="dbgRound" type="number" min="1" max="200"> 走棋 <button data-turn="r">汉</button><button data-turn="b">楚</button></div>
     <div class="drow">兵法 <button id="dbgArts">重置已用</button> 状态 <button id="dbgFx">清除涣散/鸿门宴</button></div>
@@ -523,9 +534,11 @@ body.compact #log{width:164px;max-height:34vh}
   <div class="help">
   · 走法、将死、困毙不变；帅将没有生命值、不能升级、不受技能伤害、也不能被吃。<br>
   · <b>军功</b>：开局 3、上限 30。击杀兵卒 +1、士相象 +2、马炮 +3、车 +5（被杀的子每升一级再 +1）；将军 +1；兵卒过河 +1；己方被杀一子 +1；第 16 回合起每回合双方各 +1。<br>
-  · <b>升级</b>：每次行动前可花军功给一枚子升一级（不占行动）。二级 2 血并解锁兵种技能，三级 3 血。棋子腰带上的甲片 = 生命值，金星 = 等级。<br>
-  · <b>攻击</b>：走到敌子格时，敌子只剩 1 血就吃掉占位；2 血以上就只打掉 1 血，攻方退回原位。打不死将军的子不算解将。<br>
-  · <b>兵种技能</b>（二级解锁，占一次行动，有冷却）：兵卒「拒马」反伤来犯者；车「冲阵」吃子后再碾一格；马「踏营」无视蹩马腿；炮「霹雳」溅伤四周；汉弩手「齐射」不动身射斜线两格；楚战象「践踏」落地震伤四周；士「护驾」与帅将换位。<br>
+  · <b>升级</b>：每次行动前可花军功给一枚子升一级（不占行动）。二级只长血（2 血），三级 3 血并解锁兵种技能；车可升四级（4 血，20 功）。士、相/象升级便宜（2 / 3 功）。头顶红格 = 生命值，金星 = 等级。<br>
+  · <b>甲片</b>：每击杀一个单位，那枚子腰带上镶一片甲，下次升级少花 1 功（升级时用掉，最少 1 功）。<br>
+  · <b>攻击</b>：走到敌子格时，敌子血量不超过攻方攻击力就吃掉占位，否则只打掉攻击力那么多血，攻方退回原位。攻击力一般是 1，二级以上的士是 2。打不死将军的子不算解将。<br>
+  · <b>兵种技能</b>（三级解锁，有冷却）：兵卒「拒马」不占行动，架完再走一步棋，反伤来犯者；车「冲阵」吃子后再碾一格；马「踏营」无视蹩马腿；炮「霹雳」五格落弹溅伤四周；汉弩手「齐射」不动身射斜线两格；楚战象「践踏」是被动，每次落子震伤四周；士「护驾」与帅将换位。<br>
+  · 电脑上把鼠标停在按钮、兵法签或棋子上，手机上长按，可以看到详细说明。<br>
   · <b>主帅兵法</b>（每局一次）：刘邦「萧何追韩信」复活一子；项羽「破釜沉舟」连走两步（不能以将军收尾），之后三回合不用技能。<br>
   · <b>终极兵法</b>（20 军功，每局一次）：楚「鸿门宴」——汉帅两回合不能动；汉「四面楚歌」——楚将 2 格内有 3 枚汉子时可发动，楚军两回合只能吃子、不能用技能。<br>
   · 同一子连续将军不得超过六回合。
@@ -557,6 +570,7 @@ body.compact #log{width:164px;max-height:34vh}
 <div id="endcard" class="hidden"></div>
 <button class="btn small hidden" id="skip">跳过 ▸▸</button>
 <div id="toast"></div>
+<div id="tip" class="hidden"></div>
 <button id="updBar" class="hidden">有新版本 · 点此刷新</button>
 
 <script>/*THREE*/</script>

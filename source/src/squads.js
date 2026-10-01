@@ -60,6 +60,55 @@ const Squads = (() => {
       P.ink(this.center(0.1), 10, 0.45, 0.35, 0.8);
       return tween(0.4, k => this.setVis(1 - k), ease.in).then(() => this.dispose());
     }
+    // 兵法：几级就出几个（战车、战象、炮车这类单模型兵种）——复制主模型（共享几何材质），每帧照抄整棵树的姿态，横向错开成一排
+    addEchoes(roots, n, spacing, shrink) {
+      if (n <= 1) return;
+      const k = shrink || [1, 1, 0.8, 0.68, 0.6][n] || 0.6;
+      for (const r of roots) r.scale.multiplyScalar(k);
+      const lat = i => (i - (n - 1) / 2) * spacing, back = i => -Math.abs(lat(i)) * 0.35;
+      this.echoOff = [lat(0), back(0)];
+      this.echoes = [];
+      for (let i = 1; i < n; i++) {
+        const pairs = roots.map(src => {
+          const dst = src.clone(true); this.group.add(dst);
+          const a = [], b = []; src.traverse(o => a.push(o)); dst.traverse(o => b.push(o));
+          return { src, dst, a, b };
+        });
+        this.echoes.push({ pairs, lat: lat(i), back: back(i) });
+      }
+      this.updaters.push(() => this.syncEchoes());
+      this.syncEchoes();
+    }
+    syncEchoes() {
+      if (!this.echoes) return;
+      const R0 = rightOf(this.yaw), F0 = fwd(this.yaw);
+      // 主模型也让出自己的位置（整排居中）
+      const [l0, b0] = this.echoOff;
+      for (const { src } of this.echoes[0].pairs) { const dy = src.position.y - gy(src.position); src.position.addScaledVector(R0, l0).addScaledVector(F0, b0); src.position.y = gy(src.position) + dy; }
+      if (this.echoFrozen) return;
+      for (const e of this.echoes) for (const { src, a, b } of e.pairs) {
+        for (let k = 0; k < a.length && k < b.length; k++) {
+          const x = a[k], y = b[k];
+          if (k === 0) {
+            y.position.copy(x.position).addScaledVector(R0, e.lat - l0).addScaledVector(F0, e.back - b0); y.position.y = gy(y.position) + (x.position.y - gy(x.position));
+          } else y.position.copy(x.position);
+          y.quaternion.copy(x.quaternion); y.scale.copy(x.scale); y.visible = x.visible;
+        }
+      }
+    }
+    // 阵亡时分身各自翻倒消散
+    echoesDie(dir) {
+      if (!this.echoes) return;
+      this.echoFrozen = true;
+      for (const e of this.echoes) for (const { dst } of e.pairs) {
+        const p0 = dst.position.clone(), r0 = dst.rotation.z, s0 = dst.scale.clone();
+        sleep(R(0, 0.25)).then(() => {
+          P.dust(p0, 6, dir, 0.3);
+          return tween(0.7, k => { dst.rotation.z = r0 + k * 1.3; dst.position.y = p0.y - k * 0.12; if (k > 0.6) dst.scale.copy(s0).multiplyScalar(Math.max(0.001, 1 - (k - 0.6) / 0.4)); }, ease.in);
+        });
+      }
+    }
+    echoesShow(v) { if (this.echoes) for (const e of this.echoes) for (const { dst } of e.pairs) dst.visible = v; }
   }
 
   // ---------- 士兵队（实例化） ----------
@@ -191,10 +240,13 @@ const Squads = (() => {
   //  各兵种
   // ======================================================================
   // 兵卒：12 人长矛方阵
+  // 兵法：几级就几个人，一字（或品字）排开，人少就画大一点
+  const lineUp = (n, w) => n === 1 ? [[0, 0]] : n === 2 ? [[-w / 2, 0], [w / 2, 0]] : n === 3 ? [[-w, -0.05], [0, 0.1], [w, -0.05]] : [[-w * 0.6, 0.12], [w * 0.6, 0.12], [-w * 0.6, -0.14], [w * 0.6, -0.14]];
+  const bigFor = n => [1, 1.5, 1.35, 1.22, 1.15][n] || 1;
   class Infantry extends TroopSquad {
-    constructor(side, anchor, yaw) {
-      const off = []; for (let r = 0; r < 3; r++) for (let c = 0; c < 4; c++) off.push([(c - 1.5) * 0.24, (1 - r) * 0.25]);
-      super('p', side, anchor, yaw, 'spear', off);
+    constructor(side, anchor, yaw, n = 0) {
+      const off = []; if (n) off.push(...lineUp(n, 0.27)); else for (let r = 0; r < 3; r++) for (let c = 0; c < 4; c++) off.push([(c - 1.5) * 0.24, (1 - r) * 0.25]);
+      super('p', side, anchor, yaw, 'spear', off, n ? SC * bigFor(n) : SC);
     }
     async attack(target, c) {
       const { B, d } = c;
@@ -207,7 +259,7 @@ const Squads = (() => {
       let hit = false;
       await tween(dur, k => {
         this.anchor.lerpVectors(start, end, k);
-        if (Math.random() < 0.4) { const u = this.units[Math.floor(Math.random() * 12)]; if (Fx.onWater(u.p)) P.splash(u.p.clone().setY(0.05), 1, 0.4); else P.dust(u.p.clone(), 1, d, 0.16); }
+        if (Math.random() < 0.4) { const u = this.units[Math.floor(Math.random() * this.units.length)]; if (Fx.onWater(u.p)) P.splash(u.p.clone().setY(0.05), 1, 0.4); else P.dust(u.p.clone(), 1, d, 0.16); }
       }, ease.in);
       this.units.forEach((u, i) => { if (i < 8) this.troop.act(i, 'thrust', 0.28, Math.random() * 0.1); });
       snd('p', this.side).impact();
@@ -225,7 +277,7 @@ const Squads = (() => {
   }
   // 刀盾近卫（士）
   class Guards extends TroopSquad {
-    constructor(side, anchor, yaw) { super('a', side, anchor, yaw, 'sword', [[0.2, 0], [-0.2, 0]], SC * 1.08); }
+    constructor(side, anchor, yaw, n = 0) { super('a', side, anchor, yaw, 'sword', n ? lineUp(n, 0.3) : [[0.2, 0], [-0.2, 0]], SC * 1.08 * (n ? bigFor(n) : 1)); }
     async attack(target, c) {
       const { B, d } = c;
       this.setPose('ready'); snd('a', this.side).charge();
@@ -234,7 +286,7 @@ const Squads = (() => {
       if (target.brace) target.brace();
       const start = this.anchor.clone(), end = B.clone().addScaledVector(d, -0.32);
       await tween(Math.max(0.4, start.distanceTo(end) / 2.2), k => this.anchor.lerpVectors(start, end, k), ease.in);
-      this.troop.act(0, 'slash', 0.35); this.troop.act(1, 'slash', 0.35, 0.08);
+      this.units.forEach((u, i) => this.troop.act(i, 'slash', 0.35, i * 0.08));
       await sleep(0.18);
       snd('a', this.side).impact();
       const hp = B.clone(); hp.y = TOP + 0.3;
@@ -254,9 +306,9 @@ const Squads = (() => {
   }
   // 汉军弩手（相）
   class Crossbow extends TroopSquad {
-    constructor(side, anchor, yaw) {
-      const off = []; for (let r = 0; r < 2; r++) for (let c = 0; c < 3; c++) off.push([(c - 1) * 0.26, (0.5 - r) * 0.26]);
-      super('e', side, anchor, yaw, 'xbow', off);
+    constructor(side, anchor, yaw, n = 0) {
+      const off = []; if (n) off.push(...lineUp(n, 0.28)); else for (let r = 0; r < 2; r++) for (let c = 0; c < 3; c++) off.push([(c - 1) * 0.26, (0.5 - r) * 0.26]);
+      super('e', side, anchor, yaw, 'xbow', off, n ? SC * bigFor(n) : SC);
     }
     async attack(target, c) {
       const { A, B, d, dist } = c;
@@ -430,13 +482,13 @@ const Squads = (() => {
   }
   // 骑兵（马）
   class Cavalry extends Squad {
-    constructor(side, anchor, yaw) {
+    constructor(side, anchor, yaw, n = 0) {
       super('n', side, anchor, yaw);
       this.riders = [];
-      const offs = [[0, 0.12], [0.3, -0.3], [-0.3, -0.3]];
+      const offs = n === 1 ? [[0, 0]] : n === 2 ? [[0.17, 0.05], [-0.17, -0.1]] : [[0, 0.12], [0.3, -0.3], [-0.3, -0.3]];
       offs.forEach(([x, z], i) => {
         const h = Models.makeCavalry(side, true, i === 0 && side === 'b' ? 'ji' : 'dao');
-        h.group.scale.setScalar(HS); h.off = [x, z]; h.lastPrint = anchor.clone();
+        h.group.scale.setScalar(HS * (n === 1 ? 1.2 : 1)); h.off = [x, z]; h.lastPrint = anchor.clone();
         this.group.add(h.group); this.riders.push(h);
       });
       this.updaters.push(dt => { for (const h of this.riders) { h.update(dt); } this.sync(); });
@@ -524,12 +576,12 @@ const Squads = (() => {
   }
   // 炮：行军时一门炮车 + 驮马 + 两名炮手；进攻时三门齐射；被攻击时炮车翻倒、火药爆燃
   class Cannon extends Squad {
-    constructor(side, anchor, yaw, mode = 'march') {
+    constructor(side, anchor, yaw, mode = 'march', n = 0) {
       super('c', side, anchor, yaw);
       this.mode = mode;
       if (mode === 'battery') {
         const d = fwd(yaw), s = rightOf(yaw);
-        this.guns = [-0.62, 0, 0.62].map(l => {
+        this.guns = (n === 1 ? [0] : n === 2 ? [-0.36, 0.36] : [-0.62, 0, 0.62]).map(l => {
           const g = Models.makeCannon(side); g.group.scale.setScalar(CN);
           g.group.rotation.y = yaw - Math.PI / 2;
           g.group.position.copy(anchor).addScaledVector(d, -0.75 - Math.abs(l) * 0.35).addScaledVector(s, l);
@@ -576,7 +628,8 @@ const Squads = (() => {
       if (target.brace) target.brace();
       const flight = 0.95 + dist * 0.05, peak = 1.2 + dist * 0.28;
       const tc = target.center(0.05);
-      const targets = [tc.clone().addScaledVector(side, 0.45).addScaledVector(d, -0.3), tc.clone().addScaledVector(side, -0.4).addScaledVector(d, 0.3), tc.clone()];
+      const ng = this.guns.length;
+      const targets = [tc.clone().addScaledVector(side, 0.45).addScaledVector(d, -0.3), tc.clone().addScaledVector(side, -0.4).addScaledVector(d, 0.3), tc.clone()].slice(3 - ng);
       let dead = Promise.resolve();
       const fire = async (g, i) => {
         for (let k = 0; k < 6; k++) P.sparks(g.torch.getWorldPosition(new V3()), 2, 0.4);
@@ -596,7 +649,7 @@ const Squads = (() => {
           Fx.spawn({ pos: ball.position.clone(), color: 0x3d3a37, size: 0.1, size2: 0.35, life: 0.8, op: 0.35, drag: 1 });
         }, ease.linear);
         scene.remove(ball);
-        const big = i === 2;
+        const big = i === ng - 1;
         s.explode(big);
         Cam.shake(big ? 0.42 : 0.2); Fx.flash(tp, big ? 120 : 60, big ? 0.9 : 0.5, big ? 0.55 : 0);
         P.fire(tp.clone().add(new V3(0, 0.1, 0)), big ? 44 : 22, big ? 1.1 : 0.7); P.smoke(tp, big ? 16 : 8, big ? 1 : 0.7); P.sparks(tp, big ? 30 : 12, 1.2);
@@ -758,18 +811,24 @@ const Squads = (() => {
   }
 
   // ---------- 工厂 ----------
-  function make(t, side, anchor, yaw, role = 'move', lv = 1) {
-    const sq = make0(t, side, anchor, yaw, role);
+  // n：兵法模式按等级出几个（0 = 普通模式的原编制）
+  function make(t, side, anchor, yaw, role = 'move', lv = 1, n = 0) {
+    const sq = make0(t, side, anchor, yaw, role, n);
+    if (n > 1) {
+      if (sq instanceof Elephant || sq instanceof Chariot) sq.addEchoes([sq.m.group], n, t === 'r' ? 0.36 : 0.4);
+      else if (sq instanceof Cannon && sq.mode !== 'battery') sq.addEchoes([sq.gun.group].concat(sq.horse ? [sq.horse.group] : []), n, 0.42);
+      if (sq.echoes) { const die = sq.die.bind(sq); sq.die = (hit, dir, ...a) => { sq.echoesDie(dir || new V3(0, 0, 1)); return die(hit, dir, ...a); }; }
+    }
     return lv >= 2 && sq.rank ? sq.rank(lv) : sq;
   }
-  function make0(t, side, anchor, yaw, role) {
+  function make0(t, side, anchor, yaw, role, n = 0) {
     switch (t) {
-      case 'p': return new Infantry(side, anchor, yaw);
-      case 'a': return new Guards(side, anchor, yaw);
-      case 'e': return side === 'r' ? new Crossbow(side, anchor, yaw) : new Elephant(side, anchor, yaw);
+      case 'p': return new Infantry(side, anchor, yaw, n);
+      case 'a': return new Guards(side, anchor, yaw, n);
+      case 'e': return side === 'r' ? new Crossbow(side, anchor, yaw, n) : new Elephant(side, anchor, yaw);
       case 'r': return new Chariot(side, anchor, yaw);
-      case 'n': return new Cavalry(side, anchor, yaw);
-      case 'c': return new Cannon(side, anchor, yaw, role === 'attack' ? 'battery' : role === 'defend' ? 'defend' : 'march');
+      case 'n': return new Cavalry(side, anchor, yaw, n);
+      case 'c': return new Cannon(side, anchor, yaw, role === 'attack' ? 'battery' : role === 'defend' ? 'defend' : 'march', n);
       case 'k': return new General(side, anchor, yaw, role === 'defeat' ? { mounted: false, guard: false } : {});
       default: return new Shade(side, anchor, yaw);
     }
@@ -794,7 +853,8 @@ const Squads = (() => {
     Fx.sink(m);
     if (info.crossesRiver && (t === 'p' || t === 'c')) { await boatSquad(c); return; }
     const L = c.mt === 'n'; // 日字路线（揭棋中按位置走法，可能与兵种不同）
-    const sq = make(t, s, A, L ? yawOf(knightCorner(info).clone().sub(A)) : yaw, 'move');
+    const lvN = info.piece.lv || 0;
+    const sq = make(t, s, A, L ? yawOf(knightCorner(info).clone().sub(A)) : yaw, 'move', lvN || 1, lvN);
     await sq.appear();
     let stopCam = () => { };
     if (cine && A.distanceTo(B) > 1.8) stopCam = Fx.follow(() => sq.center(0.2), () => c.side.clone().multiplyScalar(2.6).addScaledVector(d, -1.4).add(new V3(0, 1.3, 0)), () => d.clone().multiplyScalar(0.8).add(new V3(0, 0.05, 0)), 4);
@@ -823,7 +883,8 @@ const Squads = (() => {
     const H = Board.HALF;
     const bankA = new V3(xc, 0, sA * (H + 0.32)), bankB = new V3(xc, 0, -sA * (H + 0.32));
     const yaw = yawOf(new V3(0, 0, -sA));
-    const sq = make(t, s, A, yawOf(bankA.clone().sub(A).lengthSq() > 1e-3 ? bankA.clone().sub(A) : new V3(0, 0, -sA)), 'move');
+    const lvN = info.piece.lv || 0;
+    const sq = make(t, s, A, yawOf(bankA.clone().sub(A).lengthSq() > 1e-3 ? bankA.clone().sub(A) : new V3(0, 0, -sA)), 'move', lvN || 1, lvN);
     await sq.appear();
     Sfx.river(3.2);
     // 走到岸边
@@ -831,7 +892,7 @@ const Squads = (() => {
     else { sq.setPose('march'); snd(t, s).move(1); await walkPath(sq, [A, bankA], Math.max(0.4, A.distanceTo(bankA) / 0.9)); sq.setPose('idle'); }
     await turnTo(sq, yaw, 0.2);
     // 船自上游漂来
-    const nb = t === 'p' ? 3 : 1;
+    const nb = t === 'p' ? (sq.units && sq.units.length <= 4 ? 1 : 3) : 1;
     const boats = [];
     for (let i = 0; i < nb; i++) {
       const b = Models.makeBoat({ side: s, sail: true }); const sc = t === 'p' ? 0.36 : 0.5;
@@ -853,7 +914,8 @@ const Squads = (() => {
       await tween(0.5, k => slots.forEach((sl, i) => { const to = sl.b.group.localToWorld(new V3(sl.lx, 0.3, sl.lz)); sl.u.p.lerpVectors(from[i], to, k); sl.u.p.y = from[i].y + (to.y - from[i].y) * k + Math.sin(k * Math.PI) * 0.1; }));
       sq.setPose('idle');
     } else {
-      // 炮车整体上船
+      // 炮车整体上船（兵法里多出来的炮车随船隐去，上岸再现）
+      if (sq.echoes) { sq.echoesShow(false); sq.echoFrozen = true; }
       const from = sq.anchor.clone();
       await tween(0.5, k => { const to = boats[0].group.localToWorld(new V3(0.1, 0.3, 0)); sq.anchor.lerpVectors(from, to, k); });
     }
@@ -877,6 +939,7 @@ const Squads = (() => {
     } else {
       const from = sq.anchor.clone();
       await tween(0.5, k => sq.anchor.lerpVectors(from, bankB, k));
+      if (sq.echoes) { sq.echoFrozen = false; sq.syncEchoes(); sq.echoesShow(true); for (const e of sq.echoes) for (const { dst } of e.pairs) P.ink(dst.position.clone(), 4, 0.3, 0.25, 0.6); }
     }
     // 船离去
     boats.forEach(b => tween(0.8, k => { b.group.scale.setScalar(Math.max(0.001, b.sc * (1 - k))); b.group.position.x += 0.01; }).then(() => Core.disposeTree(b.group)));
@@ -938,8 +1001,8 @@ const Squads = (() => {
     // 双方化身
     Fx.sink(m); Fx.sink(tgt);
     const counterDie = c.counter === 'die';
-    const att = make(t, s, A, t === 'n' && c.mt === 'n' ? yawOf(knightCorner(info).clone().sub(A)) : yaw, counterDie && t === 'c' ? 'move' : 'attack', c.lv);
-    const def = make(dt_, ds, B, yaw + Math.PI, 'defend', c.dlv);
+    const att = make(t, s, A, t === 'n' && c.mt === 'n' ? yawOf(knightCorner(info).clone().sub(A)) : yaw, counterDie && t === 'c' ? 'move' : 'attack', c.lv, c.lv || 0);
+    const def = make(dt_, ds, B, yaw + Math.PI, 'defend', c.dlv, c.dlv || 0);
     await Promise.all([att.appear(), sleep(0.15).then(() => def.appear())]);
     if (def.setPose) def.setPose('ready');
     // 兵法·拒马：攻方先撞上木桩

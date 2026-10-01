@@ -1,11 +1,12 @@
-"""兵法同屏随机对局测试：python3 tools/bflocal.py [画面档 cine|std|low] [行动数] [种子]
+"""兵法同屏随机对局测试：python3 tools/bflocal.py [画面档 cine|std|low] [行动数] [种子] [开局军功]
 每步随机：可能先升级，再在 走子 / 兵种技能 / 主帅兵法 / 终极兵法 / 停着 里挑一个合法的执行。
-每步核对：无报错、动画结束、棋盘模型与规则状态一致（位置、甲片数 = 生命、金星数 = 等级-1、拒马木桩）、棋谱条数；最后悔棋再核对。"""
+每步核对：无报错、动画结束、棋盘模型与规则状态一致（位置、甲片数 = 击杀数、头顶血条 = 生命、金星数 = 等级-1）、棋谱条数；最后悔棋再核对。"""
 import sys, time, pathlib, os, json
 from playwright.sync_api import sync_playwright
 lv = sys.argv[1] if len(sys.argv) > 1 else 'low'
 N = int(sys.argv[2]) if len(sys.argv) > 2 else 30
 seed = int(sys.argv[3]) if len(sys.argv) > 3 else 7
+M0 = int(sys.argv[4]) if len(sys.argv) > 4 else 16
 D = os.path.dirname(os.path.abspath(__file__)) + '/..'
 url = pathlib.Path(D + '/dist/site/index.html').resolve().as_uri() + '#bf'
 CHECK = """(()=>{const x=window.__xq, g=x.game, B=x.Board; const bad=[];
@@ -13,7 +14,8 @@ CHECK = """(()=>{const x=window.__xq, g=x.game, B=x.Board; const bad=[];
   if(!m){bad.push('nomesh '+p.id);continue;} const P=B.pos(f,r); if(Math.abs(m.position.x-P.x)>0.05||Math.abs(m.position.z-P.z)>0.05) bad.push('pos '+p.id);
   if(!m.visible) bad.push('invisible '+p.id);
   const d=m.userData.deco; const plates=d?d.children.filter(c=>c.userData.plate!=null):[]; const on=plates.filter(c=>c.material===B.plateOn).length;
-  if(p.lv>=2 && on!==p.hp) bad.push('plates '+p.id+' '+on+'/'+p.hp);
+  if(on!==Math.min(8,p.xp||0)) bad.push('plates '+p.id+' '+on+'/'+(p.xp||0));
+  const bar=d?d.children.find(c=>c.userData.hpBar):null; if(p.lv>=2 && (!bar || bar.userData.hpBar.hp!==p.hp)) bad.push('hpbar '+p.id); if(p.lv<2 && bar) bad.push('hpbar1 '+p.id);
   const stars=d?d.children.filter(c=>c.geometry && c.geometry.type==='ShapeGeometry').length/2:0; if(p.t!=='k' && stars!==p.lv-1) bad.push('stars '+p.id+' '+stars+'/'+(p.lv-1));
  }
  if(B.pieces.size!==n) bad.push('meshcount '+B.pieces.size+'/'+n);
@@ -50,7 +52,7 @@ with sync_playwright() as p:
     pg.on('console', lambda m: logs.append(f'{m.type}: {m.text}') if m.type in ('error', 'warning') and 'GL Driver' not in m.text and 'deprecated' not in m.text else None)
     pg.on('pageerror', lambda e: logs.append(f'PAGEERROR: {e}'))
     pg.goto(url, wait_until='domcontentloaded'); time.sleep(4)
-    pg.evaluate(f"(()=>{{const x=window.__xq; x.Core.Time.boost=8; x.Fx.level='{lv}'; x.Fx.gore=3; x.game.setup(T=>{{T.merit={{r:12,b:12}};}}); x.Board.setPosition(x.game);}})()")
+    pg.evaluate(f"(()=>{{const x=window.__xq; x.Core.Time.boost=8; x.Fx.level='{lv}'; x.Fx.gore=3; x.game.setup(T=>{{T.merit={{r:{M0},b:{M0}}};}}); x.Board.setPosition(x.game);}})()")
     def settle(t=200):
         t0 = time.time()
         while time.time() - t0 < t:

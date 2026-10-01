@@ -55,6 +55,51 @@ const BFX = (() => {
     document.body.classList.add('cine');
     return Cam.to(c.clone().addScaledVector(hd, dist).add(new V3(0.6, h, 0)), c.clone().add(new V3(0, 0.3, 0)), dur);
   }
+  // 击杀后在倒下的位置飘出“+N 功”（下面一行“甲 +1”：出手的子攒一片甲）
+  function gainPops(ev) {
+    const kills = ev.filter(e => e.e === 'kill' && e.gain);
+    kills.forEach((e, i) => setTimeout(() => {
+      const p = Board.pos(e.at[0], e.at[1]).setY(TOP + 0.5).project(Core.camera);
+      if (p.z > 1) return;
+      const x = (p.x + 1) / 2 * innerWidth, y = (1 - p.y) / 2 * innerHeight;
+      const d = document.createElement('div'); d.className = 'gainpop ' + (e.s === 'r' ? 'b' : 'r');
+      d.innerHTML = `+${e.gain} 功` + (e.by != null && ev.some(x => x.e === 'xp' && x.id === e.by) ? '<small>甲 +1</small>' : '');
+      d.style.left = x + 'px'; d.style.top = y + 'px';
+      document.body.appendChild(d); setTimeout(() => d.remove(), 1700);
+    }, i * 160));
+  }
+  // 楚战象被动践踏：落子后跺地，四周溅伤
+  async function trampleFx(ev, side) {
+    const sp = ev.find(e => e.e === 'splash' && e.how === 'jianta');
+    if (!sp) return;
+    const c = Board.pos(sp.at[0], sp.at[1]);
+    Sfx.unit('ele').stomp(); Cam.shake(0.3); ring(sp.at, 0x5a4a38, 2.8); P.dust(c, 16, null, 0.4); Fx.Marks.crack(c.clone().setY(TOP), 1.6);
+    const hs = ev.filter(e => (e.e === 'hit' || e.e === 'kill') && e.how === 'jianta');
+    if (hs.length) await splashHits(hs, side); else await sleep(0.3);
+  }
+  const notTrample = e => e.how !== 'jianta';
+  // 霹雳：目标和前后左右四格同时落弹，格子上有没有子都炸，留下焦土
+  async function barrage(from, to, side) {
+    const A = Board.pos(from[0], from[1]).setY(TOP + 0.4);
+    const cells = [[0, 0], [1, 0], [-1, 0], [0, 1], [0, -1]].map(([df, dr]) => [to[0] + df, to[1] + dr]).filter(([f, r]) => f >= 0 && f <= 8 && r >= 0 && r <= 9);
+    const shots = cells.map((at, i) => sleep(i * 0.11).then(async () => {
+      const tp = Board.pos(at[0], at[1]).setY(TOP + 0.05);
+      const ball = new THREE.Mesh(new THREE.SphereGeometry(0.07, 8, 6), Core.toon(0x1c1a18));
+      scene.add(ball);
+      const p0 = A.clone().add(new V3(R(-0.2, 0.2), 0, R(-0.2, 0.2))), peak = 1.6 + A.distanceTo(tp) * 0.25, T = 0.55 + A.distanceTo(tp) * 0.04;
+      Sfx.B.boom(0, 0.25);
+      await tween(T, k => {
+        ball.position.lerpVectors(p0, tp, k); ball.position.y = p0.y + (tp.y - p0.y) * k + peak * 4 * k * (1 - k);
+        Fx.spawn({ pos: ball.position.clone(), tex: Core.Tex.spark, add: true, color: 0xff8a3a, size: 0.2, size2: 0.05, life: 0.25, op: 0.9 });
+      }, ease.linear);
+      scene.remove(ball); ball.geometry.dispose();
+      const big = at[0] === to[0] && at[1] === to[1];
+      Fx.flash(tp, big ? 110 : 60, big ? 0.8 : 0.5, big ? 0.4 : 0); P.fire(tp.clone().add(new V3(0, 0.1, 0)), big ? 34 : 18, big ? 1 : 0.7); P.smoke(tp, big ? 12 : 6, 0.8); P.sparks(tp, big ? 22 : 10, 1.1);
+      Fx.ring(tp, big ? 3 : 1.7, 0.7, 0x5a4a38, 0.8); Fx.Marks.scorch(tp, big ? 1.3 : 1.05); Fx.addSmoke(tp, big ? 0.8 : 0.45);
+      Sfx.B.boom(0, big ? 0.9 : 0.55); Cam.shake(big ? 0.32 : 0.16);
+    }));
+    await Promise.all(shots);
+  }
   function say(id) { try { if (Voice.has(id)) return Voice.play(id); } catch (e) { } return Promise.resolve(); }
   function ring(at, color = 0x5a4a38, size = 2.4) { Fx.ring(Board.pos(at[0], at[1]).setY(TOP + 0.02), size, 0.7, color, 0.8); }
   // 屏幕正中的兵法题字（复用开局的行楷横幅）
@@ -85,11 +130,12 @@ const BFX = (() => {
     const before = info.before ? info.before.board : null;
     try {
       if (info.k === 'up') await levelUp(info);
-      else if (info.k === 'mv') await strike(before, info.from, info.to, ev, side, { check: info.check, result: info.result, streak: info.streak });
+      else if (info.k === 'mv') { await strike(before, info.from, info.to, ev.filter(notTrample), side, { check: info.check, result: info.result, streak: info.streak }); await trampleFx(ev, side); }
       else if (info.k === 'sk') await skill(info, before);
       else if (info.k === 'art') await art(info, before);
       else if (info.k === 'ult') await ult(info);
       else if (info.k === 'pass') { title('停 著', '无子可走，按兵不动', 1600); await sleep(1.2); }
+      gainPops(ev);
     } catch (e) { console.error('兵法演出出错', e); }
     Core.Time.scale = 1;
     document.body.classList.remove('cine');
@@ -156,12 +202,12 @@ const BFX = (() => {
       const T0 = before[to[1]][to[0]];
       const main = ev.filter(e => (T0 && e.id === T0.id) || e.id === P0.id || e.e === 'counter');
       await strike(before, at, to, main, side, { streak: info.streak });
-      const sp = ev.filter(e => (e.e === 'hit' || e.e === 'kill') && e.how === 'pili' && (!T0 || e.id !== T0.id));
-      if (sp.length) {
-        const c = Board.pos(to[0], to[1]).setY(TOP + 0.1);
-        shotAt(to, 4.2, 3.2, 0.5);
-        Fx.flash(c, 90, 0.7, 0.35); P.fire(c, 40, 1.1); P.smoke(c, 12, 1); Fx.ring(c, 3.8, 0.9, 0x5a4a38, 0.8); Sfx.B.boom(0, 0.9); Cam.shake(0.35);
-        await splashHits(sp, side);
+      if (ev.some(e => e.e === 'splash' && e.how === 'pili')) {
+        // 雷霆炮击：五格齐落，炸成焦土
+        shotAt(to, 4.4, 3.4, 0.5);
+        await barrage(at, to, side);
+        const sp = ev.filter(e => (e.e === 'hit' || e.e === 'kill') && e.how === 'pili' && (!T0 || e.id !== T0.id));
+        if (sp.length) await splashHits(sp, side); else await sleep(0.4);
       }
     } else if (sk === 'qishe') {
       await strike(before, at, to, ev, side, { ranged: true, streak: info.streak });
@@ -223,7 +269,8 @@ const BFX = (() => {
       const steps = info.extra.steps || [];
       for (let i = 0; i < steps.length; i++) {
         const st = steps[i], evs = ev.slice(st.ev0, st.ev1);
-        await strike(board, st.from, st.to, evs, side, { streak: info.streak });
+        await strike(board, st.from, st.to, evs.filter(notTrample), side, { streak: info.streak });
+        await trampleFx(evs, side);
         board = simBoard(board, evs);
         await sleep(0.2);
       }
