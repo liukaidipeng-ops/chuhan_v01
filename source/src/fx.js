@@ -87,12 +87,18 @@ const Fx = (() => {
     blood(pos, n = 10, r = 1, dir, spurt = 1) {
       if (state.gore === 0) { P.dust(pos, Math.ceil(n / 3), null, 0.15); return; }
       const col = bloodCol();
-      const k = state.gore >= 3 ? 1.4 : state.gore === 2 ? 1 : 0.6;
+      const k = state.gore >= 3 ? 1.9 : state.gore === 2 ? 1.1 : 0.6;
       for (let i = 0; i < nn(Math.round(n * k)); i++) {
         const v = new V3(R(-1, 1), R(0.3, 1.6) * spurt, R(-1, 1)).multiplyScalar(R(0.8, 2.4) * r);
         if (dir) v.addScaledVector(dir, R(0.8, 2.6) * r);
-        const land = state.gore >= 2 && i % 3 === 0 ? (lp => Marks.drop(lp)) : null;
-        spawn({ pos: pos.clone(), vel: v, tex: Tex.splat, color: col, size: 0.09 * r, size2: 0.22 * r, life: R(0.6, 1.0), g: 7, drag: 0.8, floor: groundAt(pos) + 0.01, op: 0.95, onLand: land });
+        const land = state.gore >= 2 && i % 2 === 0 ? (lp => Marks.drop(lp)) : null;
+        spawn({ pos: pos.clone(), vel: v, tex: Tex.splat, color: col, size: R(0.06, 0.11) * r, size2: R(0.16, 0.26) * r, life: R(0.6, 1.0), g: 7, drag: 0.8, floor: groundAt(pos) + 0.01, op: 0.95, onLand: land });
+      }
+      // 飞溅：又细又快的血雾与血线，顺着受击方向甩出去
+      if (state.gore >= 2) for (let i = 0; i < nn(Math.round(n * k * 0.7)); i++) {
+        const v = new V3(R(-0.6, 0.6), R(0.6, 2.2) * spurt, R(-0.6, 0.6)).multiplyScalar(R(1.5, 3.4) * r);
+        if (dir) v.addScaledVector(dir, R(1.5, 3.8) * r);
+        spawn({ pos: pos.clone().add(new V3(R(-0.05, 0.05), R(0, 0.08), R(-0.05, 0.05))), vel: v, tex: Tex.splat, color: col, size: R(0.025, 0.05) * r, size2: R(0.01, 0.03) * r, life: R(0.35, 0.7), g: 9, drag: 0.4, floor: groundAt(pos) + 0.01, op: 0.9, onLand: i % 3 === 0 ? (lp => Marks.drop(lp)) : null });
       }
       if (state.gore >= 2) for (let i = 0; i < 3; i++) spawn({ pos: pos.clone(), vel: rv(0.3, 0.2, 0.3).addScaledVector(dir || new V3(), 0.4), tex: Tex.puff, color: col, size: 0.12 * r, size2: 0.4 * r, life: 0.5, op: 0.45, drag: 3 });
     },
@@ -161,6 +167,24 @@ const Fx = (() => {
       for (let i = 0; i < 20; i++) { g.globalAlpha = 0.3; inkBlot(g, w / 2 + (rnd() - 0.5) * 60, w / 2 + (rnd() - 0.5) * 60, 4 + rnd() * 8, 1, 0.5); }
     }),
     drop: canvasTex(64, 64, (g, w) => { g.fillStyle = '#fff'; inkBlot(g, w / 2, w / 2, 12, 1, 0.5); for (let i = 0; i < 5; i++) inkBlot(g, w / 2 + (rnd() - 0.5) * 40, w / 2 + (rnd() - 0.5) * 40, 2 + rnd() * 3, 1, 0.3); }),
+    // 喷溅：左边一团，向右（+x）甩出一串由大到小的血滴和细痕
+    bloodSpray: canvasTex(256, 128, (g, w, h) => {
+      g.fillStyle = '#fff'; inkBlot(g, 46, h / 2, 26, 1, 0.55); inkBlot(g, 70, h / 2 + (rnd() - 0.5) * 10, 16, 1, 0.5);
+      for (let i = 0; i < 34; i++) { const t = rnd(), x = 60 + t * (w - 70), y = h / 2 + (rnd() - 0.5) * (14 + t * 70), r = Math.max(1.2, 9 * (1 - t) * (0.4 + rnd() * 0.8)); inkBlot(g, x, y, r, 1, 0.35); }
+      g.strokeStyle = '#fff'; g.lineCap = 'round';
+      for (let i = 0; i < 7; i++) { const y0 = h / 2 + (rnd() - 0.5) * 16, y1 = y0 + (rnd() - 0.5) * 40; g.lineWidth = 1.5 + rnd() * 3; g.beginPath(); g.moveTo(60, y0); g.quadraticCurveTo(120 + rnd() * 40, (y0 + y1) / 2, 150 + rnd() * 90, y1); g.stroke(); }
+    }),
+    // 一簇散落的血点
+    bloodDrops: canvasTex(128, 128, (g, w) => {
+      g.fillStyle = '#fff';
+      for (let i = 0; i < 18; i++) { const a = rnd() * 6.28, d = rnd() * w * 0.42; inkBlot(g, w / 2 + Math.cos(a) * d, w / 2 + Math.sin(a) * d, 1.5 + rnd() * 7 * (1 - d / (w * 0.5)), 1, 0.4); }
+    }),
+    // 拖抹的长条血迹
+    bloodSmear: canvasTex(256, 96, (g, w, h) => {
+      g.fillStyle = '#fff';
+      for (let x = 20; x < w - 20; x += 3) { const t = x / w, r = 22 * Math.sin(Math.PI * Math.min(1, t * 1.15)) * (0.75 + rnd() * 0.35); g.globalAlpha = 0.55 + rnd() * 0.45; g.beginPath(); g.ellipse(x, h / 2 + Math.sin(x * 0.05) * 4, 4, Math.max(2, r), 0, 0, 7); g.fill(); }
+      g.globalAlpha = 1; for (let i = 0; i < 10; i++) inkBlot(g, 20 + rnd() * (w - 40), h / 2 + (rnd() - 0.5) * 60, 1.5 + rnd() * 4, 1, 0.4);
+    }),
     rut: canvasTex(256, 64, (g, w, h) => {
       for (let x = 0; x < w; x += 2) { g.fillStyle = `rgba(255,255,255,${0.3 + rnd() * 0.5})`; g.fillRect(x, h * 0.3 + (rnd() - 0.5) * 3, 2, h * 0.4 * (0.6 + rnd() * 0.5)); }
       for (let i = 0; i < 30; i++) { g.fillStyle = 'rgba(255,255,255,.5)'; g.fillRect(rnd() * w, h * 0.2 + rnd() * h * 0.6, 2 + rnd() * 3, 1 + rnd() * 2); }
@@ -257,10 +281,31 @@ const Fx = (() => {
     lg.clearRect(0, 0, LAY_W, LAY_H); layerTex.needsUpdate = true;
     for (const s of smokes) s.dead = true;
   }
-  const BLOOD = () => bloodCol();
+  // 血迹颜色：新鲜的朱红到半干的暗褐，随机一些
+  const BLOOD_PAL = [0x7c0e08, 0x6a0a06, 0x8e1a10, 0x5a0805, 0x741208];
+  const BLOOD = () => (state.gore >= 2 ? BLOOD_PAL[Math.floor(rnd() * BLOOD_PAL.length)] : bloodCol());
   const Marks = {
     scorch(p, s = 1.6) { mark(MT.scorch, 0x16110e, p, s, s, rnd() * 6, { op: 0.92, hold: 20 }); mark(MT.scorchRim, 0x4a2a14, p, s * 1.5, s * 1.5, 0, { op: 0.6, hold: 20 }); },
-    blood(p, s = 1.0, dir) { if (state.gore === 0) return; s *= state.gore >= 3 ? 1.35 : 1; mark(MT.blood, BLOOD(), p.clone().addScaledVector(dir || new V3(), 0.12), s, s * R(0.8, 1.1), rnd() * 6, { op: 0.9, grow: 1.2 }); },
+    // 血迹：随机挑一种形状（血泊 / 喷溅 / 血点簇 / 拖痕），方向跟着受击方向；再往外甩出一串大小不一的血滴
+    blood(p, s = 1.0, dir) {
+      if (state.gore === 0) return;
+      s *= (state.gore >= 3 ? 1.4 : 1) * R(0.8, 1.25);
+      const d = dir && dir.lengthSq() > 1e-6 ? dir.clone().setY(0).normalize() : null;
+      const rot = d ? Math.atan2(-d.z, d.x) + R(-0.35, 0.35) : rnd() * 6;
+      const roll = rnd(), base = p.clone();
+      if (d && roll < 0.6) mark(MT.bloodSpray, BLOOD(), base.clone().addScaledVector(d, 0.3 * s), s * 1.7, s * 0.85, rot, { op: 0.9, grow: 0.45 });
+      else if (roll < 0.78) mark(MT.blood, BLOOD(), base.clone().addScaledVector(d || new V3(), 0.12), s, s * R(0.7, 1.2), rnd() * 6, { op: 0.9, grow: 1.2 });
+      else if (roll < 0.9) mark(MT.bloodDrops, BLOOD(), base, s * 0.9, s * R(0.75, 1.15), rnd() * 6, { op: 0.88, grow: 0.2 });
+      else mark(MT.bloodSmear, BLOOD(), base.clone().addScaledVector(d || new V3(1, 0, 0), 0.35 * s), s * 1.5, s * 0.5, rot, { op: 0.85, grow: 0.7 });
+      if (state.gore >= 2) {
+        const n = state.gore >= 3 ? 4 + Math.floor(rnd() * 7) : 2 + Math.floor(rnd() * 3);
+        for (let i = 0; i < n; i++) {
+          const a = d ? Math.atan2(d.z, d.x) + R(-0.6, 0.6) : rnd() * 6.28, dist = R(0.2, 1.05) * s;
+          const q = base.clone().add(new V3(Math.cos(a) * dist, 0, Math.sin(a) * dist));
+          mark(MT.drop, BLOOD(), q, R(0.03, 0.1) * (1.25 - dist / (1.2 * s)), undefined, rnd() * 6, { op: 0.85, grow: 0.05, hold: 8 });
+        }
+      }
+    },
     drop(p) { if (state.gore < 2) return; mark(MT.drop, BLOOD(), p, R(0.05, 0.12), undefined, rnd() * 6, { op: 0.85, grow: 0.05, hold: 6 }); },
     dragTrail(p, d, len = 0.6) { if (state.gore < 3) return; mark(MT.drag, BLOOD(), p.clone().addScaledVector(d, len / 2), len, len * 0.2, Math.atan2(-d.z, d.x) + Math.PI, { op: 0.8, grow: 0.6 }); },
     ruts(p, d, side) { const rot = Math.atan2(-d.z, d.x); for (const s of [1, -1]) mark(MT.rut, 0x2e2419, p.clone().addScaledVector(side, s * 0.2), 0.34, 0.07, rot, { op: 0.75, grow: 0, hold: 6 }); },

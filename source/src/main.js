@@ -307,6 +307,7 @@
       else if (started && game.freeUsed && !watching()) { st = `${SIDE_CN[game.turn]}方已架拒马 · 请再走一步棋`; }
       st = `兵法 · 第 ${game.round} 回合 · ` + st;
     }
+    if (RP) { st = `复盘 · 第 ${RP.k} / ${RP.n} 步` + (RP.k && notes[notes.length - 1] ? ' · ' + notes[notes.length - 1].replace(/=.*/, '') : ''); warn = false; }
     $('statusT').textContent = st; $('status').classList.toggle('warn', warn);
     renderBar();
     $('netDot').classList.toggle('hidden', !(online() || watching()));
@@ -779,7 +780,7 @@
       const W = watching();
       await Ending.play(result, {
         again: W ? () => { Ending.hideCard(); toast('等待棋手开新局…'); } : requestAgain, againText: W ? '继 续 观 战' : '',
-        lobby: toLobby, persp, instant: endSkip,
+        lobby: toLobby, persp, instant: endSkip, review: startReplay,
         mine: mode === 'local' || W || !result.winner ? '' : (persp === 'win' ? '你 胜 了' : '你 败 了'),
       });
       if (pendingRestart) { const st = pendingRestart; pendingRestart = null; restart(st === true ? undefined : st); if (mode === 'host') Net.send({ t: 'restart', state: snapshot() }); }
@@ -792,10 +793,91 @@
   }
   let pendingRestart = null;
   function restart(state) {
+    if (RP) exitReplay(true);
     Ending.hideCard(); Core.Time.skip = false; pendingJ = null;
     startGame(mode, mySide, watching() && state && state.opts ? state.opts : opts, { state, intro: true });
     if (mode === 'host') publish();
   }
+  // ---------- 复盘：终局后从第一步起逐步回看整盘棋（各模式通用） ----------
+  let RP = null;
+  const rpSteps = g => (g.bf ? g.entries.length : g.history.length);
+  function rpBuild(k) {
+    const real = RP.real;
+    let g;
+    if (real.bf) { g = new BF.Game(); g.reset(real.base); for (let i = 0; i < k; i++) if (!g.apply(real.entries[i])) break; }
+    else { g = new XQ.Game(real.opts); for (let i = 0; i < k; i++) { const h = real.history[i]; if (!g.play({ from: h.from, to: h.to, rv: h.rv, cj: h.cj })) break; } }
+    return g;
+  }
+  function rpShow(k) {
+    RP.k = k; game = rpBuild(k);
+    Fx.clearMarks(); Board.setPosition(game); Board.faceViewer(viewSide); Board.clearMoves(); Fx.ply = game.history.length;
+    const last = game.history[game.history.length - 1];
+    Board.showLast(last && last.from ? last.from : null, last && last.to ? last.to : null);
+    rebuildNotes(); rpPaint(); updateHud();
+  }
+  async function rpStep() {
+    if (!RP || RP.busy || RP.k >= RP.n) return;
+    RP.busy = true; rpPaint();
+    try {
+      if (game.bf) {
+        const e = RP.real.entries[RP.k], note = bfNote(game, e), info = game.apply(e);
+        if (info) { RP.k++; rebuildNotes(); updateHud(); await BFX.play(info, BF.view(info.after)); Board.reconcile(game); if (info.from && info.k !== 'up') Board.showLast(info.from, info.to || info.from); }
+      } else {
+        const h = RP.real.history[RP.k];
+        const info = game.play({ from: h.from, to: h.to, rv: h.rv, cj: h.cj });
+        if (info) {
+          if (info.captured && game.history[game.history.length - 1].cap) info.captured = { ...game.history[game.history.length - 1].cap };
+          info.dt = capView(info); RP.k++; Fx.ply = game.history.length; rebuildNotes(); updateHud();
+          await Fx.playMove(info); Board.showLast(info.from, info.to);
+        }
+      }
+    } catch (err) { console.error(err); }
+    Core.Time.skip = false; Core.Time.scale = 1; Core.Cam.cine = false; document.body.classList.remove('cine');
+    if (RP) { RP.busy = false; rpPaint(); updateHud(); }
+  }
+  async function rpPlay() {
+    if (!RP) return;
+    RP.playing = !RP.playing; rpPaint();
+    while (RP && RP.playing && RP.k < RP.n) { await rpStep(); await new Promise(r => setTimeout(r, 450)); }
+    if (RP) { RP.playing = false; rpPaint(); }
+  }
+  function rpPaint() {
+    if (!RP) return;
+    $('rpInfo').textContent = `第 ${RP.k} / ${RP.n} 步`;
+    $('rpBar').querySelector('[data-rp="play"]').textContent = RP.playing ? '❚❚ 暂停' : '▶ 播放';
+    $('rpBar').querySelectorAll('[data-rp]').forEach(b => { const a = b.dataset.rp; b.disabled = a !== 'exit' && a !== 'play' && RP.busy || ((a === 'prev' || a === 'first') && RP.k === 0) || ((a === 'next' || a === 'last') && RP.k >= RP.n); });
+  }
+  function startReplay() {
+    if (RP || !game) return;
+    Ending.hideCard();
+    clearFinale(); Camp.reset();
+    Core.Cam.moveId = (Core.Cam.moveId || 0) + 1; Core.Cam.cine = false; document.body.classList.remove('cine');
+    RP = { real: game, k: 0, n: rpSteps(game), busy: false, playing: false };
+    $('rpBar').classList.remove('hidden');
+    $('hud').classList.remove('hidden');
+    setView(viewSide);
+    rpShow(0);
+    toast('复盘：用下方按钮逐步前进、后退或自动播放', 2600);
+  }
+  async function exitReplay(silent) {
+    if (!RP) return;
+    const real = RP.real; RP.playing = false;
+    while (RP && RP.busy) await new Promise(r => setTimeout(r, 100));
+    RP = null; $('rpBar').classList.add('hidden');
+    game = real; Fx.clearMarks(); Board.setPosition(game); Board.faceViewer(viewSide); rebuildNotes(); updateHud();
+    if (!silent) $('endcard').classList.remove('hidden');
+  }
+  $('rpBar').addEventListener('click', e => {
+    const b = e.target.closest('[data-rp]'); if (!b || !RP || b.disabled) return;
+    const a = b.dataset.rp; Sfx.select && Sfx.select();
+    if (a === 'exit') exitReplay(false);
+    else if (a === 'play') rpPlay();
+    else if (RP.busy) return;
+    else if (a === 'next') rpStep();
+    else if (a === 'prev') rpShow(Math.max(0, RP.k - 1));
+    else if (a === 'first') rpShow(0);
+    else if (a === 'last') rpShow(RP.n);
+  });
   function toLobby() {
     Net.close(); store.del('host');
     location.href = location.pathname;

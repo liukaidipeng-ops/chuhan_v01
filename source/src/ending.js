@@ -589,7 +589,7 @@ const Ending = (() => {
   }
 
   // ======================================================================
-  function endCard(info, loserSide, onAgain, onLobby, mine, againText) {
+  function endCard(info, loserSide, onAgain, onLobby, mine, againText, onReview) {
     const el = $('endcard');
     el.innerHTML = '';
     const cols = document.createElement('div'); cols.className = 'cols';
@@ -604,7 +604,9 @@ const Ending = (() => {
     const row = document.createElement('div'); row.className = 'row';
     const b1 = document.createElement('button'); b1.className = 'btn red'; b1.textContent = againText || '再 来 一 局'; b1.onclick = onAgain;
     const b2 = document.createElement('button'); b2.className = 'btn'; b2.textContent = '返 回 大 厅'; b2.onclick = onLobby;
-    row.append(b1, b2); el.appendChild(row);
+    row.append(b1);
+    if (onReview) { const b3 = document.createElement('button'); b3.className = 'btn'; b3.textContent = '复 盘'; b3.onclick = onReview; row.append(b3); }
+    row.append(b2); el.appendChild(row);
     el.classList.remove('hidden');
   }
 
@@ -647,7 +649,7 @@ const Ending = (() => {
     if (result.reason === 'timeout') info.cols.push([(result.loser === 'b' ? '楚' : '漢') + '方超時']);
     $('skip').classList.add('hidden');
     $('fade').style.transition = 'none'; $('fade').style.opacity = 1;
-    endCard(info, result.loser, callbacks.again, callbacks.lobby, callbacks.mine, callbacks.againText);
+    endCard(info, result.loser, callbacks.again, callbacks.lobby, callbacks.mine, callbacks.againText, callbacks.review);
     Sfx.Music.stinger(callbacks.persp || 'win');
     requestAnimationFrame(() => { $('fade').style.transition = 'opacity 1s'; $('fade').style.opacity = 0; });
   }
