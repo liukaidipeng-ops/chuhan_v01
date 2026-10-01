@@ -47,4 +47,4 @@
 ## 收尾
 - [x] F1 帮助、README
 - [x] F2 测试：单元、bflocal 三档、bfnet、jqnet、nettest2、spectest、jqlocal、reconnect（新增：断线重连、丢消息补发、丢悔棋回复、回到对局）全部通过
-- [ ] F3 合并 main、复制 index.html / version.json 到根目录、推送、核对部署
+- [x] F3 合并 main、复制 index.html / version.json 到根目录、推送、核对部署（2026.10.02-76c78a，GitHub Pages 部署 success）
