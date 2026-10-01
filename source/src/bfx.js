@@ -78,27 +78,42 @@ const BFX = (() => {
     if (hs.length) await splashHits(hs, side); else await sleep(0.3);
   }
   const notTrample = e => e.how !== 'jianta';
-  // 霹雳：目标和前后左右四格同时落弹，格子上有没有子都炸，留下焦土
+  // 霹雳：一开炮就齐射——目标和前后左右四格同时落弹（每格两三发），格子上有没有子都炸，留下焦土
   async function barrage(from, to, side) {
-    const A = Board.pos(from[0], from[1]).setY(TOP + 0.4);
+    const A = Board.pos(from[0], from[1]).setY(TOP + 0.45);
     const cells = [[0, 0], [1, 0], [-1, 0], [0, 1], [0, -1]].map(([df, dr]) => [to[0] + df, to[1] + dr]).filter(([f, r]) => f >= 0 && f <= 8 && r >= 0 && r <= 9);
-    const shots = cells.map((at, i) => sleep(i * 0.11).then(async () => {
-      const tp = Board.pos(at[0], at[1]).setY(TOP + 0.05);
-      const ball = new THREE.Mesh(new THREE.SphereGeometry(0.07, 8, 6), Core.toon(0x1c1a18));
+    const shells = [];
+    cells.forEach((at, ci) => { const big = ci === 0; for (let j = 0; j < (big ? 3 : 2); j++) shells.push({ at, big: big && j === 2, delay: j * 0.09 + R(0, 0.06) }); });
+    Sfx.B.boom(0, 0.7); Sfx.B.boom(0.06, 0.5); Sfx.B.boom(0.12, 0.6);
+    for (let i = 0; i < 3; i++) { Fx.flash(A, 60, 0.3, 0.2); P.fire(A.clone().add(new V3(R(-0.15, 0.15), 0.1, R(-0.15, 0.15))), 10, 0.5); }
+    P.smoke(A, 14, 0.9);
+    const hit = new Set();
+    const shots = shells.map(sh => sleep(sh.delay).then(async () => {
+      const tp = Board.pos(sh.at[0], sh.at[1]).add(new V3(R(-0.18, 0.18), 0, R(-0.18, 0.18))).setY(TOP + 0.05);
+      const ball = new THREE.Mesh(new THREE.SphereGeometry(0.065, 8, 6), Core.toon(0x1c1a18));
       scene.add(ball);
-      const p0 = A.clone().add(new V3(R(-0.2, 0.2), 0, R(-0.2, 0.2))), peak = 1.6 + A.distanceTo(tp) * 0.25, T = 0.55 + A.distanceTo(tp) * 0.04;
-      Sfx.B.boom(0, 0.25);
+      const p0 = A.clone().add(new V3(R(-0.2, 0.2), 0, R(-0.2, 0.2))), peak = 1.4 + A.distanceTo(tp) * 0.22, T = 0.5 + A.distanceTo(tp) * 0.035;
       await tween(T, k => {
         ball.position.lerpVectors(p0, tp, k); ball.position.y = p0.y + (tp.y - p0.y) * k + peak * 4 * k * (1 - k);
         Fx.spawn({ pos: ball.position.clone(), tex: Core.Tex.spark, add: true, color: 0xff8a3a, size: 0.2, size2: 0.05, life: 0.25, op: 0.9 });
       }, ease.linear);
       scene.remove(ball); ball.geometry.dispose();
-      const big = at[0] === to[0] && at[1] === to[1];
-      Fx.flash(tp, big ? 110 : 60, big ? 0.8 : 0.5, big ? 0.4 : 0); P.fire(tp.clone().add(new V3(0, 0.1, 0)), big ? 34 : 18, big ? 1 : 0.7); P.smoke(tp, big ? 12 : 6, 0.8); P.sparks(tp, big ? 22 : 10, 1.1);
-      Fx.ring(tp, big ? 3 : 1.7, 0.7, 0x5a4a38, 0.8); Fx.Marks.scorch(tp, big ? 1.3 : 1.05); Fx.addSmoke(tp, big ? 0.8 : 0.45);
-      Sfx.B.boom(0, big ? 0.9 : 0.55); Cam.shake(big ? 0.32 : 0.16);
+      const key = sh.at.join(), first = !hit.has(key); hit.add(key);
+      const big = sh.big;
+      Fx.flash(tp, big ? 120 : 55, big ? 0.85 : 0.45, big ? 0.45 : 0); P.fire(tp.clone().add(new V3(0, 0.1, 0)), big ? 36 : 16, big ? 1 : 0.65); P.smoke(tp, big ? 12 : 5, 0.8); P.sparks(tp, big ? 22 : 9, 1.1);
+      if (first) { const c = Board.pos(sh.at[0], sh.at[1]).setY(TOP + 0.05); Fx.ring(c, 1.9, 0.7, 0x5a4a38, 0.8); Fx.Marks.scorch(c, R(1.0, 1.3)); Fx.addSmoke(c, 0.5); }
+      if (big) { Fx.ring(tp, 3.2, 0.8, 0x5a4a38, 0.8); Fx.Marks.scorch(tp, 1.4); }
+      Sfx.B.boom(0, big ? 0.9 : 0.45); Cam.shake(big ? 0.34 : 0.14);
     }));
     await Promise.all(shots);
+  }
+  // 小字提示（被动技能触发等）：在棋子上方飘一下
+  function labelPop(at, text, side) {
+    const p = Board.pos(at[0], at[1]).setY(TOP + 0.6).project(Core.camera);
+    if (p.z > 1) return;
+    const d = document.createElement('div'); d.className = 'gainpop lbl ' + (side === 'r' ? 'r' : 'b');
+    d.textContent = text; d.style.left = (p.x + 1) / 2 * innerWidth + 'px'; d.style.top = (1 - p.y) / 2 * innerHeight + 'px';
+    document.body.appendChild(d); setTimeout(() => d.remove(), 1700);
   }
   function say(id) { try { if (Voice.has(id)) return Voice.play(id); } catch (e) { } return Promise.resolve(); }
   function ring(at, color = 0x5a4a38, size = 2.4) { Fx.ring(Board.pos(at[0], at[1]).setY(TOP + 0.02), size, 0.7, color, 0.8); }
@@ -130,7 +145,11 @@ const BFX = (() => {
     const before = info.before ? info.before.board : null;
     try {
       if (info.k === 'up') await levelUp(info);
-      else if (info.k === 'mv') { await strike(before, info.from, info.to, ev.filter(notTrample), side, { check: info.check, result: info.result, streak: info.streak }); await trampleFx(ev, side); }
+      else if (info.k === 'mv') {
+        if (info.extra && info.extra.via) labelPop(info.from, BF.SKILL_CN[info.extra.via], side);
+        await strike(before, info.from, info.to, ev.filter(notTrample), side, { check: info.check, result: info.result, streak: info.streak });
+        await trampleFx(ev, side);
+      }
       else if (info.k === 'sk') await skill(info, before);
       else if (info.k === 'art') await art(info, before);
       else if (info.k === 'ult') await ult(info);
@@ -175,23 +194,55 @@ const BFX = (() => {
       await sq.dissolve();
       await Fx.rise(Board.pieces.get(P0.id), A, 0.35);
     } else if (sk === 'chongzhen') {
-      const moves = ev.filter(e => e.e === 'move' && e.id === P0.id);
-      await strike(before, at, to, ev, side, { streak: info.streak });
-      if (moves.length >= 2) {
-        const r = moves[1], m = Board.pieces.get(P0.id);
-        const second = ev.find(e => e.e === 'kill' && e.id !== P0.id && e.at[0] === r.to[0] && e.at[1] === r.to[1]);
-        const A = Board.pos(r.from[0], r.from[1]), B = Board.pos(r.to[0], r.to[1]);
-        Sfx.unit('chariot').charge(1); Sfx.B.hooves(0, 0.6, 2, 0.3);
-        if (m) await tween(0.45, k => { m.position.lerpVectors(A, B, k); m.position.y = TOP + Math.sin(k * Math.PI) * 0.15; }, ease.in);
-        if (second) {
-          const cm = Board.pieces.get(second.id), cc = B.clone().setY(TOP + 0.15), d = B.clone().sub(A).normalize();
-          Cam.shake(0.25); Sfx.unit('chariot').impact(); ring(r.to, 0x5a4a38, 2.2);
-          P.blood(cc, 14, 0.8, d); Fx.chunks(cc, d, 1.1, 10); P.dust(B, 10, d.clone().negate(), 0.35);
-          if (cm) { Fx.flyFace(cm, cc, d, 1, false); Fx.removePiece(cm); }
-          if (typeof Camp !== 'undefined') Camp.onCapture(side, info.streak || 1);
-        }
-        await sleep(0.3);
+      // 冲阵：冲到跳板前狠撞一下（跳板挨 1 点），再腾空越过它，落到它身后一格；身后打不死就撞完退回原位
+      const m = Board.pieces.get(P0.id), land = info.extra.land || to;
+      const A = Board.pos(at[0], at[1]), Q = Board.pos(to[0], to[1]), L = Board.pos(land[0], land[1]);
+      const d = Q.clone().sub(A).setY(0).normalize(), pre = Q.clone().addScaledVector(d, -0.62);
+      shotAt(to, 3.8, 2.4, 0.5);
+      Sfx.unit('chariot').charge(1.6); Sfx.B.hooves(0, 0.9, 3, 0.35);
+      if (m) await tween(Math.max(0.35, A.distanceTo(pre) * 0.14), k => { m.position.lerpVectors(A, pre, k); m.position.y = TOP; if (Math.random() < 0.6) P.dust(m.position.clone(), 1, d.clone().negate(), 0.22); }, ease.in);
+      const counter = ev.find(e => e.e === 'counter' && e.id === P0.id && e.target[0] === to[0] && e.target[1] === to[1]);
+      const qEv = ev.filter(e => (e.e === 'hit' || e.e === 'kill') && e.at[0] === to[0] && e.at[1] === to[1] && e.id !== P0.id);
+      Cam.shake(0.3); Sfx.unit('chariot').impact(); Fx.slowmo(0.22, 0.14);
+      P.sparks(Q.clone().setY(TOP + 0.25), 14, 1); P.dust(Q, 10, d.clone().negate(), 0.35); ring(to, 0x5a4a38, 2.0);
+      if (counter) { Sfx.B.stab(0, 0.5); P.blood(pre.clone().setY(TOP + 0.2), 12, 0.7, d.clone().negate()); }
+      const died = ev.find(e => e.e === 'kill' && e.id === P0.id);
+      if (died && counter) { await splashHits([died], side); return; }
+      if (qEv.length) await splashHits(qEv, side);
+      const res = info.extra.res;
+      const lEv = ev.filter(e => (e.e === 'hit' || e.e === 'kill') && e.at[0] === land[0] && e.at[1] === land[1] && e.id !== P0.id);
+      // 腾空越过跳板
+      const top = L.clone().addScaledVector(d, -0.2);
+      Sfx.B.whoosh(0, 0.4, 0.5);
+      if (m) await tween(0.42, k => { m.position.lerpVectors(pre, res === 'hit' ? top : L, k); m.position.y = TOP + Math.sin(k * Math.PI) * 0.8; m.rotation.x = Math.sin(k * Math.PI) * -0.25 * Math.sign(d.z || 1); }, ease.inOut);
+      if (m) m.rotation.x = 0;
+      Cam.shake(0.25); P.dust(L, 14, null, 0.4); Fx.Marks.crack(L.clone().setY(TOP), 1.2); Sfx.B.thud(0, 0.8);
+      if (lEv.length) await splashHits(lEv, side);
+      if (ev.some(e => e.e === 'kill' && e.id === P0.id)) { const dd = ev.find(e => e.e === 'kill' && e.id === P0.id); await splashHits([dd], side); return; }
+      if (res === 'hit' && m) {
+        // 打不死：撞完退回原位
+        await sleep(0.15);
+        await tween(0.55, k => { m.position.lerpVectors(top, A, k); m.position.y = TOP + Math.sin(k * Math.PI) * 0.5; }, ease.inOut);
       }
+      if (m) { m.position.copy(res === 'hit' ? A : L); m.position.y = TOP; }
+      if (ev.some(e => e.e === 'kill' && !e.friendly && e.s !== side) && typeof Camp !== 'undefined') Camp.onCapture(side, info.streak || 1);
+      await sleep(0.25);
+    } else if (sk === 'shensu') {
+      // 神速营：疾奔如风，越过中间的子落到空位
+      const m = Board.pieces.get(P0.id), A = Board.pos(at[0], at[1]), B = Board.pos(to[0], to[1]);
+      shotAt(to, 3.2, 2.2, 0.4);
+      Sfx.B.whoosh(0, 0.5, 0.6); Sfx.B.shout(0.05, 4, 0.06, 0.4);
+      P.dust(A, 10, null, 0.3);
+      if (m) {
+        const ghosts = [];
+        await tween(0.45, k => {
+          m.position.lerpVectors(A, B, k); m.position.y = TOP + Math.sin(k * Math.PI) * 0.55;
+          if (Math.random() < 0.7) Fx.spawn({ pos: m.position.clone().add(new V3(R(-0.2, 0.2), 0.1, R(-0.2, 0.2))), vel: new V3(0, 0.3, 0), tex: Core.Tex.puff, color: side === 'r' ? 0xd8b070 : 0x9a9488, size: 0.25, size2: 0.6, life: 0.5, op: 0.45, drag: 2 });
+        }, ease.inOut);
+        m.position.copy(B);
+      }
+      P.dust(B, 12, null, 0.35); Sfx.B.thud(0, 0.5); Cam.shake(0.12);
+      await sleep(0.2);
     } else if (sk === 'taying') {
       const m = Board.pieces.get(P0.id);
       Sfx.B.neigh(0, 0.14); Sfx.B.whoosh(0.1, 0.3, 0.4);
@@ -199,16 +250,27 @@ const BFX = (() => {
       if (m) { m.position.y = TOP; m.rotation.x = 0; }
       await strike(before, at, to, ev, side, { mt: 'n', streak: info.streak });
     } else if (sk === 'pili') {
-      const T0 = before[to[1]][to[0]];
-      const main = ev.filter(e => (T0 && e.id === T0.id) || e.id === P0.id || e.e === 'counter');
-      await strike(before, at, to, main, side, { streak: info.streak });
-      if (ev.some(e => e.e === 'splash' && e.how === 'pili')) {
-        // 雷霆炮击：五格齐落，炸成焦土
-        shotAt(to, 4.4, 3.4, 0.5);
-        await barrage(at, to, side);
-        const sp = ev.filter(e => (e.e === 'hit' || e.e === 'kill') && e.how === 'pili' && (!T0 || e.id !== T0.id));
-        if (sp.length) await splashHits(sp, side); else await sleep(0.4);
+      // 雷霆炮击：一开炮就齐射覆盖目标和前后左右四格（炸成焦土），落弹之后才结算目标，炮最后再落位
+      const T0 = before[to[1]][to[0]], m = Board.pieces.get(P0.id), A = Board.pos(at[0], at[1]), B = Board.pos(to[0], to[1]);
+      shotAt(to, 4.6, 3.6, 0.5);
+      if (m) { Fx.flash(A.clone().setY(TOP + 0.4), 80, 0.4, 0.3); P.smoke(A.clone().setY(TOP + 0.3), 10, 0.8); Cam.shake(0.2); tween(0.25, k => { m.position.y = TOP + Math.sin(k * Math.PI) * 0.12; }); }
+      await barrage(at, to, side);
+      const counter = ev.find(e => e.e === 'counter' && e.id === P0.id);
+      if (counter && m) { Sfx.B.stab(0, 0.4); P.blood(A.clone().setY(TOP + 0.2), 10, 0.6); shatter(at, 1); }
+      const died = ev.find(e => e.e === 'kill' && e.id === P0.id);
+      const tEv = ev.filter(e => T0 && e.id === T0.id && (e.e === 'hit' || e.e === 'kill'));
+      if (tEv.length) await splashHits(tEv, side);
+      const sp = ev.filter(e => (e.e === 'hit' || e.e === 'kill') && e.how === 'pili' && (!T0 || e.id !== T0.id) && e.id !== P0.id);
+      if (sp.length) await splashHits(sp, side);
+      if (died) { await splashHits([died], side); }
+      else if (info.extra.res === 'kill' && m) {
+        await sleep(0.2);
+        Sfx.unit('cannon').move && Sfx.unit('cannon').move(0.5);
+        await tween(0.5, k => { m.position.lerpVectors(A, B, k); m.position.y = TOP + Math.sin(k * Math.PI) * 0.12; }, ease.inOut);
+        m.position.copy(B);
       }
+      if (tEv.some(e => e.e === 'kill') && typeof Camp !== 'undefined') Camp.onCapture(side, info.streak || 1);
+      await sleep(0.3);
     } else if (sk === 'qishe') {
       await strike(before, at, to, ev, side, { ranged: true, streak: info.streak });
     } else if (sk === 'jianta') {
@@ -242,7 +304,7 @@ const BFX = (() => {
     const side = info.side, ev = info.ev;
     if (side === 'r') {
       const rv = ev.find(e => e.e === 'revive');
-      title('蕭何追韓信', '汉王复得良将 · ' + XQ.NAMES.r[rv.t] + '重回阵前', 2600);
+      title('召回良將', '汉王复得良将 · ' + XQ.NAMES.r[rv.t] + '重回阵前', 2600);
       Sfx.B.gong(0, 0.8); Sfx.B.hooves(0.2, 1.4, 1, 0.3); Sfx.B.neigh(1.1, 0.12);
       const vp = say('bf_art_r');
       shotAt(rv.at, 3.0, 2.0, 0.9);

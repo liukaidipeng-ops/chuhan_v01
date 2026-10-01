@@ -622,7 +622,7 @@ const Board = (() => {
     if (face && face.material) face.material.color.set(o.dim ? 0x8f8a84 : 0xffffff);
     if (!p || !p.lv) return;
     const d = new THREE.Group(); m.add(d); m.userData.deco = d;
-    const max = BF.CFG.hp[p.lv - 1];
+    const max = BF.hpOf(p.t, p.lv);
     // 腰带甲片 = 攒下的击杀数（每片抵下次升级 1 功，升级时用掉）
     const nx = Math.min(8, p.xp || 0);
     for (let i = 0; i < nx; i++) {
