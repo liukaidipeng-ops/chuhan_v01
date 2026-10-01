@@ -611,11 +611,14 @@ const Ending = (() => {
   const INFO = {
     b: { cols: [['西楚霸王', 'big'], ['項籍'], ['自刎烏江'], ['時年三十一'], ['漢五年十二月']], motto: '無顏見江東父老', win: '漢 勝' },
     r: { cols: [['漢王', 'big'], ['劉邦'], ['彭城之敗'], ['五十六萬眾'], ['一朝而潰'], ['漢二年四月']], motto: '然楚漢之爭，勝負未定', win: '楚 勝' },
+    // 和棋：鸿沟之约
+    d: { cols: [['鴻溝為界', 'big'], ['楚漢相持'], ['中分天下'], ['四十回合'], ['未見殺伐']], motto: '割鴻溝以西者為漢，鴻溝而東者為楚', win: '和 局' },
   };
   let skipNow = null;
   async function play(result, callbacks) {
     if (running) return;
     running = true; skipping = !!callbacks.instant;
+    if (!result.winner) { finish(); showCard(INFO.d, result, callbacks, false); running = false; return; }
     const base = INFO[result.loser === 'b' ? 'b' : 'r'];
     let info = null;
     if (!skipping) {

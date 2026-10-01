@@ -481,20 +481,73 @@ const Board = (() => {
       g.fillStyle = 'rgba(255,240,210,.14)'; g.fillText(ch, c - 3, c + 12);
     }));
   }
+  // 揭棋暗子：漆面背（汉为朱漆、楚为黑漆），金边祥云，中间极淡地印着所在位置的兵种
+  const backCache = {};
+  function backTex(s, pt) {
+    const key = s + pt;
+    if (backCache[key]) return backCache[key];
+    const red = s === 'r';
+    return (backCache[key] = canvasTex(512, 512, (g, w) => {
+      g.clearRect(0, 0, w, w);
+      const c = w / 2;
+      const gr = g.createRadialGradient(c * 0.78, c * 0.7, w * 0.04, c, c, w * 0.48);
+      if (red) { gr.addColorStop(0, '#8a2b1e'); gr.addColorStop(0.55, '#601a11'); gr.addColorStop(1, '#3a0e09'); }
+      else { gr.addColorStop(0, '#4a433d'); gr.addColorStop(0.55, '#2a2522'); gr.addColorStop(1, '#161312'); }
+      g.fillStyle = gr; g.beginPath(); g.arc(c, c, w * 0.468, 0, 7); g.fill();
+      // 漆面刷痕
+      g.save(); g.beginPath(); g.arc(c, c, w * 0.468, 0, 7); g.clip();
+      for (let i = 0; i < 70; i++) {
+        g.strokeStyle = `rgba(255,${red ? 210 : 235},${red ? 180 : 215},${0.012 + rnd() * 0.03})`; g.lineWidth = 1 + rnd() * 3;
+        const r0 = w * (0.05 + rnd() * 0.42), a0 = rnd() * 6.28;
+        g.beginPath(); g.arc(c, c, r0, a0, a0 + 0.4 + rnd() * 1.6); g.stroke();
+      }
+      // 左上高光
+      const hl = g.createRadialGradient(c * 0.62, c * 0.55, 4, c * 0.62, c * 0.55, w * 0.32);
+      hl.addColorStop(0, 'rgba(255,240,220,.16)'); hl.addColorStop(1, 'rgba(255,240,220,0)');
+      g.fillStyle = hl; g.fillRect(0, 0, w, w);
+      g.restore();
+      const gold = 'rgba(201,160,69,', ring = (r, lw, a) => { g.strokeStyle = gold + a + ')'; g.lineWidth = lw; g.beginPath(); g.arc(c, c, r, 0, 7); g.stroke(); };
+      ring(w * 0.452, 10, 0.95); ring(w * 0.428, 2.5, 0.55); ring(w * 0.35, 2, 0.32);
+      // 四角如意云纹
+      g.strokeStyle = gold + '0.42)'; g.lineWidth = 5; g.lineCap = 'round';
+      for (let k = 0; k < 4; k++) {
+        const a = Math.PI / 4 + k * Math.PI / 2, x = c + Math.cos(a) * w * 0.39, y = c + Math.sin(a) * w * 0.39, sz = w * 0.04;
+        g.save(); g.translate(x, y); g.rotate(a + Math.PI / 2);
+        g.beginPath();
+        for (let t = 0; t <= 3 * Math.PI; t += 0.15) { const r = sz * (1 - t / (3 * Math.PI) * 0.8); const px = -sz * 0.9 + Math.cos(t) * r, py = Math.sin(t) * r; t ? g.lineTo(px, py) : g.moveTo(px, py); }
+        g.stroke(); g.beginPath();
+        for (let t = 0; t <= 3 * Math.PI; t += 0.15) { const r = sz * (1 - t / (3 * Math.PI) * 0.8); const px = sz * 0.9 - Math.cos(t) * r, py = Math.sin(t) * r; t ? g.lineTo(px, py) : g.moveTo(px, py); }
+        g.stroke();
+        g.restore();
+      }
+      // 位置兵种：非常淡
+      g.font = `bold 250px ${FONT}`; g.textAlign = 'center'; g.textBaseline = 'middle';
+      g.fillStyle = red ? 'rgba(236,206,140,.075)' : 'rgba(236,206,140,.065)'; g.fillText(XQ.NAMES[s][pt], c, c + 14);
+    }));
+  }
   const faceGeo = new THREE.CircleGeometry(0.4, 40); faceGeo.rotateX(-Math.PI / 2); faceGeo.userData.keep = true;
   const bandGeo = new THREE.CylinderGeometry(0.4222, 0.4222, 0.026, Core.quality === 'high' ? 40 : 28, 1, true); bandGeo.userData.keep = true;
   function makePiece(p) {
     const g = new THREE.Group();
     const body = new THREE.Mesh(pieceGeo, pieceWood);
     body.castShadow = true; body.receiveShadow = true;
-    const face = new THREE.Mesh(faceGeo, new THREE.MeshStandardMaterial({ map: faceTex(p.s, p.t), transparent: true, roughness: 0.5, polygonOffset: true, polygonOffsetFactor: -2 }));
+    const face = new THREE.Mesh(faceGeo, new THREE.MeshStandardMaterial({ map: p.h ? backTex(p.s, p.pt) : faceTex(p.s, p.t), transparent: true, roughness: p.h ? 0.32 : 0.5, polygonOffset: true, polygonOffsetFactor: -2 }));
     face.position.y = PH + 0.001;
     const band = new THREE.Mesh(bandGeo, goldM); band.position.y = PH * 0.6;
     g.add(body, face, band);
-    g.userData = { id: p.id, s: p.s, t: p.t };
+    g.userData = { id: p.id, s: p.s, t: p.h ? 'h' : p.t, h: !!p.h };
     // 面向本方：黑方棋子旋转180°
     g.rotation.y = p.s === 'b' ? Math.PI : 0;
     return g;
+  }
+
+  // 翻面：p 为暗子时扣上（显示漆背），否则显示字面
+  function setFace(m, p) {
+    const face = m.children[1]; if (!face) return;
+    face.material.map = p.h ? backTex(p.s, p.pt) : faceTex(p.s, p.t);
+    face.material.roughness = p.h ? 0.32 : 0.5;
+    face.material.needsUpdate = true;
+    m.userData.t = p.h ? 'h' : p.t; m.userData.h = !!p.h;
   }
 
   const pieces = new Map(); // id -> mesh
@@ -683,6 +736,6 @@ const Board = (() => {
   return {
     root, TOP, PH, HALF, X, Z, pos, setPosition, pieces, piecesRoot, makePiece, faceViewer,
     showMoves, clearMoves, showLast, pick, meshAt, get hovered() { return hovered; }, ringTex, glowTex, wakes, water, waterMat, decal, flatGeo, pine, deco, FONT,
-    viewSide: 'r', pieceWood, RZ, BZ, BX, BRIDGE_X, faceTex, makeRiver, mtTex,
+    viewSide: 'r', pieceWood, RZ, BZ, BX, BRIDGE_X, faceTex, backTex, setFace, makeRiver, mtTex,
   };
 })();

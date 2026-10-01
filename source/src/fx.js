@@ -397,7 +397,7 @@ const Fx = (() => {
     const t = info.piece.t;
     const A0 = m.position.clone();
     const su = Sfx.unit(unitKey(t, c.s)); su.move && su.move(0.6);
-    if (t === 'n') {
+    if (c.mt === 'n') {
       const [ff, fr] = info.from, [tf, tr] = info.to;
       const leg = Math.abs(tr - fr) === 2 ? Board.pos(ff, fr + Math.sign(tr - fr)) : Board.pos(ff + Math.sign(tf - ff), fr);
       await tween(0.24, k => { m.position.lerpVectors(A0, leg, k); m.position.y = TOP + Math.sin(k * Math.PI) * 0.25; });
@@ -472,8 +472,47 @@ const Fx = (() => {
     if (k) { ring(k.position, 2.2, 0.9, 0xb0301f, 0.9); P.ink(k.position.clone().setY(TOP + 0.2), 6, 0.5, 0.3, 0.7); }
   }
 
+  // ---------- 揭棋：翻子 ----------
+  const popGeo = new THREE.PlaneGeometry(1, 1);
+  async function flip(m, p, lift = 0.6) {
+    const y0 = m.position.y, top = TOP + lift;
+    Sfx.lift(); Sfx.B.whoosh(0.05, 0.3, 0.22);
+    await tween(0.2, k => { m.position.y = y0 + (top - y0) * k; }, ease.out);
+    let swapped = false;
+    await tween(0.32, k => {
+      const a = k * Math.PI;
+      if (!swapped && a >= Math.PI / 2) { swapped = true; Board.setFace(m, p); }
+      m.rotation.x = a < Math.PI / 2 ? a : a - Math.PI;
+      m.position.y = top + Math.sin(k * Math.PI) * 0.12;
+    }, ease.inOut);
+    m.rotation.x = 0;
+    return top;
+  }
+  async function reveal(m, p) {
+    const top = await flip(m, p);
+    const c = m.position.clone(); c.y = top + 0.1;
+    // 翻出的字印浮起、放大、淡去
+    Sfx.B.wood(0, 0.55); Sfx.B.bell(0.02, p.s === 'r' ? 784 : 659, 0.07); Sfx.B.shime(0.05, 0.35);
+    ring(c.clone().setY(TOP + 0.02), 1.9, 0.6, p.s === 'r' ? 0xb0301f : 0x2a2826, 0.7);
+    P.ink(c, 10, 0.45, 0.3, 0.8);
+    for (let i = 0; i < nn(14); i++) spawn({ pos: c.clone(), vel: rv(1.6, 1.4, 1.6), tex: Core.Tex.spark, add: true, color: 0xf2c46a, size: 0.12, size2: 0.02, life: R(0.4, 0.8), drag: 1.5 });
+    const bg = new THREE.Sprite(new THREE.SpriteMaterial({ map: Board.glowTex, color: 0xf6ecd4, transparent: true, depthTest: false, depthWrite: false }));
+    const fg = new THREE.Sprite(new THREE.SpriteMaterial({ map: Board.faceTex(p.s, p.t), transparent: true, depthTest: false, depthWrite: false }));
+    bg.renderOrder = 30; fg.renderOrder = 31;
+    scene.add(bg, fg);
+    tween(1.1, k => {
+      const y = top + 0.35 + k * 0.9, sc = 0.55 + 0.5 * Math.min(1, k * 2.5), op = k < 0.7 ? 1 : 1 - (k - 0.7) / 0.3;
+      bg.position.set(c.x, y, c.z); fg.position.set(c.x, y, c.z);
+      bg.scale.set(sc * 1.5, sc * 1.5, 1); fg.scale.set(sc, sc, 1);
+      bg.material.opacity = op * 0.9; fg.material.opacity = op;
+    }, ease.out).then(() => { scene.remove(bg, fg); bg.material.dispose(); fg.material.dispose(); });
+    await sleep(0.25);
+    await tween(0.16, k => { m.position.y = top - (top - TOP) * k; }, ease.in);
+    m.position.y = TOP; Sfx.place();
+  }
+
   // ---------- 悔棋：墨迹倒流 ----------
-  async function undoMove(h) {
+  async function undoMove(h, piece) {
     const m = Board.pieces.get(h.pid);
     const A = Board.pos(...h.to), Bp = Board.pos(...h.from);
     Sfx.B.whoosh(0, 0.5, 0.3); Sfx.B.bell(0.1, 660, 0.08);
@@ -488,6 +527,8 @@ const Fx = (() => {
       }, ease.inOut);
       m.position.copy(Bp); m.rotation.y = Board.viewSide === 'b' ? Math.PI : 0;
       Sfx.place();
+      // 揭棋：翻开的子撤回后重新扣上
+      if (h.rv && piece && piece.h) { await flip(m, piece, 0.4); await tween(0.12, k => { m.position.y = TOP + 0.4 * (1 - k); }); m.position.y = TOP; }
     }
     if (h.cap) {
       const cm = Board.makePiece(h.cap);
@@ -509,14 +550,17 @@ const Fx = (() => {
     const m = Board.pieces.get(info.piece.id);
     const tgt = info.captured ? Board.pieces.get(info.captured.id) : null;
     const A = Board.pos(...info.from), B = Board.pos(...info.to);
-    return { info, m, tgt, A, B, s: info.piece.s, ...geom(A, B) };
+    return { info, m, tgt, A, B, s: info.piece.s, mt: info.mt || info.piece.t, ...geom(A, B) };
   };
   async function playMove(info, opts = {}) {
     const c = ctxOf(info);
     if (!c.m) return;
+    const y0 = c.m.position.y;
     Board.clearMoves(true);
-    if (opts.instant) { if (c.tgt) removePiece(c.tgt); c.m.position.copy(c.B); return; }
+    if (opts.instant) { if (c.tgt) removePiece(c.tgt); if (info.reveal) Board.setFace(c.m, info.piece); c.m.position.copy(c.B); return; }
     try {
+      // 揭棋：暗子先翻开，再由真身出阵
+      if (info.reveal) { c.m.position.y = y0; await reveal(c.m, info.piece); }
       if (state.level === 'low') {
         if (c.tgt) await lowCapture(c);
         else if (info.crossesRiver) await Squads.pieceBoat(c);
@@ -538,7 +582,7 @@ const Fx = (() => {
   }
 
   return {
-    P, spawn, ring, slash, flash, sink, rise, playMove, undoMove, checkStamp, cineOn, cineOff, geom, bits, Marks, clearMarks, addSmoke,
+    P, spawn, ring, slash, flash, sink, rise, playMove, undoMove, checkStamp, reveal, flip, cineOn, cineOff, geom, bits, Marks, clearMarks, addSmoke,
     chunks, throwObj, removePiece, flyFace, groundY, onWater, groundAt, shot, follow, slowmo, ctxOf, rv, R, state, resultAt, lowMove,
     get smokeCount() { return smokes.length; },
     get level() { return state.level; }, set level(v) { state.level = v; },

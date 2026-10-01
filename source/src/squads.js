@@ -447,8 +447,8 @@ const Squads = (() => {
       const s = snd('n', this.side);
       s.charge(1.6);
       this.riders.forEach(h => tween(0.3, k => { h.rider.arm.rotation.z = 0.9 + k * 1.6; }));
-      const [ff, fr] = info.from, [tf, tr] = info.to;
-      const corner = Math.abs(tr - fr) === 2 ? Board.pos(ff, fr + Math.sign(tr - fr)) : Board.pos(ff + Math.sign(tf - ff), fr);
+      // 揭棋里骑兵可能是按别的位置走法出阵的（直线冲锋）
+      const corner = c.mt === 'n' ? knightCorner(info) : this.anchor.clone().lerp(B, 0.3);
       if (target.brace) target.brace();
       await this.march([this.anchor.clone(), corner, corner.clone().lerp(B, 0.45)], 0, true);
       const lead = this.riders[0];
@@ -700,6 +700,16 @@ const Squads = (() => {
       await sleep(0.3);
     }
   }
+  // 未知暗子（疑兵）：墨影刀盾兵，看不出是什么兵种
+  class Shade extends TroopSquad {
+    constructor(side, anchor, yaw) {
+      const off = []; for (let r = 0; r < 2; r++) for (let c = 0; c < 3; c++) off.push([(c - 1) * 0.25, (0.5 - r) * 0.26]);
+      super('?', side, anchor, yaw, 'sword', off);
+      this.troop.units.forEach((u, i) => this.troop.tint(i, 0x2b2725, 0.8));
+      this.updaters.push(dt => { if (!LOW() && Math.random() < dt * 5) P.ink(this.center(0.12).add(rv(0.35, 0.05, 0.35)), 1, 0.32, 0.25, 0.45); });
+    }
+    brace() { this.setPose('brace'); }
+  }
   const pick = (o, keys) => { const r = {}; for (const k of keys) if (o[k] !== undefined) r[k] = o[k]; return r; };
 
   // ---------- 运动工具 ----------
@@ -734,6 +744,7 @@ const Squads = (() => {
       case 'n': return new Cavalry(side, anchor, yaw);
       case 'c': return new Cannon(side, anchor, yaw, role === 'attack' ? 'battery' : role === 'defend' ? 'defend' : 'march');
       case 'k': return new General(side, anchor, yaw, role === 'defeat' ? { mounted: false, guard: false } : {});
+      default: return new Shade(side, anchor, yaw);
     }
   }
   // 行军速度（格/秒）
@@ -755,17 +766,18 @@ const Squads = (() => {
     }
     Fx.sink(m);
     if (info.crossesRiver && (t === 'p' || t === 'c')) { await boatSquad(c); return; }
-    const sq = make(t, s, A, t === 'n' ? yawOf(knightCorner(info).clone().sub(A)) : yaw, 'move');
+    const L = c.mt === 'n'; // 日字路线（揭棋中按位置走法，可能与兵种不同）
+    const sq = make(t, s, A, L ? yawOf(knightCorner(info).clone().sub(A)) : yaw, 'move');
     await sq.appear();
     let stopCam = () => { };
     if (cine && A.distanceTo(B) > 1.8) stopCam = Fx.follow(() => sq.center(0.2), () => c.side.clone().multiplyScalar(2.6).addScaledVector(d, -1.4).add(new V3(0, 1.3, 0)), () => d.clone().multiplyScalar(0.8).add(new V3(0, 0.05, 0)), 4);
-    const dist = t === 'n' ? 2.2 : A.distanceTo(B);
+    const dist = L ? 2.2 : A.distanceTo(B);
     const dur = Math.max(0.6, dist / SPEED[t]);
-    if (sq.march && t === 'n') await sq.march([A, knightCorner(info), B]);
-    else if (sq.march) await sq.march([A, B], dur);
+    if (sq.march && t === 'n') await sq.march(L ? [A, knightCorner(info), B] : [A, A.clone().lerp(B, 0.35), B]);
+    else if (sq.march) await sq.march(L ? [A, knightCorner(info), B] : [A, B], dur);
     else {
       sq.setPose('march'); snd(t, s).move(dur);
-      await walkPath(sq, [A, B], dur, k => { if (sq.units && Math.random() < 0.2) Fx.Marks.foot(sq.units[Math.floor(Math.random() * sq.units.length)].p); });
+      await walkPath(sq, L ? [A, knightCorner(info), B] : [A, B], dur, k => { if (sq.units && Math.random() < 0.2) Fx.Marks.foot(sq.units[Math.floor(Math.random() * sq.units.length)].p); });
       sq.setPose('idle');
     }
     stopCam();
@@ -886,7 +898,8 @@ const Squads = (() => {
   // ======================================================================
   async function capture(c) {
     const { A, B, d, side, m, tgt, info } = c;
-    const t = info.piece.t, s = info.piece.s, dt_ = info.captured.t, ds = info.captured.s;
+    // 被吃的暗子：只有吃子方能看到真身，其余人看到的是“疑兵”
+    const t = info.piece.t, s = info.piece.s, dt_ = info.dt || info.captured.t, ds = info.captured.s;
     const cine = Fx.level === 'cine';
     const yaw = yawOf(d);
     Fx.cineOn();
@@ -897,7 +910,7 @@ const Squads = (() => {
     }
     // 双方化身
     Fx.sink(m); Fx.sink(tgt);
-    const att = make(t, s, A, t === 'n' ? yawOf(knightCorner(info).clone().sub(A)) : yaw, 'attack');
+    const att = make(t, s, A, t === 'n' && c.mt === 'n' ? yawOf(knightCorner(info).clone().sub(A)) : yaw, 'attack');
     const def = make(dt_, ds, B, yaw + Math.PI, 'defend');
     await Promise.all([att.appear(), sleep(0.15).then(() => def.appear())]);
     if (def.setPose) def.setPose('ready');
@@ -955,5 +968,5 @@ const Squads = (() => {
     return g;
   }
 
-  return { move, capture, pieceBoat, heroDefeat, make, Infantry, Guards, Crossbow, Elephant, Chariot, Cavalry, Cannon, General, killUnit, walkPath, turnTo, TroopSquad };
+  return { move, capture, pieceBoat, heroDefeat, make, Shade, Infantry, Guards, Crossbow, Elephant, Chariot, Cavalry, Cannon, General, killUnit, walkPath, turnTo, TroopSquad };
 })();

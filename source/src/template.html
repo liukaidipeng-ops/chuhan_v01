@@ -148,6 +148,14 @@ input.code{font-size:30px;letter-spacing:.4em;text-align:center;width:8.5em;max-
 .pcard .caps{display:flex;flex-wrap:wrap;gap:2px;flex:1;min-width:0}
 .capp{width:20px;height:20px;border-radius:50%;background:radial-gradient(circle at 40% 35%,#ecc990,#c9a068);border:1px solid #8a6a40;display:flex;align-items:center;justify-content:center;font-size:12px;font-weight:bold;flex:none;box-shadow:0 1px 1px rgba(0,0,0,.25)}
 .capp.r{color:var(--red)}.capp.b{color:var(--ink)}
+.capp.hid{background:radial-gradient(circle at 40% 35%,#7a2a1c,#45130d);color:rgba(236,206,140,.75);border-color:#b8914a;font-size:11px;cursor:default}
+.capp.hid.b{background:radial-gradient(circle at 40% 35%,#4a433d,#161312)}
+.capp.hid.know{background:radial-gradient(circle at 40% 35%,#ecc990,#c9a068);border:1px dashed #6b4a2a;font-size:12px}
+.capp.hid.know.r{color:var(--red)}.capp.hid.know.b{color:var(--ink)}
+#logList em.rv{font-style:normal;display:inline-block;margin-left:2px;width:15px;height:15px;line-height:15px;border-radius:50%;background:#2a2522;color:#ecc990;font-size:10px;text-align:center;vertical-align:1px}
+#logList .r em.rv{background:#6e2217}
+#log.jq{width:214px}
+body.compact #log.jq{width:190px}
 .pcard .undo{font-size:12px;color:var(--ink3);white-space:nowrap}
 .pcard.think .tag:after{content:" · 思考中";color:var(--red);animation:pulse 1.2s infinite}
 .bubble{position:absolute;left:12px;max-width:min(420px,calc(100vw - 110px));padding:10px 18px;font-size:19px;letter-spacing:.06em;border-radius:3px;opacity:0;transform:translateY(-6px) scale(.96);transition:opacity .25s,transform .25s;pointer-events:none;z-index:6}
@@ -346,6 +354,7 @@ body.compact #log{width:164px;max-height:34vh}
 
     <div id="pCreate" class="pane hidden">
       <h3 id="createTitle">房 间 设 置</h3>
+      <div class="opt"><div class="lbl">玩法<small id="jqNote">揭棋：十五子反扣，走动方知真身</small></div><div class="seg" data-k="jq"><button data-v="0">象棋</button><button data-v="1">揭棋</button></div></div>
       <div class="opt"><div class="lbl">执子</div><div class="seg" data-k="side"><button data-v="r" class="r">红·汉（先手）</button><button data-v="b">黑·楚</button><button data-v="x">随机</button></div></div>
       <div class="opt"><div class="lbl">悔棋<small>需对方同意</small></div><div class="seg" data-k="undo"><button data-v="0">不允许</button><button data-v="1">1 次</button><button data-v="3">3 次</button><button data-v="99">不限</button></div></div>
       <div class="opt"><div class="lbl">总时长<small>每方，用完判负</small></div><div class="seg" data-k="total"><button data-v="0">不限</button><button data-v="10">10 分</button><button data-v="15">15 分</button><button data-v="20">20 分</button><button data-v="30">30 分</button></div></div>
@@ -417,6 +426,14 @@ body.compact #log{width:164px;max-height:34vh}
   · 规则为标准中国象棋：将死或困毙即负，将帅不可照面；计时用完或单步超时判负。<br>
   · 兵卒——步兵列阵；车——驷马战车；马——重甲骑兵；炮——铜炮齐射；相——汉军弩手；象——楚军战象；士——刀盾近卫；帅将——主帅亲征。步兵与炮乘船渡河，车马涉水。<br>
   · 人机对战有新兵、校尉、霸王三档；霸王每步深算约五秒，极难战胜。
+  </div>
+  <h3 style="margin-top:14px">揭 棋</h3>
+  <div class="help">
+  · 开局时将帅明摆在原位，其余十五子反扣（汉为朱漆背、楚为黑漆背），随机摆在本方原有的子位上，谁也不知道哪枚是什么。<br>
+  · 暗子按它所在位置原本的兵种走（漆背上极淡地印着这个位置的字）；一走动就翻开，从此按真身走。<br>
+  · 翻开的士、象不受九宫与河界限制，可以过河；兵卒过河前只能前进。<br>
+  · 被吃掉的暗子，只有吃子方知道它是什么。联机时由双方各持一半密钥洗牌，谁也偷看不到对方的牌；同屏对战时，吃子方可点开吃到的“暗”子偷看。<br>
+  · 四十回合无吃子判和；同一子不能连续将军、或连续捉同一子超过六回合。其余同象棋：将死或困毙即负。
   </div>
   <div class="row"><button class="btn small solid" id="bHelpClose">知道了</button></div>
 </div></div></div>
