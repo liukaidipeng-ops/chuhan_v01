@@ -159,6 +159,10 @@ input.code{font-size:30px;letter-spacing:.4em;text-align:center;width:8.5em;max-
 .pcard .fxs span{font-size:11px;padding:1px 6px;border-radius:9px;background:#2a2522;color:#f1e3c2;letter-spacing:.05em;white-space:nowrap}
 .pcard .fxs span.red{background:var(--red)}.pcard .fxs span.used{background:transparent;color:var(--ink3);border:1px solid rgba(60,40,20,.3);text-decoration:line-through}
 .pcard .fxs span.ok{background:transparent;color:#7a5418;border:1px solid var(--gold)}
+.pcard .fxs span.tap{cursor:pointer;pointer-events:auto}
+.pcard .fxs span.go{background:linear-gradient(#c0432b,#8e2717);color:#fff6dd;border:1px solid #e9b25a;box-shadow:0 0 0 1px rgba(233,178,90,.35),0 0 10px rgba(192,67,43,.55);animation:goGlow 1.6s ease-in-out infinite}
+.pcard .fxs span.tap.off{opacity:.75}
+@keyframes goGlow{50%{box-shadow:0 0 0 2px rgba(233,178,90,.55),0 0 16px rgba(192,67,43,.8)}}
 .merpop{position:fixed;z-index:30;pointer-events:none;font-size:15px;font-weight:bold;color:#8a5a12;text-shadow:0 1px 0 #fff8e6,0 0 6px rgba(255,236,190,.9);animation:merup 1.4s ease-out forwards;white-space:nowrap}
 @keyframes merup{0%{opacity:0;transform:translateY(6px) scale(.8)}15%{opacity:1;transform:translateY(0) scale(1.1)}100%{opacity:0;transform:translateY(-34px) scale(1)}}
 #bfBar{position:absolute;left:50%;bottom:calc(14px + var(--safe-b));transform:translateX(-50%);pointer-events:none;display:flex;flex-direction:column;align-items:center;gap:6px;max-width:calc(100vw - 24px);z-index:6}
@@ -318,9 +322,23 @@ body.compact #skip{bottom:calc(62px + var(--safe-b))}
 @media (max-width:1100px){ #status{font-size:14px;padding:5px 18px 5px calc(18px + .2em)} }
 /* 竖屏 / 窄屏：工具改横排贴底，卡片通栏 */
 body.compact .pcard{left:12px;right:12px;width:auto}
-body.compact #cardMe{bottom:calc(60px + var(--safe-b))}
-body.compact #tools{left:12px;right:12px;bottom:calc(10px + var(--safe-b));flex-direction:row;justify-content:space-between;gap:4px}
-body.compact .tool{width:40px;height:40px;font-size:18px;flex:none}
+body.compact #tools{left:10px;right:10px;bottom:calc(8px + var(--safe-b));flex-direction:row;justify-content:space-between;gap:4px}
+body.compact .tool{flex:1 1 0;min-width:0;max-width:44px;width:auto;height:38px;font-size:17px}
+/* 手机卡片压扁：头像缩小，名字与时钟同一行，军功与兵法签一行 */
+body.compact #cardMe{bottom:calc(54px + var(--safe-b))}
+body.compact .pcard{padding:5px 10px 5px 5px;gap:8px}
+body.compact .por{width:46px;height:46px}
+body.compact .por .face{inset:4px;width:38px;height:38px}
+body.compact .por .seal{width:17px;height:17px;font-size:11px;right:-5px;bottom:-3px}
+body.compact .pcard .info{display:grid;grid-template-columns:minmax(0,1fr) auto;column-gap:8px;align-items:center}
+body.compact .pcard .nm{grid-column:1;grid-row:1}
+body.compact .pcard .who{font-size:16px}
+body.compact .pcard .clk{grid-column:2;grid-row:1;font-size:17px;line-height:1.15}
+body.compact .pcard .clk.inf{font-size:12px;letter-spacing:.15em}
+body.compact .pcard .meta{grid-column:1/-1;min-height:0}
+body.compact .pcard .bfm{grid-column:1/-1;margin-top:2px;gap:5px}
+body.compact .pcard .fxs span{font-size:12px;padding:2px 8px}
+body.compact #bfBar.cmp #bfHint:empty{display:none}
 body.compact #status{font-size:13px;padding:4px 16px 4px calc(16px + .2em);letter-spacing:.12em}
 body.compact #log{width:164px;max-height:34vh}
 @media (max-width:640px){

@@ -257,17 +257,23 @@
         const mi = bfm.querySelector('.mer i'); if (mi.textContent !== String(game.merit[s])) { mi.textContent = game.merit[s]; mi.classList.add('pop'); setTimeout(() => mi.classList.remove('pop'), 300); }
         const fx = game.fx, used = game.used, U = BF.CFG.ultimates;
         const chips = [];
-        chips.push(`<span class="${used.art[s] ? 'used' : 'ok'}" title="主帅兵法（每局一次）">${BF.ART_CN[s]}</span>`);
+        // 轮到这一方行动时，卡片上的兵法签可以直接点（手机上技能栏不再常驻）；点灰的签说明原因
+        const tap = canAct() && game.turn === s && !bfMode && !game.result;
+        const av = tap ? bfAvail() : null, aw = av && artWhy(s, av), uw = av && ultWhy(s, av);
+        const tapAttr = (act, why) => tap ? ` data-a="${act}"${why ? ` data-why="${why[1]}"` : ''}` : '';
+        chips.push(`<span class="${used.art[s] ? 'used' : tap && !aw ? 'go' : 'ok'}${tap ? ' tap' : ''}${tap && aw ? ' off' : ''}" title="主帅兵法（每局一次）"${tapAttr('art', aw)}>${BF.ART_CN[s]}</span>`);
         // 四面楚歌除了 20 军功还要围住楚将（5×5 内 3 枚汉军子），条件没齐就不亮，并显示还差几枚
         const need = U.simian.minPiecesInRadius, near = s === 'r' ? game.simianCount() : need;
         const ultOk = game.merit[s] >= U.cost && near >= need;
         const ultTxt = used.ult[s] ? '' : game.merit[s] >= U.cost && near < need ? `·将旁${near}/${need}` : '·' + U.cost;
         const ultTip = s === 'r' ? `终极兵法：${U.cost} 军功，且楚将周围两格内（5×5）至少 ${need} 枚汉军棋子` : `终极兵法：${U.cost} 军功`;
-        chips.push(`<span class="${used.ult[s] ? 'used' : ultOk ? 'red' : 'ok'}" title="${ultTip}">${BF.ULT_CN[s]}${ultTxt}</span>`);
+        chips.push(`<span class="${used.ult[s] ? 'used' : tap ? (uw ? 'ok' : 'go') : ultOk ? 'red' : 'ok'}${tap ? ' tap' : ''}${tap && uw ? ' off' : ''}" title="${ultTip}"${tapAttr('ult', uw)}>${BF.ULT_CN[s]}${ultTxt}</span>`);
         if (s === 'r' && fx.hm) chips.push(`<span class="red" title="汉帅不能移动">鸿门宴 ${fx.hm}</span>`);
         if (s === 'b' && fx.sm) chips.push(`<span class="red" title="只能吃子、不能用技能">涣散 ${fx.sm}</span>`);
         if (s === 'b' && fx.pf) chips.push(`<span title="破釜沉舟后不能用兵种技能">封技 ${fx.pf}</span>`);
-        bfm.querySelector('.fxs').innerHTML = chips.join('');
+        const fxs = bfm.querySelector('.fxs'), html = chips.join('');
+        if (fxs.innerHTML !== html) fxs.innerHTML = html;
+        fxs.onclick = e => { const t = e.target.closest('[data-a]'); if (!t) return; e.stopPropagation(); bfButton(t.dataset.a, t); };
       }
     }
     paintClocks();
@@ -310,7 +316,7 @@
   function layoutHud() {
     if ($('hud').classList.contains('hidden')) return;
     const W = innerWidth, H = innerHeight;
-    const compact = W <= 760 || W / H < 0.8;
+    const compact = isCompact();
     document.body.classList.toggle('compact', compact);
     const o = $('cardOpp').getBoundingClientRect(), m = $('cardMe').getBoundingClientRect();
     const st = $('status').style;
@@ -927,6 +933,7 @@
     for (let r = k[1] - R; r <= k[1] + R; r++) for (let f = k[0] - R; f <= k[0] + R; f++) { const p = game.at(f, r); if (p && p.s === 'r') hits.push([f, r]); }
     Board.showZone([Math.max(0, k[0] - R), Math.max(0, k[1] - R)], [Math.min(8, k[0] + R), Math.min(9, k[1] + R)], hits);
   }
+  const isCompact = () => innerWidth <= 760 || innerWidth / innerHeight < 0.8;
   function renderBar() {
     const bar = $('bfBar');
     const show = !!(game && game.bf && mode && started && !ended && !game.result && canAct() && !dbgOn);
@@ -964,12 +971,17 @@
         }
       }
       const side = a.side;
-      const aw = artWhy(side, a), uw = ultWhy(side, a);
-      B.push(btn('art', 'art', !aw, BF.ART_CN[side], aw ? aw[0] : '每局一次', aw ? aw[1] : ''));
-      B.push(btn('ult', 'ult', !uw, BF.ULT_CN[side], uw ? uw[0] : BF.CFG.ultimates.cost + ' 功', uw ? uw[1] : ''));
+      // 手机：主帅兵法 / 终极兵法放在自己卡片上（点卡片上的签发动），技能栏只在选中棋子时出现，不压棋盘
+      if (!isCompact()) {
+        const aw = artWhy(side, a), uw = ultWhy(side, a);
+        B.push(btn('art', 'art', !aw, BF.ART_CN[side], aw ? aw[0] : '每局一次', aw ? aw[1] : ''));
+        B.push(btn('ult', 'ult', !uw, BF.ULT_CN[side], uw ? uw[0] : BF.CFG.ultimates.cost + ' 功', uw ? uw[1] : ''));
+      }
       if (a.pass) B.push(`<button class="sk" data-a="pass">停 着<small>无子可走</small></button>`);
       if (!a.p) hint = `${SIDE_ARMY[side]}行动 · 军功 ${game.merit[side]}`;
+      if (isCompact()) hint = '';
     }
+    if (!B.length) { bar.classList.add('hidden'); $('bfRow').innerHTML = ''; $('bfHint').textContent = ''; layoutHud(); return; }
     $('bfHint').textContent = hint;
     $('bfRow').innerHTML = B.join('');
     $('bfRow').querySelectorAll('button[data-a]').forEach(b => b.onclick = ev => { ev.stopPropagation(); bfButton(b.dataset.a, b); });
