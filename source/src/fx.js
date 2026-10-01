@@ -375,9 +375,11 @@ const Fx = (() => {
   chunkGeos.forEach(g => { g.userData.keep = true; });
   const charredWood = new THREE.MeshStandardMaterial({ color: 0x3a2618, roughness: 0.9 });
   const plankGeo = new THREE.BoxGeometry(0.5, 0.05, 0.1); plankGeo.userData.keep = true;
+  // opts.of：被打碎的那枚子（兵法里升过级的子碎成银、金、玉块，而不是木块）
   function chunks(c, dir, power, n = 12, opts = {}) {
+    const body = opts.of && opts.of.children && opts.of.children[0], skin = body && body.material !== Board.pieceWood ? body.material : null;
     for (let i = 0; i < nn(n); i++) {
-      const o = new THREE.Mesh(opts.planks ? plankGeo : chunkGeos[i % 4], opts.mat || (opts.burnt && i % 2 ? charredWood : Board.pieceWood));
+      const o = new THREE.Mesh(opts.planks ? plankGeo : chunkGeos[i % 4], opts.mat || skin || (opts.burnt && i % 2 ? charredWood : Board.pieceWood));
       o.castShadow = !LOW();
       o.position.copy(c).add(rv(0.3, 0.08, 0.3));
       const s = R(0.6, 1.3) * (opts.small ? 0.6 : 1) * (opts.scale || 1); o.scale.setScalar(s);
@@ -428,7 +430,7 @@ const Fx = (() => {
     if (tgt && tgt.parent) {
       const cc = tgt.position.clone(); cc.y += 0.1;
       removePiece(tgt);
-      chunks(cc, d, t === 'c' ? 1.4 : 0.8, 10, { burnt: t === 'c' });
+      chunks(cc, d, t === 'c' ? 1.4 : 0.8, 10, { burnt: t === 'c', of: tgt });
       flyFace(tgt, cc, d, 0.8, t === 'c');
       P.ink(cc, 10, 0.5, 0.3);
       if (t !== 'c') P.blood(cc, 10, 0.7, d);
@@ -446,7 +448,7 @@ const Fx = (() => {
       for (let i = 0; i < 10; i++) spawn({ pos: A.clone().setY(TOP + 0.3), vel: B.clone().sub(A).multiplyScalar(R(2.6, 3.2)).add(rv(0.3, 1.2, 0.3)), color: 0x3a2a1a, size: 0.05, size2: 0.02, life: 0.35, g: 4 });
       await sleep(0.32);
       Sfx.B.thunks(0, 6); P.ink(B.clone().setY(TOP + 0.15), 8, 0.4, 0.3);
-      if (tgt && !c.survive) { const cc = tgt.position.clone(); removePiece(tgt); chunks(cc, d, 0.6, 8); flyFace(tgt, cc, d, 0.6, false); P.blood(cc, 10, 0.7, d); }
+      if (tgt && !c.survive) { const cc = tgt.position.clone(); removePiece(tgt); chunks(cc, d, 0.6, 8, { of: tgt }); flyFace(tgt, cc, d, 0.6, false); P.blood(cc, 10, 0.7, d); }
       else if (tgt) { P.blood(B.clone().setY(TOP + 0.2), 8, 0.5, d); await tween(0.25, k => { tgt.position.copy(B).addScaledVector(d, Math.sin(k * Math.PI) * 0.12); }); }
       return;
     }
@@ -455,7 +457,7 @@ const Fx = (() => {
     await tween(0.3, k => { m.position.lerpVectors(A, mid, k); m.position.y = TOP + Math.sin(k * Math.PI) * 0.35; }, ease.in);
     Sfx.place(); Cam.shake(0.08); su.impact && su.impact();
     if (c.counter) { Sfx.B.stab(0, 0.5); P.blood(m.position.clone().setY(TOP + 0.2), 10, 0.6, d.clone().negate()); P.wood(mid, 6, d.clone().negate(), 0.5); }
-    if (c.counter === 'die') { const cc = m.position.clone(); chunks(cc, d.clone().negate(), 0.7, 8); flyFace(m, cc, d.clone().negate(), 0.6, false); m.visible = false; return; }
+    if (c.counter === 'die') { const cc = m.position.clone(); chunks(cc, d.clone().negate(), 0.7, 8, { of: m }); flyFace(m, cc, d.clone().negate(), 0.6, false); m.visible = false; return; }
     if (c.survive) {
       if (tgt) { P.blood(B.clone().setY(TOP + 0.2), 10, 0.6, d); P.sparks(B.clone().setY(TOP + 0.25), 8); await tween(0.2, k => { tgt.position.copy(B).addScaledVector(d, Math.sin(k * Math.PI) * 0.12); }); }
       await tween(0.32, k => { m.position.lerpVectors(mid, A, k); m.position.y = TOP + Math.sin(k * Math.PI) * 0.2; }, ease.out);
@@ -464,7 +466,7 @@ const Fx = (() => {
     }
     // 拒马之后余血吃下
     await tween(0.2, k => { m.position.lerpVectors(mid, B, k); });
-    if (tgt && tgt.parent) { const cc = tgt.position.clone(); removePiece(tgt); chunks(cc, d, 0.8, 10); flyFace(tgt, cc, d, 0.8, false); P.blood(cc, 10, 0.7, d); }
+    if (tgt && tgt.parent) { const cc = tgt.position.clone(); removePiece(tgt); chunks(cc, d, 0.8, 10, { of: tgt }); flyFace(tgt, cc, d, 0.8, false); P.blood(cc, 10, 0.7, d); }
   }
   async function lowMove(c) {
     const { A, B, m, info } = c;

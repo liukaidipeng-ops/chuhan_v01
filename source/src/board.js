@@ -637,167 +637,363 @@ const Board = (() => {
     t.userData = { w: W / S, h: H / S }; hpTexCache.set(key, t);
     return t;
   }
-  // ---------- 棋身按等级换装：一级木 · 二级「乌银错花」· 三级「錾金」· 四级「羊脂白玉 · 金缕」 ----------
-  // 金属要有真实反光，先做一张影棚环境光（顶部大柔光箱、左暖右冷两盏侧光、暗暖色地面）
+  // ---------- 棋身按等级换装：一级木 · 二级「乌银错花」· 三级「錾金」· 四级「羊脂白玉 · 金丝嵌」 ----------
+  // 金属与玉要有真实反光：先做一张 HDR 影棚环境光（四面对称，换边、转视角都一样好看）
+  //   天顶大柔光箱；四盏斜上方柔光箱（顶面映出大片渐变高光）；一圈竖条灯（侧壁上的竖向高光）；暗暖底（金属有深浅对比）
   let envTex = null, skins = null;
+  const LOWQ = () => Core.quality === 'low';
   function studioEnv() {
+    const W = 512, H = 256, lin = new Float32Array(W * H * 3);
+    const sm = (a, b, x) => { const t = Math.min(1, Math.max(0, (x - a) / (b - a))); return t * t * (3 - 2 * t); };
+    for (let j = 0; j < H; j++) {
+      const de = ((j + 0.5) / H - 0.5) * 180; // 仰角（度）；j = 0 是正下方（与 three 的 equirect 取样一致）
+      for (let x = 0; x < W; x++) {
+        const ph = ((x + 0.5) / W - 0.5) * 360; // 方位（度）：红方视角顶面映 -90°，黑方 +90°
+        let r, g, b;
+        if (de >= 0) { const k = de / 90; r = 0.13 + 0.12 * k; g = 0.12 + 0.11 * k; b = 0.11 + 0.1 * k; }
+        else { const k = Math.min(1, -de / 45); r = 0.19 - 0.15 * k; g = 0.145 - 0.115 * k; b = 0.1 - 0.078 * k; }
+        const z = sm(64, 72, de); r += 3.0 * z; g += 2.95 * z; b += 2.8 * z;
+        // 斜上方四盏柔光箱（每 90° 一盏），上亮下暗
+        const pm = ((ph % 90) + 90) % 90, dAz = Math.min(pm, 90 - pm);
+        const box = (1 - sm(18, 26, dAz)) * sm(25, 32, de) * (1 - sm(58, 64, de));
+        if (box > 0) { const k = box * (1.4 + 3.8 * sm(28, 60, de)); r += k; g += k * 0.975; b += k * 0.93; }
+        // 侧壁竖条灯（方位 45° + 90°·n），冷暖相间
+        const qm = (((ph - 45) % 90) + 90) % 90, dq = Math.min(qm, 90 - qm);
+        const strip = (1 - sm(3.5, 7, dq)) * sm(-80, -72, de) * (1 - sm(-14, -7, de));
+        if (strip > 0) { const warm = ((Math.round((ph - 45) / 90) % 2) + 2) % 2 === 0, k = strip * 5.2; r += k * (warm ? 1 : 0.84); g += k * 0.93; b += k * (warm ? 0.8 : 1); }
+        const i = (j * W + x) * 3; lin[i] = r; lin[i + 1] = g; lin[i + 2] = b;
+      }
+    }
+    const pmrem = tex => { const pm = new THREE.PMREMGenerator(Core.renderer); const t = pm.fromEquirectangular(tex).texture; pm.dispose(); tex.dispose(); return t; };
     try {
-      const eq = canvasTex(1024, 512, (g, w, h) => {
-        // 按本游戏的镜头算过：棋子顶面主要映出 (0.25w, 0.15~0.32h) 一带，侧壁映出 (0.75w, 0.6~0.8h) 一带
-        const bg = g.createLinearGradient(0, 0, 0, h);
-        [[0, '#cfc1a8'], [0.1, '#efe4d0'], [0.19, '#fff9ee'], [0.3, '#bca88a'], [0.42, '#7e6a4e'], [0.5, '#efdfc0'], [0.58, '#a88a64'], [0.72, '#d4b88c'], [0.86, '#9c7c56'], [1, '#4a3828']].forEach(([k, c]) => bg.addColorStop(k, c));
-        g.fillStyle = bg; g.fillRect(0, 0, w, h);
-        const box = (x, y, bw, bh, col, soft) => { for (let i = soft; i >= 0; i--) { g.globalAlpha = i === 0 ? 1 : 0.06; g.fillStyle = col; g.fillRect(x - i * 3, y - i * 3, bw + i * 6, bh + i * 6); } g.globalAlpha = 1; };
-        // 顶面映出的大柔光箱，被几道暗缝分成格
-        box(w * 0.09, h * 0.12, w * 0.32, h * 0.15, '#ffffff', 10);
-        g.fillStyle = 'rgba(60,46,32,.75)';
-        g.fillRect(w * 0.19, h * 0.1, w * 0.012, h * 0.2); g.fillRect(w * 0.3, h * 0.1, w * 0.012, h * 0.2); g.fillRect(w * 0.06, h * 0.195, w * 0.4, h * 0.01);
-        // 冷暖两盏侧光
-        const glow = (x, y, r, col) => { const gr = g.createRadialGradient(x, y, 0, x, y, r); gr.addColorStop(0, col); gr.addColorStop(1, 'rgba(255,255,255,0)'); g.fillStyle = gr; g.fillRect(x - r, y - r, r * 2, r * 2); };
-        glow(w * 0.04, h * 0.33, h * 0.12, 'rgba(255,205,140,.95)'); glow(w * 0.47, h * 0.32, h * 0.1, 'rgba(205,224,255,.9)');
-        // 侧壁映出的亮带（棋盘的反光）与暗缝
-        box(w * 0.55, h * 0.63, w * 0.4, h * 0.05, '#fff4dc', 8);
-        g.fillStyle = 'rgba(50,36,24,.6)'; g.fillRect(w * 0.55, h * 0.71, w * 0.4, h * 0.012);
-        glow(w * 0.75, h * 0.66, h * 0.08, 'rgba(255,250,235,.8)');
-      });
-      eq.mapping = THREE.EquirectangularReflectionMapping;
-      const pm = new THREE.PMREMGenerator(Core.renderer);
-      const t = pm.fromEquirectangular(eq).texture; pm.dispose(); eq.dispose();
-      return t;
-    } catch (e) { return null; }
+      const toH = THREE.DataUtils.toHalfFloat, data = new Uint16Array(W * H * 4);
+      for (let i = 0; i < W * H; i++) { data[i * 4] = toH(lin[i * 3]); data[i * 4 + 1] = toH(lin[i * 3 + 1]); data[i * 4 + 2] = toH(lin[i * 3 + 2]); data[i * 4 + 3] = toH(1); }
+      const tex = new THREE.DataTexture(data, W, H, THREE.RGBAFormat, THREE.HalfFloatType);
+      tex.mapping = THREE.EquirectangularReflectionMapping; tex.colorSpace = THREE.LinearSRGBColorSpace;
+      tex.minFilter = tex.magFilter = THREE.LinearFilter; tex.generateMipmaps = false; tex.needsUpdate = true;
+      return pmrem(tex);
+    } catch (e) {
+      // 设备不支持半浮点贴图：退回普通贴图（高光弱一些）
+      try {
+        const c = mkCanvas(W, H, g => {
+          const im = g.createImageData(W, H), d = im.data;
+          for (let y = 0; y < H; y++) for (let x = 0; x < W; x++) { const s = ((H - 1 - y) * W + x) * 3, o = (y * W + x) * 4; for (let k = 0; k < 3; k++) { const v = lin[s + k]; d[o + k] = 255 * Math.min(1, Math.pow(Math.min(1, v / (1 + v) * 1.6), 1 / 2.2)); } d[o + 3] = 255; }
+          g.putImageData(im, 0, 0);
+        });
+        const tex = new THREE.CanvasTexture(c); tex.colorSpace = THREE.SRGBColorSpace; tex.mapping = THREE.EquirectangularReflectionMapping;
+        return pmrem(tex);
+      } catch (e2) { console.warn('studioEnv', e2); return null; }
+    }
   }
-  // 纹样带（绕棋身侧壁一圈）：u 绕圈，v 自下而上；回纹、云雷纹、金缕网格
-  function bandTex(kind) {
-    const W = 2048, H = 128;
-    return canvasTex(W, H, (g) => {
-      if (kind === 'lattice') {
-        // 金缕：菱形金丝网 + 交点金珠 + 上下口沿（透明度贴图：白 = 金丝）
-        g.fillStyle = '#000'; g.fillRect(0, 0, W, H);
-        g.strokeStyle = '#fff'; g.lineWidth = 5; g.lineCap = 'round';
-        const n = 24, cw = W / n;
-        for (let i = 0; i <= n; i++) {
-          const x = i * cw;
-          g.beginPath(); g.moveTo(x, 16); g.lineTo(x + cw / 2, H / 2); g.lineTo(x, H - 16); g.stroke();
-          g.beginPath(); g.moveTo(x + cw, 16); g.lineTo(x + cw / 2, H / 2); g.lineTo(x + cw, H - 16); g.stroke();
-        }
-        g.fillStyle = '#fff';
-        for (let i = 0; i <= n; i++) { const x = i * cw; for (const [px, py, r] of [[x + cw / 2, H / 2, 9], [x, 16, 7], [x, H - 16, 7]]) { g.beginPath(); g.arc(px, py, r, 0, 7); g.fill(); } }
-        g.fillRect(0, 0, W, 9); g.fillRect(0, H - 9, W, 9);
-        return;
-      }
-      // 金属底（白 = 本色），纹样压暗（乌银 / 錾刻凹槽）
-      g.fillStyle = '#fff'; g.fillRect(0, 0, W, H);
-      const ink = kind === 'meander' ? '#26282e' : '#5a3a0e';
-      g.strokeStyle = ink; g.fillStyle = ink; g.lineCap = 'square'; g.lineJoin = 'miter';
-      // 上下双线
-      g.fillRect(0, 10, W, 5); g.fillRect(0, 21, W, 2); g.fillRect(0, H - 15, W, 5); g.fillRect(0, H - 23, W, 2);
-      if (kind === 'meander') {
-        // 回纹：连续方折
-        const n = 26, cw = W / n, top = 34, bot = H - 34, hh = bot - top;
-        g.lineWidth = 7;
-        for (let i = 0; i < n; i++) {
-          const x = i * cw + 8, s = cw - 16;
-          g.beginPath();
-          g.moveTo(x, bot); g.lineTo(x, top); g.lineTo(x + s, top); g.lineTo(x + s, bot - hh * 0.25); g.lineTo(x + s * 0.28, bot - hh * 0.25); g.lineTo(x + s * 0.28, top + hh * 0.28); g.lineTo(x + s * 0.7, top + hh * 0.28); g.lineTo(x + s * 0.7, top + hh * 0.52);
-          g.stroke();
-          g.beginPath(); g.moveTo(x, bot); g.lineTo(x + cw, bot); g.stroke();
-        }
-      } else {
-        // 云雷纹：方折雷纹与卷云相间
-        const n = 20, cw = W / n, cy = H / 2;
-        g.lineWidth = 6;
-        for (let i = 0; i < n; i++) {
-          const x = i * cw + cw / 2;
-          if (i % 2) {
-            g.beginPath(); let r = 26; g.moveTo(x - r, cy - r);
-            for (let k = 0; k < 4; k++) { g.lineTo(x + r, cy - r); g.lineTo(x + r, cy + r); g.lineTo(x - r + 8, cy + r); g.lineTo(x - r + 8, cy - r + 8); r -= 8; }
-            g.stroke();
-          } else {
-            for (const sgn of [-1, 1]) { g.beginPath(); for (let a = 0; a < Math.PI * 3.2; a += 0.12) { const rr = 4 + a * 4.2; g.lineTo(x + sgn * 12 + Math.cos(a * sgn) * rr * 0.9, cy + Math.sin(a) * rr * 0.75); } g.stroke(); }
-          }
-        }
-      }
-      // 錾刻的高光边（让纹样有立体感）
-      g.globalAlpha = 0.25; g.fillStyle = '#fff'; g.fillRect(0, 16, W, 2); g.fillRect(0, H - 10, W, 2); g.globalAlpha = 1;
-    }, {});
+  // ---- 贴图工具：数据贴图（法线、粗糙度/金属度）不做颜色空间转换；环绕侧壁的纹样带横向平铺 ----
+  function dataTex(c, wrap) {
+    const t = new THREE.CanvasTexture(c); t.colorSpace = THREE.NoColorSpace; t.anisotropy = 8;
+    if (wrap) t.wrapS = THREE.RepeatWrapping;
+    return t;
   }
-  // 顶面：平面贴图，叠在棋身顶盖与字面之间。金属：拉丝同心圈 + 边缘一圈錾刻纹（乌银回纹 / 金联珠）；白玉：暖白云絮
-  function topTex(kind) {
-    return canvasTex(512, 512, (g, w) => {
-      const c = w / 2;
-      if (kind === 'jade') {
-        const gr = g.createRadialGradient(c * 0.82, c * 0.78, 10, c, c, c);
-        gr.addColorStop(0, '#fffef9'); gr.addColorStop(0.5, '#faf4e6'); gr.addColorStop(0.85, '#efe5cc'); gr.addColorStop(1, '#ddcfae');
-        g.fillStyle = gr; g.fillRect(0, 0, w, w);
-        for (let i = 0; i < 70; i++) { g.globalAlpha = 0.05 + rnd() * 0.08; g.fillStyle = rnd() < 0.7 ? '#ffffff' : '#e5d2a2'; g.beginPath(); g.ellipse(rnd() * w, rnd() * w, 14 + rnd() * 70, 6 + rnd() * 26, rnd() * 3, 0, 7); g.fill(); }
-        g.globalAlpha = 0.1; g.strokeStyle = '#d6c08c'; g.lineWidth = 1.4;
-        for (let i = 0; i < 5; i++) { g.beginPath(); let x = rnd() * w, y = rnd() * w; g.moveTo(x, y); for (let k = 0; k < 7; k++) { x += (rnd() - 0.5) * 70; y += (rnd() - 0.5) * 70; g.quadraticCurveTo(x + (rnd() - 0.5) * 30, y + (rnd() - 0.5) * 30, x, y); } g.stroke(); }
-        g.globalAlpha = 1;
-        return;
+  function sTex(c, wrap) { const t = new THREE.CanvasTexture(c); t.colorSpace = THREE.SRGBColorSpace; t.anisotropy = 8; if (wrap) t.wrapS = THREE.RepeatWrapping; return t; }
+  const mkCanvas = (w, h, draw) => { const c = document.createElement('canvas'); c.width = w; c.height = h; const g = c.getContext('2d'); draw(g, w, h); return c; };
+  // 高度图 → 法线贴图（横向环绕；k = 起伏强度）
+  function normalFrom(hc, k, wrapX) {
+    const w = hc.width, h = hc.height, src = hc.getContext('2d').getImageData(0, 0, w, h).data;
+    return mkCanvas(w, h, g => {
+      const im = g.createImageData(w, h), d = im.data;
+      const H = (x, y) => { if (wrapX) x = (x + w) % w; else x = Math.max(0, Math.min(w - 1, x)); y = Math.max(0, Math.min(h - 1, y)); return src[(y * w + x) * 4] / 255; };
+      for (let y = 0; y < h; y++) for (let x = 0; x < w; x++) {
+        let nx = -(H(x + 1, y) - H(x - 1, y)) * k, ny = (H(x, y + 1) - H(x, y - 1)) * k, nz = 1;
+        const l = Math.hypot(nx, ny, nz), i = (y * w + x) * 4;
+        d[i] = (nx / l * 0.5 + 0.5) * 255; d[i + 1] = (ny / l * 0.5 + 0.5) * 255; d[i + 2] = (nz / l * 0.5 + 0.5) * 255; d[i + 3] = 255;
       }
-      if (kind === 'brushed') {
-        // 粗糙度贴图：同心细圈，深浅交错（亮 = 粗、暗 = 光）
-        g.fillStyle = '#6e6e6e'; g.fillRect(0, 0, w, w);
-        for (let r = 2; r < c; r += 1.6) { const v = 80 + rnd() * 80; g.strokeStyle = `rgb(${v},${v},${v})`; g.lineWidth = 1.2; g.beginPath(); g.arc(c, c, r, 0, 7); g.stroke(); }
-        return;
-      }
-      // 颜色贴图（乘在金属本色上）：近白的同心拉丝 + 外圈渐暗（有厚度感）+ 边缘錾刻
-      g.fillStyle = '#f4f4f4'; g.fillRect(0, 0, w, w);
-      for (let r = 2; r < c; r += 2.2) { const v = 214 + rnd() * 41; g.strokeStyle = `rgb(${v},${v},${v})`; g.lineWidth = 1.4; g.beginPath(); g.arc(c, c, r, 0, 7); g.stroke(); }
-      const vg = g.createRadialGradient(c * 0.85, c * 0.82, c * 0.2, c, c, c); vg.addColorStop(0, 'rgba(255,255,255,0)'); vg.addColorStop(0.7, 'rgba(0,0,0,0)'); vg.addColorStop(1, 'rgba(0,0,0,.22)');
-      g.fillStyle = vg; g.fillRect(0, 0, w, w);
-      const R0 = c * 0.935, R1 = c * 0.995, ink = kind === 'silver' ? '#2a2c32' : '#6b4510';
-      g.strokeStyle = ink; g.lineWidth = 3; g.beginPath(); g.arc(c, c, R0, 0, 7); g.stroke(); g.beginPath(); g.arc(c, c, R1 - 2, 0, 7); g.stroke();
-      if (kind === 'silver') {
-        // 乌银回纹一圈
-        const n = 36; g.lineWidth = 3.2; g.lineJoin = 'miter';
-        for (let i = 0; i < n; i++) {
-          const a0 = i / n * Math.PI * 2, a1 = (i + 0.82) / n * Math.PI * 2, rr = [R0 + 4, R1 - 6], P = (a, r) => [c + Math.cos(a) * r, c + Math.sin(a) * r];
-          const am = (a0 + a1) / 2, rm = (rr[0] + rr[1]) / 2;
-          g.beginPath(); g.moveTo(...P(a0, rr[0])); g.lineTo(...P(a0, rr[1])); g.lineTo(...P(a1, rr[1])); g.lineTo(...P(a1, rm)); g.lineTo(...P(am, rm)); g.stroke();
-        }
-      } else {
-        // 金联珠一圈
-        const n = 54; g.fillStyle = ink;
-        for (let i = 0; i < n; i++) { const a = i / n * Math.PI * 2, r = (R0 + R1) / 2 - 1; g.beginPath(); g.arc(c + Math.cos(a) * r, c + Math.sin(a) * r, 4.2, 0, 7); g.fill(); g.fillStyle = 'rgba(255,255,255,.7)'; g.beginPath(); g.arc(c + Math.cos(a) * r - 1.2, c + Math.sin(a) * r - 1.2, 1.4, 0, 7); g.fill(); g.fillStyle = ink; }
-      }
+      g.putImageData(im, 0, 0);
     });
   }
-  function sideJadeTex() {
-    return canvasTex(1024, 256, (g, w, h) => {
-      const gr = g.createLinearGradient(0, 0, 0, h); gr.addColorStop(0, '#efe5cc'); gr.addColorStop(0.5, '#f8f3e6'); gr.addColorStop(1, '#e6d9b8');
-      g.fillStyle = gr; g.fillRect(0, 0, w, h);
-      for (let i = 0; i < 60; i++) { g.globalAlpha = 0.05 + rnd() * 0.08; g.fillStyle = rnd() < 0.7 ? '#ffffff' : '#dcc690'; g.beginPath(); g.ellipse(rnd() * w, rnd() * h, 20 + rnd() * 80, 4 + rnd() * 14, (rnd() - 0.5) * 0.4, 0, 7); g.fill(); }
+  const blurred = (c, px) => mkCanvas(c.width, c.height, g => { g.filter = `blur(${px}px)`; g.drawImage(c, 0, 0); g.filter = 'none'; });
+  // 旋压（车床）拉丝的各向异性方向：沿同心圆切向
+  function spunAniso(n) {
+    return mkCanvas(n, n, g => {
+      const im = g.createImageData(n, n), d = im.data, c = n / 2;
+      for (let y = 0; y < n; y++) for (let x = 0; x < n; x++) {
+        const du = x + 0.5 - c, dv = -(y + 0.5 - c), l = Math.hypot(du, dv) || 1, i = (y * n + x) * 4, q = Math.min(1, Math.max(0, (l / c - 0.04) / 0.22));
+        d[i] = (-dv / l * 0.5 + 0.5) * 255; d[i + 1] = (du / l * 0.5 + 0.5) * 255; d[i + 2] = 255 * (0.06 + 0.94 * q * q * (3 - 2 * q)); d[i + 3] = 255;
+      }
+      g.putImageData(im, 0, 0);
+    });
+  }
+  // ---- 侧壁纹样（u 绕一圈，v 自下而上；画布上方 = 棋身上方） ----
+  const BW = 2048, BH = 128;
+  // 回纹（乌银错花用）：路径画在 g 上
+  function meanderPath(g, top, bot, n) {
+    const cw = BW / n, hh = bot - top;
+    for (let i = 0; i < n; i++) {
+      const x = i * cw + cw * 0.08, s = cw * 0.84;
+      g.beginPath();
+      g.moveTo(x, bot); g.lineTo(x, top); g.lineTo(x + s, top); g.lineTo(x + s, bot - hh * 0.26); g.lineTo(x + s * 0.3, bot - hh * 0.26);
+      g.lineTo(x + s * 0.3, top + hh * 0.3); g.lineTo(x + s * 0.68, top + hh * 0.3); g.lineTo(x + s * 0.68, top + hh * 0.55);
+      g.stroke();
+      g.beginPath(); g.moveTo(x, bot); g.lineTo(x + cw, bot); g.stroke();
+    }
+  }
+  // 云雷纹 + 卷云（錾金用）：画成填充图形（高度图的凸起）
+  function cloudThunder(g, cy, n, lw) {
+    const cw = BW / n;
+    g.lineWidth = lw; g.lineCap = 'round'; g.lineJoin = 'round';
+    for (let i = 0; i < n; i++) {
+      const x = i * cw + cw / 2;
+      if (i % 2) {
+        let r = 25; g.beginPath(); g.moveTo(x - r, cy - r);
+        for (let k = 0; k < 3; k++) { g.lineTo(x + r, cy - r); g.lineTo(x + r, cy + r); g.lineTo(x - r + 8, cy + r); g.lineTo(x - r + 8, cy - r + 8); r -= 8; }
+        g.stroke();
+      } else {
+        for (const sgn of [-1, 1]) { g.beginPath(); for (let a = 0; a < Math.PI * 3.1; a += 0.1) { const rr = 3 + a * 4.4; g.lineTo(x + sgn * 13 + Math.cos(a * sgn) * rr * 0.92, cy + Math.sin(a) * rr * 0.78); } g.stroke(); }
+      }
+    }
+  }
+  // 卷草（金丝嵌玉用）：一条波状主蔓，上下交替卷须与叶
+  function scrollPath(g, n, lw) {
+    const cw = BW / n, cy = BH / 2, amp = BH * 0.16;
+    g.lineCap = 'round'; g.lineJoin = 'round';
+    g.lineWidth = lw; g.beginPath();
+    for (let x = 0; x <= BW; x += 4) g.lineTo(x, cy + Math.sin(x / cw * Math.PI * 2) * amp);
+    g.stroke();
+    g.lineWidth = lw * 0.75;
+    for (let i = 0; i < n * 2; i++) {
+      const up = i % 2 === 0, x0 = (i + 0.5) * cw / 2, y0 = cy + Math.sin(x0 / cw * Math.PI * 2) * amp, s = up ? -1 : 1;
+      // 卷须：从主蔓甩出、向内盘一圈半
+      g.beginPath(); g.moveTo(x0, y0);
+      const cx = x0 + cw * 0.17, ccy = y0 + s * BH * 0.2;
+      for (let a = 0; a < Math.PI * 2.6; a += 0.12) { const rr = BH * 0.15 * (1 - a / (Math.PI * 3.1)); g.lineTo(cx + Math.cos(Math.PI + a) * rr, ccy + s * Math.sin(Math.PI + a) * rr * 0.92); }
+      g.stroke();
+      // 小叶
+      const lx = x0 - cw * 0.1, ly = y0 + s * BH * 0.04;
+      g.beginPath(); g.ellipse(lx, ly + s * BH * 0.1, BH * 0.05, BH * 0.11, s * 0.5, 0, 7); g.fill();
+    }
+  }
+  function silverBand() {
+    const col = sTex(mkCanvas(BW, BH, g => {
+      g.fillStyle = '#ffffff'; g.fillRect(0, 0, BW, BH);
+      g.fillStyle = '#1b1c21'; g.strokeStyle = '#1b1c21';
+      g.fillRect(0, 12, BW, 6); g.fillRect(0, BH - 18, BW, 6);
+      g.lineWidth = 8; g.lineCap = 'square'; g.lineJoin = 'miter'; meanderPath(g, 34, BH - 34, 28);
+    }), true);
+    const orm = dataTex(mkCanvas(BW, BH, g => {
+      g.fillStyle = 'rgb(255,32,255)'; g.fillRect(0, 0, BW, BH);
+      for (let i = 0; i < 400; i++) { g.fillStyle = `rgba(255,${20 + rnd() * 34},255,.5)`; g.fillRect(0, rnd() * BH, BW, 1); }
+      g.fillStyle = g.strokeStyle = 'rgb(255,110,90)';
+      g.fillRect(0, 12, BW, 6); g.fillRect(0, BH - 18, BW, 6);
+      g.lineWidth = 8; g.lineCap = 'square'; g.lineJoin = 'miter'; meanderPath(g, 34, BH - 34, 28);
+    }), true);
+    const hc = mkCanvas(BW, BH, g => { g.fillStyle = '#fff'; g.fillRect(0, 0, BW, BH); g.fillStyle = g.strokeStyle = '#8a8a8a'; g.fillRect(0, 12, BW, 6); g.fillRect(0, BH - 18, BW, 6); g.lineWidth = 8; g.lineCap = 'square'; meanderPath(g, 34, BH - 34, 28); });
+    return { map: col, orm, normal: dataTex(normalFrom(blurred(hc, 1.2), 2.2, true), true) };
+  }
+  function goldBand() {
+    // 鱼子地（细密圆点錾出的哑光底）上起凸云雷纹，纹样抛光、底子哑光
+    const hc = mkCanvas(BW, BH, g => {
+      g.fillStyle = '#4a4a4a'; g.fillRect(0, 0, BW, BH);
+      for (let i = 0; i < 5200; i++) { const x = rnd() * BW, y = 20 + rnd() * (BH - 40); g.fillStyle = 'rgba(20,20,20,.9)'; g.beginPath(); g.arc(x, y, 2.1, 0, 7); g.fill(); g.fillStyle = 'rgba(120,120,120,.6)'; g.beginPath(); g.arc(x - 0.6, y - 0.6, 0.9, 0, 7); g.fill(); }
+      g.fillStyle = '#ffffff'; g.fillRect(0, 0, BW, 16); g.fillRect(0, BH - 16, BW, 16);
+      g.fillStyle = '#4a4a4a'; g.fillRect(0, 16, BW, 3); g.fillRect(0, BH - 19, BW, 3);
+      g.strokeStyle = '#ffffff'; cloudThunder(g, BH / 2, 22, 8);
+    });
+    const mask = mkCanvas(BW, BH, g => { g.fillStyle = '#000'; g.fillRect(0, 0, BW, BH); g.fillStyle = '#fff'; g.fillRect(0, 0, BW, 16); g.fillRect(0, BH - 16, BW, 16); g.strokeStyle = '#fff'; cloudThunder(g, BH / 2, 22, 8); });
+    const mk = mask.getContext('2d').getImageData(0, 0, BW, BH).data;
+    const col = sTex(mkCanvas(BW, BH, g => {
+      const im = g.createImageData(BW, BH), d = im.data;
+      for (let i = 0; i < BW * BH; i++) { const m = mk[i * 4] / 255, v = 255 * (0.74 + 0.26 * m); d[i * 4] = v; d[i * 4 + 1] = v * (0.96 + 0.04 * m); d[i * 4 + 2] = v * (0.9 + 0.1 * m); d[i * 4 + 3] = 255; }
+      g.putImageData(im, 0, 0);
+    }), true);
+    const orm = dataTex(mkCanvas(BW, BH, g => {
+      const im = g.createImageData(BW, BH), d = im.data;
+      for (let i = 0; i < BW * BH; i++) { const m = mk[i * 4] / 255; d[i * 4] = 255; d[i * 4 + 1] = 255 * (0.52 - 0.4 * m); d[i * 4 + 2] = 255; d[i * 4 + 3] = 255; }
+      g.putImageData(im, 0, 0);
+    }), true);
+    return { map: col, orm, normal: dataTex(normalFrom(blurred(hc, 1.4), 3.2, true), true) };
+  }
+  function jadeBand() {
+    // 金丝嵌玉：上下两道金线 + 卷草；alpha 为金丝，其余透出玉身
+    const draw = (g, c) => { g.fillStyle = g.strokeStyle = c; g.fillRect(0, 8, BW, 7); g.fillRect(0, BH - 15, BW, 7); scrollPath(g, 9, 9); };
+    const alpha = dataTex(mkCanvas(BW, BH, g => { g.fillStyle = '#000'; g.fillRect(0, 0, BW, BH); draw(g, '#fff'); }), true);
+    const hc = mkCanvas(BW, BH, g => { g.fillStyle = '#000'; g.fillRect(0, 0, BW, BH); draw(g, '#fff'); });
+    return { alpha, normal: dataTex(normalFrom(blurred(hc, 2.2), 4.5, true), true) };
+  }
+  // ---- 顶面（叠在棋身顶盖与字之间） ----
+  const TN = 512;
+  function topSet(kind) {
+    const c = TN / 2, R0 = c * 0.9, R1 = c * 0.985;
+    const silver = kind === 'silver';
+    // 高度：外圈錾刻（乌银：凹槽里嵌乌银；金：一圈联珠凸起）
+    const hc = mkCanvas(TN, TN, g => {
+      g.fillStyle = '#808080'; g.fillRect(0, 0, TN, TN);
+      for (let r = 3; r < R0 - 6; r += 1.7) { const v = 118 + rnd() * 20; g.strokeStyle = `rgb(${v},${v},${v})`; g.lineWidth = 1; g.beginPath(); g.arc(c, c, r, 0, 7); g.stroke(); }
+      g.strokeStyle = '#3a3a3a'; g.lineWidth = 3; g.beginPath(); g.arc(c, c, R0 - 3, 0, 7); g.stroke();
+      if (silver) { g.lineWidth = 5; g.strokeStyle = '#5a5a5a'; meanderRing(g, c, R0 + 2, R1 - 3, 40); }
+      else for (let i = 0; i < 60; i++) { const a = i / 60 * Math.PI * 2, r = (R0 + R1) / 2; const gr = g.createRadialGradient(c + Math.cos(a) * r - 1.5, c + Math.sin(a) * r - 1.5, 0, c + Math.cos(a) * r, c + Math.sin(a) * r, 6.5); gr.addColorStop(0, '#ffffff'); gr.addColorStop(1, '#808080'); g.fillStyle = gr; g.beginPath(); g.arc(c + Math.cos(a) * r, c + Math.sin(a) * r, 6.5, 0, 7); g.fill(); }
+    });
+    const map = sTex(mkCanvas(TN, TN, g => {
+      g.fillStyle = '#ffffff'; g.fillRect(0, 0, TN, TN);
+      const vg = g.createRadialGradient(c * 0.85, c * 0.82, c * 0.2, c, c, c); vg.addColorStop(0, 'rgba(255,255,255,0)'); vg.addColorStop(0.75, 'rgba(0,0,0,0)'); vg.addColorStop(1, 'rgba(0,0,0,.18)');
+      g.fillStyle = vg; g.fillRect(0, 0, TN, TN);
+      if (silver) { g.strokeStyle = '#1b1c21'; g.lineWidth = 5; meanderRing(g, c, R0 + 2, R1 - 3, 40); g.lineWidth = 3; g.beginPath(); g.arc(c, c, R0 - 3, 0, 7); g.stroke(); }
+      else { g.strokeStyle = 'rgba(120,80,20,.55)'; g.lineWidth = 3; g.beginPath(); g.arc(c, c, R0 - 3, 0, 7); g.stroke(); }
+    }));
+    const orm = dataTex(mkCanvas(TN, TN, g => {
+      g.fillStyle = silver ? 'rgb(255,40,255)' : 'rgb(255,36,255)'; g.fillRect(0, 0, TN, TN);
+      for (let r = 3; r < R0; r += 2.3) { g.strokeStyle = `rgba(255,${24 + rnd() * 34},255,.7)`; g.lineWidth = 1.2; g.beginPath(); g.arc(c, c, r, 0, 7); g.stroke(); }
+      if (silver) { g.strokeStyle = 'rgb(255,110,90)'; g.lineWidth = 5; meanderRing(g, c, R0 + 2, R1 - 3, 40); }
+      else { g.fillStyle = 'rgb(255,120,255)'; g.beginPath(); g.arc(c, c, R1, 0, 7); g.arc(c, c, R0, 0, 7, true); g.fill(); for (let i = 0; i < 60; i++) { const a = i / 60 * Math.PI * 2, r = (R0 + R1) / 2; g.fillStyle = 'rgb(255,22,255)'; g.beginPath(); g.arc(c + Math.cos(a) * r, c + Math.sin(a) * r, 6, 0, 7); g.fill(); } }
+    }));
+    const aniso = dataTex(spunAniso(256)); aniso.minFilter = aniso.magFilter = THREE.NearestFilter; aniso.generateMipmaps = false;
+    return { map, orm, normal: dataTex(normalFrom(blurred(hc, 0.8), silver ? 1.6 : 3, false)), aniso };
+  }
+  function meanderRing(g, c, r0, r1, n) {
+    g.lineJoin = 'miter'; g.lineCap = 'square';
+    const P = (a, r) => [c + Math.cos(a) * r, c + Math.sin(a) * r];
+    for (let i = 0; i < n; i++) {
+      const a0 = i / n * Math.PI * 2, a1 = (i + 0.8) / n * Math.PI * 2, am = (a0 + a1) / 2, rm = (r0 + r1) / 2;
+      g.beginPath(); g.moveTo(...P(a0, r0)); g.lineTo(...P(a0, r1)); g.lineTo(...P(a1, r1)); g.lineTo(...P(a1, rm)); g.lineTo(...P(am, rm)); g.stroke();
+    }
+  }
+  // 羊脂白玉：暖白底、中心略亮；几团顺着同一走向的“棉絮”；细密的毡状结构（每枚子的棉絮走向不同）
+  function jadeTopTex(v) {
+    return sTex(mkCanvas(TN, TN, g => {
+      const c = TN / 2;
+      const gr = g.createRadialGradient(c * (0.78 + 0.08 * v), c * 0.8, 10, c, c, c);
+      const W3 = [['#fffaf1', '#f6ecd9', '#ecdfc3', '#dccaa4'], ['#fffcf6', '#f8f1e3', '#eee5d0', '#dfd2b4'], ['#fff8ec', '#f5e9d2', '#eadbbb', '#d9c59c']][v];
+      gr.addColorStop(0, W3[0]); gr.addColorStop(0.5, W3[1]); gr.addColorStop(0.86, W3[2]); gr.addColorStop(1, W3[3]);
+      g.fillStyle = gr; g.fillRect(0, 0, TN, TN);
+      const ang = rnd() * Math.PI;
+      for (let k = 0; k < 5; k++) {
+        const cx = c + (rnd() - 0.5) * TN * 0.7, cy = c + (rnd() - 0.5) * TN * 0.7;
+        for (let i = 0; i < 24; i++) { g.globalAlpha = 0.035 + rnd() * 0.075; g.fillStyle = '#ffffff'; g.beginPath(); g.ellipse(cx + (rnd() - 0.5) * 130, cy + (rnd() - 0.5) * 60, 10 + rnd() * 50, 3 + rnd() * 12, ang + (rnd() - 0.5) * 0.7, 0, 7); g.fill(); }
+      }
+      for (let i = 0; i < 3000; i++) { g.globalAlpha = 0.025 + rnd() * 0.04; g.fillStyle = rnd() < 0.5 ? '#ffffff' : '#d6c194'; g.fillRect(rnd() * TN, rnd() * TN, 1 + rnd() * 2, 1); }
       g.globalAlpha = 1;
-    });
+    }));
   }
+  // 玉面微微隆起（像抛光的弧面），反光从中间往边上渐变
+  let domeN = null;
+  function jadeDome() {
+    if (domeN) return domeN;
+    const n = 256, c = n / 2;
+    domeN = dataTex(mkCanvas(n, n, g => {
+      const im = g.createImageData(n, n), d = im.data;
+      for (let y = 0; y < n; y++) for (let x = 0; x < n; x++) {
+        const u = (x + 0.5 - c) / c, v = -(y + 0.5 - c) / c, k = 0.42;
+        let nx = u * k, ny = v * k, nz = 1; const l = Math.hypot(nx, ny, nz), i = (y * n + x) * 4;
+        d[i] = (nx / l * 0.5 + 0.5) * 255; d[i + 1] = (ny / l * 0.5 + 0.5) * 255; d[i + 2] = (nz / l * 0.5 + 0.5) * 255; d[i + 3] = 255;
+      }
+      g.putImageData(im, 0, 0);
+    }));
+    return domeN;
+  }
+  function jadeBodyTex(v) {
+    return sTex(mkCanvas(1024, 256, (g, w, h) => {
+      // 车削体 UV：侧壁只占 v 0.5~0.6（画布 0.4h~0.5h 两行之间）
+      g.fillStyle = '#f2e8d4'; g.fillRect(0, 0, w, h);
+      const y0 = h * 0.39, y1 = h * 0.51;
+      const gr = g.createLinearGradient(0, y0, 0, y1); gr.addColorStop(0, '#efe4cc'); gr.addColorStop(0.45, '#fbf6ec'); gr.addColorStop(1, '#e6d7b6');
+      g.fillStyle = gr; g.fillRect(0, y0, w, y1 - y0);
+      for (let i = 0; i < 90; i++) { g.globalAlpha = 0.04 + rnd() * 0.08; g.fillStyle = rnd() < 0.75 ? '#ffffff' : '#d9c493'; g.beginPath(); g.ellipse(rnd() * w, y0 + rnd() * (y1 - y0), 14 + rnd() * 70, 2 + rnd() * 6, (rnd() - 0.5) * 0.3, 0, 7); g.fill(); }
+      g.globalAlpha = 1;
+    }), true);
+  }
+  // 玉：次表面散射的近似——边缘透出暖光（光线在玉里走得远），正面柔和
+  function jadeGlow(m, col, k0, k1) {
+    m.onBeforeCompile = sh => {
+      sh.uniforms.sssCol = { value: new THREE.Color(col) };
+      sh.fragmentShader = sh.fragmentShader.replace('#include <common>', '#include <common>\nuniform vec3 sssCol;')
+        .replace('#include <opaque_fragment>', `{ float nv = saturate(dot(normalize(normal), normalize(vViewPosition))); outgoingLight += sssCol * diffuseColor.rgb * (${k0.toFixed(3)} + ${k1.toFixed(3)} * pow(1.0 - nv, 2.2)); }\n#include <opaque_fragment>`);
+    };
+    m.customProgramCacheKey = () => 'jadeGlow' + k0 + k1;
+    return m;
+  }
+  // 低画质：去掉清漆、各向异性等开销大的项
+  function phys(o) {
+    if (!LOWQ()) return new THREE.MeshPhysicalMaterial(o);
+    const s = { ...o }; for (const k of ['clearcoat', 'clearcoatRoughness', 'sheen', 'sheenColor', 'sheenRoughness', 'anisotropy', 'anisotropyMap', 'anisotropyRotation', 'iridescence']) delete s[k];
+    return new THREE.MeshStandardMaterial(s);
+  }
+  const SILVER = 0xf3f4f7, GOLDC = 0xffcf78, GOLD_RIM = 0xffd27e;
   function levelSkins() {
     if (skins) return skins;
     envTex = studioEnv();
     const E = envTex ? { envMap: envTex } : {};
-    const brushed = topTex('brushed'); brushed.colorSpace = THREE.NoColorSpace;
-    const metal = (color, rough, extra = {}) => new THREE.MeshPhysicalMaterial({ color, metalness: envTex ? 1 : 0.55, roughness: rough, envMapIntensity: 1.1, ...E, ...extra });
-    const SILVER = 0xe4e6ea, GOLD = 0xe9b23f;
-    const silverTop = metal(SILVER, 0.24, { roughnessMap: brushed, map: topTex('silver') }), goldTop = metal(GOLD, 0.2, { roughnessMap: brushed, map: topTex('gold') });
-    const meander = bandTex('meander'), cloud = bandTex('cloud');
-    const lattice = bandTex('lattice'); lattice.colorSpace = THREE.NoColorSpace;
-    const jadeBody = new THREE.MeshPhysicalMaterial({ map: sideJadeTex(), color: 0xffffff, metalness: 0, roughness: 0.22, clearcoat: 1, clearcoatRoughness: 0.06, sheen: 0.6, sheenColor: new THREE.Color(0xfff1d6), sheenRoughness: 0.45, emissive: 0x2e2618, emissiveIntensity: 0.6, envMapIntensity: 0.9, ...E });
-    const jadeTop = new THREE.MeshPhysicalMaterial({ map: topTex('jade'), color: 0xffffff, metalness: 0, roughness: 0.18, clearcoat: 1, clearcoatRoughness: 0.05, sheen: 0.5, sheenColor: new THREE.Color(0xfff4de), emissive: 0x2e2618, emissiveIntensity: 0.55, envMapIntensity: 0.85, polygonOffset: true, polygonOffsetFactor: -1, ...E });
-    const gold = metal(0xedb848, 0.18);
+    const sb = silverBand(), gb = goldBand(), jb = jadeBand(), st = topSet('silver'), gt = topSet('gold');
+    const MET = envTex ? 1 : 0.55;
+    const metal = (color, rough, extra = {}) => phys({ color, metalness: MET, roughness: rough, envMapIntensity: 1, ...E, ...extra });
+    const top = o => { const m = metal(o.color, 1, { map: o.t.map, roughnessMap: o.t.orm, metalnessMap: o.t.orm, normalMap: o.t.normal, normalScale: new THREE.Vector2(0.6, 0.6), anisotropy: 0.16, anisotropyMap: o.t.aniso, polygonOffset: true, polygonOffsetFactor: -1 }); return m; };
+    const gold = metal(GOLD_RIM, 0.13);
+    const jadeBody = v => jadeGlow(phys({ map: jadeBodyTex(v), color: 0xfff8ec, metalness: 0, roughness: 0.38, clearcoat: 0.7, clearcoatRoughness: 0.14, sheen: 0.4, sheenColor: new THREE.Color(0xfff0d8), sheenRoughness: 0.5, emissive: 0x3c2e1a, emissiveIntensity: 0.55, envMapIntensity: 0.5, ...E }), 0xffcf8e, 0.08, 0.6);
+    const jadeTop = v => jadeGlow(phys({ map: jadeTopTex(v), normalMap: jadeDome(), color: 0xfff6e8, metalness: 0, roughness: 0.36, clearcoat: 0.6, clearcoatRoughness: 0.16, sheen: 0.35, sheenColor: new THREE.Color(0xfff2de), emissive: 0x3c2e1a, emissiveIntensity: 0.5, envMapIntensity: 0.42, polygonOffset: true, polygonOffsetFactor: -1, ...E }), 0xffd49a, 0.07, 0.35);
     skins = {
-      2: { body: metal(SILVER, 0.24), top: silverTop, band: metal(SILVER, 0.24, { map: meander, metalnessMap: meander }) },
-      3: { body: metal(GOLD, 0.2), top: goldTop, band: metal(GOLD, 0.2, { map: cloud }) },
-      4: { body: jadeBody, top: jadeTop, band: new THREE.MeshPhysicalMaterial({ color: 0xedb848, metalness: envTex ? 1 : 0.6, roughness: 0.18, envMapIntensity: 1.2, alphaMap: lattice, transparent: false, alphaTest: 0.5, ...E }), gold },
+      2: {
+        body: metal(SILVER, 0.13),
+        top: top({ color: SILVER, t: st }),
+        band: metal(SILVER, 1, { map: sb.map, roughnessMap: sb.orm, metalnessMap: sb.orm, normalMap: sb.normal, normalScale: new THREE.Vector2(0.5, 0.5) }),
+        wire: 'silver',
+      },
+      3: {
+        body: metal(GOLDC, 0.13),
+        top: top({ color: GOLDC, t: gt }),
+        band: metal(GOLDC, 1, { map: gb.map, roughnessMap: gb.orm, metalnessMap: gb.orm, normalMap: gb.normal, normalScale: new THREE.Vector2(0.9, 0.9) }),
+        wire: 'gold',
+      },
+      4: {
+        bodies: [0, 1, 2].map(jadeBody), tops: [0, 1, 2].map(jadeTop),
+        band: metal(GOLD_RIM, 0.16, { alphaMap: jb.alpha, transparent: true, depthWrite: false, normalMap: jb.normal, normalScale: new THREE.Vector2(0.8, 0.8) }),
+        gold, wire: 'gold',
+      },
     };
-    silverTop.polygonOffset = goldTop.polygonOffset = true; silverTop.polygonOffsetFactor = goldTop.polygonOffsetFactor = -1;
     plateOn.envMap = envTex; plateOn.needsUpdate = true;
     return skins;
   }
+  // ---- 升级后的字：掐丝珐琅（汉朱红、楚乌黑的釉面，金/银丝勾边，釉面有清漆般的光泽） ----
+  const enamelCache = new Map();
+  function enamelFace(s, t, wire) {
+    const ch = XQ.NAMES[s][t], key = s + ch + wire;
+    if (enamelCache.has(key)) return enamelCache.get(key);
+    const N = LOWQ() ? 256 : 384, c = N / 2, fs = Math.round(N * 0.6), dy = N * 0.03;
+    const font = `bold ${fs}px ${FONT}`, lw = N * 0.028;
+    const shape = (g, strokeCol, fillCol) => {
+      g.font = font; g.textAlign = 'center'; g.textBaseline = 'middle'; g.lineJoin = 'round';
+      if (strokeCol) { g.strokeStyle = strokeCol; g.lineWidth = lw; g.strokeText(ch, c, c + dy); }
+      if (fillCol) { g.fillStyle = fillCol; g.fillText(ch, c, c + dy); }
+    };
+    const map = sTex(mkCanvas(N, N, g => {
+      g.clearRect(0, 0, N, N);
+      // 嵌槽的阴影
+      g.save(); g.translate(N * 0.006, N * 0.01); shape(g, 'rgba(30,18,8,.55)', 'rgba(30,18,8,.55)'); g.restore();
+      shape(g, wire === 'silver' ? '#e9ebf0' : '#ffd987', null);
+      // 釉面：上亮下深的渐变（像微微下凹的釉）
+      const gr = g.createLinearGradient(0, c - fs * 0.5, 0, c + fs * 0.5);
+      if (s === 'r') { gr.addColorStop(0, '#c42a17'); gr.addColorStop(0.5, '#951709'); gr.addColorStop(1, '#640c04'); }
+      else { gr.addColorStop(0, '#2c2826'); gr.addColorStop(0.5, '#121010'); gr.addColorStop(1, '#060505'); }
+      shape(g, null, gr);
+    }));
+    const orm = dataTex(mkCanvas(N, N, g => {
+      g.fillStyle = 'rgb(255,80,0)'; g.fillRect(0, 0, N, N);
+      // R = 环境光遮蔽（釉面只留三成环境反光，颜色才沉得住），G = 粗糙度，B = 金属度
+      shape(g, 'rgb(255,40,255)', null); shape(g, null, 'rgb(80,64,0)');
+    }));
+    const r = { map, orm }; enamelCache.set(key, r);
+    return r;
+  }
+  function skinFace(m, p, lv) {
+    const face = m.children[1]; if (!face) return;
+    if (!m.userData.faceStd) m.userData.faceStd = face.material;
+    if (!p || lv < 2 || p.h) { if (face.material !== m.userData.faceStd) face.material = m.userData.faceStd; return; }
+    const S = levelSkins()[Math.min(4, lv)], e = enamelFace(p.s, p.t, S.wire);
+    let mat = m.userData.faceSkin;
+    if (!mat) {
+      mat = m.userData.faceSkin = phys({ transparent: true, metalness: 1, roughness: 1, clearcoat: 0.8, clearcoatRoughness: 0.08, envMapIntensity: 1, polygonOffset: true, polygonOffsetFactor: -2, ...(envTex ? { envMap: envTex } : {}) });
+    }
+    if (mat.map !== e.map) { mat.map = e.map; mat.roughnessMap = mat.metalnessMap = mat.aoMap = e.orm; mat.needsUpdate = true; }
+    face.material = mat;
+  }
   // 侧壁纹样圈、顶面贴片、金口沿
-  const skinBandGeo = (() => { const g = new THREE.CylinderGeometry(0.4232, 0.4232, 0.118, 72, 1, true); g.translate(0, 0.1, 0); g.userData.keep = true; return g; })();
-  const skinTopGeo = (() => { const g = new THREE.CircleGeometry(0.392, 64); g.rotateX(-Math.PI / 2); g.translate(0, PH + 0.0006, 0); g.userData.keep = true; return g; })();
-  const rimGeo = (() => { const g = new THREE.TorusGeometry(0.405, 0.0165, 8, 72); g.rotateX(Math.PI / 2); g.userData.keep = true; return g; })();
-  const topRingGeo = (() => { const g = new THREE.RingGeometry(0.378, 0.394, 72); g.rotateX(-Math.PI / 2); g.translate(0, PH + 0.0015, 0); g.userData.keep = true; return g; })();
+  const skinBandGeo = (() => { const g = new THREE.CylinderGeometry(0.4232, 0.4232, 0.118, 96, 1, true); g.translate(0, 0.1, 0); g.userData.keep = true; return g; })();
+  const skinTopGeo = (() => { const g = new THREE.CircleGeometry(0.392, 72); g.rotateX(-Math.PI / 2); g.translate(0, PH + 0.0006, 0); g.userData.keep = true; return g; })();
+  const rimGeo = (() => { const g = new THREE.TorusGeometry(0.405, 0.0165, 10, 96); g.rotateX(Math.PI / 2); g.userData.keep = true; return g; })();
+  const topRingGeo = (() => { const g = new THREE.RingGeometry(0.372, 0.392, 96); g.rotateX(-Math.PI / 2); g.translate(0, PH + 0.0015, 0); g.userData.keep = true; return g; })();
   // 金、玉棋子偶尔在口沿闪过一点星芒
   const glintTex = canvasTex(128, 128, (g, w) => {
     const c = w / 2, gr = g.createRadialGradient(c, c, 0, c, c, c * 0.5); gr.addColorStop(0, 'rgba(255,255,255,1)'); gr.addColorStop(0.3, 'rgba(255,240,200,.6)'); gr.addColorStop(1, 'rgba(255,220,150,0)');
@@ -815,19 +1011,20 @@ const Board = (() => {
       sp.material.opacity = k * 0.95; sp.scale.setScalar(0.04 + k * 0.16); sp.material.rotation = u.t * 1.5;
     }
   });
-  function applySkin(m, d, lv) {
+  function applySkin(m, d, lv, p) {
     const body = m.children[0], band = m.children[2];
-    if (lv < 2) { if (body) body.material = pieceWood; if (band) band.visible = true; return; }
-    const S = levelSkins()[Math.min(4, lv)];
-    if (body) body.material = S.body;
+    if (lv < 2) { if (body) body.material = pieceWood; if (band) band.visible = true; skinFace(m, p, lv); return; }
+    const S = levelSkins()[Math.min(4, lv)], vi = p && p.id != null ? Math.abs(p.id | 0) % 3 : 0; // 玉：每枚子的纹理、皮色各不相同
+    if (body) body.material = S.bodies ? S.bodies[vi] : S.body;
     if (band) band.visible = false;
-    d.add(new THREE.Mesh(skinBandGeo, S.band));
-    d.add(new THREE.Mesh(skinTopGeo, S.top));
+    const bm = new THREE.Mesh(skinBandGeo, S.band); if (lv >= 4) bm.renderOrder = 1; d.add(bm);
+    d.add(new THREE.Mesh(skinTopGeo, S.tops ? S.tops[vi] : S.top));
     if (lv >= 4) {
       for (const y of [PH - 0.011, 0.028]) { const ri = new THREE.Mesh(rimGeo, S.gold); ri.position.y = y; d.add(ri); }
       d.add(new THREE.Mesh(topRingGeo, S.gold));
     }
-    if (lv >= 3 && Core.quality !== 'low') {
+    skinFace(m, p, lv);
+    if (lv >= 3 && !LOWQ()) {
       const sp = new THREE.Sprite(new THREE.SpriteMaterial({ map: glintTex, color: lv >= 4 ? 0xfff6e0 : 0xffe6a8, transparent: true, opacity: 0, depthWrite: false, blending: THREE.AdditiveBlending }));
       sp.userData = { t: 0, next: 1 + Math.random() * 5 }; sp.renderOrder = 7; d.add(sp); glints.add(sp);
     }
@@ -835,13 +1032,13 @@ const Board = (() => {
   function decorate(m, p, o = {}) {
     if (m.userData.deco) { m.remove(m.userData.deco); m.userData.deco = null; }
     const face = m.children[1];
-    if (face && face.material) face.material.color.set(o.dim ? 0x8f8a84 : 0xffffff);
     const body = m.children[0];
-    if (!p || !p.lv) { if (body) body.material = pieceWood; if (m.children[2]) m.children[2].visible = true; return; }
+    if (!p || !p.lv) { if (body) body.material = pieceWood; if (m.children[2]) m.children[2].visible = true; skinFace(m, p, 0); if (face && face.material) face.material.color.set(o.dim ? 0x8f8a84 : 0xffffff); return; }
     const d = new THREE.Group(); m.add(d); m.userData.deco = d;
     const max = BF.hpOf(p.t, p.lv);
-    // 棋身：一级木、二级乌银错花、三级錾金、四级羊脂白玉金缕
-    applySkin(m, d, p.lv);
+    // 棋身：一级木、二级乌银错花、三级錾金、四级羊脂白玉金丝嵌；升级后的字换成掐丝珐琅
+    applySkin(m, d, p.lv, p);
+    if (face && face.material) face.material.color.set(o.dim ? 0x8f8a84 : 0xffffff);
     // 腰带甲片 = 攒下的击杀数（每片抵下次升级 1 功，升级时用掉）
     const nx = Math.min(8, p.xp || 0);
     for (let i = 0; i < nx; i++) {
@@ -877,7 +1074,21 @@ const Board = (() => {
     const fx = game.fx;
     return { jm: game.jmActive(p), hm: p.s === 'r' && p.t === 'k' && fx.hm > 0, dim: p.s === 'b' && p.t !== 'k' && fx.sm > 0 };
   }
+  // 预先生成升级材质并编译着色器：第一次升级时不卡顿
+  function prewarmSkins() {
+    try {
+      const S = levelSkins(), tmp = new THREE.Group();
+      for (const lv of [2, 3, 4]) { const k = S[lv]; for (const mat of [k.body, k.band, k.top, k.gold, ...(k.bodies || []), ...(k.tops || [])]) if (mat) tmp.add(new THREE.Mesh(skinTopGeo, mat)); }
+      const e = enamelFace('r', 'p', 'gold'), fm = phys({ transparent: true, metalness: 1, roughness: 1, clearcoat: 0.8, clearcoatRoughness: 0.08, map: e.map, roughnessMap: e.orm, metalnessMap: e.orm, aoMap: e.orm, polygonOffset: true, polygonOffsetFactor: -2, ...(envTex ? { envMap: envTex } : {}) });
+      tmp.add(new THREE.Mesh(faceGeo, fm));
+      tmp.position.set(0, -50, 0); scene.add(tmp);
+      Core.renderer.compile(scene, Core.camera);
+      scene.remove(tmp); prewarmSkins.keep = fm; // 留着这份材质：一释放，刚编好的着色器也会被删掉
+    } catch (e) { console.warn('prewarmSkins', e); }
+  }
   function decorateAll(game) {
+    // 兵法局开始后，空闲时先把升级用的材质、贴图做好（第一次升级时不卡顿）
+    if (!skins && !decorateAll.warm) { decorateAll.warm = true; setTimeout(prewarmSkins, 1500); }
     for (let r = 0; r < 10; r++) for (let f = 0; f < 9; f++) {
       const p = game.board[r][f]; if (!p) continue;
       const m = pieces.get(p.id); if (m) decorate(m, p, decoOpts(game, p));

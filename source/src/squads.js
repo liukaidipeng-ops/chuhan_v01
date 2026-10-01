@@ -1063,7 +1063,7 @@ const Squads = (() => {
     Fx.P.ink(B.clone().setY(TOP + 0.1), 14, 0.5, 0.35, 0.7);
     await def.dissolve();
     // 被吃棋子的刻字面碎裂
-    if (tgt) { const cc = B.clone(); cc.y = TOP + 0.1; Fx.chunks(cc, d, 0.5, 6, { small: true, lifeK: 0.7 }); }
+    if (tgt) { const cc = B.clone(); cc.y = TOP + 0.1; Fx.chunks(cc, d, 0.5, 6, { small: true, lifeK: 0.7, of: tgt }); }
     await Fx.rise(m, B, 0.4);
   }
 
