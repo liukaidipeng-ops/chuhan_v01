@@ -18,25 +18,53 @@ const Net = (() => {
     send(bytes) { if (this.ws && this.ws.readyState === 1) this.ws.send(new Uint8Array(bytes)); }
     connect() {
       if (this.closed) return;
+      clearTimeout(this.rt);
+      this.detach();
       let ws;
       try { ws = new WebSocket(this.url, ['mqtt']); } catch (e) { this.schedule(); return; }
       ws.binaryType = 'arraybuffer';
-      this.ws = ws;
+      this.ws = ws; this.buf = new Uint8Array(0); this.last = Date.now();
       const cid = 'xq' + Math.random().toString(36).slice(2, 12);
-      const timeout = setTimeout(() => { if (!this.ok) try { ws.close(); } catch (e) { } }, 7000);
+      const timeout = setTimeout(() => { if (!this.ok && this.ws === ws) this.drop(); }, 7000);
       ws.onopen = () => {
+        if (this.ws !== ws) return;
         const vh = [...Mqtt.str('MQTT'), 4, 0x02, 0, 45];
         const pl = Mqtt.str(cid);
         this.send([0x10, ...Mqtt.varint(vh.length + pl.length), ...vh, ...pl]);
       };
-      ws.onmessage = e => this.feed(new Uint8Array(e.data));
+      ws.onmessage = e => { if (this.ws !== ws) return; this.last = Date.now(); this.feed(new Uint8Array(e.data)); };
       ws.onclose = () => {
-        clearTimeout(timeout); clearInterval(this.ping);
-        const was = this.ok; this.ok = false;
+        clearTimeout(timeout);
+        if (this.ws !== ws) return; // 已经换了新连接
+        clearInterval(this.ping);
+        const was = this.ok; this.ok = false; this.ws = null;
         if (was) this.onState(false);
         this.schedule();
       };
       ws.onerror = () => { };
+    }
+    // 摘掉旧连接（不再理会它的任何事件）
+    detach() {
+      const ws = this.ws; this.ws = null;
+      clearInterval(this.ping); clearTimeout(this.pt);
+      if (ws) { ws.onopen = ws.onmessage = ws.onclose = ws.onerror = null; try { ws.close(); } catch (e) { } }
+    }
+    // 强制断开并马上重连：手机切后台、换网络之后，旧连接常常“假死”（看着连着，收发都不通）
+    drop() {
+      if (this.closed) return;
+      this.detach();
+      const was = this.ok; this.ok = false;
+      if (was) this.onState(false);
+      this.retry = 600; this.schedule();
+    }
+    // 探活：发一个心跳，3.5 秒内什么都没收到就判定假死、重连；本来就断着的立刻重连
+    probe() {
+      if (this.closed) return;
+      if (!this.ok) { if (!this.ws || this.ws.readyState > 1) { this.retry = 600; clearTimeout(this.rt); this.connect(); } return; }
+      const t0 = Date.now();
+      this.send([0xC0, 0]);
+      clearTimeout(this.pt);
+      this.pt = setTimeout(() => { if (this.ok && this.last < t0) this.drop(); }, 3500);
     }
     schedule() {
       if (this.closed) return;
@@ -62,7 +90,8 @@ const Net = (() => {
         this.ok = true; this.retry = 1000;
         for (const t of this.subs) this.subPacket(t);
         clearInterval(this.ping);
-        this.ping = setInterval(() => this.send([0xC0, 0]), 20000);
+        // 每 15 秒一次心跳；50 秒没收到任何东西（连心跳回执都没有）就当断线重连
+        this.ping = setInterval(() => { if (Date.now() - this.last > 50000) { this.drop(); return; } this.send([0xC0, 0]); }, 15000);
         this.onState(true);
       } else if (type === 3) { // PUBLISH
         const tl = (body[0] << 8) | body[1];
@@ -81,7 +110,7 @@ const Net = (() => {
       this.send([0x30 | (retain ? 1 : 0), ...Mqtt.varint(t.length + p.length), ...t, ...p]);
       return true;
     }
-    close() { this.closed = true; clearTimeout(this.rt); clearInterval(this.ping); try { this.send([0xE0, 0]); this.ws && this.ws.close(); } catch (e) { } }
+    close() { this.closed = true; clearTimeout(this.rt); clearTimeout(this.pt); clearInterval(this.ping); try { this.send([0xE0, 0]); } catch (e) { } this.detach(); this.ok = false; }
   }
 
   // ---------- 房间层 ----------
@@ -135,7 +164,7 @@ const Net = (() => {
     peerSeen = Date.now();
     if (peerState !== 'ok') { peerState = 'ok'; h.peer && h.peer('ok'); }
     if (Net.debug && d.t !== 'ping') console.log('NET<', role, JSON.stringify(d).slice(0, 160));
-    if (d.t === 'ping') return;
+    if (d.t === 'ping') { h.ping && h.ping(d); return; }
     h.data && h.data(d);
   }
   function start(r, c, handlers) {
@@ -153,7 +182,7 @@ const Net = (() => {
     clearInterval(hb);
     hb = setInterval(() => {
       if (!anyOk() || role === 'watch') return;
-      send({ t: 'ping' });
+      send({ t: 'ping', ...(h.pingInfo ? h.pingInfo() || {} : {}) });
       if (peerState === 'ok' && Date.now() - peerSeen > 9000) { peerState = 'lost'; h.peer && h.peer('lost'); }
     }, 3000);
   }
@@ -178,17 +207,21 @@ const Net = (() => {
     for (const c of clients) c.close();
     clients = []; role = null;
   }
-  // 手机切回前台时立刻重连
-  document.addEventListener('visibilitychange', () => {
-    if (document.visibilityState === 'visible') for (const c of clients) if (!c.ok && !c.closed) { clearTimeout(c.rt); c.retry = 500; c.connect(); }
-  });
+  // 断线自动重连：切回前台、网络恢复、页面从缓存恢复时，立刻探活（假死的连接马上换新的）
+  function kick() { for (const c of clients) c.probe(); }
+  document.addEventListener('visibilitychange', () => { if (document.visibilityState === 'visible') kick(); });
+  window.addEventListener('online', kick);
+  window.addEventListener('pageshow', e => { if (e.persisted) kick(); });
+  document.addEventListener('resume', kick);
+  // 系统报告断网：旧连接肯定不通了，直接丢掉（界面马上显示“正在重连”），之后按退避节奏重试
+  window.addEventListener('offline', () => { for (const c of clients) c.drop(); });
   const Net = {
     debug: (() => { try { return !!localStorage.getItem('xq3d-netdebug'); } catch (e) { return false; } })(),
     gen, get myPid() { return myPid; }, DEFAULT_BROKERS,
     host(c, handlers) { start('host', c, handlers); },
     join(c, handlers) { start('guest', c.toUpperCase(), handlers); },
     watch(c, handlers) { start('watch', c.toUpperCase(), handlers); },
-    send, sendSpec, publishRoom, clearRoom, close,
+    send, sendSpec, publishRoom, clearRoom, close, kick,
     get connected() { return anyOk() && peerState === 'ok'; },
     get lineOk() { return anyOk(); },
     get peerState() { return peerState; },

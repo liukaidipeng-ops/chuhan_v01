@@ -138,7 +138,8 @@
   const watching = () => mode === 'watch';
   let watchWaiting = false;
   // 揭棋：同屏对战时本地随机布子；联机/观战时暗子身份未知，靠双方密钥逐个揭开（见 jq.js）
-  const mkGame = o => (o && +o.bf ? new BF.Game() : o && +o.jq ? new XQ.Game({ jq: true, layout: mode === 'local' ? XQ.randomLayout() : null }) : new XQ.Game());
+  // layout：续局时沿用原来的随机布局（本地揭棋）
+  const mkGame = (o, layout) => (o && +o.bf ? new BF.Game() : o && +o.jq ? new XQ.Game({ jq: true, layout: layout || (mode === 'local' ? XQ.randomLayout() : null) }) : new XQ.Game());
   // 兵法：技能选择状态、升级记法、调试
   let bfMode = null, bfUpNote = '', dbgOn = false, dbgPick = null, dbgSel = null;
   let JK = null, JC = { cin: {}, cout: {}, used: { r: {}, b: {} } }, jqBad = 0, pendingJ = null, lastJx = null;
@@ -284,7 +285,7 @@
     let st, warn = false;
     if (game.result) st = `${SIDE_CN[game.result.winner]}胜 · ${REASON[game.result.reason]}`;
     else if (!started) st = mode === 'host' && !Net.connected ? '等待对手入局…' : '开 局';
-    else if (online() && Net.peerState === 'lost') { st = '对手连接中断，时钟暂停'; warn = true; }
+    else if (netDown()) { st = netText(); warn = true; }
     else if (mode === 'local') st = `${game.turn === 'r' ? '红方（汉）' : '黑方（楚）'}走棋`;
     else if (mode === 'ai') st = game.turn === mySide ? '轮到你走' : `${NAME[aiSide()]}思考中…`;
     else st = game.turn === mySide ? '轮到你走' : '对手思考中…';
@@ -382,7 +383,7 @@
     if (!started || ended || game.result || !mode) return;
     const s = game.turn;
     const mine = mode === 'local' || mode === 'ai' || mode === 'watch' || s === mySide;
-    const paused = busy || Ending.running || (online() && Net.peerState !== 'ok');
+    const paused = busy || Ending.running || netDown();
     if (mine && !paused) {
       if (opts.total) clock[s] -= dt;
       if (opts.step) clock.step -= dt;
@@ -465,7 +466,9 @@
   async function startGame(m, side, o, { state = null, intro = true } = {}) {
     cancelAI();
     mode = m; mySide = side; opts = { ...o }; ended = false; started = false; lobbySpin = false;
-    game = mkGame(opts); undoUsed = { r: 0, b: 0 }; pendingUndo = null;
+    if ((m === 'local' || m === 'ai') && !state) store.del('resume');
+    resumeKey = '';
+    game = mkGame(opts, state && state.layout); undoUsed = { r: 0, b: 0 }; pendingUndo = null;
     resetClocks();
     clearFinale(); Camp.reset();
     Board.setPosition(game); Fx.clearMarks(); Fx.ply = 0;
@@ -510,12 +513,14 @@
     maybeAI();
   }
   function snapshot() {
-    const jq = game.jq && JK ? { gid: JK.gid, cin: JC.cin, cout: JC.cout } : undefined;
-    const bfe = game.bf ? game.entries : undefined;
-    return { v: 2, code: Net.code, opts, hostSide, jq, bfe, moves: game.bf ? [] : game.history.map(h => ({ from: h.from, to: h.to, rv: h.rv, cj: h.cj })), result: game.result, undo: { ...undoUsed }, clk: { r: clock.r, b: clock.b }, step: clock.step, t: Date.now() };
+    const G = RP ? RP.real : game; // 复盘中也发真实棋局
+    const jq = G.jq && JK ? { gid: JK.gid, cin: JC.cin, cout: JC.cout } : undefined;
+    const bfe = G.bf ? G.entries : undefined;
+    return { v: 2, code: Net.code, opts, hostSide, jq, bfe, moves: G.bf ? [] : G.history.map(h => ({ from: h.from, to: h.to, rv: h.rv, cj: h.cj })), result: G.result, undo: { ...undoUsed }, clk: { r: clock.r, b: clock.b }, step: clock.step, t: Date.now() };
   }
   function applyState(st) {
-    game = mkGame(opts);
+    game = mkGame(opts, st.layout || (game && game.opts && game.opts.layout));
+    if (game.bf && st.bfbase) game.reset(st.bfbase);
     if (game.bf) for (const e of st.bfe || []) { if (!game.apply(e)) break; }
     else for (const m of st.moves || []) game.play({ from: m.from, to: m.to, rv: m.rv, cj: m.cj });
     if (st.result) game.result = st.result;
@@ -769,7 +774,7 @@
     const skipP = new Promise(r => { endSkipRes = r; });
     cancelAI();
     closeAsk(); Board.clearMoves();
-    updateHud(); publish();
+    updateHud(); publish(); saveResume(true);
     $('skip').classList.remove('hidden'); $('skip').textContent = '跳过结算 ▸▸';
     anim = anim.then(async () => {
       await Promise.race([Core.sleep(0.8), skipP]);
@@ -1616,7 +1621,12 @@
   }
   let mode_starting = false;
   function syncFrom(st) {
-    if (!st) return;
+    if (!st || RP) return;
+    const stLen = game.bf ? (st.bfe || []).length : (st.moves || []).length, myLen = game.bf ? game.entries.length : game.history.length;
+    // 房主已开了新的一局，但“再来一局”的消息丢了 → 跟着重开
+    if (!stLen && !st.result && (game.result || ended) && !(game.jq && st.jq && JK && st.jq.gid !== JK.gid)) { if (Ending.running) { pendingRestart = st; Ending.skip(); } else restart(st); return; }
+    // 我认输 / 超时的消息对方没收到 → 补发
+    if (game.result && !st.result && stLen === myLen && (game.result.reason === 'resign' || game.result.reason === 'timeout') && game.result.loser === mySide) Net.send({ t: game.result.reason, side: mySide });
     // 揭棋：房主那边已是新的一局（换了牌）→ 跟着重开
     if (game.jq && st.jq && JK && st.jq.gid !== JK.gid) { restart(st); return; }
     if (game.jq && st.jq && st.jq.cin) { const opp = other(mySide); if (!JC.cin[opp] && Jieqi.validCommits(st.jq.cin[opp])) JC.cin[opp] = st.jq.cin[opp]; if (!JC.cout[mySide] && Jieqi.validCommits(st.jq.cout && st.jq.cout[mySide])) JC.cout[mySide] = st.jq.cout[mySide]; }
@@ -1634,8 +1644,34 @@
   }
   function onPeer(s) {
     if (s === 'ok' && mode === 'guest' && started) Net.send({ t: 'syncReq' });
+    if (s === 'ok' && mode === 'host' && started) Net.send({ t: 'sync', state: snapshot() });
     if (s === 'lost') lostSince = Date.now(); else lostSince = 0;
+    if (s === 'ok' && started && !ended && lostSince === 0 && wasLost) toast('对手已重新连上，继续对局');
+    wasLost = s === 'lost';
     updateHud();
+  }
+  // ---------- 断线：自己掉线（线路全断）或对手掉线，双方时钟都暂停；状态栏显示已等多久 ----------
+  let wasLost = false, lineDownSince = 0, lineWasUp = false;
+  const netDown = () => online() && (!Net.lineOk || Net.peerState !== 'ok');
+  function netText() {
+    if (!Net.lineOk) { const s = lineDownSince ? Math.floor((Date.now() - lineDownSince) / 1000) : 0; return `网络断开，正在重连${s >= 2 ? ' · ' + s + ' 秒' : '…'} · 时钟暂停`; }
+    const s = lostSince ? Math.floor((Date.now() - lostSince) / 1000) : 0;
+    return `对手掉线，等待重连${s ? ' · ' + s + ' 秒' : '…'} · 时钟暂停`;
+  }
+  setInterval(() => { if (started && !ended && !RP && netDown()) updateHud(); }, 1000);
+  // 心跳里带上棋局进度（步数、是否终局）：双方连续两次对不上，就请求 / 推送一次同步，防止丢消息后互相干等
+  let digestBad = 0, digestT = 0;
+  function pingInfo() {
+    if (!online() || !started) return null;
+    const G = RP ? RP.real : game;
+    return { n: G.bf ? G.entries.length : G.history.length, r: G.result ? 1 : 0 };
+  }
+  function onPing(d) {
+    const me = pingInfo();
+    if (!me || d.n == null || (me.n === d.n && me.r === (d.r || 0)) || pendingJ || pendingUndo || busy) { digestBad = 0; return; }
+    if (++digestBad < 2 || Date.now() - digestT < 6000) return;
+    digestT = Date.now(); digestBad = 0;
+    if (mode === 'guest') Net.send({ t: 'syncReq' }); else Net.send({ t: 'sync', state: snapshot() });
   }
   let lostSince = 0, claimAsked = false;
   setInterval(() => {
@@ -1650,6 +1686,17 @@
   function onLine(n, total) {
     const t = n ? `线路已连接 ${n}/${total}` : '正在连接线路…';
     $('waitLine').textContent = t; $('joinLine').textContent = t;
+    if (!n && lineWasUp) { lineDownSince = Date.now(); if (online() && started && !ended) toast('网络断开，正在自动重连…', 2400); }
+    if (n && !lineWasUp && lineDownSince) {
+      // 断线后重新连上：房主把整盘棋推给对手（客人那边会自动重新入座并拿到棋局）
+      lineDownSince = 0;
+      if (online() && started) {
+        if (mode === 'host') { publish(); Net.send({ t: 'sync', state: snapshot() }); }
+        else Net.send({ t: 'syncReq' });
+        if (!ended) toast('已重新连上，继续对局', 2000);
+      }
+    }
+    lineWasUp = !!n;
     if (mode) updateHud();
   }
 
@@ -1822,7 +1869,7 @@
 
   // ---------- 大厅 ----------
   const panes = ['pMain', 'pAI', 'pCreate', 'pWait', 'pJoin'];
-  const showPane = id => panes.forEach(p => $(p).classList.toggle('hidden', p !== id));
+  const showPane = id => { panes.forEach(p => $(p).classList.toggle('hidden', p !== id)); if (id === 'pMain') paintResume(); };
   setTimeout(() => $('lobby').classList.remove('intro'), 3800);
   const VAR_NOTE = { std: '标准中国象棋', jq: '揭棋：十五子反扣，走动方知真身', bf: '兵法：升级、生命值、兵种技能与主帅兵法' };
   const paintVar = () => { $('varNote').textContent = VAR_NOTE[ropts.v] || ''; };
@@ -1887,20 +1934,30 @@
           announced = true;
           $('waitNote').innerHTML = '<span class="spin"></span>等待对手入局…<br>' + (httpUrl ? '把邀请链接发给朋友，或让他扫码' : '把房间码告诉朋友，他在「加入房间」里输入');
           // 恢复房间时，先等中继把保存的棋局发回来，再发布，避免覆盖
-          if (resumeState === 'pending') setTimeout(() => { if (resumeState === 'pending') { resumeState = null; Net.publishRoom({ ...snapshot(), waiting: true }); } }, 4000);
+          if (resumeState === 'pending') setTimeout(() => {
+            if (resumeState !== 'pending') return;
+            // 中继上没找到保存的棋局：用本机存的那份接着下
+            const r = store.get('resume', null), st = r && r.kind === 'host' && r.code === code && !r.done && r.state;
+            if (st && ((st.moves || []).length || (st.bfe || []).length)) { resumeState = st; hostSide = st.hostSide || side; startGame('host', hostSide, st.opts || o, { state: st, intro: false }); publish(); Net.send({ t: 'sync', state: snapshot() }); return; }
+            resumeState = null; Net.publishRoom({ ...snapshot(), waiting: true });
+          }, 4000);
           else if (!started) Net.publishRoom({ ...snapshot(), waiting: true });
         }
       },
       room(d) {
         // 房主恢复：用中继上保存的棋局
         if (resumeState === 'pending' && d && d.code === code && d.moves) {
+          // 本机存的那份更新（比如最后几步没来得及发到中继）就用本机的
+          const r = store.get('resume', null), loc = r && r.kind === 'host' && r.code === code && !r.done && r.state;
+          const len = x => (x.moves || []).length + (x.bfe || []).length;
+          if (loc && !d.result && len(loc) > len(d)) d = loc;
           resumeState = d; hostSide = d.hostSide;
           if (d.waiting && !d.moves.length) return; // 还没开局
           startGame('host', hostSide, d.opts, { state: d, intro: false });
           Net.send({ t: 'sync', state: snapshot() });
         }
       },
-      data: onData, peer: onPeer, spec: onSpec,
+      data: onData, peer: onPeer, spec: onSpec, pingInfo, ping: onPing,
     });
   }
   $('bShare').onclick = () => {
@@ -1933,7 +1990,7 @@
         gotRoom = true;
         if (!mode) $('joinNote').innerHTML = '<span class="spin"></span>找到房间，正在入座…';
       },
-      data: onData, peer: onPeer, spec: onSpec,
+      data: onData, peer: onPeer, spec: onSpec, pingInfo, ping: onPing,
     });
     clearInterval(joinTimer);
     joinTimer = setInterval(() => {
@@ -1946,6 +2003,65 @@
   $('bJoin').onclick = () => joinRoom($('joinCode').value);
   $('joinCode').addEventListener('keydown', e => { if (e.key === 'Enter') joinRoom($('joinCode').value); });
   $('joinCode').addEventListener('input', e => { e.target.value = e.target.value.toUpperCase().replace(/[^A-Z0-9]/g, ''); });
+
+  // ---------- 回到对局：记下没下完的那一局，大厅里给一个入口 ----------
+  // 本地 / 人机：整盘棋存在本机（含揭棋的随机布局、计时、悔棋次数）；联机：存房间码和身份（房主另存一份棋局，中继丢了也能恢复）
+  const RESUME_TTL = { local: 3 * 864e5, ai: 3 * 864e5, host: 6 * 3600e3, guest: 6 * 3600e3 };
+  let resumeKey = '';
+  function saveResume(force) {
+    if (!mode || watching() || !started) return;
+    const G = RP ? RP.real : game;
+    const n = G.bf ? G.entries.length : G.history.length, round = G.bf ? G.round : Math.floor(n / 2) + 1;
+    const key = [mode, Net.code, n, G.result ? 1 : 0, undoUsed.r, undoUsed.b].join('|');
+    if (!force && key === resumeKey) return;
+    resumeKey = key;
+    if (online()) {
+      store.set('resume', { kind: mode, code: Net.code, side: mySide, opts, n, round, done: !!G.result, state: mode === 'host' ? snapshot() : undefined, t: Date.now() });
+      if (mode === 'host') { const h = store.get('host', null); if (h && h.code === Net.code) store.set('host', { ...h, t: Date.now() }); }
+      return;
+    }
+    if (G.result) { store.del('resume'); return; }
+    if (!n) return;
+    store.set('resume', {
+      kind: mode, side: mySide, opts, n, round, t: Date.now(),
+      layout: G.jq && G.opts ? G.opts.layout : null, bfbase: G.bf ? G.base : undefined, bfe: G.bf ? G.entries : undefined,
+      moves: G.bf ? undefined : G.history.map(h => ({ from: h.from, to: h.to, rv: h.rv })),
+      undo: { ...undoUsed }, clk: { r: clock.r, b: clock.b }, step: clock.step,
+    });
+  }
+  setInterval(() => saveResume(false), 1500);
+  window.addEventListener('pagehide', () => saveResume(true));
+  document.addEventListener('visibilitychange', () => { if (document.visibilityState === 'hidden') saveResume(true); });
+  const agoText = t => { const m = Math.floor((Date.now() - t) / 60000); return m < 1 ? '刚刚' : m < 60 ? `${m} 分钟前` : m < 1440 ? `${Math.floor(m / 60)} 小时前` : `${Math.floor(m / 1440)} 天前`; };
+  function resumeRec() {
+    const r = store.get('resume', null);
+    if (!r || r.done || !r.t || !(Date.now() - r.t < (RESUME_TTL[r.kind] || 0))) return null;
+    if (r.kind === 'host') { const h = store.get('host', null); if (!h || h.code !== r.code) return null; }
+    return r;
+  }
+  function paintResume() {
+    const r = resumeRec();
+    $('resume').classList.toggle('hidden', !r);
+    if (!r) return;
+    const o = r.opts || {}, v = +o.bf ? '兵法' : +o.jq ? '揭棋' : '象棋';
+    const who = r.kind === 'ai' ? `人机 · ${LV[o.level] || ''}` : r.kind === 'local' ? '本地对战' : `联机 · 房间 ${r.code}`;
+    $('resumeInfo').textContent = `${who} · ${v} · 第 ${r.round || 1} 回合 · ${agoText(r.t)}`;
+  }
+  $('bResume').onclick = () => {
+    const r = resumeRec();
+    if (!r) { paintResume(); return; }
+    Sfx.init(); applySettings();
+    if (r.kind === 'local' || r.kind === 'ai') {
+      startGame(r.kind, r.side, r.opts, { state: { moves: r.moves, bfe: r.bfe, bfbase: r.bfbase, layout: r.layout, undo: r.undo, clk: r.clk, step: r.step }, intro: false });
+      toast('已回到上一局', 1800);
+    } else if (r.kind === 'host') {
+      const h = store.get('host', null);
+      try { history.replaceState(null, '', location.pathname + '?room=' + r.code); } catch (e) { }
+      hostRoom(r.code, h.opts, h.side, 'pending');
+      toast('正在恢复你的房间…');
+    } else joinRoom(r.code);
+  };
+  $('bResumeX').onclick = e => { e.stopPropagation(); store.del('resume'); paintResume(); };
 
   // ---------- 设置 ----------
   bindSeg($('mSet'), 'data-s', k => (k === 'quality' ? Core.quality : S[k]), (k, v) => {
@@ -2029,6 +2145,7 @@
   }
   if (location.hash.startsWith('#ai')) { const [, lv, sd] = location.hash.split('-'); startGame('ai', sd || 'r', { undo: 3, total: 0, step: 0, hints: 1, level: lv || 'easy' }, { intro: false }); return; }
   $('lobby').classList.remove('hidden');
+  paintResume();
   if (room && hostRec && hostRec.code === room && Date.now() - hostRec.t < 6 * 3600e3) {
     hostRoom(room, hostRec.opts, hostRec.side, 'pending');
     toast('正在恢复你的房间…');
