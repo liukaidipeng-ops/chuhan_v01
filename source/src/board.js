@@ -575,7 +575,8 @@ const Board = (() => {
 
   // ---------- 兵法：甲片（一片 = 1 点生命）、金星（每升一级一颗）、拒马木桩、鸿门宴、涣散 ----------
   const plateGeo = new THREE.BoxGeometry(0.105, 0.07, 0.03); plateGeo.userData.keep = true;
-  const plateOn = new THREE.MeshStandardMaterial({ color: 0xc9a045, metalness: 0.55, roughness: 0.32, emissive: 0x2a1a05 });
+  // 甲片：乌铁鳞甲（在木、银、金、玉各种棋身上都看得清）
+  const plateOn = new THREE.MeshStandardMaterial({ color: 0x5d6a78, metalness: 0.75, roughness: 0.28, emissive: 0x10141a });
   const plateOff = new THREE.MeshStandardMaterial({ color: 0x3b3633, metalness: 0.1, roughness: 0.9 });
   const starGeo = (() => {
     const sh = new THREE.Shape();
@@ -594,35 +595,88 @@ const Board = (() => {
     g.font = `bold 72px ${FONT}`; g.textAlign = 'center'; g.textBaseline = 'middle'; g.fillStyle = '#f7ead0'; g.fillText(ch, w / 2, w / 2 + 4);
   });
   let feastTex = null;
-  // 头顶血条：细长一条，朱红小格 = 剩余生命，淡格 = 已掉的血（朝向镜头）
+  // 头顶血条：细长胶囊，左端金色菱形饰；汉军朱红、楚军暗绿；亮格 = 剩余生命，暗格 = 已掉的血（朝向镜头）
   const hpTexCache = new Map();
-  function hpTex(hp, max) {
-    const key = hp + '/' + max;
+  const HP_COL = { r: ['#ff8a66', '#e2462c', '#9c1f12'], b: ['#7fc79a', '#3f8a5e', '#1b4a31'] };
+  function hpTex(hp, max, side) {
+    const key = side + hp + '/' + max;
     if (hpTexCache.has(key)) return hpTexCache.get(key);
-    const seg = 50, gap = 6, pad = 5, W = pad * 2 + max * seg + (max - 1) * gap, H = 26;
+    const S = 2, seg = 44 * S, gap = 5 * S, cap = 22 * S, pad = 6 * S, H = 26 * S;
+    const W = cap + pad + max * seg + (max - 1) * gap + pad;
     const t = canvasTex(W, H, (g) => {
       g.clearRect(0, 0, W, H);
-      g.fillStyle = 'rgba(28,22,18,.62)'; rrect(g, 1, 1, W - 2, H - 2, 6); g.fill();
-      g.strokeStyle = 'rgba(226,196,130,.75)'; g.lineWidth = 1.5; rrect(g, 1.5, 1.5, W - 3, H - 3, 6); g.stroke();
+      const y0 = 5 * S, h0 = H - 10 * S, x0 = cap * 0.55;
+      // 底槽
+      const bg = g.createLinearGradient(0, y0, 0, y0 + h0); bg.addColorStop(0, 'rgba(14,11,9,.82)'); bg.addColorStop(1, 'rgba(36,28,22,.82)');
+      g.fillStyle = bg; rrect(g, x0, y0, W - x0 - 2 * S, h0, h0 / 2); g.fill();
+      g.strokeStyle = 'rgba(232,200,128,.9)'; g.lineWidth = 1.6 * S; rrect(g, x0, y0, W - x0 - 2 * S, h0, h0 / 2); g.stroke();
+      // 血格
+      const [hi, mid, lo] = HP_COL[side] || HP_COL.r, sy = y0 + 3.2 * S, sh = h0 - 6.4 * S;
       for (let i = 0; i < max; i++) {
-        const x = pad + i * (seg + gap), y = 6, h = H - 12;
+        const x = cap + pad + i * (seg + gap), last = i === max - 1, r = last ? sh / 2 : 2.5 * S;
+        g.save(); g.beginPath();
+        if (last) { g.moveTo(x, sy); g.lineTo(x + seg - sh / 2, sy); g.arc(x + seg - sh / 2, sy + sh / 2, sh / 2, -Math.PI / 2, Math.PI / 2); g.lineTo(x, sy + sh); g.closePath(); }
+        else rrect(g, x, sy, seg, sh, r);
         if (i < hp) {
-          const gr = g.createLinearGradient(0, y, 0, y + h); gr.addColorStop(0, '#f2674a'); gr.addColorStop(1, '#b3261a');
-          g.fillStyle = gr; rrect(g, x, y, seg, h, 3); g.fill();
-          g.fillStyle = 'rgba(255,235,210,.45)'; g.fillRect(x + 3, y + 1, seg - 6, 2);
-        } else { g.fillStyle = 'rgba(240,226,200,.16)'; rrect(g, x, y, seg, h, 3); g.fill(); }
+          const gr = g.createLinearGradient(0, sy, 0, sy + sh); gr.addColorStop(0, hi); gr.addColorStop(0.45, mid); gr.addColorStop(1, lo);
+          g.fillStyle = gr; g.fill();
+          g.clip(); g.fillStyle = 'rgba(255,255,255,.38)'; g.fillRect(x, sy + 1.2 * S, seg, 2.2 * S);
+        } else { g.fillStyle = 'rgba(255,240,210,.09)'; g.fill(); g.strokeStyle = 'rgba(255,240,210,.18)'; g.lineWidth = 1 * S; g.stroke(); }
+        g.restore();
       }
+      // 左端金菱
+      const cx = cap * 0.55, cy = H / 2, rr = 9 * S;
+      const gd = g.createLinearGradient(cx - rr, cy - rr, cx + rr, cy + rr); gd.addColorStop(0, '#fff1c4'); gd.addColorStop(0.5, '#e0b04e'); gd.addColorStop(1, '#8a5f18');
+      g.beginPath(); g.moveTo(cx, cy - rr); g.lineTo(cx + rr * 0.8, cy); g.lineTo(cx, cy + rr); g.lineTo(cx - rr * 0.8, cy); g.closePath();
+      g.fillStyle = gd; g.fill(); g.strokeStyle = 'rgba(40,24,8,.9)'; g.lineWidth = 1.2 * S; g.stroke();
+      g.beginPath(); g.arc(cx, cy, 2.6 * S, 0, 7); g.fillStyle = HP_COL[side] ? HP_COL[side][1] : '#c33'; g.fill();
     });
-    t.userData = { w: W, h: H }; hpTexCache.set(key, t);
+    t.userData = { w: W / S, h: H / S }; hpTexCache.set(key, t);
     return t;
   }
+  // 棋身按等级换材质：一级木、二级白银、三级黄金、四级翡翠金镶玉（金属需要环境反光，临时做一张暖色天光图）
+  let envTex = null, lvMats = null;
+  function levelMats() {
+    if (lvMats) return lvMats;
+    try {
+      const eq = canvasTex(256, 128, (g, w, h) => {
+        const gr = g.createLinearGradient(0, 0, 0, h);
+        gr.addColorStop(0, '#fff6e2'); gr.addColorStop(0.38, '#f3dfb6'); gr.addColorStop(0.5, '#ffffff'); gr.addColorStop(0.56, '#a88d68'); gr.addColorStop(1, '#3b2c1e');
+        g.fillStyle = gr; g.fillRect(0, 0, w, h);
+        for (let i = 0; i < 5; i++) { const x = (i + 0.3) * w / 5, y = h * 0.22; const rg = g.createRadialGradient(x, y, 0, x, y, 14); rg.addColorStop(0, 'rgba(255,255,255,1)'); rg.addColorStop(1, 'rgba(255,255,255,0)'); g.fillStyle = rg; g.fillRect(x - 14, y - 14, 28, 28); }
+      });
+      eq.mapping = THREE.EquirectangularReflectionMapping;
+      const pm = new THREE.PMREMGenerator(Core.renderer);
+      envTex = pm.fromEquirectangular(eq).texture; pm.dispose();
+    } catch (e) { envTex = null; }
+    const jadeTex = canvasTex(256, 256, (g, w) => {
+      const gr = g.createLinearGradient(0, 0, w, w); gr.addColorStop(0, '#3fa078'); gr.addColorStop(0.5, '#2f8a63'); gr.addColorStop(1, '#3a9c72');
+      g.fillStyle = gr; g.fillRect(0, 0, w, w);
+      for (let i = 0; i < 26; i++) { g.globalAlpha = 0.08 + rnd() * 0.16; g.fillStyle = rnd() < 0.6 ? '#bfeed4' : '#14533a'; g.beginPath(); g.ellipse(rnd() * w, rnd() * w, 10 + rnd() * 50, 4 + rnd() * 16, rnd() * 3, 0, 7); g.fill(); }
+      g.globalAlpha = 0.25; g.strokeStyle = '#e8fff2'; g.lineWidth = 1.2;
+      for (let i = 0; i < 6; i++) { g.beginPath(); let x = rnd() * w, y = rnd() * w; g.moveTo(x, y); for (let k = 0; k < 6; k++) { x += (rnd() - 0.5) * 60; y += (rnd() - 0.5) * 60; g.lineTo(x, y); } g.stroke(); }
+    });
+    const e = envTex ? { envMap: envTex } : {};
+    lvMats = {
+      2: new THREE.MeshStandardMaterial({ color: 0xdfe4ea, metalness: envTex ? 0.9 : 0.35, roughness: 0.28, envMapIntensity: 1.05, ...e }),
+      3: new THREE.MeshStandardMaterial({ color: 0xf2c25a, metalness: envTex ? 0.92 : 0.45, roughness: 0.24, envMapIntensity: 1.15, emissive: 0x2a1700, ...e }),
+      4: new THREE.MeshStandardMaterial({ map: jadeTex, color: 0xffffff, metalness: 0.05, roughness: 0.16, envMapIntensity: 0.7, emissive: 0x06281a, emissiveIntensity: 0.6, ...e }),
+    };
+    lvMats.gold = new THREE.MeshStandardMaterial({ color: 0xf0c050, metalness: envTex ? 0.95 : 0.5, roughness: 0.22, envMapIntensity: 1.2, ...e });
+    return lvMats;
+  }
+  const inlayGeo = new THREE.TorusGeometry(0.4, 0.017, 6, 48); inlayGeo.rotateX(Math.PI / 2); inlayGeo.userData.keep = true;
   function decorate(m, p, o = {}) {
     if (m.userData.deco) { m.remove(m.userData.deco); m.userData.deco = null; }
     const face = m.children[1];
     if (face && face.material) face.material.color.set(o.dim ? 0x8f8a84 : 0xffffff);
-    if (!p || !p.lv) return;
+    const body = m.children[0];
+    if (!p || !p.lv) { if (body) body.material = pieceWood; return; }
     const d = new THREE.Group(); m.add(d); m.userData.deco = d;
     const max = BF.hpOf(p.t, p.lv);
+    // 棋身材质：一级木、二级白银、三级黄金、四级翡翠金镶玉
+    if (body) body.material = p.lv >= 2 ? levelMats()[Math.min(4, p.lv)] : pieceWood;
+    if (p.lv >= 4) { const L = levelMats(); for (const y of [PH - 0.012, 0.03]) { const ri = new THREE.Mesh(inlayGeo, L.gold); ri.position.y = y; d.add(ri); } }
     // 腰带甲片 = 攒下的击杀数（每片抵下次升级 1 功，升级时用掉）
     const nx = Math.min(8, p.xp || 0);
     for (let i = 0; i < nx; i++) {
@@ -632,16 +686,10 @@ const Board = (() => {
       pl.userData.plate = i; d.add(pl);
     }
     if (p.lv >= 2) {
-      const tx = hpTex(p.hp, max), sc = (window.innerWidth <= 760 ? 1.25 : 1) * 0.003;
+      const tx = hpTex(p.hp, max, p.s), sc = (window.innerWidth <= 760 ? 1.25 : 1) * 0.0028;
       const sp = new THREE.Sprite(new THREE.SpriteMaterial({ map: tx, transparent: true, depthWrite: false }));
       sp.scale.set(tx.userData.w * sc, tx.userData.h * sc, 1); sp.position.y = PH + 0.34; sp.renderOrder = 6;
       sp.userData.hpBar = { hp: p.hp, max }; d.add(sp);
-    }
-    for (let i = 0; i < p.lv - 1; i++) {
-      const x = (i - (p.lv - 2) / 2) * 0.13;
-      const rim = new THREE.Mesh(starGeo, starRim); rim.scale.setScalar(1.25); rim.position.set(x, PH + 0.004, -0.305);
-      const st = new THREE.Mesh(starGeo, starMat); st.position.set(x, PH + 0.006, -0.305);
-      d.add(rim, st);
     }
     if (o.jm) {
       for (let i = 0; i < 10; i++) {

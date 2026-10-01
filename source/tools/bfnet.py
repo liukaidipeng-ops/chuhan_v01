@@ -35,7 +35,7 @@ MESH = """(()=>{const x=window.__xq, g=x.game, B=x.Board; const bad=[]; let n=0;
   const d=m.userData.deco; const plates=d?d.children.filter(c=>c.userData.plate!=null):[]; const on=plates.filter(c=>c.material===B.plateOn).length;
   if(on!==Math.min(8,p.xp||0)) bad.push('plates '+p.id);
   const bar=d?d.children.find(c=>c.userData.hpBar):null; if(p.lv>=2 && (!bar || bar.userData.hpBar.hp!==p.hp)) bad.push('hpbar '+p.id);
-  const stars=d?d.children.filter(c=>c.geometry && c.geometry.type==='ShapeGeometry').length/2:0; if(p.t!=='k' && stars!==p.lv-1) bad.push('stars '+p.id);}
+  const wood=m.children[0].material===B.pieceWood; if(p.t!=='k' && wood!==(p.lv<2)) bad.push('body '+p.id);}
  if(B.pieces.size!==n) bad.push('meshcount '+B.pieces.size+'/'+n);
  return bad.join(',');})()"""
 try:

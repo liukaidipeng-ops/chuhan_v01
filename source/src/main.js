@@ -270,9 +270,7 @@
         if (s === 'r' && fx.hm) chips.push(`<span class="red" data-tip="${escTip(ultTip('b'))}">鸿门宴 ${fx.hm}</span>`);
         if (s === 'b' && fx.sm) chips.push(`<span class="red" data-tip="${escTip(ultTip('r'))}">涣散 ${fx.sm}</span>`);
         if (s === 'b' && fx.pf) chips.push(`<span data-tip="破釜沉舟之后楚军暂时不能用兵种技能">封技 ${fx.pf}</span>`);
-        // 本回合还有技能没用：呼吸闪烁的签，点一下依次选中这些子
-        const rs = tap ? readySkills() : [];
-        if (rs.length) chips.push(`<span class="go tap sk-ready" data-a="pickSkill" data-tip="本回合还未使用技能：有 ${rs.length} 枚子的技能可以用（棋盘上脚下闪光的子）。点一下依次选中它们。">技能可用 ${rs.length}</span>`);
+
         const fxs = bfm.querySelector('.fxs'), html = chips.join('');
         if (fxs.innerHTML !== html) fxs.innerHTML = html;
         fxs.onclick = e => { const t = e.target.closest('[data-a]'); if (!t) return; e.stopPropagation(); bfButton(t.dataset.a, t); };
@@ -340,6 +338,12 @@
       else { const tr = $('tools').getBoundingClientRect(); bar.style.left = 'auto'; bar.style.transform = 'none'; bar.style.right = (W - tr.left + 12) + 'px'; bar.style.bottom = (H - tr.bottom) + 'px'; }
       const br = bar.getBoundingClientRect();
       $('bubMe').style.bottom = (H - Math.min(m.top, br.top) + 10) + 'px';
+    }
+    // 技能未用提示：手机上贴在卡片（或技能栏）上方，电脑上在屏幕下方正中
+    const sh = $('skHint');
+    if (!sh.classList.contains('hidden')) {
+      if (compact) { const top = bar.classList.contains('hidden') ? m.top : Math.min(m.top, bar.getBoundingClientRect().top); sh.style.bottom = (H - top + 8) + 'px'; }
+      else sh.style.bottom = '';
     }
     $('bfReport').style.top = compact ? (sr.bottom + 6) + 'px' : '';
   }
@@ -1055,7 +1059,13 @@
   const isCompact = () => innerWidth <= 760 || innerWidth / innerHeight < 0.8;
   function renderBar() {
     const bar = $('bfBar');
-    Board.setGlow(game && game.bf && mode && started && !ended && !busy && !bfMode && !dbgOn && canAct() ? readySkills() : []);
+    const rsOn = game && game.bf && mode && started && !ended && !busy && !bfMode && !dbgOn && canAct();
+    const rs = rsOn ? readySkills() : [];
+    Board.setGlow(rs);
+    // 屏幕下方闪烁提示：本回合还有技能没用（点一下依次选中这些子）
+    const sh = $('skHint');
+    sh.classList.toggle('hidden', !rs.length);
+    if (rs.length) sh.querySelector('small').textContent = `${rs.length} 枚子可用 · 点我查看`;
     const show = !!(game && game.bf && mode && started && !ended && !game.result && canAct() && !dbgOn);
     bar.classList.toggle('hidden', !show);
     if (!show) { $('bfRow').innerHTML = ''; $('bfHint').textContent = ''; return; }
@@ -1103,7 +1113,7 @@
         B.push(btn('ult', 'ult', !uw, BF.ULT_CN[side], uw ? uw[0] : BF.CFG.ultimates.cost + ' 功', uw ? uw[1] : '', '', ultTip(side) + (uw ? '<br><em>' + uw[1] + '</em>' : '')));
       }
       if (a.pass) B.push(`<button class="sk" data-a="pass">停 着<small>无子可走</small></button>`);
-      if (!a.p) { const rs = readySkills(); hint = game.freeUsed ? '已架拒马 · 请再走一步棋' : rs.length ? `本回合还未使用技能 · ${rs.length} 枚子可用` : `${SIDE_ARMY[side]}行动 · 军功 ${game.merit[side]}`; }
+      if (!a.p) hint = game.freeUsed ? '已架拒马 · 请再走一步棋' : `${SIDE_ARMY[side]}行动 · 军功 ${game.merit[side]}`;
       if (isCompact() && !game.freeUsed) hint = '';
     }
     if (!B.length) { bar.classList.add('hidden'); $('bfRow').innerHTML = ''; $('bfHint').textContent = ''; layoutHud(); return; }
@@ -1113,6 +1123,7 @@
     layoutHud();
   }
   let skillCycle = 0;
+  $('skHint').addEventListener('click', ev => { ev.stopPropagation(); bfButton('pickSkill'); });
   async function bfButton(a, el) {
     if (!canAct()) return;
     Sfx.select && Sfx.select();

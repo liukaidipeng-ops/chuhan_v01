@@ -61,7 +61,8 @@ const Models = (() => {
   function soldierPartGeos(side, kind) {
     const key = side + kind;
     if (partCache[key]) return partCache[key];
-    const c = SIDE[side];
+    // 斩马刀手（兵法四级兵）：通身金甲
+    const c = kind === 'zhanma' ? { ...SIDE[side], armor: 0xd6a43e, trim: 0xf3d27a } : SIDE[side];
     const helmet = kind === 'crew'
       ? [P(G.sph(0.13, 7), 0x5b5147, 0, 1.66, -0.01, 0, 0, 0, 1, 0.75, 1), P(G.cone(0.05, 0.14, 5), 0x5b5147, 0, 1.63, -0.14, 1.8)]
       : [P(G.cyl(0.1, 0.14, 0.14, 8), c.armor, 0, 1.68, 0), P(G.cone(0.05, 0.12, 5), c.armor, 0, 1.8, 0), P(G.cone(0.05, 0.1, 5), c.tassel, 0, 1.86, -0.02, 0.4),
@@ -91,10 +92,12 @@ const Models = (() => {
     else if (kind === 'xbow') out.weapon = mk([P(G.box(0.06, 0.75, 0.06), C.wood, 0, 0.18, 0), P(new THREE.TorusGeometry(0.34, 0.02, 4, 12, Math.PI * 0.8), C.wood, 0, 0.52, 0.0, 0, 0, Math.PI * 0.1), P(G.box(0.7, 0.006, 0.006), C.white, 0, 0.5, 0), P(G.box(0.04, 0.1, 0.05), C.bronze, 0, 0.05, 0.03)]);
     else if (kind === 'archer') out.weapon = mk([P(G.cyl(0.006, 0.006, 0.8, 3), C.wood, 0, 0.3, 0), P(G.cone(0.015, 0.06, 4), C.dark, 0, 0.72, 0)]);
     else if (kind === 'crew') out.weapon = mk([P(G.cyl(0.02, 0.02, 2.0, 5), C.wood, 0, 0.5, 0), P(G.cyl(0.07, 0.07, 0.16, 7), 0x6e675b, 0, 1.5, 0)]);
+    else if (kind === 'zhanma') out.weapon = mk([P(G.cyl(0.02, 0.022, 1.5, 5), C.wood, 0, 0.35, 0), P(new THREE.TorusGeometry(0.045, 0.014, 4, 8), C.bronze, 0, 1.1, 0), P(G.box(0.05, 0.92, 0.13), C.metal, 0, 1.58, 0.03), P(G.box(0.03, 0.14, 0.09), C.metal, 0, 2.07, 0.07), P(G.cone(0.05, 0.12, 6), tas, 0, 1.04, 0, Math.PI)]);
     else if (kind === 'banner') out.weapon = mk([P(G.cyl(0.022, 0.026, 3.0, 5), C.wood, 0, 0.9, 0), P(G.cone(0.05, 0.18, 5), C.gold, 0, 2.48, 0)]);
     // 盾（腕部为原点）
     if (kind === 'spear') out.shield = mk([P(G.box(0.46, 0.72, 0.05), c.cloth2, 0, 0.08, 0.04), P(G.box(0.38, 0.62, 0.052), c.cloth, 0, 0.08, 0.042), P(G.sph(0.07, 6), C.metal, 0, 0.1, 0.07), P(G.box(0.46, 0.04, 0.055), c.trim, 0, 0.42, 0.04), P(G.box(0.46, 0.04, 0.055), c.trim, 0, -0.26, 0.04)]);
     else if (kind === 'sword') out.shield = mk([P(G.cyl(0.3, 0.3, 0.05, 12), c.cloth2, 0, 0.05, 0.05, Math.PI / 2), P(new THREE.TorusGeometry(0.3, 0.02, 4, 16), c.trim, 0, 0.05, 0.075), P(G.sph(0.08, 6), C.metal, 0, 0.05, 0.09)]);
+    else if (kind === 'zhanma') out.shield = mk([P(G.box(0.62, 1.02, 0.06), c.cloth2, 0, 0.12, 0.05), P(G.box(0.52, 0.92, 0.062), 0xb8862e, 0, 0.12, 0.052), P(G.sph(0.09, 6), 0xf3d27a, 0, 0.16, 0.09), P(G.box(0.62, 0.05, 0.066), 0xf3d27a, 0, 0.62, 0.05), P(G.box(0.62, 0.05, 0.066), 0xf3d27a, 0, -0.38, 0.05), P(G.box(0.05, 0.92, 0.066), 0xf3d27a, 0, 0.12, 0.05)]);
     else if (kind === 'archer') out.shield = mk([P(new THREE.TorusGeometry(0.55, 0.02, 4, 18, Math.PI * 0.8), C.wood, 0, 0.0, 0.05, 0, Math.PI / 2, -Math.PI * 0.4), P(G.cyl(0.004, 0.004, 0.95, 3), C.white, 0, 0.0, -0.07)]);
     partCache[key] = out;
     return out;
@@ -103,6 +106,7 @@ const Models = (() => {
   const KIND_POSE = {
     spear: { aW: -0.25, wAbs: 0, aS: -0.5, sAbs: 0, chargeW: -1.15, chargeAbs: Math.PI / 2 },
     halberd: { aW: -0.25, wAbs: 0, aS: 0.05, sAbs: 0, chargeW: -1.1, chargeAbs: 1.3 },
+    zhanma: { aW: -0.3, wAbs: 0.15, aS: -0.55, sAbs: 0, chargeW: -1.2, chargeAbs: 1.25 },
     sword: { aW: -0.35, wAbs: 0.6, aS: -0.5, sAbs: 0, chargeW: -2.3, chargeAbs: -0.4 },
     xbow: { aW: -0.55, wAbs: 0.7, aS: -0.55, sAbs: 0, chargeW: -1.45, chargeAbs: Math.PI / 2 },
     archer: { aW: -0.15, wAbs: 0, aS: -0.2, sAbs: 0, chargeW: -0.3, chargeAbs: 0.2 },
@@ -424,10 +428,10 @@ const Models = (() => {
   function makeRider(side, opt = {}) {
     const c = SIDE[side];
     const g = new THREE.Group();
-    const armor = opt.heavy ? C.dark : c.armor;
+    const armor = opt.gold ? 0xd6a43e : opt.heavy ? C.dark : c.armor;
     const torso = inkedMerged([
       P(G.box(0.16, 0.5, 0.16), C.pants, 0.12, 0.05, 0.28, 0.9, 0, -0.4), P(G.box(0.16, 0.5, 0.16), C.pants, 0.12, 0.05, -0.28, -0.9, 0, -0.4),
-      P(G.cyl(0.24, 0.32, 0.3, 8), c.armor, 0, 0.18, 0),
+      P(G.cyl(0.24, 0.32, 0.3, 8), opt.gold ? 0xd6a43e : c.armor, 0, 0.18, 0),
       P(G.cyl(0.22, 0.2, 0.55, 8), c.cloth, 0, 0.55, 0),
       P(G.box(0.4, 0.42, 0.46), armor, 0.02, 0.6, 0),
       P(G.sph(0.13, 8), armor, 0, 0.82, 0.27, 0, 0, 0, 1, 0.8, 1), P(G.sph(0.13, 8), armor, 0, 0.82, -0.27, 0, 0, 0, 1, 0.8, 1),
@@ -446,7 +450,18 @@ const Models = (() => {
     const arm = new THREE.Group(); arm.position.set(0.02, 0.82, 0.32);
     const armM = inked(G.box(0.12, 0.5, 0.12), toon(c.cloth)); armM.position.y = -0.22; arm.add(armM);
     const weapon = new THREE.Group(); weapon.position.y = -0.45; arm.add(weapon);
-    if (opt.weapon === 'ji') {
+    // 双锤（兵法四级车的大将）：每手一柄金瓜锤
+    const hammer = () => {
+      const w = new THREE.Group();
+      const handle = inked(G.cyl(0.028, 0.028, 0.8, 5), toon(C.wood)); handle.position.y = 0.12; w.add(handle);
+      const head = inked(G.sph(0.17, 9), toon(0xd9a845)); head.position.y = 0.62; head.scale.set(1, 1.15, 1); w.add(head);
+      const band = inked(new THREE.TorusGeometry(0.17, 0.028, 4, 12), toon(C.bronze)); band.position.y = 0.62; band.rotation.x = Math.PI / 2; w.add(band);
+      for (let i = 0; i < 6; i++) { const sp = inked(G.cone(0.035, 0.12, 4), toon(0xf3d27a)); const a = i / 6 * Math.PI * 2; sp.position.set(Math.cos(a) * 0.17, 0.62, Math.sin(a) * 0.17); sp.rotation.z = -Math.PI / 2; sp.rotation.y = -a; w.add(sp); }
+      return w;
+    };
+    if (opt.weapon === 'hammers') {
+      weapon.add(hammer());
+    } else if (opt.weapon === 'ji') {
       const shaft = inked(G.cyl(0.025, 0.025, 2.6, 5), toon(C.wood)); shaft.position.y = 0.4; weapon.add(shaft);
       const tip = inked(G.cone(0.05, 0.32, 5), toon(C.metal)); tip.position.y = 1.85; weapon.add(tip);
       const blade = inked(jiShape(), toon(C.metal)); blade.position.set(0, 1.5, -0.01); weapon.add(blade);
@@ -458,12 +473,19 @@ const Models = (() => {
     weapon.rotation.x = -0.2;
     g.add(arm);
     arm.rotation.x = -0.3; arm.rotation.z = 0.9;
-    return { group: g, arm, weapon, cape, head, torso };
+    let arm2 = null;
+    if (opt.weapon === 'hammers') {
+      arm2 = new THREE.Group(); arm2.position.set(0.02, 0.82, -0.32);
+      const am = inked(G.box(0.12, 0.5, 0.12), toon(c.cloth)); am.position.y = -0.22; arm2.add(am);
+      const w2 = new THREE.Group(); w2.position.y = -0.45; w2.add(hammer()); w2.rotation.x = 0.2; arm2.add(w2);
+      arm2.rotation.x = 0.3; arm2.rotation.z = 0.9; g.add(arm2);
+    }
+    return { group: g, arm, arm2, weapon, cape, head, torso };
   }
-  function makeCavalry(side, heavy = true, weapon = 'dao') {
+  function makeCavalry(side, heavy = true, weapon = 'dao', opt = {}) {
     const c = SIDE[side];
-    const h = makeHorse({ color: c.horse, barding: heavy ? c.barding : null, trim: c.trim });
-    const r = makeRider(side, { heavy, weapon });
+    const h = makeHorse({ color: c.horse, barding: heavy ? (opt.gold ? 0xb8862e : c.barding) : null, trim: opt.gold ? 0xf3d27a : c.trim });
+    const r = makeRider(side, { heavy, weapon, gold: opt.gold });
     r.group.position.set(-0.05, 1.72, 0);
     h.bodyPivot.add(r.group);
     h.rider = r;

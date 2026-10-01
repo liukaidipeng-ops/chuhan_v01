@@ -245,8 +245,11 @@ const Squads = (() => {
   const bigFor = n => [1, 1.5, 1.35, 1.22, 1.15][n] || 1;
   class Infantry extends TroopSquad {
     constructor(side, anchor, yaw, n = 0) {
-      const off = []; if (n) off.push(...lineUp(n, 0.27)); else for (let r = 0; r < 3; r++) for (let c = 0; c < 4; c++) off.push([(c - 1.5) * 0.24, (1 - r) * 0.25]);
-      super('p', side, anchor, yaw, 'spear', off, n ? SC * bigFor(n) : SC);
+      // 兵法四级兵：不再加人，三名金甲斩马刀手持大盾
+      const elite = n >= 4; if (elite) n = 3;
+      const off = []; if (n) off.push(...lineUp(n, elite ? 0.3 : 0.27)); else for (let r = 0; r < 3; r++) for (let c = 0; c < 4; c++) off.push([(c - 1.5) * 0.24, (1 - r) * 0.25]);
+      super('p', side, anchor, yaw, elite ? 'zhanma' : 'spear', off, n ? SC * bigFor(n) * (elite ? 1.08 : 1) : SC);
+      this.elite = elite;
     }
     async attack(target, c) {
       const { B, d } = c;
@@ -811,9 +814,24 @@ const Squads = (() => {
   }
 
   // ---------- 工厂 ----------
+  // 兵法四级车：手持双锤的金甲大将骑马在前，三辆战车在后
+  function vanguard(sq) {
+    sq.addEchoes([sq.m.group], 3, 0.4, 0.62);
+    sq.echoOff[1] -= 0.42; for (const e of sq.echoes) e.back -= 0.42;
+    const gen = Models.makeCavalry(sq.side, true, 'hammers', { gold: true });
+    gen.group.scale.setScalar(HS * 1.3); sq.group.add(gen.group); sq.general = gen;
+    gen.deadSide = 1;
+    const place = () => { const p = sq.anchor.clone().addScaledVector(fwd(sq.yaw), 0.38); gen.group.position.set(p.x, gy(p), p.z); gen.group.rotation.y = sq.yaw - Math.PI / 2; };
+    sq.updaters.push(dt => { gen.speed = Math.min(1.2, (sq.m.speed || 0) * 0.9); gen.update(dt); if (!sq.genFree) place(); });
+    place();
+    const die = sq.die.bind(sq);
+    sq.die = (hit, dir, ...a) => { sq.genFree = true; P.blood(gen.group.position.clone().setY(TOP + 0.3), 12, 0.8, dir); tween(0.7, k => { gen.dead = k; gen.rearK = Math.sin(k * Math.PI) * 0.6; }, ease.in); return die(hit, dir, ...a); };
+    return sq;
+  }
   // n：兵法模式按等级出几个（0 = 普通模式的原编制）
   function make(t, side, anchor, yaw, role = 'move', lv = 1, n = 0) {
     const sq = make0(t, side, anchor, yaw, role, n);
+    if (t === 'r' && n >= 4 && sq instanceof Chariot) { vanguard(sq); const d0 = sq.die; sq.die = (hit, dir, ...a) => { sq.echoesDie(dir || new V3(0, 0, 1)); return d0(hit, dir, ...a); }; return sq.rank ? sq.rank(lv) : sq; }
     if (n > 1) {
       if (sq instanceof Elephant || sq instanceof Chariot) sq.addEchoes([sq.m.group], n, t === 'r' ? 0.36 : 0.4);
       else if (sq instanceof Cannon && sq.mode !== 'battery') sq.addEchoes([sq.gun.group].concat(sq.horse ? [sq.horse.group] : []), n, 0.42);
