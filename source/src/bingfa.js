@@ -4,7 +4,7 @@
 // v2：二级只长血，三级长血并解锁技能；车可升四级；士二级起攻击 2；击杀攒甲片抵升级价；拒马不占行动；楚战象践踏改为三级被动。
 (function (global) {
   const XQ = global.XQ || require('./rules.js');
-  const { pseudoMoves, inCheck, findKing, inBoard, ownHalf, other, initialBoard, checkers } = XQ;
+  const { pseudoMoves, inCheck, findKing, inBoard, ownHalf, other, initialBoard, checkers, inPalace } = XQ;
 
   // ---------- 数值配置（初版，集中在这里调） ----------
   const CFG = {
@@ -13,14 +13,18 @@
       killReward: { p: 1, a: 2, e: 2, n: 3, c: 3, r: 5 }, killRewardPerLevel: 1,
       checkReward: 1, pawnCrossRiverReward: 1, lostPieceCompensation: 1,
     },
-    // cost[兵种] = [升二级, 升三级, 升四级(只有车)]；每击杀一个单位攒一片甲，下次升级少花 killDiscount 功，升级后清零，最少 minCost 功
-    upgrade: { cost: { p: [3, 5], a: [2, 3], e: [2, 3], n: [5, 7], c: [5, 7], r: [6, 8, 20] }, maxLevel: { r: 4 }, defaultMaxLevel: 3, maxPerTurn: 1, healOnUpgrade: true, cooldownOnUnlock: 1, killDiscount: 1, minCost: 1 },
+    // cost[兵种] = [升二级, 升三级, 升四级]；每击杀一个单位攒一片甲，下次升级少花 killDiscount 功，升级后清零，最少 minCost 功
+    upgrade: { cost: { p: [3, 5, 8], a: [2, 3, 4], e: [2, 3], n: [5, 7], c: [5, 7], r: [6, 8, 20] }, maxLevel: { r: 4, p: 4, a: 4 }, defaultMaxLevel: 3, maxPerTurn: 1, healOnUpgrade: true, cooldownOnUnlock: 1, killDiscount: 1, minCost: 1 },
     hp: [1, 2, 3, 4],
-    attack: { a: [1, 2, 2] }, // 按等级的攻击力（一次攻击扣的血）；没列出的兵种都是 1
-    skillLevel: 3, // 几级解锁兵种技能
+    hpByType: { p: [1, 2, 3, 3], a: [1, 2, 3, 3] }, // 兵、士四级不再加血
+    attack: { a: [1, 2, 2, 2] }, // 按等级的攻击力（一次攻击扣的血）；没列出的兵种都是 1
+    skillLevel: 3, // 几级解锁兵种技能（单个技能可用 level 另定）
     skills: {
       juma: { cooldown: 2, duration: 1, damage: 1, free: true }, // free：不占行动，架完还要再走一步棋（这枚兵本回合不能动）
-      chongzhen: { cooldown: 3, extraSquares: 1 },
+      shensu: { level: 4, cooldown: 5, range: 2 }, // 兵四级：八方向直线 1～2 格，可越子，只能落空格
+      huifang: { level: 4, passive: true, move: true, cooldown: 2 }, // 兵四级被动：可后退一格
+      jinwei: { level: 4, passive: true, move: true, cooldown: 2 }, // 士四级被动：九宫内横走一格
+      chongzhen: { cooldown: 3, springDamage: 1 }, // 车：前方第一枚子当跳板（挨 1 点），落到它身后一格
       taying: { cooldown: 2 },
       pili: { cooldown: 4, splashDamage: 1, splashMinLevel: 2 },
       qishe: { cooldown: 3, range: 2, damage: 1 },
@@ -31,14 +35,19 @@
     ultimates: { cost: 20, hongmen: { usesPerGame: 1, rounds: 2 }, simian: { usesPerGame: 1, rounds: 2, radius: 2, minPiecesInRadius: 3 } },
     longCheckLimit: 6,
   };
+  // 主技能（三级解锁）；SKILLS_OF 列出这一兵种全部技能（含四级的）
   const SKILL_OF = (t, s) => ({ p: 'juma', r: 'chongzhen', n: 'taying', c: 'pili', a: 'hujia', e: s === 'r' ? 'qishe' : 'jianta' })[t] || null;
-  const SKILL_CN = { juma: '拒马', chongzhen: '冲阵', taying: '踏营', pili: '霹雳', qishe: '齐射', jianta: '践踏', hujia: '护驾' };
-  const ART_CN = { r: '萧何追韩信', b: '破釜沉舟' }, ULT_CN = { r: '四面楚歌', b: '鸿门宴' };
+  const SKILLS_OF = (t, s) => ({ p: ['juma', 'shensu', 'huifang'], a: ['hujia', 'jinwei'] })[t] || (SKILL_OF(t, s) ? [SKILL_OF(t, s)] : []);
+  const SKILL_CN = { juma: '拒马', chongzhen: '冲阵', taying: '踏营', pili: '霹雳', qishe: '齐射', jianta: '践踏', hujia: '护驾', shensu: '神速营', huifang: '回防', jinwei: '禁卫' };
+  const ART_CN = { r: '召回良将', b: '破釜沉舟' }, ULT_CN = { r: '四面楚歌', b: '鸿门宴' };
   const ORTHO = [[1, 0], [-1, 0], [0, 1], [0, -1]];
   // 技能说明（界面悬停 / 长按用）
   const SKILL_DESC = {
     juma: '原地架矛，不占本回合行动：架完还要再走一步棋（这枚兵本回合不能动，也不能再用技能或兵法）。持续到对方下一次行动结束；期间敌子来吃或攻击它，攻方先挨 1 点伤害，一级攻方直接阵亡。对帅将无效。',
-    chongzhen: '按车的走法吃子或攻击；吃掉第一个目标后沿同方向再碾一格：空格就前进，一级敌子直接碾死占位，遇到帅将、带血敌子或己方子就停下。',
+    chongzhen: '车前方直线上的第一枚子（敌我都行，帅将除外）当跳板，挨 1 点伤害（1 血直接阵亡）；车随即冲到它身后一格：空格就落下；那格有子且一下能打死就杀掉占位（己方子也会被杀）；打不死就只扣血，车退回原位。',
+    shensu: '兵四级：横、竖、斜八个方向直线走 1～2 格，中间有子也能越过，落点必须是空格，不能吃子或攻击。',
+    huifang: '兵四级被动，冷却 2：可以后退一格（能吃子、攻击），不用点技能，直接走。',
+    jinwei: '士四级被动，冷却 2：在九宫内可以横着走一格（能吃子、攻击），不用点技能，直接走。',
     taying: '本次走子无视蹩马腿，其余同普通走子。',
     pili: '按炮的吃子走法炮击一个敌子（按吃子或攻击结算），目标和前后左右四格同时落弹：四格内二级以上的敌子各扣 1 点。',
     qishe: '不移动，射击斜线 1～2 格内的一个敌子，扣 1 点，一级子直接阵亡；射 2 格时中间有子会被挡，可以射过河。',
@@ -52,7 +61,7 @@
   // ---------- 状态 ----------
   function newState(cfg) {
     const b = initialBoard();
-    for (const row of b) for (const p of row) if (p) { p.lv = 1; p.hp = 1; p.cd = 0; p.jm = 0; p.xp = 0; }
+    for (const row of b) for (const p of row) if (p) { p.lv = 1; p.hp = 1; p.cd = 0; p.jm = 0; p.xp = 0; p.kills = 0; }
     return {
       board: b, turn: 'r', cnt: { r: 0, b: 0 }, merit: { r: cfg.merit.start, b: cfg.merit.start },
       used: { art: { r: 0, b: 0 }, ult: { r: 0, b: 0 } }, fx: { hm: 0, sm: 0, pf: 0 },
@@ -77,8 +86,17 @@
   const jmActive = (S, p) => p && p.t === 'p' && p.jm > S.cnt[other(p.s)];
   const maxLv = t => (t === 'k' ? 1 : CFG_CUR.upgrade.maxLevel[t] || CFG_CUR.upgrade.defaultMaxLevel);
   const atk = p => (p.t === 'k' ? 1 : ((CFG_CUR.attack[p.t] || [])[p.lv - 1] || 1));
+  const hpOf = (t, lv, cfg = CFG_CUR) => ((cfg.hpByType[t] || cfg.hp)[lv - 1]);
   const isPassive = sk => !!(sk && CFG_CUR.skills[sk] && CFG_CUR.skills[sk].passive);
-  const skillReady = (S, p) => p.lv >= CFG_CUR.skillLevel && !isPassive(SKILL_OF(p.t, p.s)) && S.cnt[p.s] >= p.cd && !S.freeUsed && !(p.s === 'b' && (pfActive(S) || smActive(S)));
+  const skLevel = sk => (CFG_CUR.skills[sk] && CFG_CUR.skills[sk].level) || CFG_CUR.skillLevel;
+  // 冷却：主技能记在 p.cd，其他技能记在 p['c_' + 技能]（都是“到第几次行动才能再用”）
+  const cdKey = (p, sk) => (sk === SKILL_OF(p.t, p.s) ? 'cd' : 'c_' + sk);
+  const cdReady = (S, p, sk) => S.cnt[p.s] >= (p[cdKey(p, sk)] || 0);
+  const setCd = (S, p, sk) => { p[cdKey(p, sk)] = S.cnt[p.s] + CFG_CUR.skills[sk].cooldown + 1; };
+  const hasSkill = (p, sk) => SKILLS_OF(p.t, p.s).includes(sk) && p.lv >= skLevel(sk);
+  // 主动技能能不能用（被动技能另算：不受拒马后的限制，也不受封锁）
+  const skillOk = (S, p, sk) => hasSkill(p, sk) && !isPassive(sk) && cdReady(S, p, sk) && !S.freeUsed && !(p.s === 'b' && (pfActive(S) || smActive(S)));
+  const skillReady = (S, p, sk) => skillOk(S, p, sk || SKILL_OF(p.t, p.s));
   // 升级价：基础价减去攒下的甲片（击杀数），最少 minCost
   const upCost = p => { const U = CFG_CUR.upgrade; if (!p || p.t === 'k' || p.lv >= maxLv(p.t)) return null; const base = U.cost[p.t][p.lv - 1]; return Math.max(U.minCost, base - (p.xp || 0) * U.killDiscount); };
 
@@ -96,11 +114,13 @@
     if (!v) return null;
     S.board[r][f] = null;
     S.dead[v.s].push({ id: v.id, t: v.t, s: v.s });
-    const m = CFG_CUR.merit, gain = (m.killReward[v.t] || 0) + (v.lv - 1) * m.killRewardPerLevel;
-    ev.push({ e: 'kill', id: v.id, t: v.t, s: v.s, lv: v.lv, at: [f, r], how, by: by ? by.id : null, gain });
+    const m = CFG_CUR.merit, friendly = v.s === killerSide, gain = friendly ? 0 : (m.killReward[v.t] || 0) + (v.lv - 1) * m.killRewardPerLevel;
+    ev.push({ e: 'kill', id: v.id, t: v.t, s: v.s, lv: v.lv, at: [f, r], how, by: by ? by.id : null, gain, friendly });
+    // 误伤己方：不给军功、不攒甲
+    if (friendly) return v;
     addMerit(S, killerSide, gain, ev, '击杀');
     addMerit(S, v.s, m.lostPieceCompensation, ev, '哀兵');
-    if (by && by.s === killerSide && by.t !== 'k') { by.xp = (by.xp || 0) + 1; ev.push({ e: 'xp', id: by.id, xp: by.xp }); }
+    if (by && by.s === killerSide && by.t !== 'k') { by.xp = (by.xp || 0) + 1; by.kills = (by.kills || 0) + 1; ev.push({ e: 'xp', id: by.id, xp: by.xp }); }
     return v;
   }
   function damage(S, f, r, n, killerSide, ev, how, by) {
@@ -121,7 +141,7 @@
   function strike(S, from, to, side, ev, how) {
     const P = S.board[from[1]][from[0]], T = S.board[to[1]][to[0]];
     if (!T) { moveTo(S, from, to, ev); return 'move'; }
-    if (jmActive(S, T) && P.t !== 'k') {
+    if (jmActive(S, T) && P.t !== 'k' && T.s !== P.s) {
       ev.push({ e: 'counter', id: P.id, at: from.slice(), by: T.id, target: to.slice() });
       P.hp -= CFG_CUR.skills.juma.damage;
       if (P.hp <= 0) { kill(S, from[0], from[1], T.s, ev, 'juma', T); return 'died'; }
@@ -160,6 +180,10 @@
         ms.push({ from: [f, r], to: [tf, tr] });
       }
     } else ms = pseudoMoves(S.board, f, r);
+    // 被动走法（不用点技能，冷却好了就能走）：兵四级回防后退一格；士四级禁卫九宫内横走一格
+    const extra = (sk, tf, tr) => { if (!inBoard(tf, tr) || !hasSkill(p, sk) || !cdReady(S, p, sk)) return; const q = S.board[tr][tf]; if (q && q.s === p.s) return; ms.push({ from: [f, r], to: [tf, tr], via: sk }); };
+    if (!ignoreLeg && p.t === 'p') extra('huifang', f, r + (p.s === 'r' ? -1 : 1));
+    if (!ignoreLeg && p.t === 'a' && inPalace(p.s, f, r)) for (const df of [-1, 1]) if (inPalace(p.s, f + df, r)) extra('jinwei', f + df, r);
     return ms.filter(m => {
       const q = S.board[m.to[1]][m.to[0]];
       if (q && q.t === 'k') return false;
@@ -181,6 +205,30 @@
     return out;
   }
 
+  // 车冲阵：四个方向上第一枚子（帅将除外）当跳板，身后一格必须在棋盘内且不是帅将
+  function springTargets(S, f, r) {
+    const out = [];
+    for (const [df, dr] of ORTHO) {
+      let tf = f + df, tr = r + dr;
+      while (inBoard(tf, tr) && !S.board[tr][tf]) { tf += df; tr += dr; }
+      if (!inBoard(tf, tr)) continue;
+      const q = S.board[tr][tf]; if (q.t === 'k') continue;
+      const lf = tf + df, lr = tr + dr; if (!inBoard(lf, lr)) continue;
+      const lp = S.board[lr][lf]; if (lp && lp.t === 'k') continue;
+      out.push({ from: [f, r], to: [tf, tr], land: [lf, lr] });
+    }
+    return out;
+  }
+  // 兵神速营：八方向直线 1～2 格，可越子，只能落空格
+  function dashTargets(S, f, r) {
+    const out = [], R = CFG_CUR.skills.shensu.range;
+    for (const [df, dr] of [[1, 0], [-1, 0], [0, 1], [0, -1], [1, 1], [1, -1], [-1, 1], [-1, -1]]) for (let k = 1; k <= R; k++) {
+      const tf = f + df * k, tr = r + dr * k; if (inBoard(tf, tr) && !S.board[tr][tf]) out.push({ from: [f, r], to: [tf, tr] });
+    }
+    return out;
+  }
+  const findMove = (S, from, to) => moveTargets(S, from[0], from[1]).find(m => m.to[0] === to[0] && m.to[1] === to[1]) || null;
+
   // ---------- 行动结算（在 S 上直接改；不合法返回 null） ----------
   function resolve(S, a) {
     const side = S.turn, ev = [];
@@ -192,37 +240,40 @@
     if (a.k === 'mv') {
       const p = own(a.from[0], a.from[1]); if (!p) return null;
       if (S.jmLock != null && p.id === S.jmLock) return null;
-      if (!has(moveTargets(S, a.from[0], a.from[1]), a.to)) return null;
+      const m = findMove(S, a.from, a.to); if (!m) return null;
       extra.res = strike(S, a.from, a.to, side, ev);
+      if (m.via) { setCd(S, p, m.via); extra.via = m.via; ev.push({ e: 'passive', sk: m.via, id: p.id }); }
       trample(S, p, a.to, extra.res, side, ev);
     } else if (a.k === 'sk') {
-      const p = own(a.at[0], a.at[1]); if (!p || !skillReady(S, p)) return null;
-      const sk = SKILL_OF(p.t, p.s); if (!sk) return null;
+      const p = own(a.at[0], a.at[1]); if (!p) return null;
+      const sk = a.sk || SKILL_OF(p.t, p.s); if (!sk || !skillOk(S, p, sk)) return null;
       extra.sk = sk;
-      const cd = () => { const q = S.board.flat().find(x => x && x.id === p.id); if (q) q.cd = S.cnt[side] + CFG_CUR.skills[sk].cooldown + 1; };
+      const cd = () => { const q = S.board.flat().find(x => x && x.id === p.id); if (q) setCd(S, q, sk); };
       if (sk === 'juma') {
         p.jm = S.cnt[other(side)] + CFG_CUR.skills.juma.duration;
         ev.push({ e: 'juma', id: p.id, at: a.at.slice() });
         if (CFG_CUR.skills.juma.free) { cd(); S.freeUsed = true; S.jmLock = p.id; return { kind, ev, extra, free: true }; }
       } else if (sk === 'chongzhen') {
-        const tg = moveTargets(S, a.at[0], a.at[1]).filter(m => S.board[m.to[1]][m.to[0]]);
-        if (!a.to || !has(tg, a.to)) return null;
-        const res = strike(S, a.at, a.to, side, ev, 'chongzhen');
-        extra.res = res;
-        if (res === 'kill') {
-          const d = [Math.sign(a.to[0] - a.at[0]), Math.sign(a.to[1] - a.at[1])];
-          let cur = a.to.slice();
-          for (let k = 0; k < CFG_CUR.skills.chongzhen.extraSquares; k++) {
-            const nx = [cur[0] + d[0], cur[1] + d[1]];
-            if (!inBoard(nx[0], nx[1])) break;
-            const q = S.board[nx[1]][nx[0]];
-            if (!q) { moveTo(S, cur, nx, ev); cur = nx; extra.roll = 'move'; continue; }
-            if (q.s === side || q.t === 'k' || q.hp >= 2) break;
-            const r2 = strike(S, cur, nx, side, ev, 'chongzhen');
-            extra.roll = r2;
-            if (r2 === 'kill') cur = nx; else break;
-          }
+        const t = a.to && springTargets(S, a.at[0], a.at[1]).find(m => m.to[0] === a.to[0] && m.to[1] === a.to[1]);
+        if (!t) return null;
+        const q = S.board[a.to[1]][a.to[0]];
+        extra.land = t.land.slice();
+        // 跳板是敌方拒马：车先挨反伤
+        let dead = false;
+        if (q.s !== side && jmActive(S, q)) {
+          ev.push({ e: 'counter', id: p.id, at: a.at.slice(), by: q.id, target: a.to.slice() });
+          p.hp -= CFG_CUR.skills.juma.damage;
+          if (p.hp <= 0) { kill(S, a.at[0], a.at[1], q.s, ev, 'juma', q); dead = true; extra.res = 'died'; }
         }
+        if (!dead) {
+          damage(S, a.to[0], a.to[1], CFG_CUR.skills.chongzhen.springDamage, side, ev, 'chongzhen', p);
+          extra.spring = { at: a.to.slice(), killed: !S.board[a.to[1]][a.to[0]] };
+          extra.res = strike(S, a.at, t.land, side, ev, 'chongzhen');
+        }
+      } else if (sk === 'shensu') {
+        if (!a.to || !has(dashTargets(S, a.at[0], a.at[1]), a.to)) return null;
+        moveTo(S, a.at, a.to, ev);
+        extra.res = 'move';
       } else if (sk === 'taying') {
         if (!a.to || !has(moveTargets(S, a.at[0], a.at[1], true), a.to)) return null;
         extra.res = strike(S, a.at, a.to, side, ev, 'taying');
@@ -251,7 +302,7 @@
         const d = S.dead.r[i], st = START[d.id];
         if (!st || at(S, st[0], st[1])) return null;
         S.dead.r.splice(i, 1);
-        S.board[st[1]][st[0]] = { s: 'r', t: d.t, id: d.id, lv: 1, hp: CFG_CUR.hp[0], cd: 0, jm: 0, xp: 0 };
+        S.board[st[1]][st[0]] = { s: 'r', t: d.t, id: d.id, lv: 1, hp: hpOf(d.t, 1), cd: 0, jm: 0, xp: 0, kills: 0 };
         ev.push({ e: 'revive', id: d.id, t: d.t, at: st.slice() });
       } else {
         const steps = a.steps || [];
@@ -259,9 +310,10 @@
         extra.steps = [];
         for (const m of steps) {
           const p = own(m.from[0], m.from[1]); if (!p) return null;
-          if (!has(moveTargets(S, m.from[0], m.from[1]), m.to)) return null;
+          const mm = findMove(S, m.from, m.to); if (!mm) return null;
           const n0 = ev.length;
           const res = strike(S, m.from, m.to, side, ev);
+          if (mm.via) { setCd(S, p, mm.via); ev.push({ e: 'passive', sk: mm.via, id: p.id }); }
           trample(S, p, m.to, res, side, ev);
           extra.steps.push({ from: m.from, to: m.to, res, ev0: n0, ev1: ev.length });
           if (inCheck(S.board, side)) return null;
@@ -345,15 +397,20 @@
     }
     return out;
   }
-  function skillActions(S, f, r) {
-    const p = at(S, f, r); if (!p || p.s !== S.turn || !skillReady(S, p)) return [];
-    const sk = SKILL_OF(p.t, p.s), out = [];
-    const tg = sk === 'chongzhen' ? moveTargets(S, f, r).filter(m => S.board[m.to[1]][m.to[0]])
-      : sk === 'taying' ? moveTargets(S, f, r, true)
-        : sk === 'pili' ? cannonShots(S, f, r)
-          : sk === 'qishe' ? arrowTargets(S, f, r) : null;
-    if (tg) { for (const m of tg) { const a = { k: 'sk', at: [f, r], to: m.to }; if (attempt(S, a)) out.push(a); } }
-    else { const a = { k: 'sk', at: [f, r] }; if (attempt(S, a)) out.push(a); }
+  function skillActions(S, f, r, only) {
+    const p = at(S, f, r); if (!p || p.s !== S.turn) return [];
+    const out = [], main = SKILL_OF(p.t, p.s);
+    for (const sk of SKILLS_OF(p.t, p.s)) {
+      if ((only && sk !== only) || !skillOk(S, p, sk)) continue;
+      const tg = sk === 'chongzhen' ? springTargets(S, f, r)
+        : sk === 'taying' ? moveTargets(S, f, r, true)
+          : sk === 'pili' ? cannonShots(S, f, r)
+            : sk === 'qishe' ? arrowTargets(S, f, r)
+              : sk === 'shensu' ? dashTargets(S, f, r) : null;
+      const mk = to => { const a = { k: 'sk', at: [f, r] }; if (to) a.to = to; if (sk !== main) a.sk = sk; return a; };
+      if (tg) { for (const m of tg) { const a = mk(m.to); if (attempt(S, a)) out.push(a); } }
+      else { const a = mk(null); if (attempt(S, a)) out.push(a); }
+    }
     return out;
   }
   function reviveOptions(S) {
@@ -435,9 +492,12 @@
     // 普通走子目标（含攻击）
     legalFrom(f, r) { const p = this.at(f, r); if (!p || p.s !== this.turn || this.result) return []; return moveTargets(this.S, f, r).filter(m => attempt(this.S, { k: 'mv', from: m.from, to: m.to })); }
     isLegal(m) { return this.legalFrom(m.from[0], m.from[1]).some(x => x.to[0] === m.to[0] && x.to[1] === m.to[1]); }
-    skillTargets(f, r) { CFG_CUR = this.cfg; return this.result ? [] : skillActions(this.S, f, r); }
+    skillTargets(f, r, sk) { CFG_CUR = this.cfg; return this.result ? [] : skillActions(this.S, f, r, sk); }
     skillOf(p) { return p && p.t !== 'k' ? SKILL_OF(p.t, p.s) : null; }
-    skillReady(p) { return !!p && skillReady(this.S, p); }
+    skillsOf(p) { return p && p.t !== 'k' ? SKILLS_OF(p.t, p.s) : []; }
+    skLevel(sk) { CFG_CUR = this.cfg; return skLevel(sk); }
+    hasSkill(p, sk) { CFG_CUR = this.cfg; return !!p && hasSkill(p, sk); }
+    skillReady(p, sk) { CFG_CUR = this.cfg; return !!p && skillReady(this.S, p, sk); }
     reviveOptions() { return this.result ? [] : reviveOptions(this.S); }
     pofuFirst() { return this.result ? [] : pofuFirst(this.S); }
     pofuSecond(m1) { return pofuSecond(this.S, m1); }
@@ -466,9 +526,10 @@
         const p = this.at(e.at[0], e.at[1]);
         const cost = upCost(p), xp = p.xp || 0;
         S.merit[p.s] -= cost;
-        p.lv++; p.hp = this.cfg.upgrade.healOnUpgrade ? this.cfg.hp[p.lv - 1] : p.hp + 1;
+        p.lv++; p.hp = this.cfg.upgrade.healOnUpgrade ? hpOf(p.t, p.lv) : p.hp + 1;
         p.xp = 0; // 甲片在升级时用掉
-        if (p.lv === this.cfg.skillLevel) p.cd = Math.max(p.cd, S.cnt[p.s] + this.cfg.upgrade.cooldownOnUnlock);
+        // 刚解锁的主动技能先冷却一回合
+        for (const sk of SKILLS_OF(p.t, p.s)) if (skLevel(sk) === p.lv && !isPassive(sk)) { const k = cdKey(p, sk); p[k] = Math.max(p[k] || 0, S.cnt[p.s] + this.cfg.upgrade.cooldownOnUnlock); }
         S.upgraded = true;
         this.entries.push({ k: 'up', at: e.at.slice() }); this.sides.push(p.s); this.ends.push(0);
         const info = { k: 'up', side: p.s, id: p.id, t: p.t, at: e.at.slice(), lv: p.lv, hp: p.hp, cost, usedXp: xp, ev: [], after: S };
@@ -528,7 +589,7 @@
     get upgraded() { return this.S.upgraded; }
     jmActive(p) { return jmActive(this.S, p); }
     simianCount() { return simianCount(this.S); }
-    cdLeft(p) { return p ? Math.max(0, p.cd - this.S.cnt[p.s]) : 0; }
+    cdLeft(p, sk) { if (!p) return 0; const k = sk ? cdKey(p, sk) : 'cd'; return Math.max(0, (p[k] || 0) - this.S.cnt[p.s]); }
     mustPass() { return !!this.status.mustPass; }
     quietPlies() { return 0; }
   }
@@ -550,9 +611,14 @@
   // 某兵种某一级的数值（界面说明用）
   function levelInfo(t, s, lv, cfg = CFG) {
     const sk = t === 'k' ? null : SKILL_OF(t, s);
-    return { hp: cfg.hp[lv - 1], atk: t === 'k' ? 1 : ((cfg.attack[t] || [])[lv - 1] || 1), skill: sk && lv >= cfg.skillLevel ? sk : null, maxLv: t === 'k' ? 1 : (cfg.upgrade.maxLevel[t] || cfg.upgrade.defaultMaxLevel) };
+    const lvOf = k => (cfg.skills[k] && cfg.skills[k].level) || cfg.skillLevel;
+    return {
+      hp: (cfg.hpByType[t] || cfg.hp)[lv - 1], atk: t === 'k' ? 1 : ((cfg.attack[t] || [])[lv - 1] || 1),
+      skill: sk && lv >= cfg.skillLevel ? sk : null, skills: t === 'k' ? [] : SKILLS_OF(t, s).filter(k => lv >= lvOf(k)),
+      maxLv: t === 'k' ? 1 : (cfg.upgrade.maxLevel[t] || cfg.upgrade.defaultMaxLevel),
+    };
   }
-  const BF = { Game, CFG, view, pofuPreview, SKILL_OF, SKILL_CN, SKILL_DESC, ART_CN, ULT_CN, START, newState, cloneState, attempt, evaluate, levelInfo };
+  const BF = { Game, CFG, view, pofuPreview, SKILL_OF, SKILLS_OF, SKILL_CN, SKILL_DESC, ART_CN, ULT_CN, START, newState, cloneState, attempt, evaluate, levelInfo, hpOf: (t, lv) => hpOf(t, lv, CFG) };
   if (typeof module !== 'undefined' && module.exports) module.exports = BF;
   global.BF = BF;
 })(typeof window !== 'undefined' ? window : globalThis);

@@ -3,7 +3,7 @@ global.XQ = require('../src/rules.js');
 const BF = require('../src/bingfa.js');
 const assert = require('assert');
 let id = 200;
-const P = (s, t, lv = 1, extra = {}) => ({ s, t, id: id++, lv, hp: BF.CFG.hp[lv - 1], cd: 0, jm: 0, xp: 0, ...extra });
+const P = (s, t, lv = 1, extra = {}) => ({ s, t, id: id++, lv, hp: BF.hpOf(t, lv), cd: 0, jm: 0, xp: 0, kills: 0, ...extra });
 // 摆局面：pieces = [[f, r, piece]...]
 function setup(pieces, opt = {}) {
   const g = new BF.Game();
@@ -158,13 +158,65 @@ const ok = (x, msg) => { assert(x, msg); };
   console.log('冲阵 OK');
 }
 {
-  const g = setup([[4, 0, K('r')], [3, 9, K('b')], [0, 0, P('r', 'r', 3)], [0, 5, P('b', 'p')], [0, 6, P('b', 'n', 2)]]);
-  g.apply({ k: 'sk', at: [0, 0], to: [0, 5] });
-  ok(g.at(0, 5).t === 'r' && g.at(0, 6).hp === 2, '碾到带血敌子就停');
-  const g2 = setup([[4, 0, K('r')], [3, 9, K('b')], [0, 0, P('r', 'r', 3)], [0, 5, P('b', 'p')]]);
+  // 跳板 2 血敌子挨 1 点，身后空格 → 车落到它身后
+  const g = setup([[4, 0, K('r')], [3, 9, K('b')], [0, 0, P('r', 'r', 3)], [0, 5, P('b', 'n', 2)], [8, 9, P('b', 'r')]]);
+  ok(g.apply({ k: 'sk', at: [0, 0], to: [0, 5] }), '冲阵');
+  ok(g.at(0, 5).hp === 1 && g.at(0, 6).t === 'r' && !g.at(0, 0), '跳板扣 1 血，车落到它身后一格');
+  // 身后有 2 血敌子 → 只扣血，车退回原位
+  const g2 = setup([[4, 0, K('r')], [3, 9, K('b')], [0, 0, P('r', 'r', 3)], [0, 5, P('b', 'p')], [0, 6, P('b', 'n', 2)]]);
   g2.apply({ k: 'sk', at: [0, 0], to: [0, 5] });
-  ok(g2.at(0, 6) && g2.at(0, 6).t === 'r', '空格则前进一格');
+  ok(!g2.at(0, 5) && g2.at(0, 6).hp === 1 && g2.at(0, 0).t === 'r', '跳板阵亡，身后 2 血打不死：扣血、车回原位');
+  // 己方子也能当跳板（会被误伤），不给军功
+  const g3 = setup([[4, 0, K('r')], [3, 9, K('b')], [0, 0, P('r', 'r', 3)], [0, 3, P('r', 'p')], [0, 4, P('b', 'p')]], { merit: { r: 3, b: 3 } });
+  ok(g3.skillTargets(0, 0).some(a => a.to.join() === '0,3'), '己方子可作跳板');
+  g3.apply({ k: 'sk', at: [0, 0], to: [0, 3] });
+  ok(!g3.at(0, 3) && g3.at(0, 4).t === 'r' && g3.merit.r === 3 + 1, '误伤己方兵（不给功），吃掉身后黑卒（+1 功）' + JSON.stringify(g3.merit));
+  // 身后是帅将或出界不能用
+  const g4 = setup([[4, 0, K('r')], [4, 9, K('b')], [4, 2, P('r', 'r', 3)], [4, 8, P('b', 'a')], [0, 2, P('b', 'p')]]);
+  ok(!g4.skillTargets(4, 2).some(a => a.to.join() === '4,8') && !g4.skillTargets(4, 2).some(a => a.to.join() === '0,2'), '身后是将或出界不能冲');
   console.log('冲阵边界 OK');
+}
+// 7b. 兵四级：神速营（八方向 1～2 格可越子、只落空格）、回防（被动后退，冷却 2）；拒马后可以用被动走法
+{
+  const pw = P('r', 'p', 4, { hp: 3 });
+  ok(BF.hpOf('p', 4) === 3 && BF.hpOf('a', 4) === 3 && BF.hpOf('r', 4) === 4, '兵士四级不加血，车四级 4 血');
+  const g = setup([[4, 0, K('r')], [3, 9, K('b')], [4, 5, pw], [4, 6, P('b', 'p')], [5, 6, P('r', 'p')], [8, 9, P('b', 'r')]]);
+  const tg = g.skillTargets(4, 5, 'shensu').map(a => a.to.join());
+  ok(tg.includes('4,7') && tg.includes('6,7') && tg.includes('2,3') && !tg.includes('4,6') && !tg.includes('5,6'), '神速营越子、只落空格 ' + tg);
+  ok(g.skillTargets(4, 5).some(a => a.sk === 'shensu') && g.skillTargets(4, 5).some(a => !a.sk), '四级兵有拒马和神速营');
+  ok(g.legalFrom(4, 5).some(m => m.to.join() === '4,4'), '回防：可以后退一格');
+  g.apply({ k: 'mv', from: [4, 5], to: [4, 4] });
+  ok(g.cdLeft(g.at(4, 4), 'huifang') === 2, '回防冷却 2');
+  g.apply({ k: 'mv', from: [8, 9], to: [8, 8] });
+  ok(!g.legalFrom(4, 4).some(m => m.to.join() === '4,3'), '冷却中不能再后退');
+  ok(!g.apply({ k: 'sk', at: [4, 4], to: [4, 6], sk: 'shensu' }), '神速营不能落在有子的格');
+  ok(g.apply({ k: 'sk', at: [4, 4], to: [6, 6], sk: 'shensu' }) && g.at(6, 6).s === 'r' && g.cdLeft(g.at(6, 6), 'shensu') === 5, '神速营斜走两格，冷却 5');
+  // 拒马之后另一枚兵用被动后退
+  const g2 = setup([[4, 0, K('r')], [3, 9, K('b')], [0, 5, P('r', 'p', 3)], [8, 5, P('r', 'p', 4, { hp: 3 })], [8, 9, P('b', 'r')]]);
+  ok(g2.apply({ k: 'sk', at: [0, 5] }) && g2.freeUsed, '拒马');
+  ok(g2.apply({ k: 'mv', from: [8, 5], to: [8, 4] }) && g2.turn === 'b', '同一回合再用被动回防走一步');
+  console.log('兵四级 OK');
+}
+// 7c. 士四级：禁卫（九宫内横走一格，冷却 2）
+{
+  const g = setup([[3, 0, K('r')], [5, 9, K('b')], [4, 1, P('r', 'a', 4, { hp: 3 })], [8, 9, P('b', 'r')]]);
+  ok(g.legalFrom(4, 1).some(m => m.to.join() === '5,1') && g.legalFrom(4, 1).some(m => m.to.join() === '3,1'), '禁卫：九宫内横走');
+  g.apply({ k: 'mv', from: [4, 1], to: [5, 1] });
+  ok(g.cdLeft(g.at(5, 1), 'jinwei') === 2, '禁卫冷却 2');
+  g.apply({ k: 'mv', from: [8, 9], to: [8, 8] });
+  ok(!g.legalFrom(5, 1).some(m => m.to.join() === '4,1' && m.to[1] === 1), '冷却中不能横走');
+  const g2 = setup([[3, 0, K('r')], [5, 9, K('b')], [4, 1, P('r', 'a', 3)]]);
+  ok(!g2.legalFrom(4, 1).some(m => m.to[1] === 1), '三级士不能横走');
+  console.log('士四级 OK');
+}
+// 7d. 击杀总数：升级不清零
+{
+  const g = setup([[4, 0, K('r')], [3, 9, K('b')], [0, 3, P('r', 'r')], [0, 6, P('b', 'p')], [8, 9, P('b', 'r')]], { merit: { r: 10, b: 3 } });
+  g.apply({ k: 'mv', from: [0, 3], to: [0, 6] });
+  g.apply({ k: 'mv', from: [8, 9], to: [8, 8] });
+  g.apply({ k: 'up', at: [0, 6] });
+  ok(g.at(0, 6).kills === 1 && g.at(0, 6).xp === 0, '升级用掉甲片，击杀数保留');
+  console.log('击杀数 OK');
 }
 // 8. 踏营
 {
@@ -339,10 +391,11 @@ const ok = (x, msg) => { assert(x, msg); };
 }
 // 21. 随机对局：重放一致、悔棋一致、无异常
 {
-  let games = 0, acts = 0, res = {};
+  let games = 0, acts = 0, res = {}, skc = {};
   const rnd = n => Math.floor(Math.random() * n);
   for (let k = 0; k < 25; k++) {
     const g = new BF.Game();
+    if (k % 2) g.setup(T => { T.merit = { r: 30, b: 30 }; }); // 一半的对局军功充足，多练高等级技能
     for (let i = 0; i < 160 && !g.result; i++) {
       // 偶尔升级
       if (Math.random() < 0.3) {
@@ -360,11 +413,13 @@ const ok = (x, msg) => { assert(x, msg); };
       if (!opts.length) break;
       const caps = opts.filter(a => a.to && g.at(a.to[0], a.to[1]));
       const a = caps.length && Math.random() < 0.5 ? caps[rnd(caps.length)] : opts[rnd(opts.length)];
-      assert(g.apply(a), 'apply ' + JSON.stringify(a));
+      const info = g.apply(a);
+      assert(info, 'apply ' + JSON.stringify(a));
       acts++;
+      const sk = a.k === 'sk' ? (info.extra && info.extra.sk) : info.extra && info.extra.via; if (sk) skc[sk] = (skc[sk] || 0) + 1;
     }
     const snap = JSON.stringify(g.S), es = g.entries.slice();
-    const h = new BF.Game(); for (const e of es) assert(h.apply(e), 'replay');
+    const h = new BF.Game(); h.reset(g.base); for (const e of es) assert(h.apply(e), 'replay');
     assert.strictEqual(JSON.stringify(h.S), snap, '重放一致');
     // 悔两次主行动
     const n0 = g.history.length;
