@@ -7,6 +7,8 @@ const Models = (() => {
   const SIDE = {
     r: { cloth: 0xa8321f, cloth2: 0xc4553a, armor: 0x4d4541, trim: 0xc9a045, flag: 0xb0301f, tassel: 0xc0412c, horse: 0x6b4a34, barding: 0x5e2a20 },
     b: { cloth: 0x2a292c, cloth2: 0x48464a, armor: 0x2f2e31, trim: 0x9c8a62, flag: 0x1f1e20, tassel: 0x7a2418, horse: 0x2c2a2a, barding: 0x262528 },
+    // 中立看客：本色麻布、皮甲
+    n: { cloth: 0x8f7d5e, cloth2: 0xb09c78, armor: 0x5f4e3a, trim: 0xc2a46a, flag: 0x8f7d5e, tassel: 0x4f6a5c, horse: 0x6b4a34, barding: 0x5a4a38 },
   };
   const C = { skin: 0xd8bf98, pants: 0x2d2a27, wood: 0x6e4a2c, metal: 0xb8b4aa, dark: 0x1d1c1b, bronze: 0x7a6238, hair: 0x151413, white: 0xece4d2, ivory: 0xe8dcc0, gold: 0xb08a3a };
 
@@ -190,6 +192,12 @@ const Models = (() => {
         case 'stagger': walk = 0.3; rate = 1; set({ crouch: 0.1, lean: -0.35, hx: -0.5, aW: 0.2, aWz: 0.6, aS: 0.2, aSz: -0.6 }); break;
         case 'dead': set({ crouch: 0, lean: 0, hx: 0.3, hy: 0.5, aW: -2.8, aWz: 0.4, aS: -2.6, aSz: -0.5, lLz: 0.25, wAbs: -1.0 }); break;
         case 'mourn': set({ crouch: 0.6, lean: 0.35, twist: Math.sin(T * 0.3) * 0.05, hx: 0.55, hy: Math.sin(T * 0.2) * 0.15, aW: -0.75, aWz: 0.15, wAbs: 0.45, aS: -0.7, aSz: -0.15, sAbs: 0.9 }); break;
+        case 'laugh': {
+          const k = Math.sin(T * 17);
+          set({ crouch: 0.03 + Math.abs(k) * 0.03, lean: -0.2 + k * 0.06, twist: Math.sin(T * 2.6) * 0.18, sway: Math.sin(T * 2.6) * 0.05, hx: -0.5 + k * 0.1, hy: Math.sin(T * 2.6) * 0.2, aW: -0.55, aWz: 0.75, wAbs: 0.9, aS: -0.6, aSz: -0.75, sAbs: 0.4 });
+          J.hop = Math.abs(k) * 0.03;
+          break;
+        }
         case 'ready': set({ crouch: 0.08, lean: 0.15, aW: kp.chargeW, wAbs: kp.chargeAbs, aS: -1.0, sAbs: 0.1, hx: -0.1 }); break;
       }
       // 一次性动作

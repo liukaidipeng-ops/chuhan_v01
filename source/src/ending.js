@@ -1,6 +1,11 @@
 // ===== 结算动画：楚败·乌江自刎 / 汉败·彭城之败 =====
 const Ending = (() => {
-  const { scene, Time, onFrame, tween, sleep, ease, Cam, Tex, toon, rnd, camera } = Core;
+  const { scene, Time, onFrame, ease, Cam, Tex, toon, rnd, camera } = Core;
+  // 一键跳过：跳过后，结算场景在下一个等待点直接中止
+  const ABORT = new Error('ending-skip');
+  const guard = p => { p.catch(() => { }); return p; };
+  const sleep = d => guard((async () => { if (skipping) throw ABORT; await Core.sleep(d); if (skipping) throw ABORT; })());
+  const tween = (d, fn, e) => guard((async () => { if (skipping) throw ABORT; await Core.tween(d, fn, e); if (skipping) throw ABORT; })());
   const V3 = THREE.Vector3;
   const R = (a, b) => a + Math.random() * (b - a);
   const $ = id => document.getElementById(id);
@@ -402,10 +407,7 @@ const Ending = (() => {
     await sleep(1.6);
     await fade(true, 0.6);
     await say('w15', { minDur: 3 });
-    return {
-      cols: [['西楚霸王', 'big'], ['項籍'], ['自刎烏江'], ['時年三十一'], ['漢五年十二月']],
-      motto: '無顏見江東父老', win: '漢 勝',
-    };
+    return INFO.b;
   }
 
   // 墨染转场（红墨晕开）
@@ -583,15 +585,11 @@ const Ending = (() => {
     await say('p9', { minDur: 4.5 });
     await fade(true, 1.5);
     stormOff();
-    run.then(() => {});
-    return {
-      cols: [['漢王', 'big'], ['劉邦'], ['彭城之敗'], ['五十六萬眾'], ['一朝而潰'], ['漢二年四月']],
-      motto: '然楚漢之爭，勝負未定', win: '楚 勝',
-    };
+    return INFO.r;
   }
 
   // ======================================================================
-  function endCard(info, loserSide, onAgain, onLobby, mine) {
+  function endCard(info, loserSide, onAgain, onLobby, mine, againText) {
     const el = $('endcard');
     el.innerHTML = '';
     const cols = document.createElement('div'); cols.className = 'cols';
@@ -604,33 +602,51 @@ const Ending = (() => {
     const win = document.createElement('div'); win.className = 'win'; win.textContent = info.win; el.appendChild(win);
     if (mine) { const mm = document.createElement('div'); mm.className = 'mine'; mm.textContent = mine; el.appendChild(mm); }
     const row = document.createElement('div'); row.className = 'row';
-    const b1 = document.createElement('button'); b1.className = 'btn red'; b1.textContent = '再 来 一 局'; b1.onclick = onAgain;
+    const b1 = document.createElement('button'); b1.className = 'btn red'; b1.textContent = againText || '再 来 一 局'; b1.onclick = onAgain;
     const b2 = document.createElement('button'); b2.className = 'btn'; b2.textContent = '返 回 大 厅'; b2.onclick = onLobby;
     row.append(b1, b2); el.appendChild(row);
     el.classList.remove('hidden');
   }
 
+  const INFO = {
+    b: { cols: [['西楚霸王', 'big'], ['項籍'], ['自刎烏江'], ['時年三十一'], ['漢五年十二月']], motto: '無顏見江東父老', win: '漢 勝' },
+    r: { cols: [['漢王', 'big'], ['劉邦'], ['彭城之敗'], ['五十六萬眾'], ['一朝而潰'], ['漢二年四月']], motto: '然楚漢之爭，勝負未定', win: '楚 勝' },
+  };
+  let skipNow = null;
   async function play(result, callbacks) {
     if (running) return;
-    Voice.preload(Object.keys(Voice.LINES).filter(k => (result.loser === 'b' ? /^w\d/ : /^p\d/).test(k)));
-    running = true; skipping = false;
-    $('skip').classList.remove('hidden');
-    $('skip').textContent = '跳过结算 ▸▸';
-    let info;
-    try {
-      info = result.loser === 'b' ? await wujiang(callbacks.noPrologue) : await pengcheng();
-    } catch (e) { console.error(e); }
-    if (!info) info = result.loser === 'b'
-      ? { cols: [['西楚霸王', 'big'], ['項籍'], ['自刎烏江']], motto: '無顏見江東父老', win: '漢 勝' }
-      : { cols: [['漢王', 'big'], ['劉邦'], ['彭城之敗']], motto: '然楚漢之爭，勝負未定', win: '楚 勝' };
+    running = true; skipping = !!callbacks.instant;
+    const base = INFO[result.loser === 'b' ? 'b' : 'r'];
+    let info = null;
+    if (!skipping) {
+      Voice.preload(Object.keys(Voice.LINES).filter(k => (result.loser === 'b' ? /^w\d/ : /^p\d/).test(k)));
+      $('skip').classList.remove('hidden');
+      $('skip').textContent = '跳过结算 ▸▸';
+      const skipP = new Promise(r => { skipNow = r; });
+      const sceneP = (result.loser === 'b' ? wujiang(callbacks.noPrologue) : pengcheng()).catch(e => { if (e !== ABORT) console.error(e); return null; });
+      const first = await Promise.race([sceneP, skipP.then(() => 'skip')]);
+      if (first === 'skip') {
+        // 立刻出结算卡，场景在卡片背后收尾清理
+        showCard(base, result, callbacks, true);
+        await sceneP;
+        finish(); skipNow = null; running = false;
+        return;
+      }
+      info = first;
+    }
+    finish(); skipNow = null;
+    showCard(info || base, result, callbacks, false);
+    running = false;
+  }
+  function showCard(info, result, callbacks, instant) {
+    info = { ...info, cols: info.cols.slice() };
     if (result.reason === 'resign') info.cols.push([(result.loser === 'b' ? '楚' : '漢') + '方認輸']);
     if (result.reason === 'timeout') info.cols.push([(result.loser === 'b' ? '楚' : '漢') + '方超時']);
-    finish();
+    $('skip').classList.add('hidden');
     $('fade').style.transition = 'none'; $('fade').style.opacity = 1;
-    endCard(info, result.loser, callbacks.again, callbacks.lobby, callbacks.mine);
+    endCard(info, result.loser, callbacks.again, callbacks.lobby, callbacks.mine, callbacks.againText);
     Sfx.Music.stinger(callbacks.persp || 'win');
     requestAnimationFrame(() => { $('fade').style.transition = 'opacity 1s'; $('fade').style.opacity = 0; });
-    running = false;
   }
   function finish() {
     Time.skip = false; Time.scale = 1;
@@ -641,10 +657,12 @@ const Ending = (() => {
     document.body.classList.remove('cine');
     while (cleanups.length) { try { cleanups.pop()(); } catch (e) { } }
     restoreMood();
+    Cam.moveId = (Cam.moveId || 0) + 1; // 作废尚未走完的结算镜头
   }
   function skip() {
     if (!running) return;
     skipping = true; Voice.cancel(); Time.skip = true;
+    if (skipNow) skipNow();
   }
   function hideCard() { $('endcard').classList.add('hidden'); }
   return { play, skip, hideCard, get running() { return running; } };

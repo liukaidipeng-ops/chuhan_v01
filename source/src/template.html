@@ -8,6 +8,7 @@
 <meta name="description" content="楚汉三维象棋：可与朋友联机、可人机对战的水墨风三维中国象棋">
 <title>楚汉·三维象棋</title>
 <style>
+@font-face{font-family:"XK";src:url(/*XKFONT*/) format("woff2");font-display:block}
 :root{
   --paper:#ece2cb; --paper2:#f7f0e0; --paper3:#e2d5b6; --ink:#1b1a19; --ink2:#3a3836; --ink3:#6b6862;
   --red:#a8321f; --red2:#7e2216; --gold:#b8914a; --gold2:#d9b877; --gold3:#8a6a30; --jade:#6f8a78;
@@ -51,7 +52,7 @@ button{font-family:var(--font);cursor:pointer;color:inherit}
 #lobby{position:fixed;inset:0;display:flex;align-items:center;justify-content:center;background:radial-gradient(ellipse at center,rgba(236,226,203,.25),rgba(200,184,150,.6));z-index:20;padding:22px 16px}
 .wrap{position:relative;width:min(620px,100%);max-height:100%;display:flex}
 .scroll{background:linear-gradient(#f6eedd,#ebdfc3);border:1px solid #b79c68;box-shadow:0 26px 80px rgba(40,25,10,.42),inset 0 0 80px rgba(130,95,40,.16);padding:36px 42px 32px;width:100%;max-height:calc(100dvh - 44px);overflow:auto;text-align:center;position:relative;border-radius:2px;-webkit-overflow-scrolling:touch}
-.scroll:before{content:"";position:absolute;inset:8px;border:1px solid rgba(184,145,74,.55);pointer-events:none;box-shadow:inset 0 0 0 3px rgba(246,238,221,.9),inset 0 0 0 4px rgba(184,145,74,.3)}
+.wrap:after{content:"";position:absolute;inset:8px;border:1px solid rgba(184,145,74,.55);pointer-events:none;box-shadow:inset 0 0 0 3px rgba(246,238,221,.9),inset 0 0 0 4px rgba(184,145,74,.3);z-index:1}
 .scroll::-webkit-scrollbar{width:0}
 .rod{position:absolute;left:-14px;right:-14px;height:16px;background:linear-gradient(#7a5030,#3a2414 60%,#2a190c);border-radius:8px;box-shadow:0 4px 10px rgba(0,0,0,.35);z-index:2}
 .rod:before,.rod:after{content:"";position:absolute;top:-3px;width:16px;height:22px;border-radius:5px;background:linear-gradient(90deg,#8a6a30,#e0c078 50%,#8a6a30)}
@@ -158,6 +159,9 @@ input.code{font-size:30px;letter-spacing:.4em;text-align:center;width:8.5em;max-
 #bubMe:after{content:"";position:absolute;bottom:-8px;left:30px;border:8px solid transparent;border-bottom:0;border-top-color:#f1e6cc}
 #status{position:absolute;top:calc(16px + var(--safe-t));left:50%;transform:translateX(-50%);font-size:16px;letter-spacing:.2em;color:#f1e3c2;background:linear-gradient(#2a2521,#1a1715);padding:7px 26px 7px calc(26px + .2em);white-space:nowrap;border:1px solid rgba(217,184,119,.65);box-shadow:0 6px 18px rgba(0,0,0,.25),inset 0 0 0 2px rgba(26,23,21,1),inset 0 0 0 3px rgba(217,184,119,.35);clip-path:polygon(10px 0,calc(100% - 10px) 0,100% 50%,calc(100% - 10px) 100%,10px 100%,0 50%)}
 #status.warn{background:linear-gradient(#b43a26,#8a2616);color:#fff2da}
+#status .dot{display:inline-block;width:7px;height:7px;border-radius:50%;background:#7fbf7a;margin-right:8px;vertical-align:2px;box-shadow:0 0 6px #7fbf7a}
+#status .dot.bad{background:#e05a3a;box-shadow:0 0 6px #e05a3a}
+#status #specN{color:var(--gold2);margin-left:.6em;letter-spacing:.1em;font-size:.88em}
 #netbadge{position:absolute;left:50%;transform:translateX(-50%);top:calc(60px + var(--safe-t));font-size:12px;color:var(--ink3);background:rgba(247,240,224,.85);padding:4px 10px;border-radius:12px;pointer-events:auto;border:1px solid rgba(60,40,20,.2)}
 #netbadge.bad{color:var(--paper2);background:var(--red)}
 #tools{position:absolute;right:12px;bottom:calc(12px + var(--safe-b));display:flex;flex-direction:column;gap:8px;pointer-events:auto}
@@ -175,6 +179,21 @@ input.code{font-size:30px;letter-spacing:.4em;text-align:center;width:8.5em;max-
 #logList li i{font-style:normal;color:var(--ink3);font-size:11px;font-family:var(--num);align-self:center}
 #logList .r{color:var(--red)}
 #logList .last{background:rgba(217,184,119,.35);border-radius:2px}
+#log .lh2{margin-top:6px}
+#specFeed{list-style:none;margin:0;padding:0;overflow:auto;font-size:13.5px;line-height:1.55;max-height:9em;scrollbar-width:thin}
+#specFeed li{padding:2px 0;border-bottom:1px dashed rgba(60,40,20,.12)}
+#specFeed b{font-weight:normal;color:var(--gold3);margin-right:4px}
+#specFeed .r b{color:var(--red)}#specFeed .b b{color:#1b1a19}
+/* 观众名牌与气泡 */
+#specTags{position:absolute;inset:0;pointer-events:none;overflow:hidden}
+.stag{position:absolute;left:0;top:0;width:0;height:0;will-change:transform}
+.stag .nm{position:absolute;left:0;top:0;transform:translate(-50%,-100%);font-size:12px;letter-spacing:.12em;padding:1px 7px;border-radius:9px;background:rgba(247,240,224,.88);border:1px solid rgba(143,125,94,.8);color:#3a3836;white-space:nowrap}
+.stag.r .nm{border-color:var(--red);color:var(--red)}.stag.b .nm{border-color:#1b1a19;background:#2a2521;color:#f1e3c2}
+.stag.me .nm{box-shadow:0 0 0 2px rgba(217,184,119,.8)}
+.stag .bb{position:absolute;left:0;top:0;transform:translate(-50%,calc(-100% - 24px));max-width:min(240px,60vw);padding:6px 12px;border-radius:12px;background:#fffaf0;border:1px solid rgba(143,125,94,.8);font-size:15px;line-height:1.4;color:#1b1a19;box-shadow:0 6px 16px rgba(40,25,10,.25);opacity:0;transition:opacity .25s;white-space:normal;width:max-content}
+.stag.talk .bb{opacity:1}
+.stag.edge .nm{opacity:.85}
+body.cine #specTags{opacity:0}
 
 /* ---------- 弹窗 ---------- */
 .modal{position:fixed;inset:0;z-index:30;display:flex;align-items:center;justify-content:center;background:rgba(20,16,12,.45);padding:22px 16px;animation:fadeIn .2s both}
@@ -194,11 +213,19 @@ input.code{font-size:30px;letter-spacing:.4em;text-align:center;width:8.5em;max-
 #stamp{position:fixed;left:50%;top:44%;transform:translate(-50%,-50%) scale(3) rotate(-8deg);opacity:0;pointer-events:none;width:180px;height:180px;border:8px solid var(--red);color:var(--red);font-size:112px;font-weight:bold;display:flex;align-items:center;justify-content:center;border-radius:10px;background:rgba(243,236,220,.2);mix-blend-mode:multiply;filter:url(#rough);z-index:7}
 #stamp.show{animation:stamp 1.6s ease-out forwards}
 @keyframes stamp{0%{opacity:0;transform:translate(-50%,-50%) scale(3.2) rotate(-8deg)}14%{opacity:1;transform:translate(-50%,-50%) scale(1) rotate(-8deg)}20%{transform:translate(-50%,-50%) scale(1.08) rotate(-8deg)}28%{transform:translate(-50%,-50%) scale(1) rotate(-8deg)}78%{opacity:1}100%{opacity:0;transform:translate(-50%,-50%) scale(1) rotate(-8deg)}}
-#banner{position:fixed;left:0;right:0;top:36%;z-index:8;text-align:center;pointer-events:none;opacity:0;transition:opacity .6s}
+#banner{position:fixed;inset:0;z-index:8;display:flex;flex-direction:column;align-items:center;justify-content:center;text-align:center;pointer-events:none;opacity:0;transition:opacity .8s ease;background:radial-gradient(ellipse at center,rgba(244,236,219,.55),rgba(226,214,188,.35) 70%);-webkit-backdrop-filter:blur(10px) saturate(.8);backdrop-filter:blur(10px) saturate(.8);padding:0 16px}
 #banner.on{opacity:1}
-#banner .t{display:inline-block;font-size:clamp(40px,8vw,86px);letter-spacing:.4em;padding:10px 0 10px .4em;color:var(--ink);text-shadow:0 0 30px rgba(244,236,219,.95),0 0 60px rgba(244,236,219,.8)}
-#banner .s{font-size:18px;letter-spacing:.5em;color:var(--ink2);text-shadow:0 0 12px rgba(244,236,219,.95)}
-#banner .ln{width:min(460px,70vw);height:2px;margin:6px auto;background:linear-gradient(90deg,transparent,var(--gold),transparent)}
+#banner .t{font-family:"XK",var(--font);font-weight:normal;font-size:clamp(76px,18vw,176px);letter-spacing:.1em;padding-left:.1em;line-height:1.15;color:#1b1a19;white-space:nowrap;text-shadow:0 3px 0 rgba(255,250,240,.6),0 0 50px rgba(244,236,219,.9)}
+#banner.on .t{animation:bannerIn 1.5s cubic-bezier(.2,.7,.2,1) both}
+@keyframes bannerIn{from{opacity:0;filter:blur(16px);transform:scale(1.14)}to{opacity:1;filter:blur(0);transform:none}}
+#banner .tw{position:relative;display:inline-block}
+#banner .bseal{position:absolute;right:-.2em;bottom:-.1em;transform:translate(100%,0) rotate(-5deg);font-size:clamp(11px,2.6vw,17px);line-height:1.15;padding:.35em .3em;background:#a8321f;color:#f7ecd6;border-radius:3px;box-shadow:inset 0 0 0 1.5px rgba(247,236,214,.55);filter:url(#rough);opacity:0}
+#banner.on .bseal{animation:sealIn .45s 1.1s both}
+@keyframes sealIn{0%{opacity:0;transform:translate(100%,0) scale(2.6) rotate(-16deg)}70%{opacity:1;transform:translate(100%,0) scale(.92) rotate(-5deg)}100%{opacity:1;transform:translate(100%,0) rotate(-5deg)}}
+#banner .ln{width:min(520px,72vw);height:1px;margin:14px auto 12px;background:linear-gradient(90deg,transparent,var(--gold),transparent)}
+#banner.on .ln{animation:fadeIn 1s .5s both}
+#banner .s{font-size:clamp(14px,3.6vw,19px);letter-spacing:.3em;padding-left:.3em;color:var(--ink2);line-height:1.8;max-width:min(640px,92vw)}
+#banner.on .s{animation:fadeUp .9s .7s both}
 #flash{position:fixed;inset:0;pointer-events:none;background:#fff5e0;opacity:0;z-index:7}
 .cinebar{position:fixed;left:0;right:0;height:0;background:#0f0e0d;transition:height .8s ease;pointer-events:none;z-index:5}
 #cbTop{top:0}#cbBot{bottom:0}
@@ -225,10 +252,18 @@ body.cine #hud>*{opacity:0!important;pointer-events:none!important}
 @keyframes inkin{from{opacity:0;filter:blur(8px)}to{opacity:1;filter:blur(0)}}
 #skip{position:fixed;left:50%;transform:translateX(-50%);bottom:calc(16px + var(--safe-b));z-index:12;pointer-events:auto;background:rgba(27,26,25,.78);color:#f1e3c2;border-color:rgba(217,184,119,.7)}
 body.cine #skip{bottom:calc(11vh + 12px)}
+body.compact #skip{bottom:calc(62px + var(--safe-b))}
 #toast{position:fixed;left:50%;top:30%;transform:translateX(-50%);background:rgba(27,26,25,.92);color:var(--paper2);padding:10px 22px;border-radius:3px;font-size:17px;letter-spacing:.08em;opacity:0;transition:opacity .35s;pointer-events:none;z-index:40;text-align:center;max-width:90vw;box-shadow:inset 0 0 0 1px rgba(217,184,119,.4)}
 #toast.on{opacity:1}
 .help{text-align:left;font-size:16px;line-height:1.9}
-@media (max-width:1100px){ #status{top:auto;bottom:calc(98px + var(--safe-b));left:auto;right:74px;transform:none;font-size:14px;padding:5px 18px 5px calc(18px + .2em)} }
+@media (max-width:1100px){ #status{font-size:14px;padding:5px 18px 5px calc(18px + .2em)} }
+/* 竖屏 / 窄屏：工具改横排贴底，卡片通栏 */
+body.compact .pcard{left:12px;right:12px;width:auto}
+body.compact #cardMe{bottom:calc(60px + var(--safe-b))}
+body.compact #tools{left:12px;right:12px;bottom:calc(10px + var(--safe-b));flex-direction:row;justify-content:space-between;gap:4px}
+body.compact .tool{width:40px;height:40px;font-size:18px;flex:none}
+body.compact #status{font-size:13px;padding:4px 16px 4px calc(16px + .2em);letter-spacing:.12em}
+body.compact #log{width:164px;max-height:34vh}
 @media (max-width:640px){
   .title{font-size:54px}.scroll{padding:28px 18px 22px}
   .opt{flex-direction:column;align-items:stretch;gap:6px}.seg{justify-content:flex-start}
@@ -236,12 +271,11 @@ body.cine #skip{bottom:calc(11vh + 12px)}
   .lv .rk{font-size:21px}.lv button{min-height:92px;padding:12px 4px 8px}
   .pcard{padding:6px 10px 6px 6px;gap:9px}.por{width:56px;height:56px}.por .face{inset:5px;width:46px;height:46px}.por .seal{width:20px;height:20px;font-size:13px}
   .pcard .who{font-size:17px}.pcard .clk{font-size:18px}
-  #bubOpp{top:calc(84px + var(--safe-t))}#bubMe{bottom:calc(86px + var(--safe-b))}
-  #status{bottom:calc(82px + var(--safe-b));left:12px;right:auto;font-size:13px}
-  #netbadge{top:calc(90px + var(--safe-t));left:auto;right:12px;transform:none}
-  .tool{width:44px;height:44px;font-size:18px}
-  #log{right:12px;top:calc(96px + var(--safe-t));width:164px;font-size:14px;max-height:30vh}
   #stamp{width:140px;height:140px;font-size:86px}
+  #endcard{padding:40px 36px}
+  #endcard .cols{gap:16px}
+  #endcard .row{gap:10px}
+  #endcard .row .btn{padding:.5em .8em;letter-spacing:.12em;font-size:16px}
 }
 @media (max-height:520px) and (orientation:landscape){
   .tool{width:40px;height:40px;font-size:17px}#tools{gap:5px}
@@ -263,9 +297,9 @@ body.cine #skip{bottom:calc(11vh + 12px)}
   <div class="pcard r" id="cardMe"><div class="por"><svg viewBox="0 0 80 80"><circle class="trk" cx="40" cy="40" r="36"/><circle class="arc" cx="40" cy="40" r="36"/></svg><img class="face" alt=""><div class="seal">漢</div></div><div class="info"><div class="nm"><span class="who">刘邦</span><span class="tag">你</span></div><div class="clk">--:--</div><div class="meta"><div class="caps"></div><span class="undo"></span></div></div></div>
   <div class="bubble" id="bubOpp"><b></b><span></span></div>
   <div class="bubble" id="bubMe"><b></b><span></span></div>
-  <div id="status"></div>
+  <div id="status"><i class="dot hidden" id="netDot"></i><span id="statusT"></span><span id="specN"></span></div>
   <div id="netbadge" class="hidden"></div>
-  <div id="log" class="hidden"><div class="lh">棋 譜</div><ol id="logList"></ol></div>
+  <div id="log" class="hidden"><div class="lh">棋 譜</div><ol id="logList"></ol><div id="specBox" class="hidden"><div class="lh lh2">觀 戰 席</div><ol id="specFeed"></ol></div></div>
   <div id="tools">
     <button class="tool" id="tChat" title="阵前喊话">言</button>
     <button class="tool" id="tUndo" title="悔棋">悔<small id="undoLeft"></small></button>
@@ -273,7 +307,9 @@ body.cine #skip{bottom:calc(11vh + 12px)}
     <button class="tool" id="tVis" title="画面档位">鏡<span class="lvl" id="visLv">影</span></button>
     <button class="tool" id="tSet" title="设置">設</button>
     <button class="tool" id="tView" title="视角复位">視</button>
+    <button class="tool hidden" id="tLaugh" title="哈哈大笑">笑</button>
     <button class="tool red" id="tResign" title="认输">降</button>
+    <button class="tool" id="tExit" title="退出">退</button>
   </div>
 </div>
 
@@ -356,7 +392,11 @@ body.cine #skip{bottom:calc(11vh + 12px)}
 
 <!-- 发言 -->
 <div id="chat" class="modal hidden"><div class="wrap"><div class="rod t"></div><div class="rod b"></div><div class="scroll">
-  <h3>阵 前 喊 话</h3>
+  <h3 id="chatT">阵 前 喊 话</h3>
+  <div id="watchOpts" class="hidden">
+    <div class="opt"><div class="lbl">站队<small id="wName"></small></div><div class="seg" id="wSide"><button data-v="r" class="r">汉</button><button data-v="n">中立</button><button data-v="b">楚</button></div></div>
+    <div class="row" style="margin:10px 0 6px"><button class="btn red solid wide" id="bLaugh">哈 哈 大 笑</button></div>
+  </div>
   <div class="phr" id="phr"></div>
   <div class="free"><input id="chatIn" maxlength="24" placeholder="自己写一句（最多 24 字）" enterkeyhint="send"><button class="btn small solid" id="chatSend">发</button></div>
   <div class="row"><button class="btn small" id="chatClose">关 闭</button></div>
@@ -381,8 +421,15 @@ body.cine #skip{bottom:calc(11vh + 12px)}
   <div class="row"><button class="btn small solid" id="bHelpClose">知道了</button></div>
 </div></div></div>
 
+<div id="mName" class="modal hidden"><div class="wrap"><div class="rod t"></div><div class="rod b"></div><div class="scroll">
+  <h3>观 战 入 席</h3>
+  <p class="note" id="nameNote">这局已有两位棋手对弈，你将作为观众入席。</p>
+  <div class="row"><input class="code" id="nameIn" maxlength="8" placeholder="留个名号" autocomplete="off" style="letter-spacing:.2em;font-family:var(--font);width:9em"></div>
+  <div class="row"><button class="btn small" id="nameRnd">换个名号</button><button class="btn red solid" id="nameGo">入 席</button></div>
+</div></div></div>
+
 <div id="stamp">將</div>
-<div id="banner"><div class="t" id="bannerT"></div><div class="ln"></div><div class="s" id="bannerS"></div></div>
+<div id="banner"><div class="tw"><div class="t" id="bannerT"></div><span class="bseal">楚漢<br>逐鹿</span></div><div class="ln"></div><div class="s" id="bannerS"></div></div>
 <div id="flash"></div>
 <div class="cinebar" id="cbTop"></div><div class="cinebar" id="cbBot"></div>
 <div id="subs"><div class="spk" id="subSpk"></div><div class="line" id="subLine"></div></div>

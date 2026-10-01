@@ -85,7 +85,11 @@ try:
         time.sleep(1)
         wait(lambda: ev(A, IDLE), 40)
         ev(A, "window.__xq.doMove({from:[1,0],to:[2,2]})")
+        check(wait(lambda: ev(A, "window.__xq.Net.peerState") == 'lost', 30), '房主察觉对手掉线')
         B, ctxB = page('B2', BASE + '?room=' + code)
+        # 换了浏览器（本地记录不同）：对手座位空着时，选择“接替入座”
+        check(wait(lambda: ev(B, "!document.getElementById('mAsk').classList.contains('hidden')"), 40), '换设备重开链接：询问接替入座还是观战')
+        B.evaluate("document.querySelector('#askYes').click()")
         check(wait(lambda: ev(B, 'window.__xq.game && window.__xq.game.history.length') == 1, 40), '加入方重开链接后恢复棋局（1 步）')
         check(ev(B, "window.__xq.Net.role") == 'guest', '重连后仍为同一座位（黑方）')
         # 房主刷新页面 → 从中继恢复房间

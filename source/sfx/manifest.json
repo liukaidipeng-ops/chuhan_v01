@@ -668,5 +668,22 @@
    "dur": 0.73,
    "src": "80-CC0-RPG-SFX/stones_02.ogg"
   }
+ ],
+ "laugh": [
+  {
+   "f": "laugh_0.mp3",
+   "dur": 2.48,
+   "src": "MMRetroArcadeSoundsPack1_0_5/Vocal/wav/Laugh1.wav"
+  },
+  {
+   "f": "laugh_1.mp3",
+   "dur": 2.64,
+   "src": "MMRetroArcadeSoundsPack1_0_5/Vocal/wav/Laugh2.wav (降调)"
+  },
+  {
+   "f": "laugh_2.mp3",
+   "dur": 3.45,
+   "src": "MMRetroArcadeSoundsPack1_0_5/Vocal/wav/Laugh3.wav (降调)"
+  }
  ]
 }

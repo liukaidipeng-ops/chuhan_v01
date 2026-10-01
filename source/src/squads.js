@@ -922,8 +922,9 @@ const Squads = (() => {
   // ======================================================================
   //  主帅战败（棋盘上）
   // ======================================================================
-  async function heroDefeat(side, pos, faceYaw) {
+  async function heroDefeat(side, pos, faceYaw, onCreate) {
     const g = new General(side, pos, faceYaw, { mounted: false, guard: false });
+    if (onCreate) onCreate(g);
     const H = g.hero, P_ = Models.POSES;
     g.hero.group.scale.setScalar(HERO * 1.25);
     await g.appear();

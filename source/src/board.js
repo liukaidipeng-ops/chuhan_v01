@@ -1,7 +1,7 @@
 // ===== 棋盘、棋子、楚河汉界流水、水墨山水 =====
 const Board = (() => {
   const { scene, toon, inked, canvasTex, rnd, inkBlot, Tex } = Core;
-  const TOP = 0.25, PH = 0.2, HALF = 0.24, RZ = 0.62, BX = 4.75, BZ = RZ + 4 + 0.75;
+  const TOP = 0.25, PH = 0.2, HALF = 0.24, RZ = 0.62, BX = 4.75, BZ = RZ + 4 + 0.75, BRIDGE_X = 6.97;
   const X = f => f - 4;
   const Z = r => (r <= 4 ? RZ + (4 - r) : -(RZ + (r - 5)));
   const pos = (f, r, y = TOP) => new THREE.Vector3(X(f), y, Z(r));
@@ -311,6 +311,7 @@ const Board = (() => {
       box(0.16, 0.42, 0.16, dark, sx * 5.05, 0.21, z);
       parts.push({ geo: new THREE.SphereGeometry(0.085, 8, 6), color: stone, m: Core.M4(sx * 5.05, 0.47, z) });
       for (let x = 5.05; x < 11.0; x += 0.55) {
+        if (x > 6.1 && x < 7.8) continue; // 观战木桥处断开
         const px = sx * (x + 0.55);
         box(0.075, 0.27, 0.075, stone, px, 0.135, z);
         box(0.1, 0.04, 0.1, dark, px, 0.29, z);
@@ -318,6 +319,27 @@ const Board = (() => {
         box(0.55, 0.03, 0.04, dark, sx * (x + 0.275), 0.07, z);
         box(0.02, 0.1, 0.03, dark, sx * (x + 0.275), 0.14, z);
       }
+    }
+    // 观战木桥：横跨楚河，左右各一座（观众默认站在桥上）
+    const wood = 0x7a5634, dk = 0x553a22, red = 0x8e2a1a;
+    for (const sx of [-1, 1]) {
+      const cx = sx * BRIDGE_X, L = 1.2, W = 1.5;
+      const arch = z => 0.16 + 0.1 * Math.cos(z / L * Math.PI / 2);
+      for (let i = 0; i < 9; i++) {
+        const z0 = -L + i * (2 * L / 9), z1 = z0 + 2 * L / 9, zm = (z0 + z1) / 2;
+        const slope = Math.atan2(arch(z1) - arch(z0), z1 - z0);
+        parts.push({ geo: new THREE.BoxGeometry(W, 0.05, 2 * L / 9 + 0.01), color: i % 2 ? wood : 0x86603a, m: Core.M4(cx, arch(zm), zm, -slope, 0, 0) });
+        for (const e of [-1, 1]) {
+          parts.push({ geo: new THREE.BoxGeometry(0.06, 0.26, 0.06), color: i === 0 || i === 8 ? red : dk, m: Core.M4(cx + e * (W / 2 - 0.03), arch(z0) + 0.13, z0) });
+          parts.push({ geo: new THREE.BoxGeometry(0.05, 0.04, 2 * L / 9 + 0.02), color: dk, m: Core.M4(cx + e * (W / 2 - 0.03), arch(zm) + 0.25, zm, -slope, 0, 0) });
+        }
+      }
+      for (const e of [-1, 1]) {
+        parts.push({ geo: new THREE.BoxGeometry(0.08, 0.36, 0.08), color: red, m: Core.M4(cx + e * (W / 2 - 0.03), 0.2, L) });
+        parts.push({ geo: new THREE.SphereGeometry(0.05, 8, 6), color: 0xc9a045, m: Core.M4(cx + e * (W / 2 - 0.03), 0.4, L) });
+        parts.push({ geo: new THREE.SphereGeometry(0.05, 8, 6), color: 0xc9a045, m: Core.M4(cx + e * (W / 2 - 0.03), 0.31, -L) });
+      }
+      for (const z of [-0.45, 0.45]) parts.push({ geo: new THREE.BoxGeometry(W * 0.8, 0.32, 0.16), color: 0x7f786c, m: Core.M4(cx, 0.0, z) });
     }
     const rails = inked(Core.merge(parts), toon(0xffffff, { vertexColors: true }));
     scene.add(rails);
@@ -661,6 +683,6 @@ const Board = (() => {
   return {
     root, TOP, PH, HALF, X, Z, pos, setPosition, pieces, piecesRoot, makePiece, faceViewer,
     showMoves, clearMoves, showLast, pick, meshAt, get hovered() { return hovered; }, ringTex, glowTex, wakes, water, waterMat, decal, flatGeo, pine, deco, FONT,
-    viewSide: 'r', pieceWood, RZ, BZ, BX, faceTex, makeRiver, mtTex,
+    viewSide: 'r', pieceWood, RZ, BZ, BX, BRIDGE_X, faceTex, makeRiver, mtTex,
   };
 })();

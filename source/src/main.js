@@ -130,6 +130,8 @@
   const actor = () => (mode === 'local' ? game.turn : mySide);
   const online = () => mode === 'host' || mode === 'guest';
   const aiSide = () => (mode === 'ai' ? other(mySide) : null);
+  const watching = () => mode === 'watch';
+  let watchWaiting = false;
 
   function resetClocks() { clock.r = clock.b = totalMax(); clock.step = stepMax(); clock.last = performance.now(); }
   function fmt(ms) { if (!opts.total) return '∞'; ms = Math.max(0, ms); const s = Math.ceil(ms / 1000); return String(Math.floor(s / 60)).padStart(2, '0') + ':' + String(s % 60).padStart(2, '0'); }
@@ -183,7 +185,7 @@
       c.querySelector('.seal').textContent = SEAL[s];
       c.querySelector('.who').textContent = NAME[s];
       const img = c.querySelector('.face'); if (faces[s] && img.src !== faces[s]) img.src = faces[s];
-      c.querySelector('.tag').textContent = mode === 'local' ? (s === 'r' ? '红方' : '黑方')
+      c.querySelector('.tag').textContent = mode === 'local' || mode === 'watch' ? (s === 'r' ? '红方' : '黑方')
         : mode === 'ai' ? (s === mySide ? '你' : `电脑 · ${LV[opts.level] || ''}`)
           : (s === mySide ? '你' : '对手');
     }
@@ -213,11 +215,38 @@
     else if (mode === 'ai') st = game.turn === mySide ? '轮到你走' : `${NAME[aiSide()]}思考中…`;
     else st = game.turn === mySide ? '轮到你走' : '对手思考中…';
     if (!game.result && started && game.inCheck()) { st += ' · 将军！'; warn = true; }
-    $('status').textContent = st; $('status').classList.toggle('warn', warn);
+    if (watching()) {
+      if (game.result) st = `${SIDE_CN[game.result.winner]}胜 · ${REASON[game.result.reason]}`;
+      else st = !started || (!game.history.length && watchWaiting) ? '等待棋手开局…' : `观战 · ${game.turn === 'r' ? '红方（汉）' : '黑方（楚）'}走棋` + (game.inCheck() ? ' · 将军！' : '');
+    }
+    $('statusT').textContent = st; $('status').classList.toggle('warn', warn);
+    $('netDot').classList.toggle('hidden', !(online() || watching()));
+    $('netDot').classList.toggle('bad', (online() && Net.peerState !== 'ok') || ((online() || watching()) && !Net.lineOk));
+    $('specN').textContent = (online() || watching()) && Spect.count ? `观战 ${Spect.count}` : '';
+    layoutHud();
     const left = opts.undo >= 99 ? '' : Math.max(0, opts.undo - undoUsed[actor()]);
     $('undoLeft').textContent = opts.undo ? (left === '' ? '∞' : left) : '';
     $('tUndo').disabled = !canUndo();
   }
+  // 浮动元素按卡片实际位置摆放，避免互相压住
+  function layoutHud() {
+    if ($('hud').classList.contains('hidden')) return;
+    const W = innerWidth, H = innerHeight;
+    const compact = W <= 760 || W / H < 0.8;
+    document.body.classList.toggle('compact', compact);
+    const o = $('cardOpp').getBoundingClientRect(), m = $('cardMe').getBoundingClientRect();
+    const st = $('status').style;
+    if (compact) { st.left = '50%'; st.top = (o.bottom + 8) + 'px'; st.transform = 'translateX(-50%)'; }
+    else if (W <= 1100) { st.left = (o.right + 18) + 'px'; st.top = (o.top + 4) + 'px'; st.transform = 'none'; }
+    else { st.left = '50%'; st.top = ''; st.transform = 'translateX(-50%)'; }
+    const sr = $('status').getBoundingClientRect();
+    const below = compact ? sr.bottom : o.bottom;
+    $('bubOpp').style.top = (below + 12) + 'px';
+    $('bubMe').style.bottom = (H - m.top + 12) + 'px';
+    $('log').style.top = compact ? (sr.bottom + 8) + 'px' : '';
+  }
+  window.addEventListener('resize', () => setTimeout(layoutHud, 60));
+  if (window.ResizeObserver) { const ro = new ResizeObserver(() => layoutHud()); ro.observe($('cardOpp')); ro.observe($('cardMe')); }
   function paintClocks() {
     for (const s of ['r', 'b']) {
       const c = cardFor(s);
@@ -245,15 +274,15 @@
     const t = performance.now(), dt = t - clock.last; clock.last = t;
     if (!started || ended || game.result || !mode) return;
     const s = game.turn;
-    const mine = mode === 'local' || mode === 'ai' || s === mySide;
+    const mine = mode === 'local' || mode === 'ai' || mode === 'watch' || s === mySide;
     const paused = busy || Ending.running || (online() && Net.peerState !== 'ok');
     if (mine && !paused) {
       if (opts.total) clock[s] -= dt;
       if (opts.step) clock.step -= dt;
       const left = Math.min(opts.total ? clock[s] : 1e9, opts.step ? clock.step : 1e9);
       const sec = Math.ceil(left / 1000);
-      if (left < 10000 && sec !== lastTickSec && s !== aiSide()) { lastTickSec = sec; Sfx.tick(sec <= 3 ? 0.5 : 0.3); }
-      if ((opts.total && clock[s] <= 0) || (opts.step && clock.step <= 0)) onTimeout(s);
+      if (left < 10000 && sec !== lastTickSec && s !== aiSide() && !watching()) { lastTickSec = sec; Sfx.tick(sec <= 3 ? 0.5 : 0.3); }
+      if (!watching() && ((opts.total && clock[s] <= 0) || (opts.step && clock.step <= 0))) onTimeout(s);
       if (online() && Math.floor(t / 2000) !== Math.floor((t - dt) / 2000)) Net.send({ t: 'clk', side: s, total: clock[s], step: clock.step });
     }
     // 人机：玩家久不落子，对方出言相激
@@ -338,7 +367,11 @@
     rebuildNotes();
     setView(mode === 'local' ? 'r' : side);
     $('lobby').classList.add('hidden'); $('hud').classList.remove('hidden');
-    $('netbadge').classList.toggle('hidden', !online());
+    $('netbadge').classList.add('hidden');
+    Core.Cam.moveId = (Core.Cam.moveId || 0) + 1;
+    for (const id of ['tUndo', 'tResign']) $(id).classList.toggle('hidden', m === 'watch');
+    $('tLaugh').classList.toggle('hidden', m !== 'watch');
+    setupChat();
     $('log').classList.toggle('hidden', !store.get('log', innerWidth > 1100));
     Ending.hideCard();
     Core.Cam.cine = false;
@@ -348,9 +381,9 @@
     if (mode === 'ai') { try { AI.warm(); } catch (e) { } }
     if (intro && !game.history.length) {
       Sfx.B.gong(0, 0.9); Sfx.B.taiko(0.5, 0.8); Sfx.B.taiko(0.8, 0.8); Sfx.B.taiko(1.05, 0.9);
-      const sub = mode === 'local' ? '红方先行' : mode === 'ai' ? `人机 · ${LV[opts.level]} · ${mySide === 'r' ? '你执红（汉）先行' : '你执黑（楚）后手'}` : (mySide === 'r' ? '你执红（汉）· 先行' : '你执黑（楚）· 后手');
-      banner('楚 漢 相 爭', sub, 2800);
-      await Core.sleep(0.6);
+      const sub = mode === 'local' ? '红方先行' : mode === 'ai' ? `人机 · ${LV[opts.level]} · ${mySide === 'r' ? '你执红（汉）先行' : '你执黑（楚）后手'}` : mode === 'watch' ? '观战' : (mySide === 'r' ? '你执红（汉）· 先行' : '你执黑（楚）· 后手');
+      banner('楚汉相争', sub, 2700);
+      await Core.sleep(2.5);
       bubble('r', '汉王刘邦在此！项籍，可敢一战？', 3000); await Voice.play('r_start', { minDur: 2 });
       bubble('b', '吾乃西楚霸王！谁敢挡我！', 3000); await Voice.play('b_start', { minDur: 1.8 });
     }
@@ -380,6 +413,7 @@
 
   // ---------- 走子 ----------
   function canAct() {
+    if (watching()) return false;
     if (!started || ended || busy || game.result || pendingUndo) return false;
     if (mode === 'local') return true;
     if (mode === 'ai') return game.turn === mySide && !aiThinking;
@@ -417,6 +451,7 @@
       const caps = game.history.filter(h => h.cap).length;
       Sfx.Music.setIntensity(game.result ? 1 : game.inCheck() ? 0.95 : Math.min(0.72, 0.32 + caps * 0.03));
       afterMoveLines(info);
+      if (info.captured) Spect.react(info.mover);
       if (!busy && game.turn === mySide) { turnStartAt = performance.now(); slowIdx = 0; }
       updateHud();
       if (info.result && !busy) finishGame(info.result);
@@ -452,25 +487,37 @@
     const tSur = mate ? Camp.surround(winner, center) : (Camp.cheer(winner, 6, 1.3), 0);
     setTimeout(() => Camp.rout(loser), 600);
     const t0 = performance.now();
-    try { finaleHero = await Squads.heroDefeat(loser, center, faceYaw); } catch (e) { console.error(e); }
+    try { await Squads.heroDefeat(loser, center, faceYaw, g => { finaleHero = g; }); } catch (e) { console.error(e); }
+    if (endSkip) return;
     if (mode === 'ai') await aiSay(winner === aiSide() ? 'win' : 'lose');
+    if (endSkip) return;
     const el = (performance.now() - t0) / 1000;
     await Core.sleep(Math.max(1.2, tSur - el + 0.8));
+    if (endSkip) return;
     if (cine) { await Core.Cam.to(center.clone().addScaledVector(toWin, 5.5).add(new THREE.Vector3(0, 4.2, 0)), center.clone().add(new THREE.Vector3(0, 0.3, 0)), 2.2); }
     else await Core.sleep(0.8);
   }
+  let endSkip = false, endSkipRes = null;
   function finishGame(result) {
     if (ended) return;
-    ended = true;
+    ended = true; endSkip = false;
+    const skipP = new Promise(r => { endSkipRes = r; });
     cancelAI();
     closeAsk(); Board.clearMoves();
     updateHud(); publish();
+    $('skip').classList.remove('hidden'); $('skip').textContent = '跳过结算 ▸▸';
     anim = anim.then(async () => {
-      await Core.sleep(0.8);
-      try { await boardFinale(result); } catch (e) { console.error(e); }
+      await Promise.race([Core.sleep(0.8), skipP]);
+      if (!endSkip) { try { await Promise.race([boardFinale(result), skipP]); } catch (e) { console.error(e); } }
+      Core.Time.skip = false; endSkipRes = null;
       Sfx.Music.stop();
-      const persp = mode === 'local' ? 'win' : (result.winner === mySide ? 'win' : 'lose');
-      await Ending.play(result, { again: requestAgain, lobby: toLobby, persp, mine: mode === 'local' ? '' : (persp === 'win' ? '你 胜 了' : '你 败 了') });
+      const persp = mode === 'local' || watching() ? 'win' : (result.winner === mySide ? 'win' : 'lose');
+      const W = watching();
+      await Ending.play(result, {
+        again: W ? () => { Ending.hideCard(); toast('等待棋手开新局…'); } : requestAgain, againText: W ? '继 续 观 战' : '',
+        lobby: toLobby, persp, instant: endSkip,
+        mine: mode === 'local' || W ? '' : (persp === 'win' ? '你 胜 了' : '你 败 了'),
+      });
       if (pendingRestart) { const st = pendingRestart; pendingRestart = null; restart(st === true ? undefined : st); if (mode === 'host') Net.send({ t: 'restart', state: snapshot() }); }
     });
   }
@@ -482,7 +529,7 @@
   let pendingRestart = null;
   function restart(state) {
     Ending.hideCard(); Core.Time.skip = false;
-    startGame(mode, mySide, opts, { state, intro: true });
+    startGame(mode, mySide, watching() && state && state.opts ? state.opts : opts, { state, intro: true });
     if (mode === 'host') publish();
   }
   function toLobby() {
@@ -591,9 +638,17 @@
     $('chat').classList.add('hidden');
     if (mode === 'ai' && Math.random() < 0.7) setTimeout(() => { if (!ended) aiSay('reply'); }, 2300);
   }
-  $('phr').innerHTML = PHRASES.map((p, i) => `<button data-i="${i}">${p}</button>`).join('');
-  $('phr').querySelectorAll('button').forEach(b => b.onclick = () => sendEmote(+b.dataset.i));
-  const sendFree = () => { const v = $('chatIn').value.trim().replace(/[<>]/g, '').slice(0, 24); if (!v) return; $('chatIn').value = ''; sendEmote(null, v); };
+  function setupChat() {
+    const W = watching();
+    $('chatT').textContent = W ? '观 众 拱 火' : '阵 前 喊 话';
+    $('watchOpts').classList.toggle('hidden', !W);
+    const list = W ? SPEC_PHRASES : PHRASES;
+    $('phr').innerHTML = list.map((p, i) => `<button data-i="${i}">${p}</button>`).join('');
+    $('phr').querySelectorAll('button').forEach(b => b.onclick = () => (watching() ? specSay(+b.dataset.i) : sendEmote(+b.dataset.i)));
+    if (W) { $('wName').textContent = `名号：${myName}`; paintAlleg(); }
+  }
+  setupChat();
+  const sendFree = () => { const v = $('chatIn').value.trim().replace(/[<>]/g, '').slice(0, 24); if (!v) return; $('chatIn').value = ''; watching() ? specSay(null, v) : sendEmote(null, v); };
   $('chatSend').onclick = sendFree;
   $('chatIn').addEventListener('keydown', e => { if (e.key === 'Enter') sendFree(); });
   $('tChat').onclick = () => { $('chat').classList.remove('hidden'); };
@@ -614,7 +669,16 @@
         hostSide = d.state.hostSide;
         startGame('guest', other(d.state.hostSide), d.state.opts, { state: d.state, intro: !(d.state.moves || []).length });
         break;
-      case 'full': if (!mode) $('joinNote').innerHTML = '<span class="spin"></span>房间已有两位棋手；若对手刚掉线，稍等片刻会自动入座…'; break;
+      case 'full': if (!mode && !enteringWatch) enterWatch(Net.code); break;
+      case 'vacant':
+        if (mode || enteringWatch || vacantAsked) break;
+        vacantAsked = true;
+        ask('入 座 或 观 战', '这局对手的座位空着（原棋手已离线）。要接替他继续下，还是入席观战？', 0, '接替入座', '观 战').then(yes => {
+          if (mode) return;
+          if (yes) { Net.send({ t: 'claim' }); $('joinNote').innerHTML = '<span class="spin"></span>正在入座…'; }
+          else enterWatch(Net.code);
+        });
+        break;
       case 'sync': case 'restart':
         if (mode !== 'guest') return;
         if (d.t === 'restart') { if (Ending.running) { pendingRestart = d.state; Ending.skip(); toast('对手开始了新的一局'); } else restart(d.state); return; }
@@ -667,9 +731,6 @@
     updateHud();
   }
   function onPeer(s) {
-    const nb = $('netbadge');
-    nb.classList.toggle('bad', s !== 'ok');
-    nb.textContent = s === 'ok' ? '● 对手在线' : '○ 对手掉线，等待重连…';
     if (s === 'ok' && mode === 'guest' && started) Net.send({ t: 'syncReq' });
     if (s === 'lost') lostSince = Date.now(); else lostSince = 0;
     updateHud();
@@ -687,8 +748,149 @@
   function onLine(n, total) {
     const t = n ? `线路已连接 ${n}/${total}` : '正在连接线路…';
     $('waitLine').textContent = t; $('joinLine').textContent = t;
-    if (!n && online() && started) { $('netbadge').classList.add('bad'); $('netbadge').textContent = '○ 网络中断，重连中…'; }
+    if (mode) updateHud();
   }
+
+  // ---------- 观战 ----------
+  const SPEC_PHRASES = ['这步臭棋！', '将他！将他！', '车都不要了？', '快吃啊！', '妙手！', '下快点，看睡着了', '汉军威武！', '楚军必胜！'];
+  let myName = store.get('specName', ''), myAlleg = 'n', lastSpecSay = 0, enteringWatch = false, specTimer = null, vacantAsked = false;
+  const cleanTxt = t => String(t || '').replace(/[<>]/g, '').slice(0, 24);
+  function feed(p, text) {
+    if (!p) return;
+    const li = document.createElement('li'); li.className = p.a;
+    li.innerHTML = '<b></b><span></span>';
+    li.querySelector('b').textContent = p.name; li.querySelector('span').textContent = text;
+    const F = $('specFeed'); F.appendChild(li);
+    while (F.children.length > 40) F.firstChild.remove();
+    F.scrollTop = F.scrollHeight;
+    $('specBox').classList.remove('hidden');
+  }
+  // 收到观众频道消息（棋手和观众都会收到）
+  function onSpec(d) {
+    if (!d || !d._p) return;
+    if (d.t === 'sbye') { const p = Spect.get(d._p); if (p) feed(p, '离席'); Spect.remove(d._p); updateHud(); return; }
+    const isNew = !Spect.has(d._p);
+    const p = Spect.upsert(d._p, d.n, d.a, false);
+    if (!p) return;
+    if (isNew) { feed(p, '入席观战'); if (mode && !watching()) toast(`「${p.name}」入席观战`); }
+    if (d.t === 'say') {
+      const text = d.i != null ? SPEC_PHRASES[d.i] : cleanTxt(d.text);
+      if (!text) return;
+      Spect.say(d._p, text); feed(p, text);
+      Sfx.B.shout(0, 4, 0.045, 0.5);
+    } else if (d.t === 'laugh') {
+      Spect.laugh(d._p); feed(p, '哈哈哈哈哈！'); Sfx.smp('laugh', { vol: 0.7, rj: 0.05 });
+    } else if (d.t === 'side') feed(p, d.a === 'n' ? '回到中立看台' : `站到${d.a === 'r' ? '汉' : '楚'}军一边`);
+    updateHud();
+  }
+  setInterval(() => {
+    let changed = false;
+    for (const p of [...Spect.people.values()]) if (!p.self && Date.now() - p.seen > 14000) { Spect.remove(p.id); changed = true; }
+    if (changed) updateHud();
+  }, 3000);
+  function enterWatch(code) {
+    enteringWatch = true;
+    clearInterval(joinTimer);
+    Net.close(true);
+    $('joinNote').innerHTML = '这局已有两位棋手，你可以入席观战。';
+    $('nameIn').value = myName || '';
+    $('nameIn').placeholder = Spect.randomName();
+    $('mName').classList.remove('hidden');
+    $('nameRnd').onclick = () => { $('nameIn').value = Spect.randomName(); };
+    $('nameGo').onclick = () => {
+      myName = ($('nameIn').value.trim() || $('nameIn').placeholder).replace(/[<>]/g, '').slice(0, 8);
+      store.set('specName', myName);
+      $('mName').classList.add('hidden');
+      startWatch(code);
+    };
+  }
+  function specHello() { if (Net.role === 'watch') Net.sendSpec({ t: 'sp', n: myName, a: myAlleg }); }
+  function startWatch(code) {
+    Sfx.init(); applySettings();
+    $('joinNote').innerHTML = '<span class="spin"></span>正在入席…';
+    Net.watch(code, {
+      line(n, total) { onLine(n, total); if (n) specHello(); },
+      room: onWatchRoom,
+      data(d, ch) {
+        const side = ch === 'h' ? hostSide : other(hostSide);
+        if (d.t === 'emote') emote(side, d.i ?? null, cleanTxt(d.text));
+        else if (d.t === 'bye') toast(`${SIDE_CN[side]}方棋手离开了房间`);
+      },
+      spec: onSpec,
+    });
+    clearInterval(specTimer);
+    specTimer = setInterval(specHello, 4000);
+    // 观战席满员（8 人）则请他稍后再来
+    setTimeout(() => {
+      const others = [...Spect.people.values()].filter(p => !p.self).length;
+      if (others >= Spect.MAX) ask('观 战 席 已 满', `已有 ${Spect.MAX} 位观众，请稍后再来。`, 0, '返回大厅', '留下').then(ok => { if (ok) leaveGame(); });
+    }, 4500);
+  }
+  function onWatchRoom(d) {
+    if (!d || !d.v || !d.opts) return;
+    hostSide = d.hostSide || 'r';
+    watchWaiting = !!d.waiting;
+    if (mode !== 'watch') {
+      startGame('watch', 'r', d.opts, { state: d, intro: false }).then(() => updateHud());
+      Spect.upsert(Net.myPid, myName, myAlleg, true);
+      specHello();
+      toast(`你以「${myName}」的名号入席观战`, 2600);
+      return;
+    }
+    syncWatch(d);
+  }
+  function syncWatch(st) {
+    const theirs = st.moves || [], mine = game.history;
+    if (!theirs.length && !st.result && (mine.length || game.result || ended)) {
+      if (Ending.running) { pendingRestart = st; Ending.skip(); } else restart(st);
+      return;
+    }
+    const same = (a, b) => a.from[0] === b.from[0] && a.from[1] === b.from[1] && a.to[0] === b.to[0] && a.to[1] === b.to[1];
+    const prefix = (a, b) => a.length <= b.length && a.every((m, i) => same(m, b[i]));
+    if (prefix(mine, theirs)) { for (const m of theirs.slice(mine.length)) doMove(m, true); }
+    else if (prefix(theirs, mine) && !game.result) {
+      const n = mine.length - theirs.length;
+      busy++;
+      anim = anim.then(async () => { for (let i = 0; i < n; i++) { const h = game.undo(); if (h) { notes.pop(); await Fx.undoMove(h); } } })
+        .catch(e => console.error(e)).then(() => { busy--; Fx.ply = game.history.length; renderLog(); const l = game.history[game.history.length - 1]; Board.showLast(l ? l.from : null, l ? l.to : null); updateHud(); });
+      toast('棋手悔棋');
+    } else if (!prefix(mine, theirs)) applyState(st);
+    if (st.clk) { clock.r = st.clk.r; clock.b = st.clk.b; }
+    if (st.step != null) clock.step = st.step;
+    undoUsed = { r: 0, b: 0, ...(st.undo || {}) };
+    if (st.result && !game.result) { game.result = st.result; finishGame(st.result); }
+    updateHud();
+  }
+  function specSay(i, text) {
+    if (Date.now() - lastSpecSay < 3000) { toast('说得太快了，歇口气'); return; }
+    lastSpecSay = Date.now();
+    const msg = i != null ? SPEC_PHRASES[i] : cleanTxt(text);
+    if (!msg) return;
+    Net.sendSpec(i != null ? { t: 'say', n: myName, a: myAlleg, i } : { t: 'say', n: myName, a: myAlleg, text: msg });
+    Spect.say(Net.myPid, msg); feed(Spect.get(Net.myPid), msg);
+    Sfx.B.shout(0, 4, 0.045, 0.5);
+    $('chat').classList.add('hidden');
+  }
+  function specLaugh() {
+    if (Date.now() - lastSpecSay < 3000) { toast('笑得太勤了，歇口气'); return; }
+    lastSpecSay = Date.now();
+    Net.sendSpec({ t: 'laugh', n: myName, a: myAlleg });
+    Spect.laugh(Net.myPid); feed(Spect.get(Net.myPid), '哈哈哈哈哈！');
+    Sfx.smp('laugh', { vol: 0.7, rj: 0.05 });
+    $('chat').classList.add('hidden');
+  }
+  function paintAlleg() { $('wSide').querySelectorAll('button').forEach(b => b.classList.toggle('on', b.dataset.v === myAlleg)); }
+  $('wSide').querySelectorAll('button').forEach(b => b.onclick = () => {
+    if (myAlleg === b.dataset.v) return;
+    myAlleg = b.dataset.v; paintAlleg();
+    Spect.upsert(Net.myPid, myName, myAlleg, true);
+    Net.sendSpec({ t: 'side', n: myName, a: myAlleg });
+    feed(Spect.get(Net.myPid), myAlleg === 'n' ? '回到中立看台' : `站到${myAlleg === 'r' ? '汉' : '楚'}军一边`);
+    Sfx.select && Sfx.select();
+  });
+  $('bLaugh').onclick = specLaugh;
+  $('tLaugh').onclick = specLaugh;
+  function leaveGame() { cancelAI(); try { Net.close(); } catch (e) { } location.href = location.pathname; }
 
   // ---------- 大厅 ----------
   const panes = ['pMain', 'pAI', 'pCreate', 'pWait', 'pJoin'];
@@ -767,7 +969,7 @@
           Net.send({ t: 'sync', state: snapshot() });
         }
       },
-      data: onData, peer: onPeer,
+      data: onData, peer: onPeer, spec: onSpec,
     });
   }
   $('bShare').onclick = () => {
@@ -798,7 +1000,7 @@
         gotRoom = true;
         if (!mode) $('joinNote').innerHTML = '<span class="spin"></span>找到房间，正在入座…';
       },
-      data: onData, peer: onPeer,
+      data: onData, peer: onPeer, spec: onSpec,
     });
     clearInterval(joinTimer);
     joinTimer = setInterval(() => {
@@ -832,6 +1034,15 @@
   $('tView').onclick = () => { if (mode === 'local') setView(viewSide === 'r' ? 'b' : 'r'); else setView(viewSide); };
   $('tLog').onclick = () => { const h = !$('log').classList.contains('hidden'); $('log').classList.toggle('hidden', h); store.set('log', !h); if (!h) renderLog(); };
   $('tVis').onclick = () => { S.vis = VIS[(VIS.indexOf(S.vis) + 1) % VIS.length]; applySettings(); toast(`画面：${VISNAME[S.vis]}`); };
+  $('tExit').onclick = async () => {
+    if (!mode) return;
+    let msg;
+    if (watching()) msg = '离开观战席，回到大厅？';
+    else if (mode === 'local' || mode === 'ai') msg = '退出本局、回到大厅？本局不计胜负。';
+    else msg = game.result ? '离开房间、回到大厅？' : '离开房间、回到大厅？本局不计胜负；对手会看到你已离开，用原邀请链接可以回来接着下。';
+    const ok = await ask(watching() ? '离 席' : '退 出', msg, 0, watching() ? '离 开' : '退 出', '再想想');
+    if (ok) leaveGame();
+  };
   $('tResign').onclick = async () => {
     if (!started || ended || game.result) return;
     const side = actor();
@@ -841,7 +1052,11 @@
     if (online()) Net.send({ t: 'resign', side });
     finishGame(r);
   };
-  const skipNow = () => { if (Ending.running) Ending.skip(); else if (busy || ended) Core.Time.skip = true; };
+  const skipNow = () => {
+    if (Ending.running) Ending.skip();
+    else if (ended && endSkipRes) { endSkip = true; Core.Time.skip = true; Voice.cancel(); endSkipRes(); }
+    else if (busy) Core.Time.skip = true;
+  };
   $('skip').onclick = skipNow;
   window.addEventListener('keydown', e => { if (e.code === 'Space' && !/INPUT|TEXTAREA/.test(e.target.tagName)) { e.preventDefault(); skipNow(); } });
   window.addEventListener('beforeunload', () => { if (online()) Net.send({ t: 'bye' }); });
@@ -853,7 +1068,7 @@
   const hostRec = store.get('host', null);
   window.__xq = {
     get busy() { return busy; }, get started() { return started; }, get game() { return game; }, get mode() { return mode; }, get aiThinking() { return aiThinking; },
-    doMove, startGame, finishGame, Ending, Fx, Board, Core, Camp, Squads, setView, onData, Net, requestUndo, sendEmote, get clock() { return clock; }, get opts() { return opts; }, joinRoom, notation, get notes() { return notes; }, aiSay,
+    doMove, startGame, finishGame, Ending, Fx, Board, Core, Camp, Squads, Spect, setView, onData, Net, requestUndo, sendEmote, get clock() { return clock; }, get opts() { return opts; }, joinRoom, notation, get notes() { return notes; }, aiSay,
   };
   if (location.hash === '#local') { startGame('local', 'r', { undo: 3, total: 15, step: 60, hints: 1 }, { intro: false }); return; }
   if (location.hash.startsWith('#ai')) { const [, lv, sd] = location.hash.split('-'); startGame('ai', sd || 'r', { undo: 3, total: 0, step: 0, hints: 1, level: lv || 'easy' }, { intro: false }); return; }

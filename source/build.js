@@ -2,7 +2,7 @@
 const fs = require('fs');
 const path = require('path');
 const D = __dirname;
-const order = ['rules', 'engine', 'core', 'board', 'models', 'audio', 'fx', 'squads', 'camp', 'ending', 'net', 'ui', 'main'];
+const order = ['rules', 'engine', 'core', 'board', 'models', 'audio', 'fx', 'squads', 'camp', 'spect', 'ending', 'net', 'ui', 'main'];
 const tpl = fs.readFileSync(path.join(D, 'src/template.html'), 'utf8');
 const three = fs.readFileSync(path.join(D, 'node_modules/three/build/three.min.js'), 'utf8');
 const qr = fs.readFileSync(path.join(D, 'node_modules/qrcode-generator/dist/qrcode.js'), 'utf8');
@@ -22,7 +22,9 @@ const data = `window.VOICE_LINES=${JSON.stringify(L)};window.VOICE_CLIPS=${JSON.
 const app = order.filter(n => fs.existsSync(path.join(D, 'src', n + '.js')))
   .map(n => `// ---- ${n}.js ----\n` + fs.readFileSync(path.join(D, 'src', n + '.js'), 'utf8')).join('\n');
 const safe = s => s.replace(/<\/script/gi, '<\\/script');
-const out = tpl.replace('/*THREE*/', () => safe(three)).replace('/*QR*/', () => safe(qr)).replace('/*VOICE*/', () => data).replace('/*APP*/', () => safe(app));
+// 行楷字体子集（志莽行书，SIL OFL 1.1，见 fonts/OFL.txt）
+const xk = 'data:font/woff2;base64,' + fs.readFileSync(path.join(D, 'fonts/xingkai-subset.woff2')).toString('base64');
+const out = tpl.replace('/*XKFONT*/', () => xk).replace('/*THREE*/', () => safe(three)).replace('/*QR*/', () => safe(qr)).replace('/*VOICE*/', () => data).replace('/*APP*/', () => safe(app));
 fs.mkdirSync(path.join(D, 'dist/site'), { recursive: true });
 fs.writeFileSync(path.join(D, 'dist', '楚汉三维象棋.html'), out);
 fs.writeFileSync(path.join(D, 'dist/site/index.html'), out);

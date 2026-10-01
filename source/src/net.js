@@ -114,15 +114,23 @@ const Net = (() => {
     const key = d._p + ':' + d._s;
     if (seen.has(key)) return;
     seen.add(key); seenQ.push(key); if (seenQ.length > 800) seen.delete(seenQ.shift());
+    // 观众频道：任何身份都收，不影响对手在线状态
+    if (topic.endsWith('/s')) { h.spec && h.spec(d); return; }
+    // 观众：只看双方的喊话、离开等消息（棋局走房间快照）
+    if (role === 'watch') { h.data && h.data(d, topic.endsWith('/h') ? 'h' : 'g'); return; }
     if (d._to && d._to !== myPid) return;
-    if (role === 'host' && d.t === 'join') {
-      // 座位：同一个人重连直接接纳；换人时，旧对手离线超过 15 秒才让位
-      if (!peerPid || peerPid === d._p || Date.now() - peerSeen > 15000) { peerPid = d._p; }
-      else { sendTo(d._p, { t: 'full' }); return; }
+    if (role === 'host' && (d.t === 'join' || d.t === 'claim')) {
+      // 座位：同一个人重连直接接纳；对手在线时来人进观众席；
+      // 对手已离线 15 秒以上时，问来人要不要接替入座（claim），否则观战
+      const vacant = peerState === 'lost' || Date.now() - peerSeen > 9000;
+      if (!peerPid || peerPid === d._p || (d.t === 'claim' && vacant)) { peerPid = d._p; d = { ...d, t: 'join' }; }
+      else { sendTo(d._p, { t: vacant ? 'vacant' : 'full' }); return; }
     }
     if (role === 'host' && !peerPid && d.t !== 'join') peerPid = d._p;
     if (role === 'host' && peerPid && d._p !== peerPid) return;
     if (role === 'guest') { if (!peerPid) peerPid = d._p; if (d._p !== peerPid && d.t !== 'welcome') return; if (d.t === 'welcome') peerPid = d._p; }
+    // 对手主动离开：座位立即空出
+    if (d.t === 'bye') { peerSeen = 0; if (peerState === 'ok') { peerState = 'lost'; h.peer && h.peer('lost'); } h.data && h.data(d); return; }
     peerSeen = Date.now();
     if (peerState !== 'ok') { peerState = 'ok'; h.peer && h.peer('ok'); }
     if (Net.debug && d.t !== 'ping') console.log('NET<', role, JSON.stringify(d).slice(0, 160));
@@ -136,23 +144,28 @@ const Net = (() => {
     clients = brokers().map(url => new Mqtt(url, onMsg, () => onState()));
     for (const cl of clients) {
       cl.sub(base() + '/room');
-      cl.sub(base() + (role === 'host' ? '/g' : '/h'));
+      if (role === 'watch') { cl.sub(base() + '/h'); cl.sub(base() + '/g'); }
+      else cl.sub(base() + (role === 'host' ? '/g' : '/h'));
+      cl.sub(base() + '/s');
       cl.connect();
     }
     clearInterval(hb);
     hb = setInterval(() => {
-      if (!anyOk()) return;
+      if (!anyOk() || role === 'watch') return;
       send({ t: 'ping' });
       if (peerState === 'ok' && Date.now() - peerSeen > 9000) { peerState = 'lost'; h.peer && h.peer('lost'); }
     }, 3000);
   }
-  function raw(obj) {
+  function raw(obj, ch) {
+    if (role === 'watch' && ch !== '/s') return false;
     obj._p = myPid; obj._s = ++seq;
     const s = JSON.stringify(obj);
     let sent = false;
-    for (const c of clients) sent = c.pub(base() + (role === 'host' ? '/h' : '/g'), s) || sent;
+    for (const c of clients) sent = c.pub(base() + (ch || (role === 'host' ? '/h' : '/g')), s) || sent;
     return sent;
   }
+  // 观众频道（观众发言、到场、站队、离场）
+  function sendSpec(obj) { return raw({ ...obj }, '/s'); }
   function send(obj) { return raw({ ...obj }); }
   function sendTo(pid, obj) { return raw({ ...obj, _to: pid }); }
   // 房间信息（retain：后来者/重连者立即拿到）
@@ -160,7 +173,7 @@ const Net = (() => {
   function clearRoom() { for (const c of clients) { if (c.ok) { const t = Mqtt.str(base() + '/room'); c.send([0x31, ...Mqtt.varint(t.length), ...t]); } } }
   function close(silent) {
     clearInterval(hb);
-    if (!silent && anyOk() && role) try { send({ t: 'bye' }); } catch (e) { }
+    if (!silent && anyOk() && role) try { role === 'watch' ? sendSpec({ t: 'sbye' }) : send({ t: 'bye' }); } catch (e) { }
     for (const c of clients) c.close();
     clients = []; role = null;
   }
@@ -173,7 +186,8 @@ const Net = (() => {
     gen, get myPid() { return myPid; }, DEFAULT_BROKERS,
     host(c, handlers) { start('host', c, handlers); },
     join(c, handlers) { start('guest', c.toUpperCase(), handlers); },
-    send, publishRoom, clearRoom, close,
+    watch(c, handlers) { start('watch', c.toUpperCase(), handlers); },
+    send, sendSpec, publishRoom, clearRoom, close,
     get connected() { return anyOk() && peerState === 'ok'; },
     get lineOk() { return anyOk(); },
     get peerState() { return peerState; },
