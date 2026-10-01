@@ -148,6 +148,14 @@ input.code{font-size:30px;letter-spacing:.4em;text-align:center;width:8.5em;max-
 .pcard .caps{display:flex;flex-wrap:wrap;gap:2px;flex:1;min-width:0}
 .capp{width:20px;height:20px;border-radius:50%;background:radial-gradient(circle at 40% 35%,#ecc990,#c9a068);border:1px solid #8a6a40;display:flex;align-items:center;justify-content:center;font-size:12px;font-weight:bold;flex:none;box-shadow:0 1px 1px rgba(0,0,0,.25)}
 .capp.r{color:var(--red)}.capp.b{color:var(--ink)}
+.capp.hid{background:radial-gradient(circle at 40% 35%,#7a2a1c,#45130d);color:rgba(236,206,140,.75);border-color:#b8914a;font-size:11px;cursor:default}
+.capp.hid.b{background:radial-gradient(circle at 40% 35%,#4a433d,#161312)}
+.capp.hid.know{background:radial-gradient(circle at 40% 35%,#ecc990,#c9a068);border:1px dashed #6b4a2a;font-size:12px}
+.capp.hid.know.r{color:var(--red)}.capp.hid.know.b{color:var(--ink)}
+#logList em.rv{font-style:normal;display:inline-block;margin-left:2px;width:15px;height:15px;line-height:15px;border-radius:50%;background:#2a2522;color:#ecc990;font-size:10px;text-align:center;vertical-align:1px}
+#logList .r em.rv{background:#6e2217}
+#log.jq{width:228px}
+body.compact #log.jq{width:214px}
 .pcard .undo{font-size:12px;color:var(--ink3);white-space:nowrap}
 .pcard.think .tag:after{content:" · 思考中";color:var(--red);animation:pulse 1.2s infinite}
 .bubble{position:absolute;left:12px;max-width:min(420px,calc(100vw - 110px));padding:10px 18px;font-size:19px;letter-spacing:.06em;border-radius:3px;opacity:0;transform:translateY(-6px) scale(.96);transition:opacity .25s,transform .25s;pointer-events:none;z-index:6}
@@ -346,6 +354,7 @@ body.compact #log{width:164px;max-height:34vh}
 
     <div id="pCreate" class="pane hidden">
       <h3 id="createTitle">房 间 设 置</h3>
+      <div class="opt"><div class="lbl">玩法<small id="jqNote">揭棋：十五子反扣，走动方知真身</small></div><div class="seg" data-k="jq"><button data-v="0">象棋</button><button data-v="1">揭棋</button></div></div>
       <div class="opt"><div class="lbl">执子</div><div class="seg" data-k="side"><button data-v="r" class="r">红·汉（先手）</button><button data-v="b">黑·楚</button><button data-v="x">随机</button></div></div>
       <div class="opt"><div class="lbl">悔棋<small>需对方同意</small></div><div class="seg" data-k="undo"><button data-v="0">不允许</button><button data-v="1">1 次</button><button data-v="3">3 次</button><button data-v="99">不限</button></div></div>
       <div class="opt"><div class="lbl">总时长<small>每方，用完判负</small></div><div class="seg" data-k="total"><button data-v="0">不限</button><button data-v="10">10 分</button><button data-v="15">15 分</button><button data-v="20">20 分</button><button data-v="30">30 分</button></div></div>
@@ -417,6 +426,14 @@ body.compact #log{width:164px;max-height:34vh}
   · 规则为标准中国象棋：将死或困毙即负，将帅不可照面；计时用完或单步超时判负。<br>
   · 兵卒——步兵列阵；车——驷马战车；马——重甲骑兵；炮——铜炮齐射；相——汉军弩手；象——楚军战象；士——刀盾近卫；帅将——主帅亲征。步兵与炮乘船渡河，车马涉水。<br>
   · 人机对战有新兵、校尉、霸王三档；霸王每步深算约五秒，极难战胜。
+  </div>
+  <h3 style="margin-top:14px">揭 棋</h3>
+  <div class="help">
+  · 开局时将帅明摆在原位，其余十五子反扣（汉为朱漆背、楚为黑漆背），随机摆在本方原有的子位上，谁也不知道哪枚是什么。<br>
+  · 暗子按它所在位置原本的兵种走（漆背上极淡地印着这个位置的字）；一走动就翻开，从此按真身走。<br>
+  · 翻开的士、象不受九宫与河界限制，可以过河；兵卒过河前只能前进。<br>
+  · 被吃掉的暗子，只有吃子方知道它是什么。联机时由双方各持一半密钥洗牌，谁也偷看不到对方的牌；同屏对战时，吃子方可点开吃到的“暗”子偷看。<br>
+  · 四十回合无吃子判和；同一子不能连续将军、或连续捉同一子超过六回合。其余同象棋：将死或困毙即负。
   </div>
   <div class="row"><button class="btn small solid" id="bHelpClose">知道了</button></div>
 </div></div></div>
@@ -2750,6 +2767,9 @@ var qrcode = function() {
 // ===== 中国象棋规则引擎 =====
 // 坐标：f = 列 0..8（红方从左到右），r = 行 0..9（红方底线为 0，黑方底线为 9）
 // 红方 = 汉（先行），黑方 = 楚
+// 揭棋：除将帅外 15 子反扣、随机摆在本方原有子位上；暗子按所在位置的兵种走法走，走动即翻开；
+//       翻开的士、象可出九宫、过河；被吃的暗子只有吃子方知道是什么；40 回合无吃子判和；
+//       同一子不得连续将军、连续捉同一子超过 6 回合。
 (function (global) {
   const W = 9, H = 10;
   const TYPES = ['k', 'a', 'e', 'r', 'n', 'c', 'p'];
@@ -2775,6 +2795,36 @@ var qrcode = function() {
     return b;
   }
 
+  // ---------- 揭棋 ----------
+  // 每方 15 个暗子位（按行、列顺序），以及各位置原本的兵种
+  const JQ_SQ = { r: [], b: [] }, JQ_STD = { r: [], b: [] };
+  (() => {
+    const b = initialBoard();
+    for (let r = 0; r < H; r++) for (let f = 0; f < W; f++) {
+      const p = b[r][f];
+      if (p && p.t !== 'k') { JQ_SQ[p.s].push([f, r]); JQ_STD[p.s].push(p.t); }
+    }
+  })();
+  const JQ_COUNT = { r: 2, n: 2, e: 2, a: 2, c: 2, p: 5 };
+  function rand(n) {
+    try { const a = new Uint32Array(1); (global.crypto || require('crypto').webcrypto).getRandomValues(a); return a[0] % n; } catch (e) { return Math.floor(Math.random() * n); }
+  }
+  function shuffle(a) { a = a.slice(); for (let i = a.length - 1; i > 0; i--) { const j = rand(i + 1); [a[i], a[j]] = [a[j], a[i]]; } return a; }
+  const randomLayout = () => ({ r: shuffle(JQ_STD.r), b: shuffle(JQ_STD.b) });
+  // layout: { r: [15 个兵种], b: [...] }；为 null 时身份未知（联机：靠双方密钥逐个揭开）
+  function jieqiBoard(layout) {
+    const b = initialBoard();
+    for (const s of ['r', 'b']) JQ_SQ[s].forEach(([f, r], i) => {
+      const p = b[r][f];
+      p.pt = p.t; p.h = 1; p.j = 1; p.hi = i;
+      p.t = layout && layout[s] ? layout[s][i] : '?';
+    });
+    for (let r = 0; r < H; r++) for (let f = 0; f < W; f++) { const p = b[r][f]; if (p && p.t === 'k') p.j = 1; }
+    return b;
+  }
+  // 子的“走法兵种”：暗子按位置，明子按本身
+  const et = p => (p.h ? p.pt : p.t);
+
   const inBoard = (f, r) => f >= 0 && f < W && r >= 0 && r < H;
   const inPalace = (s, f, r) => f >= 3 && f <= 5 && (s === 'r' ? r <= 2 : r >= 7);
   const ownHalf = (s, r) => (s === 'r' ? r <= 4 : r >= 5);
@@ -2784,25 +2834,26 @@ var qrcode = function() {
     const p = b[r][f];
     if (!p) return [];
     const s = p.s, out = [];
+    const free = p.j && !p.h; // 揭棋明子：士象不受九宫、河界限制
     const add = (tf, tr) => {
       if (!inBoard(tf, tr)) return;
       const q = b[tr][tf];
       if (q && q.s === s) return;
       out.push({ from: [f, r], to: [tf, tr] });
     };
-    switch (p.t) {
+    switch (et(p)) {
       case 'k':
         for (const [df, dr] of [[1, 0], [-1, 0], [0, 1], [0, -1]])
           if (inPalace(s, f + df, r + dr)) add(f + df, r + dr);
         break;
       case 'a':
         for (const [df, dr] of [[1, 1], [1, -1], [-1, 1], [-1, -1]])
-          if (inPalace(s, f + df, r + dr)) add(f + df, r + dr);
+          if (free ? inBoard(f + df, r + dr) : inPalace(s, f + df, r + dr)) add(f + df, r + dr);
         break;
       case 'e':
         for (const [df, dr] of [[2, 2], [2, -2], [-2, 2], [-2, -2]]) {
           const tf = f + df, tr = r + dr;
-          if (!inBoard(tf, tr) || !ownHalf(s, tr)) continue;
+          if (!inBoard(tf, tr) || (!free && !ownHalf(s, tr))) continue;
           if (b[r + dr / 2][f + df / 2]) continue; // 塞象眼
           add(tf, tr);
         }
@@ -2878,10 +2929,10 @@ var qrcode = function() {
         const q = b[r][f];
         if (q) {
           if (screens === 0) {
-            if (q.s === o && q.t === 'r') return true;
+            if (q.s === o && et(q) === 'r') return true;
             screens = 1;
           } else {
-            if (q.s === o && q.t === 'c') return true;
+            if (q.s === o && et(q) === 'c') return true;
             break;
           }
         }
@@ -2895,18 +2946,43 @@ var qrcode = function() {
       const f = kf + df, r = kr + dr;
       if (!inBoard(f, r)) continue;
       const q = b[r][f];
-      if (q && q.s === o && q.t === 'n' && !b[kr + lr][kf + lf]) return true;
+      if (q && q.s === o && et(q) === 'n' && !b[kr + lr][kf + lf]) return true;
     }
     // 兵卒
     const ofwd = o === 'r' ? 1 : -1; // 对方兵前进方向
     const pr = kr - ofwd;
-    if (inBoard(kf, pr)) { const q = b[pr][kf]; if (q && q.s === o && q.t === 'p') return true; }
+    if (inBoard(kf, pr)) { const q = b[pr][kf]; if (q && q.s === o && et(q) === 'p') return true; }
     for (const df of [1, -1]) {
       if (!inBoard(kf + df, kr)) continue;
       const q = b[kr][kf + df];
-      if (q && q.s === o && q.t === 'p' && !ownHalf(o, kr)) return true;
+      if (q && q.s === o && et(q) === 'p' && !ownHalf(o, kr)) return true;
+    }
+    // 揭棋：翻开的士、象可以过河攻将
+    for (const [df, dr] of [[1, 1], [1, -1], [-1, 1], [-1, -1]]) {
+      const f1 = kf + df, r1 = kr + dr;
+      if (!inBoard(f1, r1)) continue;
+      const q = b[r1][f1];
+      if (q && q.s === o && q.j && !q.h && q.t === 'a') return true;
+      const f2 = kf + 2 * df, r2 = kr + 2 * dr;
+      if (!q && inBoard(f2, r2)) { const e = b[r2][f2]; if (e && e.s === o && e.j && !e.h && e.t === 'e') return true; }
     }
     return false;
+  }
+
+  // s 方哪些子正在将军（用于“长将”限制）
+  function checkers(b, s) {
+    const k = findKing(b, other(s)); if (!k) return [];
+    const out = [];
+    for (let r = 0; r < H; r++) for (let f = 0; f < W; f++) {
+      const p = b[r][f];
+      if (p && p.s === s && pseudoMoves(b, f, r).some(m => m.to[0] === k[0] && m.to[1] === k[1])) out.push(p.id);
+    }
+    return out;
+  }
+  // 位于 (f,r) 的子此刻能合法吃到的敌方非将子（用于“长捉”限制）
+  function threats(b, f, r) {
+    const p = b[r][f]; if (!p) return [];
+    return legalMovesFrom(b, f, r).map(m => b[m.to[1]][m.to[0]]).filter(q => q && q.s !== p.s && q.t !== 'k').map(q => q.id);
   }
 
   function applyMove(b, m) {
@@ -2942,15 +3018,17 @@ var qrcode = function() {
   }
 
   class Game {
-    constructor() { this.reset(); }
+    // opts: { jq: true, layout } —— 揭棋；layout 缺省时暗子身份未知
+    constructor(opts) { this.opts = opts && opts.jq ? { jq: true, layout: opts.layout || null } : null; this.reset(); }
+    get jq() { return !!this.opts; }
     reset() {
-      this.board = initialBoard();
+      this.board = this.jq ? jieqiBoard(this.opts.layout) : initialBoard();
       this.turn = 'r';
       this.history = [];
-      this.result = null; // {winner, reason}
+      this.result = null; // {winner, loser, reason}；和棋时 winner 为 null
     }
     clone() {
-      const g = new Game();
+      const g = new Game(this.opts);
       g.board = this.board.map(row => row.map(p => (p ? { ...p } : null)));
       g.turn = this.turn; g.history = this.history.slice(); g.result = this.result;
       return g;
@@ -2959,40 +3037,86 @@ var qrcode = function() {
     legalFrom(f, r) {
       const p = this.at(f, r);
       if (!p || p.s !== this.turn || this.result) return [];
-      return legalMovesFrom(this.board, f, r);
+      const ms = legalMovesFrom(this.board, f, r);
+      return this.jq ? ms.filter(m => !this.forbidden(m)) : ms;
     }
     isLegal(m) {
       return this.legalFrom(m.from[0], m.from[1]).some(x => x.to[0] === m.to[0] && x.to[1] === m.to[1]);
     }
-    // 执行走子，返回详细信息供动画使用
+    // 揭棋：因长将/长捉被禁止的着法（用于提示）
+    blockedFrom(f, r) {
+      const p = this.at(f, r);
+      if (!this.jq || !p || p.s !== this.turn || this.result) return [];
+      return legalMovesFrom(this.board, f, r).map(m => ({ ...m, why: this.forbidden(m) })).filter(m => m.why);
+    }
+    // 揭棋：长将、长捉超过 6 回合的着法禁止。返回 'check' | 'chase' | null
+    forbidden(m) {
+      if (!this.jq) return null;
+      const b = this.board, s = this.turn;
+      const pid = b[m.from[1]][m.from[0]].id;
+      const mine = [];
+      for (let i = this.history.length - 2; i >= 0 && mine.length < 6; i -= 2) mine.push(this.history[i]);
+      if (mine.length < 6) return null;
+      const longCk = mine.every(h => h.ck && h.ck.length), longCh = mine.every(h => h.pid === pid && h.tg && h.tg.length);
+      if (!longCk && !longCh) return null;
+      const cap = applyMove(b, m);
+      const ck = longCk ? checkers(b, s) : [], tg = longCh ? threats(b, m.to[0], m.to[1]) : [];
+      undoMove(b, m, cap);
+      for (const id of ck) if (mine.every(h => h.ck && h.ck.includes(id))) return 'check';
+      for (const id of tg) if (mine.every(h => h.pid === pid && h.tg && h.tg.includes(id))) return 'chase';
+      return null;
+    }
+    // 自上次吃子以来的步数（半回合）
+    quietPlies() { let n = 0; for (let i = this.history.length - 1; i >= 0 && !this.history[i].cap; i--) n++; return n; }
+    // 执行走子，返回详细信息供动画使用。揭棋暗子身份未知时需在 m.rv 给出翻开后的兵种
     play(m) {
       if (!this.isLegal(m)) return null;
-      const piece = { ...this.at(m.from[0], m.from[1]) };
+      const src = this.at(m.from[0], m.from[1]);
+      let reveal = null;
+      if (src.h) {
+        reveal = src.t !== '?' ? src.t : m.rv;
+        if (!reveal || !'rnecap'.includes(reveal) || reveal.length !== 1) return null;
+      }
+      const mt = et(src);
+      const before = { ...src };
       const captured = applyMove(this.board, m);
+      const moved = this.board[m.to[1]][m.to[0]];
+      if (reveal) { moved.t = reveal; moved.h = 0; }
       const mover = this.turn;
       this.turn = other(this.turn);
       const check = inCheck(this.board, this.turn);
       const replies = allLegalMoves(this.board, this.turn);
       const info = {
-        from: m.from.slice(), to: m.to.slice(), piece,
+        from: m.from.slice(), to: m.to.slice(), piece: { ...moved }, mt,
+        reveal: reveal ? { t: reveal, pt: before.pt } : null,
         captured: captured ? { ...captured } : null,
         check, mover,
         crossesRiver: (m.from[1] <= 4) !== (m.to[1] <= 4),
         ply: this.history.length,
       };
-      this.history.push({ from: m.from.slice(), to: m.to.slice(), cap: captured ? { ...captured } : null, pid: piece.id });
-      if (replies.length === 0) {
+      const h = { from: m.from.slice(), to: m.to.slice(), cap: captured ? { ...captured } : null, pid: before.id };
+      if (reveal) h.rv = reveal;
+      if (m.cj != null) h.cj = m.cj;
+      if (this.jq) { h.ck = checkers(this.board, mover); h.tg = threats(this.board, m.to[0], m.to[1]); }
+      this.history.push(h);
+      let legalReplies = replies.length;
+      if (this.jq && legalReplies) legalReplies = replies.filter(x => !this.forbidden(x)).length;
+      if (legalReplies === 0) {
         this.result = { winner: mover, loser: this.turn, reason: check ? 'checkmate' : 'stalemate' };
+        info.result = this.result;
+      } else if (this.jq && this.quietPlies() >= 80) {
+        this.result = { winner: null, loser: null, reason: 'draw' };
         info.result = this.result;
       }
       return info;
     }
-    // 撤销最后一步，返回撤销的记录（用于倒放动画）
+    // 撤销最后一步，返回撤销的记录（用于倒放动画）。揭棋翻开的子撤回后重新扣上（身份已为双方所知）
     undo() {
       const h = this.history.pop();
       if (!h) return null;
       const [ff, fr] = h.from, [tf, tr] = h.to;
       this.board[fr][ff] = this.board[tr][tf];
+      if (h.rv) this.board[fr][ff].h = 1;
       this.board[tr][tf] = h.cap ? { ...h.cap } : null;
       this.turn = other(this.turn);
       this.result = null;
@@ -3012,7 +3136,7 @@ var qrcode = function() {
     kingPos(s) { return findKing(this.board, s); }
   }
 
-  const XQ = { Game, W, H, NAMES, TYPE_CN, other, inPalace, allLegalMoves, inCheck, initialBoard };
+  const XQ = { Game, W, H, NAMES, TYPE_CN, other, inPalace, allLegalMoves, inCheck, initialBoard, JQ_SQ, JQ_STD, JQ_COUNT, randomLayout, jieqiBoard, shuffle, rand, et };
   if (typeof module !== 'undefined' && module.exports) module.exports = XQ;
   global.XQ = XQ;
 })(typeof window !== 'undefined' ? window : globalThis);
@@ -4415,20 +4539,73 @@ const Board = (() => {
       g.fillStyle = 'rgba(255,240,210,.14)'; g.fillText(ch, c - 3, c + 12);
     }));
   }
+  // 揭棋暗子：漆面背（汉为朱漆、楚为黑漆），金边祥云，中间极淡地印着所在位置的兵种
+  const backCache = {};
+  function backTex(s, pt) {
+    const key = s + pt;
+    if (backCache[key]) return backCache[key];
+    const red = s === 'r';
+    return (backCache[key] = canvasTex(512, 512, (g, w) => {
+      g.clearRect(0, 0, w, w);
+      const c = w / 2;
+      const gr = g.createRadialGradient(c * 0.78, c * 0.7, w * 0.04, c, c, w * 0.48);
+      if (red) { gr.addColorStop(0, '#8a2b1e'); gr.addColorStop(0.55, '#601a11'); gr.addColorStop(1, '#3a0e09'); }
+      else { gr.addColorStop(0, '#4a433d'); gr.addColorStop(0.55, '#2a2522'); gr.addColorStop(1, '#161312'); }
+      g.fillStyle = gr; g.beginPath(); g.arc(c, c, w * 0.468, 0, 7); g.fill();
+      // 漆面刷痕
+      g.save(); g.beginPath(); g.arc(c, c, w * 0.468, 0, 7); g.clip();
+      for (let i = 0; i < 70; i++) {
+        g.strokeStyle = `rgba(255,${red ? 210 : 235},${red ? 180 : 215},${0.012 + rnd() * 0.03})`; g.lineWidth = 1 + rnd() * 3;
+        const r0 = w * (0.05 + rnd() * 0.42), a0 = rnd() * 6.28;
+        g.beginPath(); g.arc(c, c, r0, a0, a0 + 0.4 + rnd() * 1.6); g.stroke();
+      }
+      // 左上高光
+      const hl = g.createRadialGradient(c * 0.62, c * 0.55, 4, c * 0.62, c * 0.55, w * 0.32);
+      hl.addColorStop(0, 'rgba(255,240,220,.16)'); hl.addColorStop(1, 'rgba(255,240,220,0)');
+      g.fillStyle = hl; g.fillRect(0, 0, w, w);
+      g.restore();
+      const gold = 'rgba(201,160,69,', ring = (r, lw, a) => { g.strokeStyle = gold + a + ')'; g.lineWidth = lw; g.beginPath(); g.arc(c, c, r, 0, 7); g.stroke(); };
+      ring(w * 0.452, 10, 0.95); ring(w * 0.428, 2.5, 0.55); ring(w * 0.35, 2, 0.32);
+      // 四角如意云纹
+      g.strokeStyle = gold + '0.42)'; g.lineWidth = 5; g.lineCap = 'round';
+      for (let k = 0; k < 4; k++) {
+        const a = Math.PI / 4 + k * Math.PI / 2, x = c + Math.cos(a) * w * 0.39, y = c + Math.sin(a) * w * 0.39, sz = w * 0.04;
+        g.save(); g.translate(x, y); g.rotate(a + Math.PI / 2);
+        g.beginPath();
+        for (let t = 0; t <= 3 * Math.PI; t += 0.15) { const r = sz * (1 - t / (3 * Math.PI) * 0.8); const px = -sz * 0.9 + Math.cos(t) * r, py = Math.sin(t) * r; t ? g.lineTo(px, py) : g.moveTo(px, py); }
+        g.stroke(); g.beginPath();
+        for (let t = 0; t <= 3 * Math.PI; t += 0.15) { const r = sz * (1 - t / (3 * Math.PI) * 0.8); const px = sz * 0.9 - Math.cos(t) * r, py = Math.sin(t) * r; t ? g.lineTo(px, py) : g.moveTo(px, py); }
+        g.stroke();
+        g.restore();
+      }
+      // 位置兵种：非常淡
+      g.font = `bold 250px ${FONT}`; g.textAlign = 'center'; g.textBaseline = 'middle';
+      g.fillStyle = red ? 'rgba(236,206,140,.075)' : 'rgba(236,206,140,.065)'; g.fillText(XQ.NAMES[s][pt], c, c + 14);
+    }));
+  }
   const faceGeo = new THREE.CircleGeometry(0.4, 40); faceGeo.rotateX(-Math.PI / 2); faceGeo.userData.keep = true;
   const bandGeo = new THREE.CylinderGeometry(0.4222, 0.4222, 0.026, Core.quality === 'high' ? 40 : 28, 1, true); bandGeo.userData.keep = true;
   function makePiece(p) {
     const g = new THREE.Group();
     const body = new THREE.Mesh(pieceGeo, pieceWood);
     body.castShadow = true; body.receiveShadow = true;
-    const face = new THREE.Mesh(faceGeo, new THREE.MeshStandardMaterial({ map: faceTex(p.s, p.t), transparent: true, roughness: 0.5, polygonOffset: true, polygonOffsetFactor: -2 }));
+    const face = new THREE.Mesh(faceGeo, new THREE.MeshStandardMaterial({ map: p.h ? backTex(p.s, p.pt) : faceTex(p.s, p.t), transparent: true, roughness: p.h ? 0.32 : 0.5, polygonOffset: true, polygonOffsetFactor: -2 }));
     face.position.y = PH + 0.001;
     const band = new THREE.Mesh(bandGeo, goldM); band.position.y = PH * 0.6;
     g.add(body, face, band);
-    g.userData = { id: p.id, s: p.s, t: p.t };
+    g.userData = { id: p.id, s: p.s, t: p.h ? 'h' : p.t, h: !!p.h };
     // 面向本方：黑方棋子旋转180°
     g.rotation.y = p.s === 'b' ? Math.PI : 0;
     return g;
+  }
+
+  // 翻面：p 为暗子时扣上（显示漆背），否则显示字面
+  function setFace(m, p) {
+    const face = m.children[1]; if (!face) return;
+    face.material.map = p.h ? backTex(p.s, p.pt) : faceTex(p.s, p.t);
+    face.material.roughness = p.h ? 0.32 : 0.5;
+    face.material.needsUpdate = true;
+    m.userData.t = p.h ? 'h' : p.t; m.userData.h = !!p.h;
   }
 
   const pieces = new Map(); // id -> mesh
@@ -4617,7 +4794,7 @@ const Board = (() => {
   return {
     root, TOP, PH, HALF, X, Z, pos, setPosition, pieces, piecesRoot, makePiece, faceViewer,
     showMoves, clearMoves, showLast, pick, meshAt, get hovered() { return hovered; }, ringTex, glowTex, wakes, water, waterMat, decal, flatGeo, pine, deco, FONT,
-    viewSide: 'r', pieceWood, RZ, BZ, BX, BRIDGE_X, faceTex, makeRiver, mtTex,
+    viewSide: 'r', pieceWood, RZ, BZ, BX, BRIDGE_X, faceTex, backTex, setFace, makeRiver, mtTex,
   };
 })();
 
@@ -6572,7 +6749,7 @@ const Fx = (() => {
     const t = info.piece.t;
     const A0 = m.position.clone();
     const su = Sfx.unit(unitKey(t, c.s)); su.move && su.move(0.6);
-    if (t === 'n') {
+    if (c.mt === 'n') {
       const [ff, fr] = info.from, [tf, tr] = info.to;
       const leg = Math.abs(tr - fr) === 2 ? Board.pos(ff, fr + Math.sign(tr - fr)) : Board.pos(ff + Math.sign(tf - ff), fr);
       await tween(0.24, k => { m.position.lerpVectors(A0, leg, k); m.position.y = TOP + Math.sin(k * Math.PI) * 0.25; });
@@ -6647,8 +6824,47 @@ const Fx = (() => {
     if (k) { ring(k.position, 2.2, 0.9, 0xb0301f, 0.9); P.ink(k.position.clone().setY(TOP + 0.2), 6, 0.5, 0.3, 0.7); }
   }
 
+  // ---------- 揭棋：翻子 ----------
+  const popGeo = new THREE.PlaneGeometry(1, 1);
+  async function flip(m, p, lift = 0.6) {
+    const y0 = m.position.y, top = TOP + lift;
+    Sfx.lift(); Sfx.B.whoosh(0.05, 0.3, 0.22);
+    await tween(0.2, k => { m.position.y = y0 + (top - y0) * k; }, ease.out);
+    let swapped = false;
+    await tween(0.32, k => {
+      const a = k * Math.PI;
+      if (!swapped && a >= Math.PI / 2) { swapped = true; Board.setFace(m, p); }
+      m.rotation.x = a < Math.PI / 2 ? a : a - Math.PI;
+      m.position.y = top + Math.sin(k * Math.PI) * 0.12;
+    }, ease.inOut);
+    m.rotation.x = 0;
+    return top;
+  }
+  async function reveal(m, p) {
+    const top = await flip(m, p);
+    const c = m.position.clone(); c.y = top + 0.1;
+    // 翻出的字印浮起、放大、淡去
+    Sfx.B.wood(0, 0.55); Sfx.B.bell(0.02, p.s === 'r' ? 784 : 659, 0.07); Sfx.B.shime(0.05, 0.35);
+    ring(c.clone().setY(TOP + 0.02), 1.9, 0.6, p.s === 'r' ? 0xb0301f : 0x2a2826, 0.7);
+    P.ink(c, 10, 0.45, 0.3, 0.8);
+    for (let i = 0; i < nn(14); i++) spawn({ pos: c.clone(), vel: rv(1.6, 1.4, 1.6), tex: Core.Tex.spark, add: true, color: 0xf2c46a, size: 0.12, size2: 0.02, life: R(0.4, 0.8), drag: 1.5 });
+    const bg = new THREE.Sprite(new THREE.SpriteMaterial({ map: Board.glowTex, color: 0xf6ecd4, transparent: true, depthTest: false, depthWrite: false }));
+    const fg = new THREE.Sprite(new THREE.SpriteMaterial({ map: Board.faceTex(p.s, p.t), transparent: true, depthTest: false, depthWrite: false }));
+    bg.renderOrder = 30; fg.renderOrder = 31;
+    scene.add(bg, fg);
+    tween(1.1, k => {
+      const y = top + 0.35 + k * 0.9, sc = 0.55 + 0.5 * Math.min(1, k * 2.5), op = k < 0.7 ? 1 : 1 - (k - 0.7) / 0.3;
+      bg.position.set(c.x, y, c.z); fg.position.set(c.x, y, c.z);
+      bg.scale.set(sc * 1.5, sc * 1.5, 1); fg.scale.set(sc, sc, 1);
+      bg.material.opacity = op * 0.9; fg.material.opacity = op;
+    }, ease.out).then(() => { scene.remove(bg, fg); bg.material.dispose(); fg.material.dispose(); });
+    await sleep(0.25);
+    await tween(0.16, k => { m.position.y = top - (top - TOP) * k; }, ease.in);
+    m.position.y = TOP; Sfx.place();
+  }
+
   // ---------- 悔棋：墨迹倒流 ----------
-  async function undoMove(h) {
+  async function undoMove(h, piece) {
     const m = Board.pieces.get(h.pid);
     const A = Board.pos(...h.to), Bp = Board.pos(...h.from);
     Sfx.B.whoosh(0, 0.5, 0.3); Sfx.B.bell(0.1, 660, 0.08);
@@ -6663,6 +6879,8 @@ const Fx = (() => {
       }, ease.inOut);
       m.position.copy(Bp); m.rotation.y = Board.viewSide === 'b' ? Math.PI : 0;
       Sfx.place();
+      // 揭棋：翻开的子撤回后重新扣上
+      if (h.rv && piece && piece.h) { await flip(m, piece, 0.4); await tween(0.12, k => { m.position.y = TOP + 0.4 * (1 - k); }); m.position.y = TOP; }
     }
     if (h.cap) {
       const cm = Board.makePiece(h.cap);
@@ -6684,14 +6902,17 @@ const Fx = (() => {
     const m = Board.pieces.get(info.piece.id);
     const tgt = info.captured ? Board.pieces.get(info.captured.id) : null;
     const A = Board.pos(...info.from), B = Board.pos(...info.to);
-    return { info, m, tgt, A, B, s: info.piece.s, ...geom(A, B) };
+    return { info, m, tgt, A, B, s: info.piece.s, mt: info.mt || info.piece.t, ...geom(A, B) };
   };
   async function playMove(info, opts = {}) {
     const c = ctxOf(info);
     if (!c.m) return;
+    const y0 = c.m.position.y;
     Board.clearMoves(true);
-    if (opts.instant) { if (c.tgt) removePiece(c.tgt); c.m.position.copy(c.B); return; }
+    if (opts.instant) { if (c.tgt) removePiece(c.tgt); if (info.reveal) Board.setFace(c.m, info.piece); c.m.position.copy(c.B); return; }
     try {
+      // 揭棋：暗子先翻开，再由真身出阵
+      if (info.reveal) { c.m.position.y = y0; await reveal(c.m, info.piece); }
       if (state.level === 'low') {
         if (c.tgt) await lowCapture(c);
         else if (info.crossesRiver) await Squads.pieceBoat(c);
@@ -6713,7 +6934,7 @@ const Fx = (() => {
   }
 
   return {
-    P, spawn, ring, slash, flash, sink, rise, playMove, undoMove, checkStamp, cineOn, cineOff, geom, bits, Marks, clearMarks, addSmoke,
+    P, spawn, ring, slash, flash, sink, rise, playMove, undoMove, checkStamp, reveal, flip, cineOn, cineOff, geom, bits, Marks, clearMarks, addSmoke,
     chunks, throwObj, removePiece, flyFace, groundY, onWater, groundAt, shot, follow, slowmo, ctxOf, rv, R, state, resultAt, lowMove,
     get smokeCount() { return smokes.length; },
     get level() { return state.level; }, set level(v) { state.level = v; },
@@ -7174,8 +7395,8 @@ const Squads = (() => {
       const s = snd('n', this.side);
       s.charge(1.6);
       this.riders.forEach(h => tween(0.3, k => { h.rider.arm.rotation.z = 0.9 + k * 1.6; }));
-      const [ff, fr] = info.from, [tf, tr] = info.to;
-      const corner = Math.abs(tr - fr) === 2 ? Board.pos(ff, fr + Math.sign(tr - fr)) : Board.pos(ff + Math.sign(tf - ff), fr);
+      // 揭棋里骑兵可能是按别的位置走法出阵的（直线冲锋）
+      const corner = c.mt === 'n' ? knightCorner(info) : this.anchor.clone().lerp(B, 0.3);
       if (target.brace) target.brace();
       await this.march([this.anchor.clone(), corner, corner.clone().lerp(B, 0.45)], 0, true);
       const lead = this.riders[0];
@@ -7427,6 +7648,16 @@ const Squads = (() => {
       await sleep(0.3);
     }
   }
+  // 未知暗子（疑兵）：墨影刀盾兵，看不出是什么兵种
+  class Shade extends TroopSquad {
+    constructor(side, anchor, yaw) {
+      const off = []; for (let r = 0; r < 2; r++) for (let c = 0; c < 3; c++) off.push([(c - 1) * 0.25, (0.5 - r) * 0.26]);
+      super('?', side, anchor, yaw, 'sword', off);
+      this.troop.units.forEach((u, i) => this.troop.tint(i, 0x2b2725, 0.8));
+      this.updaters.push(dt => { if (!LOW() && Math.random() < dt * 5) P.ink(this.center(0.12).add(rv(0.35, 0.05, 0.35)), 1, 0.32, 0.25, 0.45); });
+    }
+    brace() { this.setPose('brace'); }
+  }
   const pick = (o, keys) => { const r = {}; for (const k of keys) if (o[k] !== undefined) r[k] = o[k]; return r; };
 
   // ---------- 运动工具 ----------
@@ -7461,6 +7692,7 @@ const Squads = (() => {
       case 'n': return new Cavalry(side, anchor, yaw);
       case 'c': return new Cannon(side, anchor, yaw, role === 'attack' ? 'battery' : role === 'defend' ? 'defend' : 'march');
       case 'k': return new General(side, anchor, yaw, role === 'defeat' ? { mounted: false, guard: false } : {});
+      default: return new Shade(side, anchor, yaw);
     }
   }
   // 行军速度（格/秒）
@@ -7482,17 +7714,18 @@ const Squads = (() => {
     }
     Fx.sink(m);
     if (info.crossesRiver && (t === 'p' || t === 'c')) { await boatSquad(c); return; }
-    const sq = make(t, s, A, t === 'n' ? yawOf(knightCorner(info).clone().sub(A)) : yaw, 'move');
+    const L = c.mt === 'n'; // 日字路线（揭棋中按位置走法，可能与兵种不同）
+    const sq = make(t, s, A, L ? yawOf(knightCorner(info).clone().sub(A)) : yaw, 'move');
     await sq.appear();
     let stopCam = () => { };
     if (cine && A.distanceTo(B) > 1.8) stopCam = Fx.follow(() => sq.center(0.2), () => c.side.clone().multiplyScalar(2.6).addScaledVector(d, -1.4).add(new V3(0, 1.3, 0)), () => d.clone().multiplyScalar(0.8).add(new V3(0, 0.05, 0)), 4);
-    const dist = t === 'n' ? 2.2 : A.distanceTo(B);
+    const dist = L ? 2.2 : A.distanceTo(B);
     const dur = Math.max(0.6, dist / SPEED[t]);
-    if (sq.march && t === 'n') await sq.march([A, knightCorner(info), B]);
-    else if (sq.march) await sq.march([A, B], dur);
+    if (sq.march && t === 'n') await sq.march(L ? [A, knightCorner(info), B] : [A, A.clone().lerp(B, 0.35), B]);
+    else if (sq.march) await sq.march(L ? [A, knightCorner(info), B] : [A, B], dur);
     else {
       sq.setPose('march'); snd(t, s).move(dur);
-      await walkPath(sq, [A, B], dur, k => { if (sq.units && Math.random() < 0.2) Fx.Marks.foot(sq.units[Math.floor(Math.random() * sq.units.length)].p); });
+      await walkPath(sq, L ? [A, knightCorner(info), B] : [A, B], dur, k => { if (sq.units && Math.random() < 0.2) Fx.Marks.foot(sq.units[Math.floor(Math.random() * sq.units.length)].p); });
       sq.setPose('idle');
     }
     stopCam();
@@ -7613,7 +7846,8 @@ const Squads = (() => {
   // ======================================================================
   async function capture(c) {
     const { A, B, d, side, m, tgt, info } = c;
-    const t = info.piece.t, s = info.piece.s, dt_ = info.captured.t, ds = info.captured.s;
+    // 被吃的暗子：只有吃子方能看到真身，其余人看到的是“疑兵”
+    const t = info.piece.t, s = info.piece.s, dt_ = info.dt || info.captured.t, ds = info.captured.s;
     const cine = Fx.level === 'cine';
     const yaw = yawOf(d);
     Fx.cineOn();
@@ -7624,7 +7858,7 @@ const Squads = (() => {
     }
     // 双方化身
     Fx.sink(m); Fx.sink(tgt);
-    const att = make(t, s, A, t === 'n' ? yawOf(knightCorner(info).clone().sub(A)) : yaw, 'attack');
+    const att = make(t, s, A, t === 'n' && c.mt === 'n' ? yawOf(knightCorner(info).clone().sub(A)) : yaw, 'attack');
     const def = make(dt_, ds, B, yaw + Math.PI, 'defend');
     await Promise.all([att.appear(), sleep(0.15).then(() => def.appear())]);
     if (def.setPose) def.setPose('ready');
@@ -7682,7 +7916,7 @@ const Squads = (() => {
     return g;
   }
 
-  return { move, capture, pieceBoat, heroDefeat, make, Infantry, Guards, Crossbow, Elephant, Chariot, Cavalry, Cannon, General, killUnit, walkPath, turnTo, TroopSquad };
+  return { move, capture, pieceBoat, heroDefeat, make, Shade, Infantry, Guards, Crossbow, Elephant, Chariot, Cavalry, Cannon, General, killUnit, walkPath, turnTo, TroopSquad };
 })();
 
 // ---- camp.js ----
@@ -8783,11 +9017,14 @@ const Ending = (() => {
   const INFO = {
     b: { cols: [['西楚霸王', 'big'], ['項籍'], ['自刎烏江'], ['時年三十一'], ['漢五年十二月']], motto: '無顏見江東父老', win: '漢 勝' },
     r: { cols: [['漢王', 'big'], ['劉邦'], ['彭城之敗'], ['五十六萬眾'], ['一朝而潰'], ['漢二年四月']], motto: '然楚漢之爭，勝負未定', win: '楚 勝' },
+    // 和棋：鸿沟之约
+    d: { cols: [['鴻溝為界', 'big'], ['楚漢相持'], ['中分天下'], ['四十回合'], ['未見殺伐']], motto: '割鴻溝以西者為漢，鴻溝而東者為楚', win: '和 局' },
   };
   let skipNow = null;
   async function play(result, callbacks) {
     if (running) return;
     running = true; skipping = !!callbacks.instant;
+    if (!result.winner) { finish(); showCard(INFO.d, result, callbacks, false); running = false; return; }
     const base = INFO[result.loser === 'b' ? 'b' : 'r'];
     let info = null;
     if (!skipping) {
@@ -9040,6 +9277,72 @@ const Net = (() => {
   return Net;
 })();
 
+// ---- jq.js ----
+// ===== 揭棋联机：不靠服务器的公平洗牌，且“被吃的暗子只有吃子方知道” =====
+// 一方 15 个暗子的身份 = 对方手里的“槽位→兵种”排列(outer) ∘ 本方手里的“位置→槽位”置换(inner)
+//  · 走动本方暗子：本方公开该位置的槽位号，对方公开该槽位的兵种 → 双方都知道
+//  · 吃掉对方暗子：子主公开该位置的槽位号，只有吃子方手里有 outer → 只有吃子方知道
+// 开局前双方互换承诺哈希（SHA-256 + 随机盐），之后每次揭示都可核对，谁也改不了牌。
+const Jieqi = (() => {
+  const K = new Uint32Array([
+    0x428a2f98, 0x71374491, 0xb5c0fbcf, 0xe9b5dba5, 0x3956c25b, 0x59f111f1, 0x923f82a4, 0xab1c5ed5, 0xd807aa98, 0x12835b01, 0x243185be, 0x550c7dc3, 0x72be5d74, 0x80deb1fe, 0x9bdc06a7, 0xc19bf174,
+    0xe49b69c1, 0xefbe4786, 0x0fc19dc6, 0x240ca1cc, 0x2de92c6f, 0x4a7484aa, 0x5cb0a9dc, 0x76f988da, 0x983e5152, 0xa831c66d, 0xb00327c8, 0xbf597fc7, 0xc6e00bf3, 0xd5a79147, 0x06ca6351, 0x14292967,
+    0x27b70a85, 0x2e1b2138, 0x4d2c6dfc, 0x53380d13, 0x650a7354, 0x766a0abb, 0x81c2c92e, 0x92722c85, 0xa2bfe8a1, 0xa81a664b, 0xc24b8b70, 0xc76c51a3, 0xd192e819, 0xd6990624, 0xf40e3585, 0x106aa070,
+    0x19a4c116, 0x1e376c08, 0x2748774c, 0x34b0bcb5, 0x391c0cb3, 0x4ed8aa4a, 0x5b9cca4f, 0x682e6ff3, 0x748f82ee, 0x78a5636f, 0x84c87814, 0x8cc70208, 0x90befffa, 0xa4506ceb, 0xbef9a3f7, 0xc67178f2]);
+  function sha256(str) {
+    const msg = new TextEncoder().encode(str);
+    const len = msg.length, nb = ((len + 9 + 63) >> 6) << 6;
+    const buf = new Uint8Array(nb); buf.set(msg); buf[len] = 0x80;
+    const dv = new DataView(buf.buffer);
+    dv.setUint32(nb - 4, (len * 8) >>> 0); dv.setUint32(nb - 8, Math.floor(len / 0x20000000));
+    const H = new Uint32Array([0x6a09e667, 0xbb67ae85, 0x3c6ef372, 0xa54ff53a, 0x510e527f, 0x9b05688c, 0x1f83d9ab, 0x5be0cd19]);
+    const w = new Uint32Array(64);
+    const rot = (x, n) => (x >>> n) | (x << (32 - n));
+    for (let o = 0; o < nb; o += 64) {
+      for (let i = 0; i < 16; i++) w[i] = dv.getUint32(o + i * 4);
+      for (let i = 16; i < 64; i++) {
+        const s0 = rot(w[i - 15], 7) ^ rot(w[i - 15], 18) ^ (w[i - 15] >>> 3), s1 = rot(w[i - 2], 17) ^ rot(w[i - 2], 19) ^ (w[i - 2] >>> 10);
+        w[i] = (w[i - 16] + s0 + w[i - 7] + s1) >>> 0;
+      }
+      let [a, b, c, d, e, f, g, h] = H;
+      for (let i = 0; i < 64; i++) {
+        const t1 = (h + (rot(e, 6) ^ rot(e, 11) ^ rot(e, 25)) + ((e & f) ^ (~e & g)) + K[i] + w[i]) >>> 0;
+        const t2 = ((rot(a, 2) ^ rot(a, 13) ^ rot(a, 22)) + ((a & b) ^ (a & c) ^ (b & c))) >>> 0;
+        h = g; g = f; f = e; e = (d + t1) >>> 0; d = c; c = b; b = a; a = (t1 + t2) >>> 0;
+      }
+      H[0] += a; H[1] += b; H[2] += c; H[3] += d; H[4] += e; H[5] += f; H[6] += g; H[7] += h;
+    }
+    return [...H].map(x => x.toString(16).padStart(8, '0')).join('');
+  }
+  function rhex(n) {
+    const a = new Uint8Array(Math.ceil(n / 2));
+    try { crypto.getRandomValues(a); } catch (e) { for (let i = 0; i < a.length; i++) a[i] = Math.floor(Math.random() * 256); }
+    return [...a].map(b => b.toString(16).padStart(2, '0')).join('').slice(0, n);
+  }
+  const commit = (gid, s, kind, idx, val, nonce) => sha256([gid, s, kind, idx, val, nonce].join('|')).slice(0, 32);
+  // 新一局的本方密钥：本方暗子的 inner 置换 + 对方暗子的 outer 排列
+  function create(gid, side) {
+    const opp = XQ.other(side);
+    const perm = XQ.shuffle([...Array(15).keys()]);
+    const arr = XQ.shuffle(XQ.JQ_STD[opp]);
+    const n1 = perm.map(() => rhex(16)), n2 = arr.map(() => rhex(16));
+    return {
+      gid, side,
+      inner: { perm, nonce: n1, c: perm.map((j, i) => commit(gid, side, 'in', i, j, n1[i])) },
+      outer: { arr, nonce: n2, c: arr.map((t, j) => commit(gid, opp, 'out', j, t, n2[j])) },
+    };
+  }
+  const pub = k => ({ cin: k.inner.c, cout: k.outer.c });
+  const innerOf = (k, i) => ({ i, j: k.inner.perm[i], k: k.inner.nonce[i] });
+  const outerOf = (k, j) => ({ j, v: k.outer.arr[j], k: k.outer.nonce[j] });
+  const okIdx = x => Number.isInteger(x) && x >= 0 && x < 15;
+  // 核对揭示与承诺是否一致（没有承诺时视为无法核对）
+  const checkIn = (gid, s, c, r) => !!(r && okIdx(r.i) && okIdx(r.j) && c && commit(gid, s, 'in', r.i, r.j, r.k) === c[r.i]);
+  const checkOut = (gid, s, c, r) => !!(r && okIdx(r.j) && typeof r.v === 'string' && 'rneacp'.includes(r.v) && r.v.length === 1 && c && commit(gid, s, 'out', r.j, r.v, r.k) === c[r.j]);
+  const validCommits = c => Array.isArray(c) && c.length === 15 && c.every(x => typeof x === 'string' && /^[0-9a-f]{32}$/.test(x));
+  return { sha256, rhex, commit, create, pub, innerOf, outerOf, checkIn, checkOut, okIdx, validCommits };
+})();
+
 // ---- main.js ----
 // ===== 主流程：大厅、人机、开房选项、对局、计时、悔棋、喊话、棋谱、联机同步 =====
 (() => {
@@ -9048,7 +9351,7 @@ const Net = (() => {
   document.getElementById('paper').style.backgroundImage = `url(${Core.Tex.paperNoise})`;
   const NAME = { r: '刘邦', b: '项羽' }, SEAL = { r: '漢', b: '楚' }, SIDE_CN = { r: '汉', b: '楚' };
   const PHRASES = ['好棋！', '快些落子，莫要拖延！', '竖子，不足与谋！', '尔等已是瓮中之鳖。', '胜败乃兵家常事。', '此局，天命在我。', '且慢，容我三思。', '再来一局，决一雌雄！'];
-  const REASON = { checkmate: '将死', stalemate: '困毙', resign: '认输', timeout: '超时' };
+  const REASON = { checkmate: '将死', stalemate: '困毙', resign: '认输', timeout: '超时', draw: '四十回合无吃子' };
   const LV = { easy: '新兵', mid: '校尉', hard: '霸王' };
   const VIS = ['cine', 'std', 'low'], VISNAME = { cine: '完整电影镜头', std: '精简特效', low: '低特效' }, VISBADGE = { cine: '影', std: '简', low: '低' };
 
@@ -9063,7 +9366,7 @@ const Net = (() => {
     vis: store.get('vis', store.get('fx', 1) === 0 ? 'low' : 'cine'), gore: store.get('gore', 3), server: store.get('server', ''),
   };
   if (!VIS.includes(S.vis)) S.vis = 'cine';
-  let ropts = Object.assign({ side: 'r', undo: 3, total: 15, step: 60, hints: 1 }, store.get('ropts', {}));
+  let ropts = Object.assign({ side: 'r', undo: 3, total: 15, step: 60, hints: 1, jq: 0 }, store.get('ropts', {}));
   let aopts = Object.assign({ level: 'mid', side: 'r', undo: 3, total: 0, hints: 1 }, store.get('aopts', {}));
 
   function applySettings() {
@@ -9175,6 +9478,11 @@ const Net = (() => {
   const aiSide = () => (mode === 'ai' ? other(mySide) : null);
   const watching = () => mode === 'watch';
   let watchWaiting = false;
+  // 揭棋：同屏对战时本地随机布子；联机/观战时暗子身份未知，靠双方密钥逐个揭开（见 jq.js）
+  const mkGame = o => (o && +o.jq ? new XQ.Game({ jq: true, layout: mode === 'local' ? XQ.randomLayout() : null }) : new XQ.Game());
+  let JK = null, JC = { cin: {}, cout: {}, used: { r: {}, b: {} } }, jqBad = 0, pendingJ = null, lastJx = null;
+  const jqOn = () => game.jq && online();
+  const jqReady = () => !jqOn() || !!(JK && JC.cin[other(mySide)] && JC.cout[mySide]);
 
   function resetClocks() { clock.r = clock.b = totalMax(); clock.step = stepMax(); clock.last = performance.now(); }
   function fmt(ms) { if (!opts.total) return '∞'; ms = Math.max(0, ms); const s = Math.ceil(ms / 1000); return String(Math.floor(s / 60)).padStart(2, '0') + ':' + String(s % 60).padStart(2, '0'); }
@@ -9186,34 +9494,37 @@ const Net = (() => {
   function notation(board, m) {
     const [ff, fr] = m.from, [tf, tr] = m.to;
     const p = board[fr] && board[fr][ff]; if (!p) return '';
-    const s = p.s, red = s === 'r';
+    const s = p.s, red = s === 'r', t = XQ.et(p); // 揭棋暗子按所在位置的兵种记
     const num = f => (red ? CN_NUM[9 - f] : FW_NUM[f + 1]);
     const steps = n => (red ? CN_NUM[n] : FW_NUM[n]);
-    let head = PCH[s][p.t] + num(ff);
-    if ('rncp'.includes(p.t)) {
+    let head = PCH[s][t] + num(ff);
+    if ('rncp'.includes(t)) {
       const same = [];
-      for (let r = 0; r < 10; r++) { const q = board[r][ff]; if (q && q.s === s && q.t === p.t) same.push(r); }
+      for (let r = 0; r < 10; r++) { const q = board[r][ff]; if (q && q.s === s && XQ.et(q) === t) same.push(r); }
       if (same.length >= 2) {
         same.sort((a, b) => (red ? b - a : a - b)); // 靠前者在前
         const i = same.indexOf(fr);
         const tag = same.length === 2 ? ['前', '後'][i] : same.length === 3 ? ['前', '中', '後'][i] : (red ? CN_NUM : FW_NUM)[i + 1];
-        head = tag + PCH[s][p.t];
+        head = tag + PCH[s][t];
       }
     }
     if (tr === fr) return head + '平' + num(tf);
     const fwd = red ? tr > fr : tr < fr;
-    return head + (fwd ? '進' : '退') + ('nae'.includes(p.t) ? num(tf) : steps(Math.abs(tr - fr)));
+    return head + (fwd ? '進' : '退') + ('nae'.includes(t) ? num(tf) : steps(Math.abs(tr - fr)));
   }
+  // 揭棋：翻出的子记在着法后，如“炮二進七=馬”
+  const noteOf = (board, m, rv) => { const p = board[m.from[1]][m.from[0]]; return notation(board, m) + (rv && p ? '=' + PCH[p.s][rv] : ''); };
   function rebuildNotes() {
-    const g = new XQ.Game(); notes = [];
-    for (const h of game.history) { notes.push(notation(g.board, h)); g.play({ from: h.from, to: h.to }); }
+    const g = game.jq ? new XQ.Game(game.opts) : new XQ.Game(); notes = [];
+    for (const h of game.history) { notes.push(noteOf(g.board, h, h.rv)); g.play({ from: h.from, to: h.to, rv: h.rv }); }
     renderLog();
   }
+  const noteHtml = n => { if (!n) return ''; const [a, b] = n.split('='); return b ? `${a}<em class="rv">${b}</em>` : a; };
   function renderLog() {
     let html = '';
     for (let i = 0; i < notes.length; i += 2) {
       const last = notes.length - 1;
-      html += `<li><i>${i / 2 + 1}</i><span class="r${i === last ? ' last' : ''}">${notes[i]}</span><span class="${i + 1 === last ? 'last' : ''}">${notes[i + 1] || ''}</span></li>`;
+      html += `<li><i>${i / 2 + 1}</i><span class="r${i === last ? ' last' : ''}">${noteHtml(notes[i])}</span><span class="${i + 1 === last ? 'last' : ''}">${noteHtml(notes[i + 1])}</span></li>`;
     }
     const L = $('logList'); L.innerHTML = html || '<li style="display:block;text-align:center;color:#8a8580;font-size:13px">尚未落子</li>'; L.scrollTop = L.scrollHeight;
   }
@@ -9239,6 +9550,18 @@ const Net = (() => {
     for (const h of game.history) if (h.cap) by[h.cap.s === 'r' ? 'b' : 'r'].push(h.cap);
     return by;
   }
+  // 被吃的揭棋暗子：联机时只有吃子方看得到真身（虚线框）；同屏时显示“暗”，吃子方可点开偷看
+  function capChip(p) {
+    if (!p.h) return `<div class="capp ${p.s}">${XQ.NAMES[p.s][p.t]}</div>`;
+    const know = p.t !== '?' && online() && p.s !== mySide;
+    if (know) return `<div class="capp ${p.s} hid know" title="被吃的暗子 · 只有你知道">${XQ.NAMES[p.s][p.t]}</div>`;
+    return `<div class="capp ${p.s} hid" data-pid="${p.id}" title="被吃的暗子">暗</div>`;
+  }
+  for (const id of ['cardMe', 'cardOpp']) $(id).addEventListener('click', e => {
+    const el = e.target.closest('.capp.hid'); if (!el || mode !== 'local' || !el.dataset.pid) return;
+    const h = game.history.find(x => x.cap && String(x.cap.id) === el.dataset.pid); if (!h) return;
+    toast(`这枚暗子是「${XQ.NAMES[h.cap.s][h.cap.t]}」<br><small>（吃子方偷偷看，对手请回避）</small>`, 1800);
+  });
   function updateHud() {
     if (!mode) return;
     const by = capturedBy();
@@ -9246,7 +9569,7 @@ const Net = (() => {
       const c = cardFor(s);
       c.classList.toggle('active', started && !game.result && game.turn === s);
       c.classList.toggle('think', mode === 'ai' && s === aiSide() && aiThinking);
-      c.querySelector('.caps').innerHTML = by[s].map(p => `<div class="capp ${p.s}">${XQ.NAMES[p.s][p.t]}</div>`).join('');
+      c.querySelector('.caps').innerHTML = by[s].map(capChip).join('');
       c.querySelector('.undo').textContent = opts.undo && !(mode === 'ai' && s === aiSide()) ? (opts.undo >= 99 ? '悔棋不限' : `悔 ${Math.max(0, opts.undo - undoUsed[s])}`) : '';
     }
     paintClocks();
@@ -9261,6 +9584,15 @@ const Net = (() => {
     if (watching()) {
       if (game.result) st = `${SIDE_CN[game.result.winner]}胜 · ${REASON[game.result.reason]}`;
       else st = !started || (!game.history.length && watchWaiting) ? '等待棋手开局…' : `观战 · ${game.turn === 'r' ? '红方（汉）' : '黑方（楚）'}走棋` + (game.inCheck() ? ' · 将军！' : '');
+    }
+    if (game.result && !game.result.winner) st = `和棋 · ${REASON[game.result.reason] || ''}`;
+    if (game.jq && !game.result) {
+      if (pendingJ) st = '揭子中…';
+      else if (started && online() && !jqReady()) st = '等待对手洗牌…';
+      const q = game.quietPlies();
+      if (q >= 60) st += ` · 无吃子 ${Math.floor(q / 2)}/40 回合`;
+      st = '揭棋 · ' + st;
+      if (jqBad) { st += ' · ⚠对手揭子数据校验未通过'; warn = true; }
     }
     $('statusT').textContent = st; $('status').classList.toggle('warn', warn);
     $('netDot').classList.toggle('hidden', !(online() || watching()));
@@ -9401,13 +9733,15 @@ const Net = (() => {
   async function startGame(m, side, o, { state = null, intro = true } = {}) {
     cancelAI();
     mode = m; mySide = side; opts = { ...o }; ended = false; started = false; lobbySpin = false;
-    game = new XQ.Game(); undoUsed = { r: 0, b: 0 }; pendingUndo = null;
+    game = mkGame(opts); undoUsed = { r: 0, b: 0 }; pendingUndo = null;
     resetClocks();
     clearFinale(); Camp.reset();
     Board.setPosition(game); Fx.clearMarks(); Fx.ply = 0;
     Board.clearMoves(); Board.showLast(null);
     if (state) applyState(state);
+    jqSetup(state);
     rebuildNotes();
+    $('log').classList.toggle('jq', game.jq);
     setView(mode === 'local' ? 'r' : side);
     $('lobby').classList.add('hidden'); $('hud').classList.remove('hidden');
     $('netbadge').classList.add('hidden');
@@ -9424,12 +9758,15 @@ const Net = (() => {
     if (mode === 'ai') { try { AI.warm(); } catch (e) { } }
     if (intro && !game.history.length) {
       Sfx.B.gong(0, 0.9); Sfx.B.taiko(0.5, 0.8); Sfx.B.taiko(0.8, 0.8); Sfx.B.taiko(1.05, 0.9);
-      const sub = mode === 'local' ? '红方先行' : mode === 'ai' ? `人机 · ${LV[opts.level]} · ${mySide === 'r' ? '你执红（汉）先行' : '你执黑（楚）后手'}` : mode === 'watch' ? '观战' : (mySide === 'r' ? '你执红（汉）· 先行' : '你执黑（楚）· 后手');
+      let sub = mode === 'local' ? '红方先行' : mode === 'ai' ? `人机 · ${LV[opts.level]} · ${mySide === 'r' ? '你执红（汉）先行' : '你执黑（楚）后手'}` : mode === 'watch' ? '观战' : (mySide === 'r' ? '你执红（汉）· 先行' : '你执黑（楚）· 后手');
+      if (game.jq) sub = '揭棋 · ' + sub;
       banner('楚汉相争', sub, 2700);
       await Core.sleep(2.5);
       bubble('r', '汉王刘邦在此！项籍，可敢一战？', 3000); await Voice.play('r_start', { minDur: 2 });
       bubble('b', '吾乃西楚霸王！谁敢挡我！', 3000); await Voice.play('b_start', { minDur: 1.8 });
     }
+    if (mode !== m) return;
+    if (game.jq && !game.history.length && intro) { bubble('r', '十五子尽数扣下，翻开方知是何兵马！', 2600); await Core.sleep(1.2); }
     if (mode !== m) return;
     started = true; clock.last = performance.now(); clock.step = stepMax();
     turnStartAt = performance.now(); slowIdx = 0;
@@ -9437,15 +9774,17 @@ const Net = (() => {
     maybeAI();
   }
   function snapshot() {
-    return { v: 2, code: Net.code, opts, hostSide, moves: game.history.map(h => ({ from: h.from, to: h.to })), result: game.result, undo: { ...undoUsed }, clk: { r: clock.r, b: clock.b }, step: clock.step, t: Date.now() };
+    const jq = game.jq && JK ? { gid: JK.gid, cin: JC.cin, cout: JC.cout } : undefined;
+    return { v: 2, code: Net.code, opts, hostSide, jq, moves: game.history.map(h => ({ from: h.from, to: h.to, rv: h.rv, cj: h.cj })), result: game.result, undo: { ...undoUsed }, clk: { r: clock.r, b: clock.b }, step: clock.step, t: Date.now() };
   }
   function applyState(st) {
-    game = new XQ.Game();
-    for (const m of st.moves || []) game.play(m);
+    game = mkGame(opts);
+    for (const m of st.moves || []) game.play({ from: m.from, to: m.to, rv: m.rv, cj: m.cj });
     if (st.result) game.result = st.result;
     undoUsed = { r: 0, b: 0, ...(st.undo || {}) };
     if (st.clk && (st.moves || []).length) { clock.r = st.clk.r; clock.b = st.clk.b; }
     if (st.step != null) clock.step = st.step;
+    jqLearnAll();
     Board.setPosition(game); Board.faceViewer(viewSide);
     Fx.ply = game.history.length;
     const last = game.history[game.history.length - 1];
@@ -9454,21 +9793,139 @@ const Net = (() => {
   }
   function publish() { if (mode === 'host') Net.publishRoom(snapshot()); }
 
+  // ---------- 揭棋联机：密钥、承诺与揭示 ----------
+  const jqKey = () => 'jq-' + Net.code;
+  function jqSetup(st) {
+    JK = null; JC = { cin: {}, cout: {}, used: { r: {}, b: {} } }; jqBad = 0; pendingJ = null; lastJx = null;
+    if (!game.jq || !online()) return;
+    const sj = st && st.jq, opp = other(mySide);
+    const saved = store.get(jqKey(), null);
+    if (sj && sj.gid) {
+      if (sj.cin) for (const k of ['r', 'b']) if (Jieqi.validCommits(sj.cin[k])) JC.cin[k] = sj.cin[k];
+      if (sj.cout) for (const k of ['r', 'b']) if (Jieqi.validCommits(sj.cout[k])) JC.cout[k] = sj.cout[k];
+      if (saved && saved.gid === sj.gid && saved.side === mySide && saved.inner && saved.outer) JK = saved;
+      else if (mode === 'guest') JK = Jieqi.create(sj.gid, mySide);
+      else if (mode === 'host' && (st.moves || []).length && !st.result) {
+        // 房主换了设备、密钥丢失：这局揭不开了，重新洗牌
+        setTimeout(() => { if (mode !== 'host') return; toast('揭棋密钥不在这台设备上，重新洗牌开局', 3200); restart(); Net.send({ t: 'restart', state: snapshot() }); }, 60);
+        return;
+      } else JK = Jieqi.create(sj.gid, mySide);
+    } else if (mode === 'host') JK = Jieqi.create(Jieqi.rhex(10), mySide);
+    if (!JK) return;
+    store.set(jqKey(), JK);
+    JC.cin[mySide] = JK.inner.c; JC.cout[opp] = JK.outer.c;
+    if (mode === 'guest') Net.send({ t: 'jqc', gid: JK.gid, ...Jieqi.pub(JK) });
+    jqLearnAll();
+  }
+  function jqWarn(why) {
+    jqBad++; console.warn('揭棋校验未通过', why);
+    toast('⚠ 对手的揭子数据没有通过校验（' + why + '）', 3600);
+  }
+  // 记录槽位号使用情况：同一槽位不能对应两个不同位置
+  function jqNoteSlot(side, j, i) {
+    const u = JC.used[side];
+    if (u[j] != null && u[j] !== i) jqWarn('槽位重复'); else u[j] = i;
+  }
+  // 某方已揭晓的兵种数量不能超过标准数量
+  function jqCountOk(side) {
+    const n = {};
+    game.history.forEach((h, i) => {
+      if (h.rv && (i % 2 ? 'b' : 'r') === side) n[h.rv] = (n[h.rv] || 0) + 1;
+      if (h.cap && h.cap.h && h.cap.t !== '?' && h.cap.s === side) n[h.cap.t] = (n[h.cap.t] || 0) + 1;
+    });
+    for (const t in n) if (n[t] > XQ.JQ_COUNT[t]) return false;
+    return true;
+  }
+  // 吃子方用自己的 outer 排列算出被吃暗子的真身（含重连后的补算）
+  function jqLearn(h) {
+    if (!JK || !h || !h.cap || !h.cap.h || h.cap.t !== '?' || h.cj == null || h.cap.s === mySide) return;
+    if (!Jieqi.okIdx(h.cj)) return;
+    h.cap.t = JK.outer.arr[h.cj];
+  }
+  function jqLearnAll() { if (JK) for (const h of game.history) jqLearn(h); }
+  // 对手走了暗子 / 吃了我方暗子：我方给出揭示
+  function jqRespond(d) {
+    const opp = other(mySide);
+    const p = game.at(d.from[0], d.from[1]), q = game.at(d.to[0], d.to[1]);
+    if (!JK || !p || p.s !== opp) return null;
+    const jx = { t: 'jx', n: d.n }, out = {};
+    if (d.ri) {
+      if (!p.h || d.ri.i !== p.hi || !Jieqi.okIdx(d.ri.j)) return null;
+      if (!Jieqi.checkIn(JK.gid, opp, JC.cin[opp], d.ri)) jqWarn('暗子位置');
+      jqNoteSlot(opp, d.ri.j, d.ri.i);
+      jx.rv = Jieqi.outerOf(JK, d.ri.j); out.rv = jx.rv.v;
+    } else if (p.h && p.t === '?') return null;
+    if (d.wc && q && q.s === mySide && q.h) { jx.cr = Jieqi.innerOf(JK, q.hi); out.cj = jx.cr.j; }
+    lastJx = jx;
+    Net.send(jx);
+    return out;
+  }
+  // 我方走子后收到对手的揭示
+  function jqResolve(d) {
+    const P = pendingJ;
+    if (!P || d.n !== P.n || d.n !== game.history.length) return;
+    const m = { from: P.m.from, to: P.m.to }, opp = other(mySide);
+    if (P.needRv) {
+      if (!d.rv || d.rv.j !== P.ri.j || typeof d.rv.v !== 'string' || !'rneacp'.includes(d.rv.v) || d.rv.v.length !== 1) return;
+      if (!Jieqi.checkOut(JK.gid, mySide, JC.cout[mySide], d.rv)) jqWarn('翻出的兵种');
+      m.rv = d.rv.v;
+    }
+    if (P.needCr) {
+      const q = game.at(m.to[0], m.to[1]);
+      if (!d.cr || !q || !Jieqi.okIdx(d.cr.j)) return;
+      if (d.cr.i !== q.hi || !Jieqi.checkIn(JK.gid, opp, JC.cin[opp], d.cr)) jqWarn('被吃暗子');
+      jqNoteSlot(opp, d.cr.j, q.hi);
+      q.t = JK.outer.arr[d.cr.j]; // 只有我知道
+      m.cj = d.cr.j;
+    }
+    pendingJ = null;
+    doMove(m, false, undefined, true);
+    if (!jqCountOk(mySide) || !jqCountOk(opp)) jqWarn('兵种数量');
+  }
+  setInterval(() => {
+    if (!pendingJ || !online()) return;
+    if (Net.peerState === 'ok' && performance.now() - pendingJ.sent > 3500) { pendingJ.sent = performance.now(); Net.send(pendingJ.msg); }
+  }, 1000);
+
   // ---------- 走子 ----------
   function canAct() {
     if (watching()) return false;
-    if (!started || ended || busy || game.result || pendingUndo) return false;
+    if (!started || ended || busy || game.result || pendingUndo || pendingJ) return false;
+    if (game.jq && !jqReady()) return false;
     if (mode === 'local') return true;
     if (mode === 'ai') return game.turn === mySide && !aiThinking;
     return Net.connected && game.turn === mySide;
   }
-  function doMove(m, remote = false, clk) {
-    const note = notation(game.board, m);
+  function doMove(m, remote = false, clk, sent = false) {
+    // 联机揭棋：走自己的未知暗子、或吃对方的未知暗子，先请对方揭示，收到后再落子
+    if (!remote && !sent && jqOn()) {
+      const p = game.at(m.from[0], m.from[1]), q = game.at(m.to[0], m.to[1]);
+      const needRv = !!(p && p.h && p.t === '?'), needCr = !!(q && q.h && q.t === '?');
+      if (needRv || needCr) {
+        if (!JK || !game.isLegal(m)) return false;
+        const n = game.history.length;
+        const msg = { t: 'move', n, from: m.from.slice(), to: m.to.slice(), clk: clock[game.turn] };
+        if (needRv) msg.ri = Jieqi.innerOf(JK, p.hi);
+        if (needCr) msg.wc = 1;
+        pendingJ = { m: { from: m.from.slice(), to: m.to.slice() }, n, msg, ri: msg.ri, needRv, needCr, sent: performance.now() };
+        Net.send(msg);
+        sel = null; selMoves = [];
+        Board.showMoves(m.from, [{ from: m.from, to: m.to }], true);
+        Sfx.lift();
+        updateHud();
+        return true;
+      }
+    }
+    const rv0 = (() => { const p = game.at(m.from[0], m.from[1]); return p && p.h ? (p.t !== '?' ? p.t : m.rv) : null; })();
+    const note = noteOf(game.board, m, rv0);
     const info = game.play(m);
     if (!info) return false;
+    jqLearn(game.history[game.history.length - 1]);
+    if (info.captured && game.history[game.history.length - 1].cap) info.captured = { ...game.history[game.history.length - 1].cap };
+    info.dt = capView(info);
     notes.push(note); renderLog();
     Fx.ply = game.history.length;
-    if (!remote && online()) Net.send({ t: 'move', n: info.ply, from: m.from, to: m.to, clk: clock[info.mover] });
+    if (!remote && !sent && online()) Net.send({ t: 'move', n: info.ply, from: m.from, to: m.to, clk: clock[info.mover] });
     if (remote && clk != null) clock[info.mover] = clk;
     clock.step = stepMax(); clock.oppStamp = 0;
     Board.clearMoves(); sel = null; selMoves = [];
@@ -9478,6 +9935,12 @@ const Net = (() => {
     // 电脑在玩家的动画播放时就开始思考
     if (mode === 'ai' && info.mover === mySide && !info.result) maybeAI();
     return true;
+  }
+  // 动画里被吃的子显示成什么：揭棋暗子只有联机的吃子方看得到真身
+  function capView(info) {
+    const c = info.captured; if (!c) return null;
+    if (!c.h) return c.t;
+    return online() && c.s !== mySide && c.t !== '?' ? c.t : '?';
   }
   function queueAnim(info) {
     busy++;
@@ -9503,6 +9966,13 @@ const Net = (() => {
 
   // ---------- 终局：棋盘上的收官演出，再进入历史结算 ----------
   async function boardFinale(result) {
+    if (!result.winner) {
+      // 和棋：鸿沟为界，两军各自收兵
+      banner('鴻溝為界', '四十回合未见杀伐 · 和局', 3000);
+      Sfx.B.gong(0, 0.8); Camp.cheer('r', 4, 0.8); Camp.cheer('b', 4, 0.8);
+      await Core.sleep(3);
+      return;
+    }
     const loser = result.loser, winner = result.winner;
     const kp = game.kingPos(loser);
     if (!kp) return;
@@ -9554,12 +10024,12 @@ const Net = (() => {
       if (!endSkip) { try { await Promise.race([boardFinale(result), skipP]); } catch (e) { console.error(e); } }
       Core.Time.skip = false; endSkipRes = null;
       Sfx.Music.stop();
-      const persp = mode === 'local' || watching() ? 'win' : (result.winner === mySide ? 'win' : 'lose');
+      const persp = mode === 'local' || watching() || !result.winner ? 'win' : (result.winner === mySide ? 'win' : 'lose');
       const W = watching();
       await Ending.play(result, {
         again: W ? () => { Ending.hideCard(); toast('等待棋手开新局…'); } : requestAgain, againText: W ? '继 续 观 战' : '',
         lobby: toLobby, persp, instant: endSkip,
-        mine: mode === 'local' || W ? '' : (persp === 'win' ? '你 胜 了' : '你 败 了'),
+        mine: mode === 'local' || W || !result.winner ? '' : (persp === 'win' ? '你 胜 了' : '你 败 了'),
       });
       if (pendingRestart) { const st = pendingRestart; pendingRestart = null; restart(st === true ? undefined : st); if (mode === 'host') Net.send({ t: 'restart', state: snapshot() }); }
     });
@@ -9571,7 +10041,7 @@ const Net = (() => {
   }
   let pendingRestart = null;
   function restart(state) {
-    Ending.hideCard(); Core.Time.skip = false;
+    Ending.hideCard(); Core.Time.skip = false; pendingJ = null;
     startGame(mode, mySide, watching() && state && state.opts ? state.opts : opts, { state, intro: true });
     if (mode === 'host') publish();
   }
@@ -9593,6 +10063,10 @@ const Net = (() => {
     const [f, r] = p;
     const mv = selMoves.find(m => m.to[0] === f && m.to[1] === r);
     if (sel && mv) { doMove({ from: sel, to: [f, r] }); return; }
+    if (sel && game.jq) {
+      const bl = game.blockedFrom(sel[0], sel[1]).find(m => m.to[0] === f && m.to[1] === r);
+      if (bl) { toast(bl.why === 'check' ? '同一子不能连续将军超过六回合，请换一着' : '同一子不能连续捉同一子超过六回合，请换一着', 2600); return; }
+    }
     const pc = game.at(f, r);
     if (pc && pc.s === actor()) {
       if (sel && sel[0] === f && sel[1] === r) { Board.clearMoves(false); sel = null; selMoves = []; return; }
@@ -9607,7 +10081,7 @@ const Net = (() => {
   // ---------- 悔棋 ----------
   function undoPlies(side) { return game.turn === side ? 2 : 1; }
   function canUndo() {
-    if (!started || ended || busy || game.result || !opts.undo || pendingUndo) return false;
+    if (!started || ended || busy || game.result || !opts.undo || pendingUndo || pendingJ) return false;
     const s = actor();
     if (mode === 'local') return game.history.length > 0 && (opts.undo >= 99 || undoUsed[XQ.other(game.turn)] < opts.undo);
     if (opts.undo < 99 && undoUsed[s] >= opts.undo) return false;
@@ -9643,7 +10117,7 @@ const Net = (() => {
     Board.clearMoves(); sel = null; selMoves = [];
     busy++;
     anim = anim.then(async () => {
-      for (let i = 0; i < plies; i++) { const h = game.undo(); if (h) { notes.pop(); await Fx.undoMove(h); } }
+      for (let i = 0; i < plies; i++) { const h = game.undo(); if (h) { notes.pop(); await Fx.undoMove(h, game.at(h.from[0], h.from[1])); } }
       const last = game.history[game.history.length - 1];
       Board.showLast(last ? last.from : null, last ? last.to : null);
     }).catch(e => console.error(e)).then(() => {
@@ -9702,6 +10176,12 @@ const Net = (() => {
     switch (d.t) {
       case 'join':
         if (Net.role !== 'host') return;
+        // 揭棋：来人手里没有这局的密钥（换了设备/新棋手接替），无法继续揭子 → 重新洗牌开局
+        if (mode === 'host' && game.jq && JK && d.jg !== JK.gid && game.history.length && !game.result && !ended) {
+          toast('对手换了设备入座，揭棋重新洗牌开局', 3200);
+          restart(); Net.send({ t: 'restart', state: snapshot() });
+          return;
+        }
         if (!mode && !mode_starting) { mode_starting = true; startGame('host', hostSide, opts).then(() => { mode_starting = false; }); toast('对手已入局'); }
         Net.send({ t: 'welcome', state: snapshot() });
         break;
@@ -9732,9 +10212,30 @@ const Net = (() => {
         if (Ending.running) { pendingRestart = true; Ending.skip(); toast('对手请求再来一局'); }
         else { restart(); Net.send({ t: 'restart', state: snapshot() }); }
         break;
-      case 'move':
+      case 'move': {
+        // 揭棋：对方没收到我的揭示而重发了这步 → 再发一次揭示
+        if (lastJx && d.n === lastJx.n && d.n === game.history.length - 1) { Net.send(lastJx); return; }
         if (d.n !== game.history.length) { Net.send(mode === 'guest' ? { t: 'syncReq' } : { t: 'sync', state: snapshot() }); return; }
-        if (!doMove({ from: d.from, to: d.to }, true, d.clk)) Net.send(mode === 'guest' ? { t: 'syncReq' } : { t: 'sync', state: snapshot() });
+        const m = { from: d.from, to: d.to };
+        if (game.jq && (d.ri || d.wc)) {
+          const r = jqRespond(d);
+          if (!r) { Net.send(mode === 'guest' ? { t: 'syncReq' } : { t: 'sync', state: snapshot() }); return; }
+          if (r.rv) m.rv = r.rv; if (r.cj != null) m.cj = r.cj;
+        }
+        if (!doMove(m, true, d.clk)) Net.send(mode === 'guest' ? { t: 'syncReq' } : { t: 'sync', state: snapshot() });
+        break;
+      }
+      case 'jx': jqResolve(d); break;
+      case 'jqc':
+        if (mode !== 'host' || !JK || d.gid !== JK.gid || !Jieqi.validCommits(d.cin) || !Jieqi.validCommits(d.cout)) break;
+        {
+          const opp = other(mySide);
+          const same = JSON.stringify(JC.cin[opp]) === JSON.stringify(d.cin) && JSON.stringify(JC.cout[mySide]) === JSON.stringify(d.cout);
+          if (same) break;
+          if (game.history.length && JC.cin[opp]) { jqWarn('中途更换承诺'); break; }
+          JC.cin[opp] = d.cin; JC.cout[mySide] = d.cout;
+          publish(); updateHud();
+        }
         break;
       case 'clk':
         if (d.side === mySide) return;
@@ -9763,10 +10264,14 @@ const Net = (() => {
   let mode_starting = false;
   function syncFrom(st) {
     if (!st) return;
+    // 揭棋：房主那边已是新的一局（换了牌）→ 跟着重开
+    if (game.jq && st.jq && JK && st.jq.gid !== JK.gid) { restart(st); return; }
+    if (game.jq && st.jq && st.jq.cin) { const opp = other(mySide); if (!JC.cin[opp] && Jieqi.validCommits(st.jq.cin[opp])) JC.cin[opp] = st.jq.cin[opp]; if (!JC.cout[mySide] && Jieqi.validCommits(st.jq.cout && st.jq.cout[mySide])) JC.cout[mySide] = st.jq.cout[mySide]; }
+    if (game.jq && st.jq && JK && !(st.jq.cin && st.jq.cin[mySide])) Net.send({ t: 'jqc', gid: JK.gid, ...Jieqi.pub(JK) });
     const mine = game.history, theirs = st.moves || [];
     const same = (a, b) => a.from[0] === b.from[0] && a.from[1] === b.from[1] && a.to[0] === b.to[0] && a.to[1] === b.to[1];
     const prefix = (a, b) => a.length <= b.length && a.every((m, i) => same(m, b[i]));
-    if (prefix(mine, theirs)) { for (const m of theirs.slice(mine.length)) doMove(m, true); }
+    if (prefix(mine, theirs)) { for (const m of theirs.slice(mine.length)) doMove({ from: m.from, to: m.to, rv: m.rv, cj: m.cj }, true); }
     else if (prefix(theirs, mine) && mine.length - theirs.length === 1 && game.turn !== mySide) { const m = mine[mine.length - 1]; Net.send({ t: 'move', n: mine.length - 1, from: m.from, to: m.to, clk: clock[mySide] }); }
     else { applyState(st); }
     undoUsed = { r: 0, b: 0, ...(st.undo || {}) };
@@ -9890,11 +10395,11 @@ const Net = (() => {
     }
     const same = (a, b) => a.from[0] === b.from[0] && a.from[1] === b.from[1] && a.to[0] === b.to[0] && a.to[1] === b.to[1];
     const prefix = (a, b) => a.length <= b.length && a.every((m, i) => same(m, b[i]));
-    if (prefix(mine, theirs)) { for (const m of theirs.slice(mine.length)) doMove(m, true); }
+    if (prefix(mine, theirs)) { for (const m of theirs.slice(mine.length)) doMove({ from: m.from, to: m.to, rv: m.rv }, true); }
     else if (prefix(theirs, mine) && !game.result) {
       const n = mine.length - theirs.length;
       busy++;
-      anim = anim.then(async () => { for (let i = 0; i < n; i++) { const h = game.undo(); if (h) { notes.pop(); await Fx.undoMove(h); } } })
+      anim = anim.then(async () => { for (let i = 0; i < n; i++) { const h = game.undo(); if (h) { notes.pop(); await Fx.undoMove(h, game.at(h.from[0], h.from[1])); } } })
         .catch(e => console.error(e)).then(() => { busy--; Fx.ply = game.history.length; renderLog(); const l = game.history[game.history.length - 1]; Board.showLast(l ? l.from : null, l ? l.to : null); updateHud(); });
       toast('棋手悔棋');
     } else if (!prefix(mine, theirs)) applyState(st);
@@ -9963,13 +10468,13 @@ const Net = (() => {
   const inviteUrl = code => location.origin + location.pathname + '?room=' + code;
   $('bCreateGo').onclick = () => {
     Sfx.init(); applySettings();
-    const o = { undo: ropts.undo, total: ropts.total, step: ropts.step, hints: ropts.hints };
+    const o = { undo: ropts.undo, total: ropts.total, step: ropts.step, hints: ropts.hints, jq: +ropts.jq || 0 };
     const side = ropts.side === 'x' ? (Math.random() < 0.5 ? 'r' : 'b') : ropts.side;
     if (createFor === 'local') { startGame('local', 'r', o); return; }
     hostRoom(Net.gen(), o, side);
   };
   function chipsFor(o, side) {
-    return [`房主执${side === 'r' ? '红·汉' : '黑·楚'}`, o.undo ? (o.undo >= 99 ? '悔棋不限' : `悔棋 ${o.undo} 次`) : '不许悔棋', o.total ? `每方 ${o.total} 分钟` : '不限总时', o.step ? `每步 ${o.step >= 60 ? o.step / 60 + ' 分' : o.step + ' 秒'}` : '不限步时', o.hints ? '显示可杀' : '不显示可杀']
+    return [o.jq ? '揭棋' : '象棋', `房主执${side === 'r' ? '红·汉' : '黑·楚'}`, o.undo ? (o.undo >= 99 ? '悔棋不限' : `悔棋 ${o.undo} 次`) : '不许悔棋', o.total ? `每方 ${o.total} 分钟` : '不限总时', o.step ? `每步 ${o.step >= 60 ? o.step / 60 + ' 分' : o.step + ' 秒'}` : '不限步时', o.hints ? '显示可杀' : '不显示可杀']
       .map(t => `<span class="chip">${t}</span>`).join('');
   }
   function hostRoom(code, o, side, resumeState) {
@@ -10027,6 +10532,8 @@ const Net = (() => {
     if (navigator.clipboard && window.isSecureContext) navigator.clipboard.writeText(t).then(() => toast(okMsg), fallback); else fallback();
   }
   let joinTimer = null;
+  // 入座请求里带上本机保存的揭棋局号，房主据此判断能否接着下
+  const joinMsg = () => { const k = store.get('jq-' + (Net.code || ''), null); return { t: 'join', jg: k ? k.gid : null }; };
   function joinRoom(code) {
     code = code.trim().toUpperCase();
     if (code.length !== 5) { $('joinNote').textContent = '房间码是 5 位字母或数字'; return; }
@@ -10037,7 +10544,7 @@ const Net = (() => {
     let gotRoom = false;
     const t0 = Date.now();
     Net.join(code, {
-      line(n, total) { onLine(n, total); if (n) Net.send({ t: 'join' }); },
+      line(n, total) { onLine(n, total); if (n) Net.send(joinMsg()); },
       room(d) {
         if (!d || !d.v) return;
         gotRoom = true;
@@ -10048,7 +10555,7 @@ const Net = (() => {
     clearInterval(joinTimer);
     joinTimer = setInterval(() => {
       if (mode) { clearInterval(joinTimer); return; }
-      if (Net.lineOk) Net.send({ t: 'join' });
+      if (Net.lineOk) Net.send(joinMsg());
       if (!gotRoom && Date.now() - t0 > 9000) $('joinNote').textContent = '暂未找到这个房间：请核对房间码，或确认朋友的房间还开着。仍在继续寻找…';
       if (!Net.lineOk && Date.now() - t0 > 12000) $('joinNote').textContent = '网络线路连接失败，请检查网络（可在设置里换线路）。';
     }, 2000);
@@ -10112,8 +10619,10 @@ const Net = (() => {
   window.__xq = {
     get busy() { return busy; }, get started() { return started; }, get game() { return game; }, get mode() { return mode; }, get aiThinking() { return aiThinking; },
     doMove, startGame, finishGame, Ending, Fx, Board, Core, Camp, Squads, Spect, setView, onData, Net, requestUndo, sendEmote, get clock() { return clock; }, get opts() { return opts; }, joinRoom, notation, get notes() { return notes; }, aiSay,
+    get JK() { return JK; }, get JC() { return JC; }, get pendingJ() { return pendingJ; }, get jqBad() { return jqBad; }, jqReady, capChip, XQ,
   };
   if (location.hash === '#local') { startGame('local', 'r', { undo: 3, total: 15, step: 60, hints: 1 }, { intro: false }); return; }
+  if (location.hash === '#jq') { startGame('local', 'r', { undo: 99, total: 0, step: 0, hints: 1, jq: 1 }, { intro: false }); return; }
   if (location.hash.startsWith('#ai')) { const [, lv, sd] = location.hash.split('-'); startGame('ai', sd || 'r', { undo: 3, total: 0, step: 0, hints: 1, level: lv || 'easy' }, { intro: false }); return; }
   $('lobby').classList.remove('hidden');
   if (room && hostRec && hostRec.code === room && Date.now() - hostRec.t < 6 * 3600e3) {

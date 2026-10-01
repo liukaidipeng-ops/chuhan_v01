@@ -47,7 +47,7 @@ with sync_playwright() as p:
     # 悔棋
     if not json.loads(pg.evaluate(CHECK))['res']:
         for k in range(4):
-            pg.evaluate("window.__xq.opts.undo=99; (()=>{const x=window.__xq; return x.requestUndo()})()")
+            pg.evaluate("window.__xq.opts.undo=99; window.__xq.requestUndo(); 1")
             time.sleep(0.5)
             if pg.evaluate("!document.getElementById('mAsk').classList.contains('hidden')"): pg.evaluate("document.getElementById('askYes').click()")
             settle()
