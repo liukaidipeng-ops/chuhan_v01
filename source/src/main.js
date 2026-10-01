@@ -18,7 +18,9 @@
   const S = {
     music: store.get('music', 'zen'), vMusic: store.get('vMusic', 55), vSfx: store.get('vSfx', 90), voice: store.get('voice', 1),
     vis: store.get('vis', store.get('fx', 1) === 0 ? 'low' : 'cine'), gore: store.get('gore', 3), server: store.get('server', ''),
+    speed: store.get('speed', 1.5), // 动画播放速度
   };
+  if (![1, 1.5, 2, 3].includes(+S.speed)) S.speed = 1.5;
   if (!VIS.includes(S.vis)) S.vis = 'cine';
   let ropts = Object.assign({ side: 'r', undo: 3, total: 15, step: 60, hints: 1, jq: 0 }, store.get('ropts', {}));
   if (!ropts.v) ropts.v = ropts.jq ? 'jq' : 'std';
@@ -26,12 +28,14 @@
 
   function applySettings() {
     Fx.level = S.vis; Fx.gore = +S.gore; Voice.enabled = !!+S.voice;
+    Core.Time.boost = +S.speed || 1.5;
     Sfx.setVol('music', S.vMusic / 100 * 0.9); Sfx.setVol('sfx', S.vSfx / 100);
     Net.custom = S.server || '';
-    for (const k of ['music', 'vMusic', 'vSfx', 'voice', 'vis', 'gore', 'server']) store.set(k, S[k]);
+    for (const k of ['music', 'vMusic', 'vSfx', 'voice', 'vis', 'gore', 'server', 'speed']) store.set(k, S[k]);
     $('visLv').textContent = VISBADGE[S.vis];
   }
   Net.custom = S.server || '';
+  Core.Time.boost = +S.speed || 1.5;
   function bindSeg(root, attr, get, set) {
     root.querySelectorAll(`.seg[${attr}]`).forEach(seg => {
       const k = seg.getAttribute(attr);
