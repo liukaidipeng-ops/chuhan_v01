@@ -916,6 +916,7 @@
     const skipP = new Promise(r => { endSkipRes = r; });
     cancelAI(); setPause(null);
     closeAsk(); Board.clearMoves();
+    if (result && result.reason === 'timeout') { try { Fx.mateSplash('超时', result.loser); } catch (e) { } }   // 超时判负也出大字
     updateHud(); publish(); saveResume(true);
     $('skip').classList.remove('hidden'); $('skip').textContent = '跳过结算 ▸▸';
     anim = anim.then(async () => {
@@ -2041,12 +2042,35 @@
   });
   $('bLaugh').onclick = specLaugh;
   $('tLaugh').onclick = specLaugh;
-  function leaveGame() { cancelAI(); try { Net.close(); } catch (e) { } location.href = location.pathname; }
+  // 退出对局 = 回到主菜单（不重载页面）。只有演出正放到一半、状态收不干净时才退而求其次整页重载
+  function leaveGame() {
+    cancelAI();
+    try { if (online()) Net.send({ t: 'bye' }); } catch (e) { }
+    try { Net.close(); } catch (e) { }
+    clearInterval(specTimer); clearInterval(joinTimer);
+    if (busy || Ending.running || (ended && endSkipRes)) { try { sessionStorage.setItem('xq3d-back', '1'); } catch (e) { } location.href = location.pathname; return; }
+    try {
+      if (introSkip) introSkip();
+      if (RP) exitReplay(true);
+      setPause(null); closeAsk(); Voice.cancel();
+      mode = null; started = false; ended = false; pendingUndo = null; bfMode = null; dbgOn = false; resumeKey = '';
+      try { history.replaceState(null, '', location.pathname); } catch (e) { }
+      Ending.hideCard(); clearFinale(); Camp.reset(); Fx.clearMarks(); Board.clearMoves(); Board.showLast(null); Spect.clear();
+      Core.Time.skip = false; Core.Cam.cine = false;
+      game = new XQ.Game(); Board.setSkin(0); Board.setPosition(game); Core.Cam.setSide('r'); Board.faceViewer('r'); viewSide = 'r';
+      for (const id of ['hud', 'skip', 'bfReport', 'bfDebug', 'log', 'mSet', 'mAsk', 'mNews', 'mHelp', 'chat', 'netbadge', 'rpBar', 'bfTip']) { const el = $(id); if (el) el.classList.add('hidden'); }
+      for (const id of ['banner', 'bubMe', 'bubOpp', 'cdBig', 'cdRed']) $(id).classList.remove('on', 'hot');
+      paintVeil();
+      $('lobby').classList.remove('hidden', 'intro'); showPane('pMain'); lobbySpin = true;
+      Sfx.Music.setIntensity(0.2);
+    } catch (e) { console.error(e); location.href = location.pathname; }
+  }
 
   // ---------- 大厅 ----------
   const panes = ['pMain', 'pAI', 'pCreate', 'pWait', 'pJoin'];
   const showPane = id => { panes.forEach(p => $(p).classList.toggle('hidden', p !== id)); if (id === 'pMain') paintResume(); };
   setTimeout(() => $('lobby').classList.remove('intro'), 3800);
+  try { if (sessionStorage.getItem('xq3d-back')) { sessionStorage.removeItem('xq3d-back'); $('lobby').classList.remove('intro'); } } catch (e) { }
   const VAR_NOTE = { std: '标准中国象棋', jq: '揭棋：十五子反扣，走动方知真身', bf: '兵法：升级、生命值、兵种技能与主帅兵法' };
   const paintVar = () => { $('varNote').textContent = VAR_NOTE[ropts.v] || ''; $('optSkin').classList.toggle('hidden', ropts.v === 'bf'); };
   bindSeg($('pCreate'), 'data-k', k => ropts[k], (k, v) => { ropts[k] = k === 'side' || k === 'v' ? v : +v; store.set('ropts', ropts); if (k === 'v') paintVar(); });

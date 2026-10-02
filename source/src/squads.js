@@ -27,6 +27,7 @@ const Squads = (() => {
     const q = p.clone().addScaledVector(fwd(sq.yaw), -back); q.y = gy(q);
     if (!Fx.onWater(q)) P.plume(q, fwd(sq.yaw), s, n);
   }
+  let noRankFlag = false;   // 模型模式下不插等级小旗（每枚子只背一面写着棋子字的旗）
   class Squad {
     constructor(t, side, anchor, yaw) {
       this.t = t; this.side = side; this.anchor = anchor.clone(); this.yaw = yaw;
@@ -50,6 +51,7 @@ const Squads = (() => {
     // 兵法：升级后换装——二级执「銳」字小旗、甲胄泛金，三级执「精」字大旗、通身金甲
     rank(lv) {
       if (!lv || lv < 2) return this;
+      if (noRankFlag) { if (this.troop) this.troop.units.forEach((u, i) => this.troop.tint(i, lv >= 3 ? 0xffcf6a : 0xf0d6a0, lv >= 3 ? 0.4 : 0.22)); return this; }
       if (this.troop) this.troop.units.forEach((u, i) => this.troop.tint(i, lv >= 3 ? 0xffcf6a : 0xf0d6a0, lv >= 3 ? 0.4 : 0.22));
       const flag = Models.makeBanner(this.side, lv >= 3 ? '精' : '銳');
       const fs = lv >= 3 ? 0.1 : 0.075;
@@ -1185,12 +1187,30 @@ const Squads = (() => {
     let on = false, acc = 0, t = 0;
     const map = new Map();   // 棋子 mesh → { sq, key, k, ph }
     const faceYaw = s => yawOf(new V3(0, 0, s === 'r' ? -1 : 1));
+    const FLAG_S = 0.15, RING_D = 0.62;
+    const ringGeo = new THREE.PlaneGeometry(1, 1); ringGeo.rotateX(-Math.PI / 2); ringGeo.userData.keep = true;
+    const ringTex = Core.canvasTex(256, 256, (g, w) => {
+      const c = w / 2;
+      const gr = g.createRadialGradient(c, c, w * 0.2, c, c, w * 0.5); gr.addColorStop(0, 'rgba(255,255,255,0)'); gr.addColorStop(0.62, 'rgba(255,255,255,.2)'); gr.addColorStop(0.8, 'rgba(255,255,255,.34)'); gr.addColorStop(1, 'rgba(255,255,255,0)');
+      g.fillStyle = gr; g.fillRect(0, 0, w, w);
+      g.strokeStyle = '#fff'; g.lineWidth = 9; g.beginPath(); g.arc(c, c, w * 0.4, 0, 7); g.stroke();
+    });
+    // 领头的那个兵（或那匹马、那辆车、那头象）：旗杆从他背后腰间伸出来。h = 旗杆根部离地高度，back = 往身后挪多少
+    function leader(sq) {
+      if (sq.troop) { const u = sq.troop.units.find(x => !x.dead) || sq.troop.units[0]; return { p: u.p, yaw: u.yaw, h: 0.95 * sq.troop.scale, back: 0.035 }; }
+      if (sq.riders) { const h = sq.riders[0].group; return { p: h.position, yaw: sq.yaw, h: 0.3, back: 0.05 }; }
+      if (sq.crew) { const u = sq.crew.units[0]; return { p: u.p, yaw: u.yaw, h: 0.95 * sq.crew.scale, back: 0.035 }; }
+      const g = sq.m ? sq.m.group : sq.group, el = sq instanceof Elephant;
+      return { p: g.position, yaw: sq.yaw, h: el ? 0.42 : 0.24, back: el ? 0.12 : 0.02 };
+    }
     const vis = (st, k) => { st.sq.setVis(k); if (st.sq.guard) st.sq.guard.setVis(k); };
     function drop(m) {
       const st = map.get(m); if (!st) return;
       map.delete(m);
       if (m.parent) showDisc(m, true);
       try { if (st.sq.flags) for (const f of st.sq.flags) scene.remove(f.group); if (st.sq.guard) st.sq.guard.dispose(); st.sq.dispose(); } catch (e) { }
+      if (st.flag) scene.remove(st.flag.group);
+      if (st.ring) { scene.remove(st.ring); st.ring.material.dispose(); }
     }
     function showDisc(m, show) {
       const [body, face, band] = m.children;
@@ -1209,9 +1229,18 @@ const Squads = (() => {
         const st = map.get(m);
         if (st && st.key === key) continue;
         drop(m);
-        const sq = make(u.t, u.s, new V3(m.position.x, TOP, m.position.z), faceYaw(u.s), 'move', lv || 1, lv);
+        noRankFlag = true;
+        let sq; try { sq = make(u.t, u.s, new V3(m.position.x, TOP, m.position.z), faceYaw(u.s), 'move', lv || 1, lv); } finally { noRankFlag = false; }
         const ns = { sq, key, k: 0, ph: Math.random() * 6.28 }; vis(ns, 0.001);
         if (sq.setPose && sq.troop) sq.setPose('idle');
+        if (sq.crew) sq.crew.setPose('idle');           // 炮手：站定，不再原地踏步
+        if (sq.horse && !sq.mounted) sq.horse.speed = 0;
+        // 一面写着棋子字的旗：由领头的背在身后（帅将的旗由随从擎着，只留「帥 / 將」一面）
+        if (u.t === 'k') { if (sq.flags && sq.flags.length > 1) { scene.remove(sq.flags[0].group); sq.flags = [sq.flags[1]]; } }
+        else { ns.flag = Models.makeBanner(u.s, XQ.NAMES[u.s][u.t]); ns.flag.group.scale.setScalar(0.001); scene.add(ns.flag.group); }
+        // 脚下的小圈：汉红、楚黑，半透明、一呼一吸，方便看清这枚子站在哪个点上
+        ns.ring = new THREE.Mesh(ringGeo, new THREE.MeshBasicMaterial({ map: ringTex, color: u.s === 'r' ? 0xc8281a : 0x141210, transparent: true, opacity: 0, depthWrite: false, polygonOffset: true, polygonOffsetFactor: -3 }));
+        ns.ring.renderOrder = 3; scene.add(ns.ring);
         map.set(m, ns);
       }
     }
@@ -1231,6 +1260,15 @@ const Squads = (() => {
         // 待机：整队一呼一吸地轻微起伏；被选中悬起时跟着棋子抬高
         const lift = Math.max(0, m.position.y - TOP) * 0.55, br = 1 + 0.014 * Math.sin(t * 1.7 + st.ph);
         for (const grp of sq.guard ? [sq.group, sq.guard.group] : [sq.group]) { grp.position.y = lift; grp.scale.y = br; }
+        if (st.flag) {
+          const L = leader(sq), f = st.flag.group;
+          f.position.copy(L.p).addScaledVector(fwd(L.yaw), -L.back); f.position.y = L.p.y + L.h + lift;
+          f.rotation.set(0, Board.viewSide === 'b' ? Math.PI : 0, 0); f.rotation.z = -0.1;
+          f.scale.setScalar(Math.max(0.001, FLAG_S * st.k)); st.flag.update(rdt);
+        }
+        const b = 0.5 + 0.5 * Math.sin(t * 2.2 + st.ph), rs = RING_D * (0.94 + 0.08 * b);
+        st.ring.position.set(m.position.x, TOP + 0.006, m.position.z); st.ring.scale.set(rs, 1, rs);
+        st.ring.material.opacity = st.k * (m.userData.s === 'r' ? 0.42 + 0.28 * b : 0.5 + 0.3 * b);
       }
     });
     return {

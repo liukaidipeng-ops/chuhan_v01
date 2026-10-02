@@ -362,7 +362,7 @@ body.cine #specTags{opacity:0}
 #flash{position:fixed;inset:0;pointer-events:none;background:#fff5e0;opacity:0;z-index:7}
 /* 绝杀大字：朱砂手书，一字一顿砸下来；背后一笔浓墨横扫，墨与朱砂慢慢晕开。只写「绝杀」或杀法名，不做立体字 */
 #mate{position:fixed;inset:0;z-index:9;pointer-events:none;visibility:hidden;opacity:0;overflow:hidden}
-#mate.show{visibility:visible;animation:mateAll 3.6s linear forwards}
+#mate.show{visibility:visible;animation:mateAll 3.9s linear forwards}
 @keyframes mateAll{0%{opacity:1}82%{opacity:1}100%{opacity:0}}
 #mate:before{content:"";position:absolute;inset:0;background:radial-gradient(ellipse 74% 66% at 50% 50%,rgba(244,236,219,.86),rgba(244,236,219,.5) 55%,rgba(244,236,219,0) 90%);opacity:0}
 #mate.show:before{animation:mateHaze .3s .02s both}
@@ -371,6 +371,8 @@ body.cine #specTags{opacity:0}
 #mate.show .ink{animation:mateSwoosh .34s cubic-bezier(.3,.9,.4,1) both}
 #mate.show .ink.wash{animation:mateWash 2.8s ease-out .12s both}
 @keyframes mateSwoosh{0%{opacity:1;clip-path:inset(0 100% 0 0)}100%{opacity:1;clip-path:inset(0 0 0 0)}}
+#mate.col.show .ink.stroke{animation-name:mateSwooshV}
+@keyframes mateSwooshV{0%{opacity:1;clip-path:inset(0 0 100% 0)}100%{opacity:1;clip-path:inset(0 0 0 0)}}
 @keyframes mateWash{0%{opacity:0;transform:scale(.94)}18%{opacity:.9}100%{opacity:1;transform:scale(1.05)}}
 #mate .mw{position:absolute;inset:0;display:flex;align-items:center;justify-content:center}
 #mate .mw.col{flex-direction:column}

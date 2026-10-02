@@ -665,16 +665,18 @@ const Fx = (() => {
   // 绝杀大字：只写「绝杀」；下出了有名有姓的杀法（马后炮、卧槽马、重炮…）就只写那几个字。
   // 朱砂手书：每个字单独画在画布上（行书字体 + 飞白 + 浓淡），背后一笔浓墨横扫并带泼溅，朱与墨再慢慢晕开
   const MATE_NAMED = new Set(['重炮', '马后炮', '天地炮', '闷宫', '卧槽马', '挂角马', '双马饮泉', '八角马', '钓鱼马', '铁门栓', '双车错', '大刀剜心', '二鬼拍门', '白脸将']);
+  const MATE_UP = 0.028;
   function mateInk(el, portrait, px, rows) {
     const W = Math.min(1400, innerWidth), H = Math.round(W * innerHeight / innerWidth), u = Math.min(W, H);
     const [wash, stroke] = [el.querySelector('.ink.wash'), el.querySelector('.ink.stroke')];
     for (const c of [wash, stroke]) { c.width = W; c.height = H; }
     // 浓墨一笔：压在字的下半截，从左往右上横扫，起笔重、笔肚实、收笔拉出飞白
     const g = stroke.getContext('2d'), sc = W / innerWidth;
-    const ang = (portrait ? -0.3 : -0.1) + R(-0.04, 0.04), L = (portrait ? Math.hypot(W, H) * 0.7 : W * 0.98), th = Math.max(u * 0.09, px * sc * R(0.26, 0.32) * (portrait ? 0.7 : 1));
-    const cy = H / 2 + (portrait ? rows * px * sc * 0.36 : px * sc * 0.3);
+    // 黑笔垫在整行字的正中当底色：横排横着扫，竖排竖着从上往下扫；整体比屏幕正中略高一点（视觉居中）
+    const ang = (portrait ? Math.PI / 2 - 0.05 : -0.05) + R(-0.025, 0.025), L = Math.min((portrait ? H : W) * 0.99, rows * px * sc * 1.3), th = px * sc * R(0.5, 0.58);
+    const cy = H * (0.5 - MATE_UP);
     g.save(); g.translate(W / 2, cy); g.rotate(ang);
-    const prof = k => (k < 0.07 ? Math.pow(k / 0.07, 0.6) : k < 0.55 ? 1 : 1 - 0.7 * Math.pow((k - 0.55) / 0.45, 1.3));
+    const prof = k => (k < 0.07 ? Math.pow(k / 0.07, 0.6) : k < 0.72 ? 1 : 1 - 0.62 * Math.pow((k - 0.72) / 0.28, 1.3));
     const N = 90, top = [], bot = [];
     for (let i = 0; i <= N; i++) { const k = i / N, x = -L / 2 + k * L * 0.9, h = th / 2 * prof(k); top.push([x, -h * (1 + R(-0.07, 0.07)) + Math.sin(k * 5) * th * 0.05]); bot.push([x, h * (1 + R(-0.09, 0.09)) + Math.sin(k * 5) * th * 0.05]); }
     g.fillStyle = 'rgba(15,12,11,.94)'; g.beginPath(); top.forEach(([x, y], i) => (i ? g.lineTo(x, y) : g.moveTo(x, y))); bot.reverse().forEach(([x, y]) => g.lineTo(x, y)); g.closePath(); g.fill();
@@ -724,7 +726,7 @@ const Fx = (() => {
       const c = document.createElement('canvas'); c.width = c.height = S;
       const g = c.getContext('2d');
       g.font = `${Math.round(S * 0.86)}px "XK", ${Board.FONT}`; g.textAlign = 'center'; g.textBaseline = 'middle';
-      g.fillStyle = '#b5150b'; g.fillText(ch, S / 2, S * 0.53);
+      g.fillStyle = '#c4170c'; g.fillText(ch, S / 2, S * 0.53);
       // 浓淡：蘸饱了的地方朱砂发沉，带干了的地方发亮
       g.globalCompositeOperation = 'source-atop';
       for (let i = 0; i < 14; i++) { const x = R(0.15, 0.85) * S, y = R(0.15, 0.85) * S, r = R(0.08, 0.22) * S; const gr = g.createRadialGradient(x, y, 0, x, y, r); const dark = Math.random() < 0.6; gr.addColorStop(0, dark ? `rgba(110,8,4,${R(0.3, 0.6)})` : `rgba(214,48,30,${R(0.25, 0.5)})`); gr.addColorStop(1, 'rgba(150,12,6,0)'); g.fillStyle = gr; g.fillRect(0, 0, S, S); }
@@ -755,27 +757,28 @@ const Fx = (() => {
     const el = document.getElementById('mate'), mw = el.querySelector('.mw');
     const n = text.length, portrait = innerHeight > innerWidth * 1.1;
     const px = Math.round(portrait ? Math.min(innerWidth * [0, 0.84, 0.84, 0.74, 0.62][n], innerHeight * 0.82 / n) : Math.min(innerWidth * 0.96 / n, innerHeight * [0, 0.72, 0.72, 0.62, 0.52][n]));
+    const T0 = 0.44, step = n > 2 ? 0.2 : 0.3;   // 黑笔先扫完，红字再一个一个砸下来
     el.classList.remove('show');
-    mw.textContent = ''; mw.classList.toggle('col', portrait);
+    mw.textContent = ''; mw.classList.toggle('col', portrait); el.classList.toggle('col', portrait);
+    mw.style.transform = `translateY(${-MATE_UP * 100}vh)`;
     [...text].forEach((ch, i) => {
       const c = mateChar(ch, px); const r = (i % 2 ? 1 : -1) * R(2, 5);
       c.style.setProperty('--r0', -r * 2.5 + 'deg'); c.style.setProperty('--r1', r * 0.6 + 'deg');
-      c.style.animationDelay = (0.16 + i * (n > 2 ? 0.2 : 0.3)).toFixed(2) + 's';
-      c.querySelector('.bl').style.animationDelay = (0.3 + i * (n > 2 ? 0.2 : 0.3)).toFixed(2) + 's';
+      c.style.animationDelay = (T0 + i * step).toFixed(2) + 's';
+      c.querySelector('.bl').style.animationDelay = (T0 + 0.14 + i * step).toFixed(2) + 's';
       if (portrait) c.style.margin = `${-px * 0.07}px 0`;
       mw.append(c);
     });
     mateInk(el, portrait, px, n);
     void el.offsetWidth; el.classList.add('show');
-    clearTimeout(mateSplash.t); mateSplash.t = setTimeout(() => el.classList.remove('show'), 3700);
+    clearTimeout(mateSplash.t); mateSplash.t = setTimeout(() => el.classList.remove('show'), 4000);
     // 鼓点：一笔扫过一声，之后一字一记，最后一字加锣
-    const step = n > 2 ? 0.2 : 0.3;
     Sfx.B.taiko(0.02, 0.7, 0.9);
-    for (let i = 0; i < n; i++) Sfx.B.taiko(0.16 + i * step, i === n - 1 ? 1 : 0.9, i === n - 1 ? 0.7 : 0.85);
-    Sfx.B.gong(0.18 + (n - 1) * step, 0.9); Sfx.B.clang(0.18 + (n - 1) * step, 0.5);
+    for (let i = 0; i < n; i++) Sfx.B.taiko(T0 + i * step, i === n - 1 ? 1 : 0.9, i === n - 1 ? 0.7 : 0.85);
+    Sfx.B.gong(T0 + 0.02 + (n - 1) * step, 0.9); Sfx.B.clang(T0 + 0.02 + (n - 1) * step, 0.5);
     const k = [...Board.pieces.values()].find(x => x.userData.t === 'k' && x.userData.s === sideInCheck), kp = k ? k.position.clone() : new V3();
-    setTimeout(() => { Cam.shake(0.16); if (k) P.ink(kp.clone().setY(TOP + 0.2), 8, 0.6, 0.35, 0.8); }, 160);
-    setTimeout(() => { Cam.shake(0.34); flash(kp, 40, 0.5, 0.5); if (k) { ring(kp, 3.2, 1.1, 0xb0301f, 0.95); P.ink(kp.clone().setY(TOP + 0.2), 16, 0.8, 0.45, 0.9); } }, (0.18 + (n - 1) * step) * 1000);
+    setTimeout(() => { Cam.shake(0.16); if (k) P.ink(kp.clone().setY(TOP + 0.2), 8, 0.6, 0.35, 0.8); }, T0 * 1000);
+    setTimeout(() => { Cam.shake(0.34); flash(kp, 40, 0.5, 0.5); if (k) { ring(kp, 3.2, 1.1, 0xb0301f, 0.95); P.ink(kp.clone().setY(TOP + 0.2), 16, 0.8, 0.45, 0.9); } }, (T0 + 0.02 + (n - 1) * step) * 1000);
   }
   function checkStamp(sideInCheck, text, mateName) {
     if (text === '殺' || text === '困') { mateSplash(text === '困' ? '困毙' : MATE_NAMED.has(mateName) ? mateName : '绝杀', sideInCheck); return; }
