@@ -1115,6 +1115,45 @@ const Board = (() => {
       sp.userData = { t: 0, next: 1 + Math.random() * 5 }; sp.renderOrder = 7; d.add(sp); glints.add(sp);
     }
   }
+  // ---- 锁链（鸿门宴困住汉帅、四面楚歌困住楚军）：一圈环环相扣的铁环，平放在棋子脚下，缓缓转动 ----
+  function mergeGeos(list) {
+    const pos = [], nor = [], idx = []; let base = 0;
+    for (const g of list) {
+      const P = g.attributes.position, N = g.attributes.normal;
+      for (let i = 0; i < P.count; i++) { pos.push(P.getX(i), P.getY(i), P.getZ(i)); nor.push(N.getX(i), N.getY(i), N.getZ(i)); }
+      const I = g.index; for (let i = 0; i < I.count; i++) idx.push(I.getX(i) + base);
+      base += P.count; g.dispose();
+    }
+    const out = new THREE.BufferGeometry();
+    out.setAttribute('position', new THREE.Float32BufferAttribute(pos, 3)); out.setAttribute('normal', new THREE.Float32BufferAttribute(nor, 3)); out.setIndex(idx);
+    return out;
+  }
+  let chainGeo = null;
+  function chainRing() {
+    if (chainGeo) return chainGeo;
+    const N = 22, R = 0.585, list = [], M = new THREE.Matrix4(), q = new THREE.Quaternion(), e = new THREE.Euler();
+    for (let i = 0; i < N; i++) {
+      const a = i / N * Math.PI * 2, flat = i % 2 === 0;
+      const g = new THREE.TorusGeometry(0.058, 0.0175, 6, 12); g.scale(1.5, 1, 1); // 椭圆环，长轴沿切线
+      e.set(flat ? Math.PI / 2 : 0, -a - Math.PI / 2, 0, 'YXZ'); q.setFromEuler(e);
+      M.compose(new THREE.Vector3(Math.cos(a) * R, flat ? 0.02 : 0.06, Math.sin(a) * R), q, new THREE.Vector3(1, 1, 1));
+      g.applyMatrix4(M); list.push(g);
+    }
+    chainGeo = mergeGeos(list); chainGeo.userData.keep = true;
+    return chainGeo;
+  }
+  const chainMat = new THREE.MeshStandardMaterial({ color: 0x565b63, metalness: 0.75, roughness: 0.4, emissive: 0x08090b });
+  const chains = new Set(), chainBorn = new Map();
+  Core.onFrame(() => {
+    if (!chains.size) return;
+    const t = performance.now() / 1000;
+    for (const c of chains) {
+      if (!c.parent || !c.parent.parent || !c.parent.parent.parent) { chains.delete(c); continue; }
+      const u = c.userData, k = Math.min(1, (t - u.born) / 0.55), e = 1 - Math.pow(1 - k, 3);
+      c.rotation.y = t * 0.32 * u.dir + u.ph;
+      c.scale.setScalar(1.7 - 0.7 * e); c.position.y = 0.004 + (1 - e) * 0.5;
+    }
+  });
   function decorate(m, p, o = {}) {
     if (m.userData.deco) { m.remove(m.userData.deco); m.userData.deco = null; }
     const face = m.children[1];
@@ -1153,12 +1192,19 @@ const Board = (() => {
       if (!feastTex) feastTex = sealTex('宴', '#8e2418');
       const sp = new THREE.Sprite(new THREE.SpriteMaterial({ map: feastTex, transparent: true, depthWrite: false }));
       sp.scale.set(0.42, 0.42, 1); sp.position.y = PH + 0.55; d.add(sp);
-      const rope = new THREE.Mesh(ropeGeo, ropeMat); rope.scale.setScalar(0.92); rope.position.y = PH * 0.5; d.add(rope);
     }
+    if (o.chain) {
+      // 锁链第一次套上时从上方收紧落下（之后重新装扮不再重播）
+      const t = performance.now() / 1000;
+      if (!chainBorn.has(p.id)) chainBorn.set(p.id, t);
+      const c = new THREE.Mesh(chainRing(), chainMat);
+      c.userData = { born: chainBorn.get(p.id), ph: (p.id * 1.7) % 6.28, dir: p.id % 2 ? 1 : -1 };
+      c.castShadow = !LOWQ(); d.add(c); chains.add(c);
+    } else chainBorn.delete(p.id);
   }
   function decoOpts(game, p) {
-    const fx = game.fx;
-    return { jm: game.jmActive(p), hm: p.s === 'r' && p.t === 'k' && fx.hm > 0, dim: p.s === 'b' && p.t !== 'k' && fx.sm > 0 };
+    const fx = game.fx, hm = p.s === 'r' && p.t === 'k' && fx.hm > 0, sm = p.s === 'b' && p.t !== 'k' && fx.sm > 0;
+    return { jm: game.jmActive(p), hm, dim: sm, chain: hm || sm };
   }
   // 改质感参数后重建全部升级材质，并把棋盘上的子重新装扮一遍
   function skinTune(patch) {

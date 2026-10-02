@@ -20,6 +20,7 @@ SPK = {
     'narr':  dict(sid=52, speed=0.86, ff='rubberband=pitch=0.95:formant=preserved', verb=0.10, rt=1.2, warm=1.5),
     'xiang': dict(sid=49, speed=0.84, ff='asetrate=24000*0.9,aresample=24000,atempo=1.1111', verb=0.18, rt=1.8, warm=3.0, drive=1.6),
     'liu':   dict(sid=50, speed=0.94, ff='rubberband=pitch=0.9:formant=preserved', verb=0.08, rt=1.0, warm=1.0),
+    'zhang': dict(sid=51, speed=0.9, ff='rubberband=pitch=0.97:formant=preserved', verb=0.1, rt=1.1, warm=0.8),  # 张良：清朗、从容
     'elder': dict(sid=50, speed=0.8, ff='asetrate=24000*0.8,aresample=24000,atempo=1.25,tremolo=f=5.5:d=0.1,highpass=f=100', verb=0.08, rt=0.9, warm=0.5),
 }
 

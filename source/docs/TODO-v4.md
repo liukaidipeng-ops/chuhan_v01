@@ -33,10 +33,10 @@
 - [x] B7 单元测试
 
 ## C 兵法界面与演出
-- [ ] C1 升级仪式：名称飘字 / 题签 + 说明浮窗里显示称号
-- [ ] C2 技能不可用原因（马踏营等）
-- [ ] C3 鸿门宴 / 四面楚歌全局特效：被影响方屏幕四周模糊 + 色调；被影响棋子脚下锁链
-- [ ] C4 护驾破鸿门宴台词（配音）：项羽“客何为者？”张良“沛公之参乘樊哙者也！”
+- [x] C1 升级仪式：名称飘字 / 题签 + 说明浮窗里显示称号（BFX.rankPop，四级“登峰”更隆重）
+- [x] C2 技能不可用原因（马踏营等）：renderBar 用 game.skillWhy
+- [x] C3 鸿门宴 / 四面楚歌全局特效：#veil（backdrop-filter 模糊 + 色雾，弱机自动只留色雾）；Board 锁链环（chainRing）
+- [x] C4 护驾破鸿门宴台词（配音 bf_fk_b / bf_fk_zl，新声线 zhang）
 - [ ] C5 士四级模型：不加人数，黄金大盾、金甲
 - [ ] C6 被动走法落点用不同标记
 
@@ -68,6 +68,9 @@
 - [ ] F3 部署并核对
 
 ## 备忘
+- 这台机器只有 2 核，软件渲染很慢（1280×800 高画质约 1 帧/秒）：截图脚本用 frames(n) 等帧，不要按秒等；流程测试用小窗口 + 低画质
+- 行书子集：改 fonts/xk-chars.txt 后跑 python3 tools/mkfont.py（完整字体已放进 fonts/）
+- 演出检查脚本：scratchpad/v4/bfshow.py pc <rank|hm|rescue|sm|horse>；质感：scratchpad/v4/tune.py
 - 配音：python3 voice/gen.py <id…>（Kokoro 模型在 /tmp/claude-0/-home-claude/b11a9c4e-…/scratchpad/kokoro-multi-lang-v1_0）
 - 行书字体原件：scratchpad/fonts/ZhiMangXing-Regular.ttf（子集 fonts/xingkai-subset.woff2 要补字）
 - 测试要用 setsid nohup … & disown 放后台跑

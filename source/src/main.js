@@ -172,7 +172,7 @@
     }
     if (tr === fr) return head + '平' + num(tf);
     const fwd = red ? tr > fr : tr < fr;
-    return head + (fwd ? '進' : '退') + ('nae'.includes(t) ? num(tf) : steps(Math.abs(tr - fr)));
+    return head + (fwd ? '進' : '退') + ('nae'.includes(t) || tf !== ff ? num(tf) : steps(Math.abs(tr - fr)));
   }
   // 揭棋：翻出的子记在着法后，如“炮二進七=馬”
   const noteOf = (board, m, rv) => { const p = board[m.from[1]][m.from[0]]; return notation(board, m) + (rv && p ? '=' + PCH[p.s][rv] : ''); };
@@ -180,7 +180,13 @@
   function bfNote(g, e) {
     const at = e.at || e.from, p = at ? g.at(at[0], at[1]) : null;
     if (e.k === 'up') return p ? '↑' + PCH[p.s][p.t] : '';
-    if (e.k === 'mv') { const q = g.at(e.to[0], e.to[1]); const n = notation(g.board, e); return q && p && q.hp > g.atkOf(p) ? n + '·攻' : n; }
+    if (e.k === 'mv') {
+      const q = g.at(e.to[0], e.to[1]); let n = notation(g.board, e);
+      // 被动走法（神速营 / 回防 / 铁甲禁卫）前面标出技能名
+      const mv = p && p.lv >= 4 ? g.legalFrom(e.from[0], e.from[1]).find(m => m.to[0] === e.to[0] && m.to[1] === e.to[1]) : null;
+      if (mv && mv.via) n = { shensu: '神速', huifang: '回防', jinwei: '禁衛' }[mv.via] + '·' + n;
+      return q && p && q.hp > g.atkOf(p) ? n + '·攻' : n;
+    }
     if (e.k === 'sk' && p) {
       const sk = BF.SKILL_OF(p.t, p.s), cn = BF.SKILL_CN[sk];
       if (e.to && sk !== 'qishe') return cn + '·' + notation(g.board, { from: e.at, to: e.to });
@@ -189,6 +195,7 @@
     }
     if (e.k === 'art') { if (g.turn === 'r') { const d = g.dead.r.find(x => x.id === e.id); return '召回·' + (d ? PCH.r[d.t] : ''); } return '破釜沉舟'; }
     if (e.k === 'ult') return g.turn === 'r' ? '四面楚歌' : '鴻門宴';
+    if (e.k === 'sk' && !p) return '';
     if (e.k === 'pass') return '停著';
     return '';
   }
@@ -306,11 +313,14 @@
     if (game.bf && !game.result) {
       if (started && game.mustPass() && !watching()) { st = `${SIDE_CN[game.turn]}方无子可走 · 请停着`; }
       else if (started && game.freeUsed && !watching()) { st = `${SIDE_CN[game.turn]}方已架拒马 · 请再走一步棋`; }
+      else if (started && game.turn === 'b' && game.fx.sm > 0 && !game.inCheck()) { st += ' · 军心涣散：只能走将或停着'; }
+      else if (started && game.turn === 'b' && game.fx.sm > 0) { st += ' · 只能吃掉将军的子或走将'; }
       st = `兵法 · 第 ${game.round} 回合 · ` + st;
     }
     if (RP) { st = `复盘 · 第 ${RP.k} / ${RP.n} 步` + (RP.k && notes[notes.length - 1] ? ' · ' + notes[notes.length - 1].replace(/=.*/, '') : ''); warn = false; }
     $('statusT').textContent = st; $('status').classList.toggle('warn', warn);
     renderBar();
+    paintVeil();
     $('netDot').classList.toggle('hidden', !(online() || watching()));
     $('netDot').classList.toggle('bad', (online() && Net.peerState !== 'ok') || ((online() || watching()) && !Net.lineOk));
     $('specN').textContent = (online() || watching()) && Spect.count ? `观战 ${Spect.count}` : '';
@@ -977,6 +987,29 @@
 
   // ---------- 兵法：选子、技能栏、兵法 ----------
   const SIDE_ARMY = { r: '汉军', b: '楚军' };
+  BFX.hooks.bubble = (side, text, ms, who) => bubble(side, text, ms, who);
+  // 鸿门宴 / 四面楚歌的全局效果：被困的一方，屏幕四周蒙上一圈模糊的色雾（联机只有被困的人看到；同屏对战轮到被困方时出现）
+  function paintVeil() {
+    let k = '';
+    if (game && game.bf && mode && started && !ended && !game.result && !RP && !watching()) {
+      const fx = game.fx, me = mode === 'local' ? game.turn : mySide;
+      if (fx.hm > 0 && me === 'r') k = 'hm'; else if (fx.sm > 0 && me === 'b') k = 'sm';
+    }
+    const v = $('veil'), cls = k ? 'on ' + k + (Core.quality === 'low' || veilLite ? ' lite' : '') : '';
+    if (v.className !== cls) v.className = cls;
+    // 真模糊（backdrop-filter）在弱机上很吃力：开着的头一秒量一下帧时间，掉帧就退成只有色雾
+    if (k && !veilLite && !veilProbe && Core.quality !== 'low') {
+      veilProbe = true;
+      let n = 0, t0 = performance.now(), worst = 0, last = t0;
+      const tick = () => {
+        const t = performance.now(); worst = Math.max(worst, t - last); last = t; n++;
+        if (t - t0 < 1400) { requestAnimationFrame(tick); return; }
+        if ((t - t0) / n > 42) { veilLite = true; paintVeil(); }
+      };
+      requestAnimationFrame(tick);
+    }
+  }
+  let veilLite = false, veilProbe = false;
   const pname = p => XQ.NAMES[p.s][p.t];
   function exitBfMode(repaint = true) {
     if (bfMode && bfMode.kind === 'pofu' && bfMode.m1) Board.reconcile(game);
@@ -1059,13 +1092,13 @@
     }
     o.art = side === 'r' ? game.reviveOptions() : game.pofuFirst();
     o.ult = game.ultReady();
-    o.pass = game.mustPass();
+    o.pass = game.mayPass(); o.mustPass = game.mustPass();
     return (barCache = o);
   }
   const LVCN = ['', '一', '二', '三', '四'];
   const escTip = t => String(t || '').replace(/&/g, '&amp;').replace(/"/g, '&quot;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
   const ART_DESC = { r: '复活一枚己方被吃的子，放回它的开局位置（一级 1 血）；开局位置被占着就不能复活。可用来挡将。每局一次，占用本次行动，不花军功。', b: '本次行动连走两步普通走子（可吃子、攻击，不能用技能），每步走完己方不能被将军，两步走完不能将军对方。之后 3 回合楚军不能用兵种技能。每局一次，不花军功。' };
-  const ULT_DESC = { r: `花 ${BF.CFG.ultimates.cost} 军功，且楚将周围两格内（以楚将为中心 5×5）至少 ${BF.CFG.ultimates.simian.minPiecesInRadius} 枚汉军棋子。楚军 2 回合军心涣散：除楚将外只能吃子或攻击，不能用任何技能和兵法。每局一次。`, b: `花 ${BF.CFG.ultimates.cost} 军功。汉方 2 回合汉帅不能移动，也不能被士护驾换位。每局一次。` };
+  const ULT_DESC = { r: `花 ${BF.CFG.ultimates.cost} 军功，且楚将周围两格内（以楚将为中心 5×5）至少 ${BF.CFG.ultimates.simian.minPiecesInRadius} 枚汉军棋子。楚军 ${BF.CFG.ultimates.simian.rounds} 回合军心涣散：除楚将外所有楚子都不能移动，只能吃掉正在将军的那枚子；不能用技能和兵法；也不算将军——汉帅被楚子指着也不必应将（可借此解将）。楚军没被将军时可以走将或停着。每局一次。`, b: `花 ${BF.CFG.ultimates.cost} 军功。汉帅 ${BF.CFG.ultimates.hongmen.rounds} 回合不能移动；汉军三级以上的士用「护驾」可以当场破掉（樊哙闯帐）。每局一次。` };
   const artTip = s => `<b>主帅兵法 · ${BF.ART_CN[s]}</b><br>${ART_DESC[s]}`;
   const ultTip = s => `<b>终极兵法 · ${BF.ULT_CN[s]}</b><br>${ULT_DESC[s]}`;
   // 某一级的能力（血、攻、技能）
@@ -1074,7 +1107,7 @@
     if (b.hp > a.hp) out.push(`生命 ${b.hp}`);
     if (b.atk > a.atk) out.push(`攻击 ${b.atk}`);
     for (const k of b.skills) if (!a.skills.includes(k)) out.push(`${BF.CFG.skills[k].passive ? '被动' : '技能'}「${BF.SKILL_CN[k]}」`);
-    if (lv === 2 && !out.length) out.push('换白银棋身');
+    if (lv === 2 && !out.length) out.push('换乌银棋身');
     return out.join('、') || '换装';
   }
   function skillTip(p, sk) {
@@ -1084,23 +1117,23 @@
   }
   function upTip(p, cost, base) {
     const nx = p.lv + 1;
-    return `<b>升${LVCN[nx]}级</b>（${['', '木', '白银', '黄金', '翡翠金镶玉'][nx]}）：${lvGain(p, nx)}，升级回满血。<br>花 ${cost} 军功` + (base > cost ? `（原价 ${base}，用掉 ${p.xp} 片甲省 ${base - cost}）` : '') + `。<br><small>每击杀一个单位镶一片甲，下次升级少花 1 功。</small>`;
+    return `<b>升${LVCN[nx]}级 · 晋升「${game.rankName(p, nx)}」</b>（${['', '木', '乌银', '錾金', '白玉金缕'][nx]}棋身）：${lvGain(p, nx)}，升级回满血。<br>花 ${cost} 军功` + (base > cost ? `（原价 ${base}，用掉 ${p.xp} 片甲省 ${base - cost}）` : '') + `。<br><small>每击杀一个单位镶一片甲，下次升级少花 1 功。</small>`;
   }
   // 棋子说明（悬停 / 长按棋子）
   function pieceTip(p) {
     const nm = `${SIDE_ARMY[p.s]}${pname(p)}`;
-    if (p.t === 'k') return `<b>${nm}</b><br>主帅没有生命值，不能升级，免疫技能伤害；不能被吃，只能被将死。` + (p.s === 'r' && game.fx.hm ? `<br><em>鸿门宴：还有 ${game.fx.hm} 回合不能移动</em>` : '');
+    if (p.t === 'k') return `<b>${game.rankName(p)}</b>（${nm}）<br>主帅没有生命值，不能升级，免疫技能伤害；不能被吃，只能被将死。` + (p.s === 'r' && game.fx.hm ? `<br><em>鸿门宴：还有 ${game.fx.hm} 回合不能移动；三级以上的士护驾可破</em>` : '');
     const info = BF.levelInfo(p.t, p.s, p.lv), mx = info.maxLv;
-    let h = `<b>${nm} · ${LVCN[p.lv]}级</b><br>生命 ${p.hp}/${info.hp} · 攻击 ${game.atkOf(p)}<br>击杀 ${p.kills || 0} · 甲片 ${p.xp || 0}`;
+    let h = `<b>${game.rankName(p)}</b>（${nm} · ${LVCN[p.lv]}级）<br>生命 ${p.hp}/${info.hp} · 攻击 ${game.atkOf(p)}<br>击杀 ${p.kills || 0} · 甲片 ${p.xp || 0}`;
     for (const sk of game.skillsOf(p)) {
       const c = BF.CFG.skills[sk], lv = c.level || BF.CFG.skillLevel, cd = game.cdLeft(p, sk);
       const st = p.lv < lv ? `（${LVCN[lv]}级解锁）` : cd ? `（冷却还剩 ${cd} 回合）` : c.passive ? '（被动）' : '（可用）';
       h += `<br><br><b>${c.passive ? '被动' : '技能'}「${BF.SKILL_CN[sk]}」</b>${st}<br>${BF.SKILL_DESC[sk]}`;
     }
-    if (p.lv < mx) { const cost = game.upgradeCost(p), base = game.baseCost(p); h += `<br><br><b>下一级</b>：${lvGain(p, p.lv + 1)}（${cost} 功${base > cost ? `，甲片已省 ${base - cost}` : ''}）`; }
+    if (p.lv < mx) { const cost = game.upgradeCost(p), base = game.baseCost(p); h += `<br><br><b>下一级「${game.rankName(p, p.lv + 1)}」</b>：${lvGain(p, p.lv + 1)}（${cost} 功${base > cost ? `，甲片已省 ${base - cost}` : ''}）`; }
     else h += '<br><br>已到最高级';
     if (game.jmActive(p)) h += '<br><em>拒马中：敌子来吃或攻击它先挨 1 点伤害</em>';
-    if (p.s === 'b' && game.fx.sm) h += `<br><em>军心涣散：还有 ${game.fx.sm} 回合</em>`;
+    if (p.s === 'b' && game.fx.sm) h += `<br><em>军心涣散：还有 ${game.fx.sm} 回合不能移动，只能吃掉正在将军的子</em>`;
     return h;
   }
   // 本回合技能可用的子（有目标、不在冷却）
@@ -1170,7 +1203,7 @@
       // 按钮不可用时不用 disabled（点了没反应像坏了），改成灰色 + 点一下说明原因；所有按钮悬停 / 长按看说明
       const btn = (cls, act, ok, label, small, why, extra = '', tip = '') => `<button class="sk ${cls}${ok ? '' : ' off'}" data-a="${act}" ${ok ? '' : `data-why="${why}"`} data-tip="${escTip(tip || why)}">${label}<small>${small}</small>${extra}</button>`;
       if (a.p) {
-        hint = `${SIDE_ARMY[a.p.s]}${pname(a.p)} · ${LVCN[a.p.lv]}级 · ${a.p.hp} 血` + (game.atkOf(a.p) > 1 ? ` · 攻 ${game.atkOf(a.p)}` : '') + (a.p.xp ? ` · 甲 ${a.p.xp}` : '');
+        hint = (a.p.t === 'k' ? game.rankName(a.p) : `${game.rankName(a.p)} · ${LVCN[a.p.lv]}级${pname(a.p)} · ${a.p.hp} 血`) + (game.atkOf(a.p) > 1 ? ` · 攻 ${game.atkOf(a.p)}` : '') + (a.p.xp ? ` · 甲 ${a.p.xp}` : '');
         if (a.p.t !== 'k') {
           if (a.cost != null) {
             const m = game.merit[a.p.s], save = a.base - a.cost;
@@ -1179,19 +1212,16 @@
           for (const k of a.skills) {
             const cn = BF.SKILL_CN[k.sk], skTip = skillTip(a.p, k.sk), C = BF.CFG.skills[k.sk];
             if (!k.have) { B.push(btn('', 'sk', false, cn, `${LVCN[k.lv]}级解锁`, `${cn}：升到${LVCN[k.lv]}级才解锁`, '', skTip)); continue; }
+            // 不能用的原因由规则引擎给出（冷却、封锁、踏营须过河、没有目标……）
+            const whyE = game.skillWhy(sel[0], sel[1], k.sk);
+            const tag = w => (/冷却/.test(w) ? '冷却' : /敌方半场/.test(w) ? '须先过河' : /四面楚歌/.test(w) ? '涣散中' : /破釜/.test(w) ? '封锁中' : /拒马，/.test(w) ? '已用拒马' : '无目标');
             if (k.passive) {
-              const small = k.cd ? `冷却 ${k.cd}` : C.move ? '被动·直接走' : '被动';
-              B.push(`<button class="sk pas off" data-a="sk" data-sk="${k.sk}" data-why="${escTip(cn + '是被动技能，' + (C.move ? '冷却好了就能直接走，不用点' : '走子落下时自动发动'))}" data-tip="${escTip(skTip)}">${cn}<small>${small}</small></button>`);
+              const small = whyE ? (k.cd ? `冷却 ${k.cd}` : tag(whyE)) : C.move ? '被动·直接走' : '被动';
+              B.push(`<button class="sk pas off" data-a="sk" data-sk="${k.sk}" data-why="${escTip(whyE ? cn + '：' + whyE : cn + '是被动技能，' + (C.move ? '冷却好了就能直接走，不用点（落点带金圈）' : '走子落下时自动发动'))}" data-tip="${escTip(skTip + (whyE ? '<br><em>' + whyE + '</em>' : ''))}">${cn}<small>${small}</small></button>`);
               continue;
             }
             const cdTot = C.cooldown || 1, pct = k.cd ? Math.round(k.cd / cdTot * 100) : 0;
-            const fx = game.fx, b = a.p.s === 'b';
-            let small = C.free ? '不占行动' : '可用', why = '';
-            if (game.freeUsed) { small = '已用拒马'; why = '本回合已经用过拒马，现在要再走一步棋'; }
-            else if (b && fx.sm > 0) { small = '涣散中'; why = `四面楚歌：楚军军心涣散，还有 ${fx.sm} 回合不能用技能`; }
-            else if (b && fx.pf > 0) { small = '封锁中'; why = `破釜沉舟之后，楚军还有 ${fx.pf} 回合不能用兵种技能`; }
-            else if (k.cd) { small = '冷却'; why = `${cn}冷却中，还要 ${k.cd} 回合`; }
-            else if (!k.targets.length) { small = '无目标'; why = `${cn}现在没有可用的目标`; }
+            const why = whyE ? cn + '：' + whyE : '', small = whyE ? tag(whyE) : C.free ? '不占行动' : '可用';
             B.push(btn(why ? '' : 'ready', 'sk" data-sk="' + k.sk, !why, cn, small, why, k.cd ? `<span class="cd" style="--p:${pct}%"></span><span class="cdn">${k.cd}</span>` : '', skTip + (why ? '<br><em>' + why + '</em>' : '')));
           }
         }
@@ -1203,7 +1233,7 @@
         B.push(btn('art', 'art', !aw, BF.ART_CN[side], aw ? aw[0] : '每局一次', aw ? aw[1] : '', '', artTip(side) + (aw ? '<br><em>' + aw[1] + '</em>' : '')));
         B.push(btn('ult', 'ult', !uw, BF.ULT_CN[side], uw ? uw[0] : BF.CFG.ultimates.cost + ' 功', uw ? uw[1] : '', '', ultTip(side) + (uw ? '<br><em>' + uw[1] + '</em>' : '')));
       }
-      if (a.pass) B.push(`<button class="sk" data-a="pass">停 着<small>无子可走</small></button>`);
+      if (a.pass) B.push(`<button class="sk${a.mustPass ? ' ready' : ''}" data-a="pass" data-tip="${escTip(a.mustPass ? '无子可走，只能停着（这一回合不行动）' : '四面楚歌期间楚军没被将军时可以停着：这一回合不行动')}">停 着<small>${a.mustPass ? '无子可走' : '按兵不动'}</small></button>`);
       if (!a.p) hint = game.freeUsed ? '已架拒马 · 请再走一步棋' : `${SIDE_ARMY[side]}行动 · 军功 ${game.merit[side]}`;
       if (isCompact() && !game.freeUsed) hint = '';
     }
@@ -1231,8 +1261,8 @@
       if (!k) return;
       const cn = BF.SKILL_CN[skn];
       if (k.targets.length === 1 && !k.targets[0].to) { doBF(k.targets[0]); return; }
-      bfMode = { kind: 'sk', targets: k.targets, hint: `${cn}：点选目标（${{ chongzhen: '点前方第一枚子当跳板', taying: '无视马腿', pili: '炮击敌子', qishe: '斜线两格内', shensu: '八方向 1～2 格空位' }[skn] || ''}）` };
-      Board.showMoves(sel, k.targets.map(t => ({ from: t.at, to: t.to, atk: skn !== 'shensu' })), true);
+      bfMode = { kind: 'sk', targets: k.targets, hint: `${cn}：点选目标（${{ chongzhen: '点前方第一枚子当跳板', taying: '无视马腿', pili: '炮击敌子', qishe: '斜线两格内' }[skn] || ''}）` };
+      Board.showMoves(sel, k.targets.map(t => ({ from: t.at, to: t.to, atk: true })), true);
       renderBar(); return;
     }
     if (a === 'art') {
@@ -1249,7 +1279,8 @@
     if (a === 'ult') {
       const s = game.turn;
       if (s === 'r') simianZone();
-      const ok = await ask(BF.ULT_CN[s], s === 'b' ? '花 20 军功：汉方接下来 2 回合，汉帅不能移动，也不能被护驾换位。' : '花 20 军功：楚方接下来 2 回合军心涣散——除楚将外只能吃子或攻击，不能用任何技能。', 0, '发 动', '再想想');
+      const U = BF.CFG.ultimates;
+      const ok = await ask(BF.ULT_CN[s], s === 'b' ? `花 ${U.cost} 军功：接下来 ${U.hongmen.rounds} 回合汉帅不能移动（汉军三级以上的士护驾可破）。` : `花 ${U.cost} 军功：接下来 ${U.simian.rounds} 回合楚军军心涣散——除楚将外都不能移动，只能吃掉正在将军的子；不能用技能，也不算将军。`, 0, '发 动', '再想想');
       if (ok && canAct()) doBF({ k: 'ult' });
       return;
     }
@@ -1315,6 +1346,7 @@
       if (!busy && game.turn === mySide) { turnStartAt = performance.now(); slowIdx = 0; }
       updateHud();
       if (game.mustPass() && canAct() && (mode === 'local' || game.turn === mySide)) toast(`${SIDE_CN[game.turn]}方无子可走，请点「停着」`, 2600);
+      else if (game.mayPass() && game.fx.sm > 0 && canAct() && (mode === 'local' || game.turn === mySide)) toast('四面楚歌：楚军只能走将，或点「停着」', 2800);
       if (info.result && !busy) finishGame(info.result);
     });
   }
@@ -1326,7 +1358,7 @@
     const nm = (side, t) => SIDE_ARMY[side] + XQ.NAMES[side][t];
     const kills = ev.filter(x => x.e === 'kill'), hits = ev.filter(x => x.e === 'hit');
     let line = null;
-    if (info.k === 'up') line = `${nm(s, info.t)}升为${LVCN[info.lv]}级` + (info.usedXp ? `（用掉 ${info.usedXp} 片甲）` : '');
+    if (info.k === 'up') line = `${nm(s, info.t)}晋升「${BF.rankName(s, info.t, info.lv)}」（${LVCN[info.lv]}级）` + (info.usedXp ? `，用掉 ${info.usedXp} 片甲` : '');
     else if (info.k === 'mv') {
       const P0 = at(info.from), T0 = at(info.to);
       const died = kills.find(k => P0 && k.id === P0.id);
@@ -1338,12 +1370,13 @@
       const P0 = at(info.from), sk = info.extra.sk, cn = BF.SKILL_CN[sk];
       const foe = kills.filter(k => k.s === o), hurt = hits.filter(h => true);
       if (sk === 'juma') line = `${nm(s, P0.t)}立起拒马`;
-      else if (sk === 'hujia') line = `${nm(s, P0.t)}护驾，与${s === 'r' ? '汉王' : '霸王'}换位`;
+      else if (sk === 'hujia') line = info.extra.rescue ? '樊哙闯帐：汉士护驾，鸿门宴破' : `${nm(s, P0.t)}护驾，与${s === 'r' ? '汉王' : '霸王'}换位`;
       else if (sk === 'chongzhen') line = foe.length >= 2 ? `${SIDE_ARMY[s]}车冲阵，连破${SIDE_ARMY[o]}两阵` : foe.length ? `${SIDE_ARMY[s]}车冲阵，击破${nm(o, foe[0].t)}` : `${SIDE_ARMY[s]}车冲阵受阻`;
       else line = `${nm(s, P0.t)}${cn}` + (foe.length ? `，击杀${foe.map(k => XQ.NAMES[o][k.t]).join('、')}` : '') + (hurt.length ? `，${hurt.length} 子负伤` : '');
     } else if (info.k === 'art') line = s === 'r' ? `召回良将：${nm('r', (ev.find(x => x.e === 'revive') || {}).t || 'p')}重回阵前` : `项羽破釜沉舟，楚军连进两步` + (kills.length ? `，击杀${kills.filter(k => k.s === o).map(k => XQ.NAMES[o][k.t]).join('、')}` : '');
-    else if (info.k === 'ult') line = s === 'b' ? '鸿门宴：汉王两回合不得移动' : '四面楚歌：楚军军心涣散';
+    else if (info.k === 'ult') line = s === 'b' ? `鸿门宴：汉王 ${BF.CFG.ultimates.hongmen.rounds} 回合不得移动` : '四面楚歌：楚军军心涣散，动弹不得';
     else if (info.k === 'pass') line = `${SIDE_ARMY[s]}按兵不动`;
+    if (info.k === 'mv' && info.extra && info.extra.via === 'shensu') line = `${nm(s, 'p')}神速营疾行` + (info.check ? '，将军！' : '');
     if (!line) return;
     const L = $('bfReport'); L.classList.remove('hidden');
     const li = document.createElement('li'); li.className = s; li.textContent = line; L.appendChild(li);
@@ -1482,10 +1515,11 @@
 
   // ---------- 喊话 ----------
   const bubT = {};
-  function bubble(side, text, ms = 3500) {
+  // who：说话的不是主帅本人时（比如张良）写上名字
+  function bubble(side, text, ms = 3500, who) {
     const mine = side === bottomSide();
     const el = mine ? $('bubMe') : $('bubOpp');
-    el.querySelector('b').textContent = `${SIDE_CN[side]} · ${NAME[side]}`;
+    el.querySelector('b').textContent = `${SIDE_CN[side]} · ${who || NAME[side]}`;
     el.querySelector('span').textContent = text;
     el.classList.add('on');
     clearTimeout(bubT[mine]); bubT[mine] = setTimeout(() => el.classList.remove('on'), ms);

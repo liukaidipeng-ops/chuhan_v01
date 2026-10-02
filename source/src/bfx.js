@@ -115,6 +115,20 @@ const BFX = (() => {
     d.textContent = text; d.style.left = (p.x + 1) / 2 * innerWidth + 'px'; d.style.top = (1 - p.y) / 2 * innerHeight + 'px';
     document.body.appendChild(d); setTimeout(() => d.remove(), 1700);
   }
+  // 晋升题签：升级时在棋子上方亮出新的称号（四级更隆重）
+  function rankPop(at, name, side, lv, max) {
+    const p = Board.pos(at[0], at[1]).setY(TOP + 0.75).project(Core.camera);
+    if (p.z > 1 || !name) return;
+    const d = document.createElement('div'); d.className = 'rankpop ' + (side === 'r' ? 'r' : 'b') + (lv >= max ? ' top' : '');
+    d.innerHTML = `<small>${lv >= max ? '登峰' : '晋升'}</small><b>${name}</b>`;
+    d.style.left = Math.min(innerWidth - 90, Math.max(90, (p.x + 1) / 2 * innerWidth)) + 'px'; d.style.top = Math.max(70, (1 - p.y) / 2 * innerHeight) + 'px';
+    document.body.appendChild(d); setTimeout(() => d.remove(), 2600);
+  }
+  // 主流程挂进来的回调（气泡台词等）
+  const hooks = { bubble: null };
+  const speak = (side, text, ms, who) => { try { hooks.bubble && hooks.bubble(side, text, ms, who); } catch (e) { } };
+  // 念一句台词：有配音等配音念完（最长 max 秒），没有配音也至少停 min 秒让人看清气泡
+  const line = (id, min, max) => Promise.all([Promise.race([say(id), sleep(max)]), sleep(min)]);
   function say(id) { try { if (Voice.has(id)) return Voice.play(id); } catch (e) { } return Promise.resolve(); }
   function ring(at, color = 0x5a4a38, size = 2.4) { Fx.ring(Board.pos(at[0], at[1]).setY(TOP + 0.02), size, 0.7, color, 0.8); }
   // 屏幕正中的兵法题字（复用开局的行楷横幅）
@@ -147,13 +161,20 @@ const BFX = (() => {
       if (info.k === 'up') await levelUp(info);
       else if (info.k === 'mv') {
         if (info.extra && info.extra.via) labelPop(info.from, BF.SKILL_CN[info.extra.via], side);
-        await strike(before, info.from, info.to, ev.filter(notTrample), side, { check: info.check, result: info.result, streak: info.streak });
-        await trampleFx(ev, side);
+        if (info.extra && info.extra.via === 'shensu') {
+          // 被动「神速营」：疾奔越子，落到空位（不走普通的行军演出）
+          await dash(before[info.from[1]][info.from[0]], info.from, info.to, side);
+          if (info.result) Fx.checkStamp(XQ.other(side), info.result.reason === 'checkmate' ? '殺' : '困');
+          else if (info.check) Fx.checkStamp(XQ.other(side));
+        } else {
+          await strike(before, info.from, info.to, ev.filter(notTrample), side, { check: info.check, result: info.result, streak: info.streak });
+          await trampleFx(ev, side);
+        }
       }
       else if (info.k === 'sk') await skill(info, before);
       else if (info.k === 'art') await art(info, before);
       else if (info.k === 'ult') await ult(info);
-      else if (info.k === 'pass') { title('停 著', '无子可走，按兵不动', 1600); await sleep(1.2); }
+      else if (info.k === 'pass') { title('停着', game && game.fx && game.fx.sm > 0 && side === 'b' ? '军心涣散，按兵不动' : '无子可走，按兵不动', 1600); await sleep(1.2); }
       gainPops(ev);
     } catch (e) { console.error('兵法演出出错', e); }
     Core.Time.scale = 1;
@@ -168,12 +189,32 @@ const BFX = (() => {
 
   async function levelUp(info) {
     const m = Board.pieces.get(info.id); if (!m) return;
-    const c = m.position.clone();
-    Sfx.B.bell(0, 880, 0.08); Sfx.B.bell(0.12, 1175, 0.06); Sfx.B.gong(0.05, 0.35); Sfx.B.plate(0.1, 0.3);
-    Fx.ring(c.clone().setY(TOP + 0.02), 1.6, 0.8, 0xc9a045, 0.9);
-    for (let i = 0; i < 18; i++) Fx.spawn({ pos: c.clone().add(new V3(R(-0.3, 0.3), 0.1, R(-0.3, 0.3))), vel: new V3(R(-0.2, 0.2), R(1.2, 2.2), R(-0.2, 0.2)), tex: Core.Tex.spark, add: true, color: 0xffd27a, size: 0.12, size2: 0.03, life: R(0.6, 1), drag: 1.2 });
+    const c = m.position.clone(), max = BF.levelInfo(info.t, info.side, 1).maxLv, top = info.lv >= max;
+    Sfx.B.bell(0, 880, 0.08); Sfx.B.bell(0.12, 1175, 0.06); Sfx.B.gong(0.05, top ? 0.6 : 0.35); Sfx.B.plate(0.1, 0.3);
+    if (top) { Sfx.B.taiko(0.15, 0.7); Sfx.B.taiko(0.38, 0.8); Cam.shake(0.08); }
+    Fx.ring(c.clone().setY(TOP + 0.02), top ? 2.3 : 1.6, 0.8, 0xc9a045, 0.9);
+    if (top) Fx.ring(c.clone().setY(TOP + 0.03), 3.2, 1.1, 0xffe2a0, 0.6);
+    for (let i = 0; i < (top ? 34 : 18); i++) Fx.spawn({ pos: c.clone().add(new V3(R(-0.3, 0.3), 0.1, R(-0.3, 0.3))), vel: new V3(R(-0.2, 0.2), R(1.2, top ? 3 : 2.2), R(-0.2, 0.2)), tex: Core.Tex.spark, add: true, color: 0xffd27a, size: 0.12, size2: 0.03, life: R(0.6, top ? 1.4 : 1), drag: 1.2 });
+    // 称号题签要等棋子换好新装（落回棋盘）再亮出来
+    setTimeout(() => rankPop(info.at, BF.rankName(info.side, info.t, info.lv), info.side, info.lv, max), 200);
     await tween(0.3, k => { m.position.y = TOP + Math.sin(k * Math.PI) * 0.35; m.rotation.y = (Board.viewSide === 'b' ? Math.PI : 0) + k * Math.PI * 2; }, ease.inOut);
     m.position.y = TOP; m.rotation.y = Board.viewSide === 'b' ? Math.PI : 0;
+  }
+  // 神速营：疾奔如风，越过中间的子落到空位
+  async function dash(P0, at, to, side) {
+    const m = P0 && Board.pieces.get(P0.id), A = Board.pos(at[0], at[1]), B = Board.pos(to[0], to[1]);
+    Sfx.B.whoosh(0, 0.5, 0.6); Sfx.B.shout(0.05, 4, 0.06, 0.4);
+    P.dust(A, 10, null, 0.3);
+    if (m) {
+      await tween(0.45, k => {
+        m.position.lerpVectors(A, B, k); m.position.y = TOP + Math.sin(k * Math.PI) * 0.55;
+        if (Math.random() < 0.7) Fx.spawn({ pos: m.position.clone().add(new V3(R(-0.2, 0.2), 0.1, R(-0.2, 0.2))), vel: new V3(0, 0.3, 0), tex: Core.Tex.puff, color: side === 'r' ? 0xd8b070 : 0x9a9488, size: 0.25, size2: 0.6, life: 0.5, op: 0.45, drag: 2 });
+      }, ease.inOut);
+      m.position.copy(B);
+    }
+    P.dust(B, 12, null, 0.35); Sfx.B.thud(0, 0.5); Cam.shake(0.12);
+    Board.showLast(at, to);
+    await sleep(0.2);
   }
 
   async function skill(info, before) {
@@ -227,22 +268,6 @@ const BFX = (() => {
       if (m) { m.position.copy(res === 'hit' ? A : L); m.position.y = TOP; }
       if (ev.some(e => e.e === 'kill' && !e.friendly && e.s !== side) && typeof Camp !== 'undefined') Camp.onCapture(side, info.streak || 1);
       await sleep(0.25);
-    } else if (sk === 'shensu') {
-      // 神速营：疾奔如风，越过中间的子落到空位
-      const m = Board.pieces.get(P0.id), A = Board.pos(at[0], at[1]), B = Board.pos(to[0], to[1]);
-      shotAt(to, 3.2, 2.2, 0.4);
-      Sfx.B.whoosh(0, 0.5, 0.6); Sfx.B.shout(0.05, 4, 0.06, 0.4);
-      P.dust(A, 10, null, 0.3);
-      if (m) {
-        const ghosts = [];
-        await tween(0.45, k => {
-          m.position.lerpVectors(A, B, k); m.position.y = TOP + Math.sin(k * Math.PI) * 0.55;
-          if (Math.random() < 0.7) Fx.spawn({ pos: m.position.clone().add(new V3(R(-0.2, 0.2), 0.1, R(-0.2, 0.2))), vel: new V3(0, 0.3, 0), tex: Core.Tex.puff, color: side === 'r' ? 0xd8b070 : 0x9a9488, size: 0.25, size2: 0.6, life: 0.5, op: 0.45, drag: 2 });
-        }, ease.inOut);
-        m.position.copy(B);
-      }
-      P.dust(B, 12, null, 0.35); Sfx.B.thud(0, 0.5); Cam.shake(0.12);
-      await sleep(0.2);
     } else if (sk === 'taying') {
       const m = Board.pieces.get(P0.id);
       Sfx.B.neigh(0, 0.14); Sfx.B.whoosh(0.1, 0.3, 0.4);
@@ -297,6 +322,18 @@ const BFX = (() => {
         if (mb) { mb.position.lerpVectors(B, A, k); mb.position.y = TOP + Math.sin(k * Math.PI) * 0.45; }
       }, ease.inOut);
       Sfx.place(); ring(sw.pb, 0xc9a045, 1.6);
+      if (info.extra && info.extra.rescue) {
+        // 樊哙闯帐：护驾破了鸿门宴——锁链崩断，项羽喝问，张良作答
+        title('樊哙闯帐', '汉士护驾 · 鸿门宴破', 3000);
+        Sfx.B.gong(0.05, 0.9); Sfx.B.clang(0, 0.5); Sfx.B.clang(0.12, 0.4); Sfx.B.plate(0.2, 0.5); Cam.shake(0.14);
+        const kp = A.clone().setY(TOP + 0.15);
+        P.sparks(kp, 26, 1.2); P.ink(kp, 12, 0.5, 0.35); shatter(sw.pa, 3);
+        Fx.ring(kp.clone().setY(TOP + 0.02), 2.6, 0.9, 0xc9a045, 0.9);
+        await sleep(0.9);
+        speak('b', '客何为者？', 3000); await line('bf_fk_b', 1.7, 2.6); await sleep(0.25);
+        speak('r', '沛公之参乘樊哙者也！', 4200, '张良'); await line('bf_fk_zl', 2.4, 3.6);
+        await sleep(0.3);
+      }
     }
   }
 
@@ -304,7 +341,7 @@ const BFX = (() => {
     const side = info.side, ev = info.ev;
     if (side === 'r') {
       const rv = ev.find(e => e.e === 'revive');
-      title('召回良將', '汉王复得良将 · ' + XQ.NAMES.r[rv.t] + '重回阵前', 2600);
+      title('召回良将', '汉王复得良将 · ' + XQ.NAMES.r[rv.t] + '重回阵前', 2600);
       Sfx.B.gong(0, 0.8); Sfx.B.hooves(0.2, 1.4, 1, 0.3); Sfx.B.neigh(1.1, 0.12);
       const vp = say('bf_art_r');
       shotAt(rv.at, 3.0, 2.0, 0.9);
@@ -339,29 +376,40 @@ const BFX = (() => {
     }
   }
 
+  // 锁链落下：被困的棋子脚下一圈火星 + 铁链声
+  function bindFx(list) {
+    list.forEach((m, i) => setTimeout(() => {
+      const c = m.position.clone().setY(TOP + 0.06);
+      P.sparks(c, 6, 0.6); Fx.ring(c.clone().setY(TOP + 0.02), 1.5, 0.5, 0x4a4e55, 0.7);
+      if (i < 5) { Sfx.B.clang(0, 0.22); Sfx.B.plate(0.04, 0.2); try { Sfx.smp('chain', { t: 0, vol: 0.28 }); } catch (e) { } }
+    }, 90 * i));
+  }
   async function ult(info) {
     if (info.side === 'b') {
-      title('鴻門宴', '汉王身陷宴中 · 两回合不得移动', 3000);
+      title('鸿门宴', `汉王身陷宴中 · ${BF.CFG.ultimates.hongmen.rounds} 回合不得移动 · 唯士护驾可破`, 3200);
       Sfx.B.gong(0, 1); Sfx.guqin && Sfx.guqin(0.4); Sfx.B.taiko(0.2, 0.6); Sfx.B.taiko(0.5, 0.6);
       const vp = say('bf_ult_b');
       const k = [...Board.pieces.values()].find(m => m.userData.t === 'k' && m.userData.s === 'r');
       if (k) {
         Fx.ring(k.position.clone().setY(TOP + 0.02), 2.2, 1, 0x8e2418, 0.9); P.ink(k.position.clone().setY(TOP + 0.3), 14, 0.5, 0.35);
         if (cine()) { document.body.classList.add('cine'); const hd = Cam.homeDir(); Cam.to(k.position.clone().addScaledVector(hd, 2.8).add(new V3(0.8, 1.8, 0)), k.position.clone().add(new V3(0, 0.4, 0)), 1.0); }
+        setTimeout(() => bindFx([k]), 900);
       }
       await Promise.race([vp, sleep(3.2)]); await sleep(0.4);
     } else {
-      title('四面楚歌', '楚军军心涣散 · 两回合只能厮杀', 3200);
+      title('四面楚歌', `楚军军心涣散 · ${BF.CFG.ultimates.simian.rounds} 回合动弹不得`, 3200);
       Sfx.B.gong(0, 0.8);
       try { Sfx.Music.duck && Sfx.Music.duck(true); Sfx.chuSong && Sfx.chuSong(0.3); } catch (e) { }
       if (typeof Camp !== 'undefined') Camp.dismay('b');
       const k = [...Board.pieces.values()].find(m => m.userData.t === 'k' && m.userData.s === 'b');
       if (k && cine()) { document.body.classList.add('cine'); const hd = Cam.homeDir(); Cam.to(k.position.clone().addScaledVector(hd, -3.4).add(new V3(0, 2.6, 0)), k.position.clone().add(new V3(0, 0.3, 0)), 1.2); }
-      for (const m of Board.pieces.values()) if (m.userData.s === 'b' && m.userData.t !== 'k') P.ink(m.position.clone().setY(TOP + 0.25), 3, 0.3, 0.25, 0.5);
+      const bound = [...Board.pieces.values()].filter(m => m.userData.s === 'b' && m.userData.t !== 'k');
+      for (const m of bound) P.ink(m.position.clone().setY(TOP + 0.25), 3, 0.3, 0.25, 0.5);
+      setTimeout(() => bindFx(bound), 1100);
       await say('bf_ult_r');
       await sleep(1.0);
       try { Sfx.Music.duck && Sfx.Music.duck(false); } catch (e) { }
     }
   }
-  return { play, simBoard, shatter, title };
+  return { play, simBoard, shatter, title, hooks, rankPop };
 })();
