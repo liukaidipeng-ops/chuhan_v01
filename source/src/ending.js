@@ -203,7 +203,7 @@ const Ending = (() => {
     // 楚营：中军大帐 + 行军帐 + 栅栏
     const C = Models.C;
     const lord = [];
-    lord.push(Models.P(Models.G.box(6, 2.6, 4.4), 0x2e2b2c, 0, 1.3, 0), Models.P(Models.G.box(6.1, 0.3, 4.5), 0x7a2418, 0, 2.5, 0), Models.P(new THREE.ConeGeometry(4.4, 2.2, 4), 0x1a1818, 0, 3.8, 0, 0, Math.PI / 4, 0, 1, 1, 0.75), Models.P(Models.G.box(1.8, 2.0, 0.1), 0x0e0d0c, 0, 1.0, 2.22), Models.P(Models.G.box(7, 0.2, 5.4), 0x4a3e30, 0, 0.1, 0.3));
+    lord.push(Models.P(Models.G.box(6, 2.6, 4.4), 0x2e2b2c, 0, 1.3, 0), Models.P(Models.G.box(6.1, 0.3, 4.5), 0x7a2418, 0, 2.5, 0), Models.P(new THREE.ConeGeometry(4.4, 2.2, 4).rotateY(Math.PI / 4), 0x1a1818, 0, 3.8, 0, 0, 0, 0, 1.06, 1, 0.8), Models.P(Models.G.box(1.8, 2.0, 0.1), 0x0e0d0c, 0, 1.0, 2.22), Models.P(Models.G.box(7, 0.2, 5.4), 0x4a3e30, 0, 0.1, 0.3));
     const lt = add(Models.inkedMerged(lord)); lt.position.set(O.x, 0, O.z - 5.5);
     const doorGlow = add(new THREE.Sprite(new THREE.SpriteMaterial({ map: Tex.spark, color: 0xff9a40, blending: THREE.AdditiveBlending, transparent: true, opacity: 0.55, depthWrite: false })));
     doorGlow.position.set(O.x, 1.1, O.z - 3.2); doorGlow.scale.set(3, 3.4, 1);

@@ -85,6 +85,7 @@ const BFX = (() => {
     const shells = [];
     cells.forEach((at, ci) => { const big = ci === 0; for (let j = 0; j < (big ? 3 : 2); j++) shells.push({ at, big: big && j === 2, delay: j * 0.09 + R(0, 0.06) }); });
     Sfx.B.boom(0, 0.7); Sfx.B.boom(0.06, 0.5); Sfx.B.boom(0.12, 0.6);
+    Fx.glow(A.clone().add(new V3(0, 0.3, 0)), 2, 0.35, 0.45);
     for (let i = 0; i < 3; i++) { Fx.flash(A, 60, 0.3, 0.2); P.fire(A.clone().add(new V3(R(-0.15, 0.15), 0.1, R(-0.15, 0.15))), 10, 0.5); }
     P.smoke(A, 14, 0.9);
     const hit = new Set();
@@ -100,6 +101,7 @@ const BFX = (() => {
       scene.remove(ball); ball.geometry.dispose();
       const key = sh.at.join(), first = !hit.has(key); hit.add(key);
       const big = sh.big;
+      Fx.glow(tp.clone().add(new V3(0, 0.25, 0)), big ? 3 : 1.6, big ? 0.5 : 0.35, big ? 0.45 : 0.3);
       Fx.flash(tp, big ? 120 : 55, big ? 0.85 : 0.45, big ? 0.45 : 0); P.fire(tp.clone().add(new V3(0, 0.1, 0)), big ? 36 : 16, big ? 1 : 0.65); P.smoke(tp, big ? 12 : 5, 0.8); P.sparks(tp, big ? 22 : 9, 1.1);
       if (first) { const c = Board.pos(sh.at[0], sh.at[1]).setY(TOP + 0.05); Fx.ring(c, 1.9, 0.7, 0x5a4a38, 0.8); Fx.Marks.scorch(c, R(1.0, 1.3)); Fx.addSmoke(c, 0.5); }
       if (big) { Fx.ring(tp, 3.2, 0.8, 0x5a4a38, 0.8); Fx.Marks.scorch(tp, 1.4); }

@@ -18,6 +18,15 @@ const Squads = (() => {
   // ======================================================================
   //  基类
   // ======================================================================
+  // 扬尘：每走过一小段就在身后扬一团沙（按走过的距离出，不跟帧率走）；水面上不扬尘
+  function kick(sq, s, back, step, n) {
+    const p = sq.anchor;
+    if (!sq._kick) { sq._kick = p.clone(); return; }
+    if (p.distanceTo(sq._kick) < step) return;
+    sq._kick.copy(p);
+    const q = p.clone().addScaledVector(fwd(sq.yaw), -back); q.y = gy(q);
+    if (!Fx.onWater(q)) P.plume(q, fwd(sq.yaw), s, n);
+  }
   class Squad {
     constructor(t, side, anchor, yaw) {
       this.t = t; this.side = side; this.anchor = anchor.clone(); this.yaw = yaw;
@@ -280,7 +289,12 @@ const Squads = (() => {
   }
   // 刀盾近卫（士）
   class Guards extends TroopSquad {
-    constructor(side, anchor, yaw, n = 0) { super('a', side, anchor, yaw, 'sword', n ? lineUp(n, 0.3) : [[0.2, 0], [-0.2, 0]], SC * 1.08 * (n ? bigFor(n) : 1)); }
+    constructor(side, anchor, yaw, n = 0) {
+      // 士：手持比人还高一点的带刺巨盾。兵法四级不再加人，三名禁卫换一身金甲、金盾
+      const elite = n >= 4; if (elite) n = 3;
+      super('a', side, anchor, yaw, elite ? 'guardG' : 'guard', n ? lineUp(n, 0.34) : [[0.24, 0], [-0.24, 0]], SC * 1.08 * (n ? bigFor(n) : 1) * (elite ? 1.08 : 1));
+      this.elite = elite;
+    }
     async attack(target, c) {
       const { B, d } = c;
       this.setPose('ready'); snd('a', this.side).charge();
@@ -364,7 +378,7 @@ const Squads = (() => {
     async march(path, dur) {
       this.m.speed = 0.7; let last = 0;
       snd('e', this.side).move(dur || 1.4); // 战象行军：重步、低吼、象鸣（之前漏了，行进时一点声音都没有）
-      await walkPath(this, path, dur, k => { if (k - last > 0.18) { last = k; Cam.shake(0.03); Fx.Marks.foot(this.anchor.clone().addScaledVector(rightOf(this.yaw), R(-0.1, 0.1))); } });
+      await walkPath(this, path, dur, k => { kick(this, 0.34, 0.3, 0.16, 3); if (k - last > 0.18) { last = k; Cam.shake(0.03); Fx.Marks.foot(this.anchor.clone().addScaledVector(rightOf(this.yaw), R(-0.1, 0.1))); } });
       this.m.speed = 0;
     }
     async attack(target, c) {
@@ -421,6 +435,7 @@ const Squads = (() => {
     trail() {
       const p = this.anchor;
       if (p.distanceTo(this.lastRut) > 0.3) { Fx.Marks.ruts(this.lastRut.clone().lerp(p, 0.5).addScaledVector(fwd(this.yaw), -0.38), fwd(this.yaw), rightOf(this.yaw)); this.lastRut.copy(p); }
+      kick(this, 0.3, 0.5, 0.14, 3);
       if (Math.random() < 0.6) for (const s of [1, -1]) { const w = p.clone().addScaledVector(fwd(this.yaw), -0.38).addScaledVector(rightOf(this.yaw), s * 0.24); if (Fx.onWater(w)) P.splash(w.setY(0.05), 2, 0.55); else P.dust(w, 1, fwd(this.yaw), 0.2); }
     }
     async march(path, dur) {
@@ -502,7 +517,7 @@ const Squads = (() => {
         if (h.free) continue;
         const p = at(this.anchor, this.yaw, h.off[0], h.off[1]).addScaledVector(fwd(this.yaw), -0.1);
         h.group.position.set(p.x, gy(p), p.z); h.group.rotation.y = this.yaw - Math.PI / 2;
-        if (h.speed > 0.3 && p.distanceTo(h.lastPrint) > 0.15) { Fx.Marks.hoof(p, fwd(this.yaw)); h.lastPrint.copy(p); if (Fx.onWater(p)) P.splash(p.clone().setY(0.05), 2, 0.45); else if (Math.random() < 0.5) P.dust(p, 1, fwd(this.yaw), 0.18); }
+        if (h.speed > 0.3 && p.distanceTo(h.lastPrint) > 0.15) { Fx.Marks.hoof(p, fwd(this.yaw)); h.lastPrint.copy(p); if (Fx.onWater(p)) P.splash(p.clone().setY(0.05), 2, 0.45); else { if (Math.random() < 0.5) P.dust(p, 1, fwd(this.yaw), 0.18); P.plume(p.clone().addScaledVector(fwd(this.yaw), -0.22), fwd(this.yaw), 0.22, 1); } }
       }
     }
     // 日字路线：先直走一格，拐角处头马人立，再斜冲到位
@@ -639,22 +654,25 @@ const Squads = (() => {
         s.fire(i);
         await sleep(0.12);
         const muzzle = g.barrel.localToWorld(new V3(1.35, 0, 0));
-        Cam.shake(0.14); Fx.flash(muzzle, 40, 0.35); P.fire(muzzle, 16, 0.5);
+        Cam.shake(0.14); Fx.flash(muzzle, 40, 0.35); P.fire(muzzle, 16, 0.5); Fx.glow(muzzle, 1.5, 0.3, 0.45);
         for (let k = 0; k < 8; k++) Fx.spawn({ pos: muzzle.clone(), vel: d.clone().multiplyScalar(R(1.5, 4)).add(rv(0.4, 0.4, 0.4)), color: 0x6e6a64, size: 0.2, size2: R(0.8, 1.4), life: R(1.2, 2), op: 0.55, drag: 2.2 });
         tween(0.3, k => g.group.position.copy(g.base).addScaledVector(d, -0.18 * Math.sin(k * Math.PI)));
         const ball = new THREE.Mesh(new THREE.SphereGeometry(0.075, 10, 8), Core.toon(0x1c1a18));
         ball.position.copy(muzzle); scene.add(ball);
         const tp = targets[i].clone(); tp.y = Fx.groundAt(tp) + 0.05;
         const p0 = muzzle.clone();
+        const halo = Fx.glow(muzzle, 0.5, flight + 0.05, 0.4, 0xff9a4a, 0.25);
         await tween(flight, k => {
           ball.position.lerpVectors(p0, tp, k); ball.position.y = p0.y + (tp.y - p0.y) * k + peak * 4 * k * (1 - k);
+          if (halo) halo.sp.position.copy(ball.position);
           Fx.spawn({ pos: ball.position.clone(), tex: Core.Tex.spark, add: true, color: 0xff8a3a, size: 0.22, size2: 0.05, life: 0.3, op: 0.9 });
           Fx.spawn({ pos: ball.position.clone(), color: 0x3d3a37, size: 0.1, size2: 0.35, life: 0.8, op: 0.35, drag: 1 });
         }, ease.linear);
         scene.remove(ball);
         const big = i === ng - 1;
         s.explode(big);
-        Cam.shake(big ? 0.42 : 0.2); Fx.flash(tp, big ? 120 : 60, big ? 0.9 : 0.5, big ? 0.55 : 0);
+        if (halo) halo.life = 0;
+        Cam.shake(big ? 0.42 : 0.2); Fx.flash(tp, big ? 120 : 60, big ? 0.9 : 0.5, big ? 0.55 : 0); Fx.glow(tp.clone().add(new V3(0, 0.25, 0)), big ? 3.4 : 2, big ? 0.55 : 0.4, big ? 0.5 : 0.4);
         P.fire(tp.clone().add(new V3(0, 0.1, 0)), big ? 44 : 22, big ? 1.1 : 0.7); P.smoke(tp, big ? 16 : 8, big ? 1 : 0.7); P.sparks(tp, big ? 30 : 12, 1.2);
         Fx.ring(tp, big ? 3.6 : 1.8, 0.8); Fx.Marks.scorch(tp, big ? 2.2 : 1.2); Fx.addSmoke(tp, big ? 1 : 0.5);
         for (let k = 0; k < (big ? 10 : 4); k++) { const o = new THREE.Mesh(new THREE.DodecahedronGeometry(0.07), Core.toon(0x5d554a)); o.position.copy(tp).add(new V3(0, 0.1, 0)); scene.add(o); Fx.throwObj(o, new V3(R(-2, 2), R(2, 5), R(-2, 2)), { life: R(0.8, 1.4) }); }
@@ -679,7 +697,7 @@ const Squads = (() => {
       // 火药桶爆燃
       await sleep(0.15);
       const keg = this.gun.keg.getWorldPosition(new V3());
-      P.fire(keg, 30, 0.9); Fx.flash(keg, 70, 0.6, 0.25); P.smoke(keg, 10, 0.8); Sfx.B.boom(0, 0.7); Cam.shake(0.25);
+      P.fire(keg, 30, 0.9); Fx.flash(keg, 70, 0.6, 0.25); Fx.glow(keg, 2.4, 0.45, 0.42); P.smoke(keg, 10, 0.8); Sfx.B.boom(0, 0.7); Cam.shake(0.25);
       Fx.Marks.scorch(keg.clone().setY(TOP), 1.2); Fx.addSmoke(keg.clone().setY(TOP), 0.6);
       this.gun.keg.visible = false;
       // 炮管滚落，炮车翻倒
@@ -708,8 +726,10 @@ const Squads = (() => {
         this.hero.group.position.set(-0.05, 1.3, 0); this.hero.group.rotation.y = Math.PI / 2;
         this.horse.bodyPivot.add(this.hero.group);
       } else this.group.add(this.hero.group);
-      this.guard = opts.guard === false ? null : new TroopSquad('k', side, anchor, yaw, 'halberd', this.isX ? [[0.34, -0.35], [-0.34, -0.35]] : [[0.3, -0.15], [-0.3, -0.15], [0.12, -0.42]], SC);
-      if (this.guard && !this.isX) { this.flag = Models.makeBanner('r', '漢'); this.flag.group.scale.setScalar(0.11); scene.add(this.flag.group); }
+      // 随从：前两名执戟护卫，后两名旗手各擎一面帅旗（行进时旗举得更高、猎猎作响）
+      this.guard = opts.guard === false ? null : new TroopSquad('k', side, anchor, yaw, 'halberd', this.isX ? [[0.34, -0.35], [-0.34, -0.35], [0.2, -0.68], [-0.2, -0.68]] : [[0.3, -0.15], [-0.3, -0.15], [0.2, -0.5], [-0.2, -0.5]], SC);
+      if (this.guard) this.flags = (this.isX ? ['楚', '將'] : ['漢', '帥']).map(ch => { const f = Models.makeBanner(side, ch); f.group.scale.setScalar(0.125); scene.add(f.group); return f; });
+      this.flagK = 0;
       this.walkT = 0; this.walking = 0;
       this.updaters.push(dt => {
         this.hero.update(dt);
@@ -719,7 +739,17 @@ const Squads = (() => {
           const s = Math.sin(this.walkT);
           const J = this.hero.J; J.lLx = s * 0.45; J.lRx = -s * 0.45; J.kL = Math.max(0, -s) * 0.6; J.kR = Math.max(0, s) * 0.6; this.hero.setPose({ ...J });
         }
-        if (this.flag && this.guard) { const u = this.guard.units[2]; if (u) { this.flag.group.position.copy(u.p).addScaledVector(rightOf(this.yaw), 0.07); this.flag.group.rotation.y = this.yaw - Math.PI / 2 + 0.6; this.flag.group.scale.setScalar(0.11 * u.vis); } this.flag.update(dt); }
+        if (this.flags) {
+          const mv = this.marching ? 1 : 0; this.flagK += (mv - this.flagK) * Math.min(1, dt * 5);
+          this.flags.forEach((f, i) => {
+            const u = this.guard.units[2 + i]; if (!u) return;
+            const sd = i ? -1 : 1;
+            f.group.position.copy(u.p).addScaledVector(rightOf(this.yaw), sd * 0.07); f.group.position.y += 0.07 * this.flagK;
+            f.group.rotation.y = this.yaw - Math.PI / 2 + sd * (0.55 - 0.3 * this.flagK);
+            f.group.scale.setScalar((0.125 + 0.04 * this.flagK) * u.vis);
+            f.update(dt * (1 + 1.8 * this.flagK));
+          });
+        }
         this.sync();
       });
       this.sync();
@@ -731,13 +761,15 @@ const Squads = (() => {
       if (this.guard) { this.guard.anchor.copy(this.anchor); this.guard.yaw = this.yaw; }
     }
     appear() { return Promise.all([super.appear(), this.guard ? this.guard.appear() : null]); }
-    dissolve() { if (this.flag) scene.remove(this.flag.group); return Promise.all([super.dissolve(), this.guard ? this.guard.dissolve() : null]); }
+    dissolve() { if (this.flags) for (const f of this.flags) scene.remove(f.group); return Promise.all([super.dissolve(), this.guard ? this.guard.dissolve() : null]); }
     async march(path, dur) {
       const s = snd('k', this.side);
       s.move(dur);
       if (this.guard) this.guard.setPose('march');
       if (this.mounted) this.horse.speed = 0.4; else this.walking = 1;
-      await walkPath(this, path, dur);
+      this.marching = true; Cam.shake(0.05);
+      await walkPath(this, path, dur, () => kick(this, 0.26, 0.4, 0.2, 2));
+      this.marching = false; Cam.shake(0.06); if (!Fx.onWater(this.anchor)) P.dust(this.center(0), 8, null, 0.3);
       this.walking = 0; if (this.horse) this.horse.speed = 0;
       if (this.guard) this.guard.setPose('idle');
       if (!this.mounted) this.hero.pose(Models.POSES.lStand, 0.3);

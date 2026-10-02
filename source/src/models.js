@@ -62,7 +62,8 @@ const Models = (() => {
     const key = side + kind;
     if (partCache[key]) return partCache[key];
     // 斩马刀手（兵法四级兵）：通身金甲
-    const c = kind === 'zhanma' ? { ...SIDE[side], armor: 0xd6a43e, trim: 0xf3d27a } : SIDE[side];
+    const c = kind === 'zhanma' || kind === 'guardG' ? { ...SIDE[side], armor: 0xd6a43e, trim: 0xf3d27a } : SIDE[side];
+    const isGuard = kind === 'guard' || kind === 'guardG', goldG = kind === 'guardG';
     const helmet = kind === 'crew'
       ? [P(G.sph(0.13, 7), 0x5b5147, 0, 1.66, -0.01, 0, 0, 0, 1, 0.75, 1), P(G.cone(0.05, 0.14, 5), 0x5b5147, 0, 1.63, -0.14, 1.8)]
       : [P(G.cyl(0.1, 0.14, 0.14, 8), c.armor, 0, 1.68, 0), P(G.cone(0.05, 0.12, 5), c.armor, 0, 1.8, 0), P(G.cone(0.05, 0.1, 5), c.tassel, 0, 1.86, -0.02, 0.4),
@@ -87,7 +88,7 @@ const Models = (() => {
     // 兵器（握点为原点，沿 +Y）
     const tas = side === 'b' ? 0x5a1a14 : 0xb0301f;
     if (kind === 'spear') out.weapon = mk([P(G.cyl(0.018, 0.02, 2.5, 5), C.wood, 0, 0.55, 0), P(G.cone(0.042, 0.26, 5), C.metal, 0, 1.93, 0), P(G.cone(0.06, 0.12, 6), tas, 0, 1.76, 0, Math.PI)]);
-    else if (kind === 'sword') out.weapon = mk([P(G.cyl(0.02, 0.02, 0.2, 5), C.wood, 0, 0.02, 0), P(new THREE.TorusGeometry(0.04, 0.012, 4, 8), C.bronze, 0, -0.12, 0), P(G.box(0.12, 0.03, 0.05), C.bronze, 0, 0.13, 0), P(G.box(0.035, 0.8, 0.075), C.metal, 0, 0.54, 0.012)]);
+    else if (kind === 'sword' || isGuard) out.weapon = mk([P(G.cyl(0.02, 0.02, 0.2, 5), C.wood, 0, 0.02, 0), P(new THREE.TorusGeometry(0.04, 0.012, 4, 8), C.bronze, 0, -0.12, 0), P(G.box(0.12, 0.03, 0.05), C.bronze, 0, 0.13, 0), P(G.box(0.035, 0.8, 0.075), C.metal, 0, 0.54, 0.012)]);
     else if (kind === 'halberd') out.weapon = mk([P(G.cyl(0.02, 0.022, 2.6, 5), C.wood, 0, 0.6, 0), P(G.cone(0.045, 0.3, 5), C.metal, 0, 2.05, 0), { geo: jiShape(), color: C.metal, m: M4(0, 1.62, -0.01) }, P(G.cone(0.06, 0.14, 6), tas, 0, 1.8, 0, Math.PI)]);
     else if (kind === 'xbow') out.weapon = mk([P(G.box(0.06, 0.75, 0.06), C.wood, 0, 0.18, 0), P(new THREE.TorusGeometry(0.34, 0.02, 4, 12, Math.PI * 0.8), C.wood, 0, 0.52, 0.0, 0, 0, Math.PI * 0.1), P(G.box(0.7, 0.006, 0.006), C.white, 0, 0.5, 0), P(G.box(0.04, 0.1, 0.05), C.bronze, 0, 0.05, 0.03)]);
     else if (kind === 'archer') out.weapon = mk([P(G.cyl(0.006, 0.006, 0.8, 3), C.wood, 0, 0.3, 0), P(G.cone(0.015, 0.06, 4), C.dark, 0, 0.72, 0)]);
@@ -98,6 +99,18 @@ const Models = (() => {
     if (kind === 'spear') out.shield = mk([P(G.box(0.46, 0.72, 0.05), c.cloth2, 0, 0.08, 0.04), P(G.box(0.38, 0.62, 0.052), c.cloth, 0, 0.08, 0.042), P(G.sph(0.07, 6), C.metal, 0, 0.1, 0.07), P(G.box(0.46, 0.04, 0.055), c.trim, 0, 0.42, 0.04), P(G.box(0.46, 0.04, 0.055), c.trim, 0, -0.26, 0.04)]);
     else if (kind === 'sword') out.shield = mk([P(G.cyl(0.3, 0.3, 0.05, 12), c.cloth2, 0, 0.05, 0.05, Math.PI / 2), P(new THREE.TorusGeometry(0.3, 0.02, 4, 16), c.trim, 0, 0.05, 0.075), P(G.sph(0.08, 6), C.metal, 0, 0.05, 0.09)]);
     else if (kind === 'zhanma') out.shield = mk([P(G.box(0.62, 1.02, 0.06), c.cloth2, 0, 0.12, 0.05), P(G.box(0.52, 0.92, 0.062), 0xb8862e, 0, 0.12, 0.052), P(G.sph(0.09, 6), 0xf3d27a, 0, 0.16, 0.09), P(G.box(0.62, 0.05, 0.066), 0xf3d27a, 0, 0.62, 0.05), P(G.box(0.62, 0.05, 0.066), 0xf3d27a, 0, -0.38, 0.05), P(G.box(0.05, 0.92, 0.066), 0xf3d27a, 0, 0.12, 0.05)]);
+    else if (isGuard) {
+      // 巨盾：比人略高的塔盾，盾面满布尖刺，正中一枚大盾钉，盾顶一排短刺；四级通体鎏金
+      const plate = goldG ? 0x8a6418 : c.cloth2, face = goldG ? 0xd6a43e : c.cloth, rim = goldG ? 0xf3d27a : c.trim, spike = goldG ? 0xf7dc8c : C.metal;
+      const ps = [P(G.box(0.94, 1.92, 0.07), plate, 0, 0.14, 0.05), P(G.box(0.8, 1.76, 0.074), face, 0, 0.14, 0.052),
+        P(G.box(0.94, 0.07, 0.085), rim, 0, 1.08, 0.05), P(G.box(0.94, 0.07, 0.085), rim, 0, -0.8, 0.05), P(G.box(0.07, 1.92, 0.085), rim, 0.45, 0.14, 0.05), P(G.box(0.07, 1.92, 0.085), rim, -0.45, 0.14, 0.05),
+        P(G.box(0.8, 0.05, 0.08), rim, 0, 0.62, 0.05), P(G.box(0.8, 0.05, 0.08), rim, 0, -0.34, 0.05),
+        P(G.sph(0.15, 8), rim, 0, 0.14, 0.09, 0, 0, 0, 1, 1, 0.6), P(G.cone(0.075, 0.42, 6), spike, 0, 0.14, 0.33, Math.PI / 2)];
+      for (const x of [-0.26, 0.26]) for (const y of [-0.58, -0.1, 0.38, 0.86]) ps.push(P(G.cone(0.05, 0.28, 5), spike, x, y, 0.22, Math.PI / 2), P(G.cyl(0.06, 0.06, 0.02, 6), rim, x, y, 0.09, Math.PI / 2));
+      for (const x of [-0.32, 0, 0.32]) ps.push(P(G.cone(0.045, 0.2, 5), spike, x, 1.2, 0.05));
+      if (goldG) ps.push(P(G.box(0.3, 0.3, 0.08), 0xb0301f, 0, 0.86, 0.05, 0, 0, Math.PI / 4), P(G.box(0.3, 0.3, 0.08), 0xb0301f, 0, -0.58, 0.05, 0, 0, Math.PI / 4));
+      out.shield = mk(ps);
+    }
     else if (kind === 'archer') out.shield = mk([P(new THREE.TorusGeometry(0.55, 0.02, 4, 18, Math.PI * 0.8), C.wood, 0, 0.0, 0.05, 0, Math.PI / 2, -Math.PI * 0.4), P(G.cyl(0.004, 0.004, 0.95, 3), C.white, 0, 0.0, -0.07)]);
     partCache[key] = out;
     return out;
@@ -108,6 +121,8 @@ const Models = (() => {
     halberd: { aW: -0.25, wAbs: 0, aS: 0.05, sAbs: 0, chargeW: -1.1, chargeAbs: 1.3 },
     zhanma: { aW: -0.3, wAbs: 0.15, aS: -0.55, sAbs: 0, chargeW: -1.2, chargeAbs: 1.25 },
     sword: { aW: -0.35, wAbs: 0.6, aS: -0.5, sAbs: 0, chargeW: -2.3, chargeAbs: -0.4 },
+    guard: { aW: -0.35, wAbs: 0.6, aS: -0.42, sAbs: 0, chargeW: -2.3, chargeAbs: -0.4 },
+    guardG: { aW: -0.35, wAbs: 0.6, aS: -0.42, sAbs: 0, chargeW: -2.3, chargeAbs: -0.4 },
     xbow: { aW: -0.55, wAbs: 0.7, aS: -0.55, sAbs: 0, chargeW: -1.45, chargeAbs: Math.PI / 2 },
     archer: { aW: -0.15, wAbs: 0, aS: -0.2, sAbs: 0, chargeW: -0.3, chargeAbs: 0.2 },
     crew: { aW: -0.3, wAbs: 0.1, aS: 0.05, sAbs: 0, chargeW: -1.2, chargeAbs: Math.PI / 2 },

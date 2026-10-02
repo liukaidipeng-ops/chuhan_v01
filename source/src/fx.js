@@ -51,6 +51,7 @@ const Fx = (() => {
   const groundAt = p => (Math.abs(p.x) < 4.8 && Math.abs(p.z) > Board.HALF && Math.abs(p.z) < Board.BZ ? TOP : 0.02);
   // 血的颜色随血腥档位
   const bloodCol = () => (state.gore >= 2 ? 0x7c0e08 : 0x1b1a19);
+  const mistQ = [];
   const P = {
     ink(pos, n = 12, r = 0.5, size = 0.35, op = 0.8) {
       for (let i = 0; i < nn(n); i++) {
@@ -63,6 +64,14 @@ const Fx = (() => {
         const v = rv(0.5, 0.1, 0.5).add(new V3(0, R(0.2, 0.6), 0));
         if (dir) v.addScaledVector(dir, R(-1.2, -0.3));
         spawn({ pos: pos.clone().add(rv(0.1, 0, 0.1)), vel: v, color: 0x8b7e68, size: s * R(0.6, 1), size2: s * R(2, 3.5), life: R(0.8, 1.6), op: R(0.3, 0.55), drag: 2 });
+      }
+    },
+    // 扬尘：大家伙（马、车、象）跑起来时身后拖着的一道沙尘，升起来、散得慢
+    plume(pos, dir, s = 0.3, n = 2) {
+      for (let i = 0; i < nn(n); i++) {
+        const v = rv(0.35, 0.05, 0.35).add(new V3(0, R(0.25, 0.7), 0));
+        if (dir) v.addScaledVector(dir, R(-1.1, -0.3));
+        spawn({ pos: pos.clone().add(rv(0.12, 0, 0.12)).setY(pos.y + 0.04), vel: v, tex: i % 2 ? Tex.puff : Tex.inkPuff, color: i % 2 ? 0xb3a487 : 0x9a8a70, size: s * R(0.5, 0.85), size2: s * R(2.3, 3.8), life: R(1.4, 2.6), op: R(0.26, 0.42), drag: 1.7, fadeIn: 0.12, pow: 1.3 });
       }
     },
     fire(pos, n = 24, r = 1) {
@@ -101,6 +110,25 @@ const Fx = (() => {
         spawn({ pos: pos.clone().add(new V3(R(-0.05, 0.05), R(0, 0.08), R(-0.05, 0.05))), vel: v, tex: Tex.splat, color: col, size: R(0.025, 0.05) * r, size2: R(0.01, 0.03) * r, life: R(0.35, 0.7), g: 9, drag: 0.4, floor: groundAt(pos) + 0.01, op: 0.9, onLand: i % 3 === 0 ? (lp => Marks.drop(lp)) : null });
       }
       if (state.gore >= 2) for (let i = 0; i < 3; i++) spawn({ pos: pos.clone(), vel: rv(0.3, 0.2, 0.3).addScaledVector(dir || new V3(), 0.4), tex: Tex.puff, color: col, size: 0.12 * r, size2: 0.4 * r, life: 0.5, op: 0.45, drag: 3 });
+      if (n >= 10) P.mist(pos, r, dir);
+    },
+    // 血雾：击杀时腾起一大团，慢慢散开、飘一小会儿才散尽
+    mist(pos, r = 1, dir) {
+      if (state.gore === 0) return;
+      const now = Time.t;
+      while (mistQ.length && mistQ[0] < now) mistQ.shift();
+      const room = (LOW() ? 12 : 44) - mistQ.length;
+      if (room <= 0) return;
+      const red = state.gore >= 2, n = Math.min(room, LOW() ? 3 : state.gore >= 3 ? 8 : red ? 5 : 3);
+      const cols = red ? [0x8a120a, 0x6a0a06, 0x9c2014] : [0x2a2826];
+      for (let i = 0; i < n; i++) {
+        const life = R(2.3, 4.2), v = rv(0.5, 0.12, 0.5).add(new V3(0, R(0.1, 0.45), 0));
+        if (dir) v.addScaledVector(dir, R(0.4, 1.5));
+        spawn({ pos: pos.clone().add(rv(0.14, 0.08, 0.14).multiplyScalar(r)).add(new V3(0, 0.12, 0)), vel: v.multiplyScalar(r), tex: i % 3 === 2 ? Tex.inkPuff : Tex.puff, color: cols[i % cols.length],
+          size: R(0.22, 0.34) * r, size2: R(0.95, 1.6) * r, life, op: R(0.2, 0.34) * (state.gore >= 3 ? 1.25 : 1), drag: 2.4, fadeIn: 0.18, pow: 1.15, spin: R(-0.3, 0.3), delay: R(0, 0.12) });
+        mistQ.push(now + life);
+      }
+      mistQ.sort((a, b) => a - b);
     },
     embers(pos, n = 12) {
       for (let i = 0; i < nn(n); i++) spawn({ pos: pos.clone().add(rv(0.4, 0, 0.4)), vel: new V3(R(-0.2, 0.2), R(0.3, 1.2), R(-0.2, 0.2)), tex: Tex.spark, add: true, color: 0xff8a3a, size: 0.05, size2: 0.02, life: R(1, 2.4), drag: 0.8, delay: R(0, 1.5), pow: 1 });
@@ -127,6 +155,16 @@ const Fx = (() => {
     return tween(dur, k => { const s = size * (0.5 + 0.7 * ease.out(Math.min(1, k * 2.2))); m.scale.set(s, s, 1); m.material.opacity = (k < 0.35 ? 1 : 1 - (k - 0.35) / 0.65) * 0.9; }, ease.linear)
       .then(() => { off(); scene.remove(m); m.material.dispose(); });
   }
+  // 辉光：一小团叠加发亮的柔光，只给炮口、炮弹、落点用，量很克制
+  const glowTex = canvasTex(128, 128, (g, w) => {
+    const gr = g.createRadialGradient(w / 2, w / 2, 0, w / 2, w / 2, w / 2);
+    gr.addColorStop(0, 'rgba(255,255,255,.95)'); gr.addColorStop(0.16, 'rgba(255,236,196,.5)'); gr.addColorStop(0.45, 'rgba(255,176,90,.15)'); gr.addColorStop(1, 'rgba(255,150,60,0)');
+    g.fillStyle = gr; g.fillRect(0, 0, w, w);
+  });
+  function glow(pos, size = 1, dur = 0.4, op = 0.5, color = 0xffb46a, pow = 1.4) {
+    if (LOW()) return null;
+    return spawn({ pos: pos.clone(), tex: glowTex, add: true, color, size: size * 0.55, size2: size, life: dur, op, drag: 0, spin: 0, fadeIn: 0.03, pow, order: 6 });
+  }
   const flashLight = new THREE.PointLight(0xffa55a, 0, 14, 1.6);
   scene.add(flashLight);
   function flash(pos, power = 60, dur = 0.6, screen = 0) {
@@ -142,48 +180,88 @@ const Fx = (() => {
   // ======================================================================
   //  地面痕迹：先清晰，再逐渐淡到 30%，然后"烙"进棋盘图层永久保留
   // ======================================================================
+  // 每种痕迹都备几张不同的图，落地时再随机大小、长宽比和朝向，免得满盘一个模子
+  const many = (n, w, h, draw) => Array.from({ length: n }, (_, i) => canvasTex(w, h, (g, W, H) => draw(g, W, H, i)));
+  const pick = a => (Array.isArray(a) ? a[Math.floor(Math.random() * a.length)] : a);
   const MT = {
-    scorch: canvasTex(256, 256, (g, w) => {
-      const c = w / 2;
-      for (let i = 0; i < 40; i++) {
-        const a = rnd() * 6.28, L = w * (0.22 + rnd() * 0.26);
-        g.strokeStyle = `rgba(255,255,255,${0.15 + rnd() * 0.3})`; g.lineWidth = 2 + rnd() * 6;
+    // 焦土：射线多少、长短、偏心、主墨团大小、是否多团、是否烧空了心，每张都不一样
+    scorch: many(6, 256, 256, (g, w, h, i) => {
+      const c = w / 2, lim = w * 0.47;
+      const rays = 14 + Math.floor(rnd() * 46), reach = 0.2 + rnd() * 0.24, off = (rnd() - 0.5) * 0.6, lean = rnd() * 6.28;
+      for (let k = 0; k < rays; k++) {
+        const a = rnd() * 6.28, bias = Math.max(0.35, 1 + off * Math.cos(a - lean) * 1.6);
+        const L = Math.min(lim, w * (reach * 0.55 + rnd() * reach) * bias);
+        g.strokeStyle = `rgba(255,255,255,${0.15 + rnd() * 0.3})`; g.lineWidth = 1.5 + rnd() * 6.5;
         g.beginPath(); g.moveTo(c, c); g.lineTo(c + Math.cos(a) * L, c + Math.sin(a) * L); g.stroke();
       }
       g.fillStyle = '#fff';
-      inkBlot(g, c, c, w * 0.26, 1, 0.45); inkBlot(g, c, c, w * 0.18, 1, 0.3);
+      const main = w * (0.16 + rnd() * 0.1);
+      inkBlot(g, c, c, main, 1, 0.3 + rnd() * 0.35); inkBlot(g, c, c, main * 0.7, 1, 0.3);
+      const blobs = i % 2 ? 2 + Math.floor(rnd() * 4) : Math.floor(rnd() * 2);
+      for (let k = 0; k < blobs; k++) {
+        const a = lean + (rnd() - 0.5) * 2.4, rr = main * (0.3 + rnd() * 0.45), d = Math.min(lim - rr * 1.1, main * (0.6 + rnd() * 0.9));
+        inkBlot(g, c + Math.cos(a) * d, c + Math.sin(a) * d, rr, 0.95, 0.5);
+      }
+      const flecks = 16 + Math.floor(rnd() * 30);
+      for (let k = 0; k < flecks; k++) { const a = rnd() * 6.28, d = w * (0.2 + rnd() * 0.25); inkBlot(g, c + Math.cos(a) * d, c + Math.sin(a) * d, 1 + rnd() * 5, 0.8, 0.4); }
+      if (i === 3 || i === 5) { g.globalCompositeOperation = 'destination-out'; inkBlot(g, c + (rnd() - 0.5) * 24, c + (rnd() - 0.5) * 24, main * (0.3 + rnd() * 0.2), 0.55, 0.5); }
     }),
     scorchRim: canvasTex(256, 256, (g, w) => {
       const gr = g.createRadialGradient(w / 2, w / 2, w * 0.2, w / 2, w / 2, w * 0.48);
       gr.addColorStop(0, 'rgba(255,255,255,0)'); gr.addColorStop(0.5, 'rgba(255,255,255,.7)'); gr.addColorStop(1, 'rgba(255,255,255,0)');
       g.fillStyle = gr; g.fillRect(0, 0, w, w);
     }),
-    blood: canvasTex(256, 256, (g, w) => {
+    // 血泊：一大滩，边上连着几小滩，中间有没浸到的空白
+    blood: many(4, 256, 256, (g, w, h, i) => {
       g.fillStyle = '#fff';
-      inkBlot(g, w / 2, w / 2, w * 0.27, 1, 0.5);
-      for (let i = 0; i < 5; i++) inkBlot(g, w / 2 + (rnd() - 0.5) * w * 0.3, w / 2 + (rnd() - 0.5) * w * 0.3, w * (0.08 + rnd() * 0.08), 1, 0.4);
-      for (let i = 0; i < 26; i++) { const a = rnd() * 6.28, d = w * (0.26 + rnd() * 0.2); inkBlot(g, w / 2 + Math.cos(a) * d, w / 2 + Math.sin(a) * d, 2 + rnd() * 9, 0.9, 0.3); }
+      const c = w / 2, main = w * (0.2 + rnd() * 0.08), ox = (rnd() - 0.5) * 30, oy = (rnd() - 0.5) * 30;
+      inkBlot(g, c + ox, c + oy, main, 1, 0.35 + rnd() * 0.3);
+      const side = 3 + Math.floor(rnd() * 6);
+      for (let k = 0; k < side; k++) inkBlot(g, c + ox + (rnd() - 0.5) * w * 0.36, c + oy + (rnd() - 0.5) * w * 0.36, w * (0.05 + rnd() * 0.1), 1, 0.4);
+      const dots = 14 + Math.floor(rnd() * 26);
+      for (let k = 0; k < dots; k++) { const a = rnd() * 6.28, d = w * (0.24 + rnd() * 0.2); inkBlot(g, c + Math.cos(a) * d, c + Math.sin(a) * d, 1.5 + rnd() * 9, 0.9, 0.3); }
+      if (i % 2 === 0) { g.strokeStyle = '#fff'; g.lineCap = 'round'; for (let k = 0; k < 4; k++) { const a = rnd() * 6.28, L = w * (0.3 + rnd() * 0.14); g.lineWidth = 2 + rnd() * 4; g.globalAlpha = 0.85; g.beginPath(); g.moveTo(c + ox, c + oy); g.lineTo(c + Math.cos(a) * L, c + Math.sin(a) * L); g.stroke(); } g.globalAlpha = 1; }
       g.globalCompositeOperation = 'destination-out';
-      for (let i = 0; i < 20; i++) { g.globalAlpha = 0.3; inkBlot(g, w / 2 + (rnd() - 0.5) * 60, w / 2 + (rnd() - 0.5) * 60, 4 + rnd() * 8, 1, 0.5); }
+      for (let k = 0; k < 12 + rnd() * 14; k++) { g.globalAlpha = 0.3; inkBlot(g, c + (rnd() - 0.5) * 70, c + (rnd() - 0.5) * 70, 4 + rnd() * 9, 1, 0.5); }
     }),
-    drop: canvasTex(64, 64, (g, w) => { g.fillStyle = '#fff'; inkBlot(g, w / 2, w / 2, 12, 1, 0.5); for (let i = 0; i < 5; i++) inkBlot(g, w / 2 + (rnd() - 0.5) * 40, w / 2 + (rnd() - 0.5) * 40, 2 + rnd() * 3, 1, 0.3); }),
+    drop: many(4, 64, 64, (g, w) => {
+      g.fillStyle = '#fff'; const rr = 7 + rnd() * 7;
+      inkBlot(g, w / 2, w / 2, rr, 1, 0.5);
+      if (rnd() < 0.5) { g.beginPath(); g.ellipse(w / 2 + rr * 0.8, w / 2, rr * 1.1, rr * 0.35, 0, 0, 7); g.fill(); }
+      for (let k = 0; k < 2 + rnd() * 6; k++) inkBlot(g, w / 2 + (rnd() - 0.5) * 42, w / 2 + (rnd() - 0.5) * 42, 1.5 + rnd() * 3.5, 1, 0.3);
+    }),
     // 喷溅：左边一团，向右（+x）甩出一串由大到小的血滴和细痕
-    bloodSpray: canvasTex(256, 128, (g, w, h) => {
-      g.fillStyle = '#fff'; inkBlot(g, 46, h / 2, 26, 1, 0.55); inkBlot(g, 70, h / 2 + (rnd() - 0.5) * 10, 16, 1, 0.5);
-      for (let i = 0; i < 34; i++) { const t = rnd(), x = 60 + t * (w - 70), y = h / 2 + (rnd() - 0.5) * (14 + t * 70), r = Math.max(1.2, 9 * (1 - t) * (0.4 + rnd() * 0.8)); inkBlot(g, x, y, r, 1, 0.35); }
+    bloodSpray: many(4, 256, 128, (g, w, h) => {
+      const fan = 0.6 + rnd() * 0.9, head = 18 + rnd() * 12;
+      g.fillStyle = '#fff'; inkBlot(g, 46, h / 2, head, 1, 0.55); inkBlot(g, 66 + rnd() * 10, h / 2 + (rnd() - 0.5) * 12, head * 0.6, 1, 0.5);
+      const n = 22 + Math.floor(rnd() * 30);
+      for (let k = 0; k < n; k++) { const t = rnd(), x = 60 + t * (w - 72), y = h / 2 + (rnd() - 0.5) * (14 + t * 70 * fan), r = Math.max(1.2, 9 * (1 - t) * (0.4 + rnd() * 0.8)); inkBlot(g, x, Math.max(6, Math.min(h - 6, y)), r, 1, 0.35); }
       g.strokeStyle = '#fff'; g.lineCap = 'round';
-      for (let i = 0; i < 7; i++) { const y0 = h / 2 + (rnd() - 0.5) * 16, y1 = y0 + (rnd() - 0.5) * 40; g.lineWidth = 1.5 + rnd() * 3; g.beginPath(); g.moveTo(60, y0); g.quadraticCurveTo(120 + rnd() * 40, (y0 + y1) / 2, 150 + rnd() * 90, y1); g.stroke(); }
+      for (let k = 0; k < 4 + rnd() * 6; k++) { const y0 = h / 2 + (rnd() - 0.5) * 16, y1 = Math.max(8, Math.min(h - 8, y0 + (rnd() - 0.5) * 44 * fan)); g.lineWidth = 1.5 + rnd() * 3; g.beginPath(); g.moveTo(60, y0); g.quadraticCurveTo(120 + rnd() * 40, (y0 + y1) / 2, 150 + rnd() * 90, y1); g.stroke(); }
     }),
     // 一簇散落的血点
-    bloodDrops: canvasTex(128, 128, (g, w) => {
-      g.fillStyle = '#fff';
-      for (let i = 0; i < 18; i++) { const a = rnd() * 6.28, d = rnd() * w * 0.42; inkBlot(g, w / 2 + Math.cos(a) * d, w / 2 + Math.sin(a) * d, 1.5 + rnd() * 7 * (1 - d / (w * 0.5)), 1, 0.4); }
+    bloodDrops: many(4, 128, 128, (g, w) => {
+      g.fillStyle = '#fff'; const n = 10 + Math.floor(rnd() * 20), sp = 0.28 + rnd() * 0.16;
+      for (let k = 0; k < n; k++) { const a = rnd() * 6.28, d = rnd() * w * sp; inkBlot(g, w / 2 + Math.cos(a) * d, w / 2 + Math.sin(a) * d, 1.5 + rnd() * 7 * (1 - d / (w * 0.5)), 1, 0.4); }
+    }),
+    // 迸溅：中间一小团，向四周炸出粗细不一的血刺，刺尖挂着血珠
+    bloodBurst: many(4, 256, 256, (g, w) => {
+      const c = w / 2, n = 12 + Math.floor(rnd() * 22), lean = rnd() * 6.28, off = rnd() * 0.5;
+      g.fillStyle = '#fff'; g.strokeStyle = '#fff'; g.lineCap = 'round';
+      for (let k = 0; k < n; k++) {
+        const a = rnd() * 6.28, L = Math.min(w * 0.45, w * (0.14 + rnd() * 0.3) * (1 + off * Math.cos(a - lean)));
+        const x = c + Math.cos(a) * L, y = c + Math.sin(a) * L, wd = 2 + rnd() * 7;
+        g.beginPath(); g.moveTo(c + Math.cos(a + 1.57) * wd, c + Math.sin(a + 1.57) * wd); g.lineTo(x, y); g.lineTo(c - Math.cos(a + 1.57) * wd, c - Math.sin(a + 1.57) * wd); g.fill();
+        if (rnd() < 0.7) inkBlot(g, x, y, 1.5 + rnd() * 5, 1, 0.3);
+      }
+      inkBlot(g, c, c, w * (0.08 + rnd() * 0.08), 1, 0.5);
+      for (let k = 0; k < 20; k++) { const a = rnd() * 6.28, d = w * (0.1 + rnd() * 0.36); inkBlot(g, c + Math.cos(a) * d, c + Math.sin(a) * d, 1 + rnd() * 3.5, 0.9, 0.3); }
     }),
     // 拖抹的长条血迹
-    bloodSmear: canvasTex(256, 96, (g, w, h) => {
-      g.fillStyle = '#fff';
-      for (let x = 20; x < w - 20; x += 3) { const t = x / w, r = 22 * Math.sin(Math.PI * Math.min(1, t * 1.15)) * (0.75 + rnd() * 0.35); g.globalAlpha = 0.55 + rnd() * 0.45; g.beginPath(); g.ellipse(x, h / 2 + Math.sin(x * 0.05) * 4, 4, Math.max(2, r), 0, 0, 7); g.fill(); }
-      g.globalAlpha = 1; for (let i = 0; i < 10; i++) inkBlot(g, 20 + rnd() * (w - 40), h / 2 + (rnd() - 0.5) * 60, 1.5 + rnd() * 4, 1, 0.4);
+    bloodSmear: many(3, 256, 96, (g, w, h) => {
+      g.fillStyle = '#fff'; const wob = 2 + rnd() * 8, fat = 14 + rnd() * 10, fq = 0.03 + rnd() * 0.05;
+      for (let x = 20; x < w - 20; x += 3) { const t = x / w, r = fat * Math.sin(Math.PI * Math.min(1, t * 1.15)) * (0.75 + rnd() * 0.35); g.globalAlpha = 0.55 + rnd() * 0.45; g.beginPath(); g.ellipse(x, h / 2 + Math.sin(x * fq) * wob, 4, Math.max(2, r), 0, 0, 7); g.fill(); }
+      g.globalAlpha = 1; for (let k = 0; k < 6 + rnd() * 10; k++) inkBlot(g, 20 + rnd() * (w - 40), h / 2 + (rnd() - 0.5) * 60, 1.5 + rnd() * 4, 1, 0.4);
     }),
     rut: canvasTex(256, 64, (g, w, h) => {
       for (let x = 0; x < w; x += 2) { g.fillStyle = `rgba(255,255,255,${0.3 + rnd() * 0.5})`; g.fillRect(x, h * 0.3 + (rnd() - 0.5) * 3, 2, h * 0.4 * (0.6 + rnd() * 0.5)); }
@@ -191,25 +269,39 @@ const Fx = (() => {
     }),
     hoof: canvasTex(64, 64, (g, w) => { g.strokeStyle = '#fff'; g.lineWidth = 9; g.lineCap = 'round'; g.beginPath(); g.arc(w / 2, w / 2 + 4, w * 0.28, Math.PI * 0.95, Math.PI * 2.05, true); g.stroke(); }),
     foot: canvasTex(64, 64, (g, w) => { g.fillStyle = '#fff'; inkBlot(g, w / 2, w / 2, 22, 1, 0.2); g.globalCompositeOperation = 'destination-out'; inkBlot(g, w / 2, w / 2, 14, 0.5, 0.2); }),
-    streak: canvasTex(512, 96, (g, w, h) => {
-      g.fillStyle = '#fff';
-      g.beginPath(); g.moveTo(10, h / 2); g.quadraticCurveTo(w * 0.4, h * 0.15, w - 10, h * 0.45); g.quadraticCurveTo(w * 0.45, h * 0.62, 10, h / 2); g.fill();
-      for (let i = 0; i < 40; i++) inkBlot(g, 60 + rnd() * (w - 70), h * (0.25 + rnd() * 0.5), 1.5 + rnd() * 5, 0.9, 0.3);
+    streak: many(3, 512, 96, (g, w, h) => {
+      g.fillStyle = '#fff'; const top = 0.1 + rnd() * 0.2, bot = 0.55 + rnd() * 0.25, end = 0.3 + rnd() * 0.4;
+      g.beginPath(); g.moveTo(10, h / 2); g.quadraticCurveTo(w * (0.3 + rnd() * 0.3), h * top, w - 10, h * end); g.quadraticCurveTo(w * (0.35 + rnd() * 0.3), h * bot, 10, h / 2); g.fill();
+      for (let k = 0; k < 24 + rnd() * 30; k++) inkBlot(g, 60 + rnd() * (w - 70), h * (0.25 + rnd() * 0.5), 1.5 + rnd() * 5, 0.9, 0.3);
     }),
-    cut: canvasTex(256, 256, (g, w) => {
+    // 刀痕：交叉两刀 / 斜劈一刀 / 三道并排的爪痕 / 人字两刀
+    cut: many(4, 256, 256, (g, w, h, i) => {
       g.strokeStyle = '#fff'; g.lineCap = 'round';
-      for (const [a, b, c2, d] of [[30, 40, 226, 216], [226, 40, 30, 216]]) for (let k = 0; k < 3; k++) { g.globalAlpha = 0.5 + k * 0.2; g.lineWidth = 7 - k * 2; g.beginPath(); g.moveTo(a + k * 2, b); g.lineTo(c2 - k * 2, d); g.stroke(); }
+      const j = () => (rnd() - 0.5) * 36;
+      const lines = i === 0 ? [[30, 40, 226, 216], [226, 40, 30, 216]]
+        : i === 1 ? [[26, 70 + j(), 230, 186 + j()]]
+        : i === 2 ? [[40, 60, 190, 200], [66, 46, 216, 186], [92, 36, 236, 166]]
+        : [[128, 30, 40 + j(), 220], [128, 30, 216 + j(), 220]];
+      for (const [a, b, c2, d] of lines) {
+        const mx = (a + c2) / 2 + j() * 0.6, my = (b + d) / 2 + j() * 0.6;
+        for (let k = 0; k < 3; k++) { g.globalAlpha = 0.5 + k * 0.2; g.lineWidth = (7 - k * 2) * (0.8 + rnd() * 0.5); g.beginPath(); g.moveTo(a + k * 2, b); g.quadraticCurveTo(mx, my, c2 - k * 2, d); g.stroke(); }
+        g.globalAlpha = 0.8; g.fillStyle = '#fff'; for (let k = 0; k < 5; k++) { const t = rnd(); inkBlot(g, a + (c2 - a) * t + j() * 0.3, b + (d - b) * t + j() * 0.3, 1 + rnd() * 2.5, 1, 0.3); }
+      }
     }),
-    crack: canvasTex(512, 512, (g, w) => {
+    // 裂纹：主裂几条、长短、有没有环状的碎裂圈，各不相同
+    crack: many(5, 512, 512, (g, w, h, i) => {
       g.strokeStyle = '#fff'; g.lineCap = 'round';
       const branch = (x, y, a, L, wd, depth) => {
         if (depth > 4 || L < 8) return;
         let cx = x, cy = y; g.lineWidth = wd; g.beginPath(); g.moveTo(cx, cy);
-        for (let i = 0; i < 6; i++) { a += (rnd() - 0.5) * 0.7; cx += Math.cos(a) * L / 6; cy += Math.sin(a) * L / 6; g.lineTo(cx, cy); }
-        g.stroke(); branch(cx, cy, a + 0.5, L * 0.6, wd * 0.6, depth + 1); if (rnd() < 0.7) branch(cx, cy, a - 0.6, L * 0.5, wd * 0.55, depth + 1);
+        for (let k = 0; k < 6; k++) { a += (rnd() - 0.5) * 0.7; cx += Math.cos(a) * L / 6; cy += Math.sin(a) * L / 6; g.lineTo(cx, cy); }
+        g.stroke(); branch(cx, cy, a + 0.3 + rnd() * 0.4, L * 0.6, wd * 0.6, depth + 1); if (rnd() < 0.7) branch(cx, cy, a - 0.4 - rnd() * 0.4, L * 0.5, wd * 0.55, depth + 1);
       };
-      for (let i = 0; i < 7; i++) branch(w / 2, w / 2, (i / 7) * 6.28 + rnd() * 0.4, 110 + rnd() * 70, 11, 0);
-      g.fillStyle = '#fff'; inkBlot(g, w / 2, w / 2, 26, 1, 0.5);
+      const n = 4 + Math.floor(rnd() * 6), a0 = rnd() * 6.28, long = Math.floor(rnd() * n);
+      for (let k = 0; k < n; k++) branch(w / 2, w / 2, a0 + (k / n) * 6.28 + rnd() * 0.5, (k === long ? 120 : 60) + rnd() * 70, 7 + rnd() * 6, 0);
+      if (i % 2) for (let k = 0; k < 5 + rnd() * 5; k++) { const rr = w * (0.1 + rnd() * 0.24), a = rnd() * 6.28; g.lineWidth = 2 + rnd() * 4; g.globalAlpha = 0.6 + rnd() * 0.4; g.beginPath(); g.arc(w / 2 + (rnd() - 0.5) * 16, w / 2 + (rnd() - 0.5) * 16, rr, a, a + 0.4 + rnd() * 0.9); g.stroke(); }
+      g.globalAlpha = 1; g.fillStyle = '#fff'; inkBlot(g, w / 2, w / 2, 14 + rnd() * 22, 1, 0.5);
+      for (let k = 0; k < 14; k++) { const a = rnd() * 6.28, d = 30 + rnd() * 150; inkBlot(g, w / 2 + Math.cos(a) * d, w / 2 + Math.sin(a) * d, 1.5 + rnd() * 4, 0.9, 0.3); }
     }),
     hole: canvasTex(64, 64, (g, w) => { g.fillStyle = '#fff'; inkBlot(g, w / 2, w / 2, 7, 1, 0.3); }),
     drag: canvasTex(256, 64, (g, w, h) => { g.fillStyle = '#fff'; for (let x = 0; x < w; x += 3) { g.globalAlpha = 0.2 + 0.6 * (1 - x / w); inkBlot(g, x, h / 2 + (rnd() - 0.5) * 8, 6 + rnd() * 6 * (1 - x / w), 1, 0.4); } }),
@@ -218,33 +310,46 @@ const Fx = (() => {
   const BX = 4.75, BZ = Board.BZ;
   const LAY_W = 1024, LAY_H = Math.round(1024 * (2 * BZ) / (2 * BX));
   const layerCanvas = document.createElement('canvas'); layerCanvas.width = LAY_W; layerCanvas.height = LAY_H;
-  const lg = layerCanvas.getContext('2d');
+  const lg = layerCanvas.getContext('2d', { willReadFrequently: true });
   const layerTex = new THREE.CanvasTexture(layerCanvas); layerTex.colorSpace = THREE.SRGBColorSpace;
   const layerGeo = new THREE.PlaneGeometry(2 * BX, 2 * BZ); layerGeo.rotateX(-Math.PI / 2);
   const layer = new THREE.Mesh(layerGeo, new THREE.MeshBasicMaterial({ map: layerTex, transparent: true, depthWrite: false, polygonOffset: true, polygonOffsetFactor: -1, polygonOffsetUnits: -1 }));
   layer.position.y = TOP + 0.0008; layer.renderOrder = 1;
   scene.add(layer);
   let layerDirty = false;
-  const tintCache = new Map();
-  function tinted(tex, color) {
-    const key = tex.uuid + color;
-    if (tintCache.has(key)) return tintCache.get(key);
-    const src = tex.image, c = document.createElement('canvas'); c.width = src.width; c.height = src.height;
-    const g = c.getContext('2d'); g.drawImage(src, 0, 0); g.globalCompositeOperation = 'source-in';
-    g.fillStyle = '#' + new THREE.Color(color).getHexString(); g.fillRect(0, 0, c.width, c.height);
-    tintCache.set(key, c);
-    return c;
-  }
+  // 烙进图层：每层痕迹留 30%，重叠处的浓度是相加的（30% + 30% + …，封顶 MARK_CAP），
+  // 而且叠得越多颜色越往焦黑里沉 —— 反复厮杀的地方会越打越黑，所有痕迹都留着
+  const MARK_CAP = 0.9;
+  const scratch = document.createElement('canvas'); scratch.width = scratch.height = 64;
+  const sg = scratch.getContext('2d', { willReadFrequently: true });
   function bake(r) {
     const { x, z } = r.m.position;
-    const cx = (x + BX) / (2 * BX) * LAY_W, cy = (z + BZ) / (2 * BZ) * LAY_H;
     const ppu = LAY_W / (2 * BX);
-    lg.save(); lg.translate(cx, cy); lg.rotate(-r.m.rotation.y);
-    lg.globalAlpha = r.op * 0.3;
-    const img = tinted(r.tex, r.color);
-    const w = r.sx * ppu, h = r.sz * ppu;
-    lg.drawImage(img, -w / 2, -h / 2, w, h);
-    lg.restore();
+    const cx = (x + BX) / (2 * BX) * LAY_W, cy = (z + BZ) / (2 * BZ) * LAY_H;
+    const w = r.sx * ppu, h = r.sz * ppu, rot = -r.m.rotation.y;
+    const co = Math.abs(Math.cos(rot)), si = Math.abs(Math.sin(rot));
+    const bw = Math.ceil(w * co + h * si) + 2, bh = Math.ceil(w * si + h * co) + 2;
+    const x0 = Math.max(0, Math.floor(cx - bw / 2)), y0 = Math.max(0, Math.floor(cy - bh / 2));
+    const W = Math.min(LAY_W, Math.ceil(cx + bw / 2)) - x0, H = Math.min(LAY_H, Math.ceil(cy + bh / 2)) - y0;
+    if (W <= 0 || H <= 0) return;
+    if (scratch.width < W) scratch.width = W;
+    if (scratch.height < H) scratch.height = H;
+    sg.setTransform(1, 0, 0, 1, 0, 0); sg.clearRect(0, 0, W, H);
+    sg.translate(cx - x0, cy - y0); sg.rotate(rot);
+    sg.drawImage(r.tex.image, -w / 2, -h / 2, w, h);
+    const src = sg.getImageData(0, 0, W, H).data, dst = lg.getImageData(x0, y0, W, H), d = dst.data;
+    const cr = (r.color >> 16) & 255, cg = (r.color >> 8) & 255, cb = r.color & 255, k = r.op * 0.3 / 255;
+    for (let i = 0; i < d.length; i += 4) {
+      const as = src[i + 3] * k;
+      if (as < 0.004) continue;
+      const ad = d[i + 3] / 255, sum = ad + as;
+      const dark = 1 - 0.5 * ad * Math.min(1, as / 0.2);      // 底下已经有多浓，这一层就把颜色压多暗
+      d[i] = (d[i] * ad + cr * as) / sum * dark;
+      d[i + 1] = (d[i + 1] * ad + cg * as) / sum * dark;
+      d[i + 2] = (d[i + 2] * ad + cb * as) / sum * dark;
+      d[i + 3] = Math.min(MARK_CAP, sum) * 255;
+    }
+    lg.putImageData(dst, x0, y0);
     layerDirty = true;
   }
   const marks = [];
@@ -253,6 +358,7 @@ const Fx = (() => {
   const onBoard = p => Math.abs(p.x) < BX - 0.02 && Math.abs(p.z) > Board.HALF + 0.02 && Math.abs(p.z) < BZ - 0.02;
   function mark(tex, color, pos, sx, sz = sx, rot = 0, { op = 0.85, grow = 0.2, hold = 10, fade = 45 } = {}) {
     if (!onBoard(pos)) return null;
+    tex = pick(tex);
     const m = new THREE.Mesh(markGeo, new THREE.MeshBasicMaterial({ map: tex, color, transparent: true, opacity: 0, depthWrite: false, polygonOffset: true, polygonOffsetFactor: -2 - (markSeq % 6), polygonOffsetUnits: -2 }));
     m.position.set(pos.x, TOP + 0.0016 + (markSeq++ % 20) * 0.00012, pos.z);
     m.rotation.y = rot; m.renderOrder = 2;
@@ -285,24 +391,41 @@ const Fx = (() => {
   const BLOOD_PAL = [0x7c0e08, 0x6a0a06, 0x8e1a10, 0x5a0805, 0x741208];
   const BLOOD = () => (state.gore >= 2 ? BLOOD_PAL[Math.floor(rnd() * BLOOD_PAL.length)] : bloodCol());
   const Marks = {
-    scorch(p, s = 1.6) { mark(MT.scorch, 0x16110e, p, s, s, rnd() * 6, { op: 0.92, hold: 20 }); mark(MT.scorchRim, 0x4a2a14, p, s * 1.5, s * 1.5, 0, { op: 0.6, hold: 20 }); },
-    // 血迹：随机挑一种形状（血泊 / 喷溅 / 血点簇 / 拖痕），方向跟着受击方向；再往外甩出一串大小不一的血滴
+    // 焦土：大小、长宽、朝向都随机，四周再崩出几点焦屑
+    scorch(p, s = 1.6) {
+      s *= R(0.75, 1.3);
+      const ax = R(0.8, 1.22), az = R(0.8, 1.22), rot = rnd() * 6.28;
+      mark(MT.scorch, rnd() < 0.5 ? 0x16110e : 0x1e1612, p, s * ax, s * az, rot, { op: R(0.84, 0.95), hold: 20 });
+      mark(MT.scorchRim, 0x4a2a14, p, s * 1.5 * ax, s * 1.5 * az, rot, { op: R(0.45, 0.65), hold: 20 });
+      const n = LOW() ? 2 : 3 + Math.floor(rnd() * 5);
+      for (let i = 0; i < n; i++) { const a = rnd() * 6.28, d = s * R(0.42, 0.85); mark(MT.drop, 0x1a1410, p.clone().add(new V3(Math.cos(a) * d, 0, Math.sin(a) * d)), s * R(0.05, 0.16), undefined, rnd() * 6, { op: R(0.6, 0.85), grow: 0.05, hold: 14 }); }
+    },
+    // 血迹：随机挑形状（血泊 / 喷溅 / 迸溅 / 血点簇 / 拖痕），常常两种叠着来，方向跟着受击方向；再往外甩出一串大小不一的血滴
     blood(p, s = 1.0, dir) {
       if (state.gore === 0) return;
-      s *= (state.gore >= 3 ? 1.4 : 1) * R(0.8, 1.25);
+      s *= (state.gore >= 3 ? 1.55 : state.gore === 2 ? 1.15 : 1) * R(0.75, 1.3);
       const d = dir && dir.lengthSq() > 1e-6 ? dir.clone().setY(0).normalize() : null;
-      const rot = d ? Math.atan2(-d.z, d.x) + R(-0.35, 0.35) : rnd() * 6;
-      const roll = rnd(), base = p.clone();
-      if (d && roll < 0.6) mark(MT.bloodSpray, BLOOD(), base.clone().addScaledVector(d, 0.3 * s), s * 1.7, s * 0.85, rot, { op: 0.9, grow: 0.45 });
-      else if (roll < 0.78) mark(MT.blood, BLOOD(), base.clone().addScaledVector(d || new V3(), 0.12), s, s * R(0.7, 1.2), rnd() * 6, { op: 0.9, grow: 1.2 });
-      else if (roll < 0.9) mark(MT.bloodDrops, BLOOD(), base, s * 0.9, s * R(0.75, 1.15), rnd() * 6, { op: 0.88, grow: 0.2 });
-      else mark(MT.bloodSmear, BLOOD(), base.clone().addScaledVector(d || new V3(1, 0, 0), 0.35 * s), s * 1.5, s * 0.5, rot, { op: 0.85, grow: 0.7 });
+      const ang = d ? Math.atan2(-d.z, d.x) : rnd() * 6.28;
+      const base = p.clone(), fwd = d || new V3(Math.cos(ang), 0, -Math.sin(ang));
+      const shape = k => {
+        const rot = ang + R(-0.4, 0.4), q = base.clone().add(new V3(R(-0.12, 0.12) * s, 0, R(-0.12, 0.12) * s));
+        if (k === 0) mark(MT.bloodSpray, BLOOD(), q.addScaledVector(fwd, 0.3 * s), s * R(1.4, 1.9), s * R(0.6, 1.0), rot, { op: 0.9, grow: 0.45 });
+        else if (k === 1) mark(MT.blood, BLOOD(), q.addScaledVector(fwd, 0.12), s * R(0.85, 1.15), s * R(0.65, 1.2), rnd() * 6.28, { op: 0.9, grow: 1.2 });
+        else if (k === 2) mark(MT.bloodBurst, BLOOD(), q, s * R(0.9, 1.3), s * R(0.8, 1.25), rnd() * 6.28, { op: 0.9, grow: 0.12 });
+        else if (k === 3) mark(MT.bloodDrops, BLOOD(), q, s * R(0.7, 1.05), s * R(0.6, 1.1), rnd() * 6.28, { op: 0.88, grow: 0.2 });
+        else mark(MT.bloodSmear, BLOOD(), q.addScaledVector(fwd, 0.35 * s), s * R(1.2, 1.7), s * R(0.38, 0.6), rot, { op: 0.85, grow: 0.7 });
+      };
+      const roll = rnd();
+      const first = d ? (roll < 0.45 ? 0 : roll < 0.62 ? 1 : roll < 0.8 ? 2 : roll < 0.9 ? 3 : 4) : (roll < 0.4 ? 1 : roll < 0.75 ? 2 : roll < 0.9 ? 3 : 4);
+      shape(first);
+      if (state.gore >= 2 && rnd() < (state.gore >= 3 ? 0.85 : 0.5)) { let k2 = Math.floor(rnd() * 5); if (k2 === first) k2 = (k2 + 1) % 5; if (!d && k2 === 0) k2 = 2; shape(k2); }
       if (state.gore >= 2) {
-        const n = state.gore >= 3 ? 4 + Math.floor(rnd() * 7) : 2 + Math.floor(rnd() * 3);
+        const n = LOW() ? 3 : state.gore >= 3 ? 7 + Math.floor(rnd() * 10) : 3 + Math.floor(rnd() * 5);
         for (let i = 0; i < n; i++) {
-          const a = d ? Math.atan2(d.z, d.x) + R(-0.6, 0.6) : rnd() * 6.28, dist = R(0.2, 1.05) * s;
+          const a = d ? Math.atan2(d.z, d.x) + R(-0.75, 0.75) : rnd() * 6.28, dist = R(0.2, 1.25) * s;
           const q = base.clone().add(new V3(Math.cos(a) * dist, 0, Math.sin(a) * dist));
-          mark(MT.drop, BLOOD(), q, R(0.03, 0.1) * (1.25 - dist / (1.2 * s)), undefined, rnd() * 6, { op: 0.85, grow: 0.05, hold: 8 });
+          const sz = R(0.03, 0.12) * (1.3 - dist / (1.3 * s));
+          mark(MT.drop, BLOOD(), q, sz * R(0.8, 1.5), sz, -a, { op: 0.85, grow: 0.05, hold: 8 });
         }
       }
     },
@@ -311,9 +434,9 @@ const Fx = (() => {
     ruts(p, d, side) { const rot = Math.atan2(-d.z, d.x); for (const s of [1, -1]) mark(MT.rut, 0x2e2419, p.clone().addScaledVector(side, s * 0.2), 0.34, 0.07, rot, { op: 0.75, grow: 0, hold: 6 }); },
     hoof(p, d) { mark(MT.hoof, 0x2e2419, p, 0.09, 0.09, Math.atan2(-d.z, d.x) - Math.PI / 2, { op: 0.8, grow: 0, hold: 5 }); },
     foot(p) { mark(MT.foot, 0x2e2419, p, 0.2, 0.2, rnd() * 6, { op: 0.7, grow: 0, hold: 6 }); },
-    streak(p, d, len = 1.5) { if (state.gore === 0) return; mark(MT.streak, BLOOD(), p, len, len * 0.19, Math.atan2(-d.z, d.x) + R(-0.3, 0.3), { op: 0.9, grow: 0.15 }); },
-    cut(p, d) { mark(MT.cut, 0x1c1714, p, 0.85, 0.85, Math.atan2(-d.z, d.x), { op: 0.85, grow: 0.12 }); },
-    crack(p, s = 2.4) { mark(MT.crack, 0x16110e, p, s, s, rnd() * 6, { op: 0.9, grow: 0.25, hold: 16 }); },
+    streak(p, d, len = 1.5) { if (state.gore === 0) return; len *= R(0.8, 1.25); mark(MT.streak, BLOOD(), p, len, len * R(0.14, 0.24), Math.atan2(-d.z, d.x) + R(-0.3, 0.3), { op: 0.9, grow: 0.15 }); },
+    cut(p, d) { const s = R(0.62, 1.08); mark(MT.cut, 0x1c1714, p, s, s * R(0.8, 1.2), Math.atan2(-d.z, d.x) + R(-0.5, 0.5) + (rnd() < 0.5 ? Math.PI : 0), { op: R(0.75, 0.9), grow: 0.12 }); },
+    crack(p, s = 2.4) { s *= R(0.75, 1.3); mark(MT.crack, 0x16110e, p, s * R(0.82, 1.2), s * R(0.82, 1.2), rnd() * 6.28, { op: R(0.8, 0.94), grow: 0.25, hold: 16 }); },
     hole(p) { mark(MT.hole, 0x1c1714, p, 0.08, 0.08, 0, { op: 0.8, grow: 0, hold: 5 }); },
   };
 
@@ -434,7 +557,7 @@ const Fx = (() => {
       flyFace(tgt, cc, d, 0.8, t === 'c');
       P.ink(cc, 10, 0.5, 0.3);
       if (t !== 'c') P.blood(cc, 10, 0.7, d);
-      else { P.fire(cc, 14, 0.5); flash(cc, 30, 0.4); }
+      else { P.fire(cc, 14, 0.5); flash(cc, 30, 0.4); glow(cc, 1.8, 0.4, 0.4); }
     }
     resultAt(t, B, d, side);
     m.position.copy(B);
@@ -698,9 +821,10 @@ const Fx = (() => {
   }
 
   return {
-    P, spawn, ring, slash, flash, sink, rise, playMove, undoMove, checkStamp, mateSplash, reveal, flip, cineOn, cineOff, geom, bits, Marks, clearMarks, addSmoke,
+    P, spawn, ring, slash, flash, glow, sink, rise, playMove, undoMove, checkStamp, mateSplash, reveal, flip, cineOn, cineOff, geom, bits, Marks, clearMarks, addSmoke,
     chunks, throwObj, removePiece, flyFace, groundY, onWater, groundAt, shot, follow, slowmo, ctxOf, rv, R, state, resultAt, lowMove,
     get smokeCount() { return smokes.length; },
+    get markLayer() { return layerCanvas; }, bakeAll() { for (const r of marks) { bake(r); scene.remove(r.m); r.m.material.dispose(); } marks.length = 0; },
     get level() { return state.level; }, set level(v) { state.level = v; },
     get gore() { return state.gore; }, set gore(v) { state.gore = v; },
     get ply() { return state.ply; }, set ply(v) { state.ply = v; },

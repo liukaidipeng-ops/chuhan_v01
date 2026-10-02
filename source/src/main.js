@@ -526,7 +526,7 @@
     for (const id of ['tUndo', 'tResign']) $(id).classList.toggle('hidden', m === 'watch');
     $('tLaugh').classList.toggle('hidden', m !== 'watch');
     setupChat();
-    $('log').classList.toggle('hidden', !store.get('log', innerWidth > 1100));
+    $('log').classList.add('hidden');   // 棋谱默认收起，点「譜」才展开
     Ending.hideCard();
     Core.Cam.cine = false;
     Sfx.init(); applySettings();
@@ -2153,7 +2153,7 @@
   // ---------- 对局按钮 ----------
   $('tUndo').onclick = requestUndo;
   $('tView').onclick = () => { if (mode === 'local') setView(viewSide === 'r' ? 'b' : 'r'); else setView(viewSide); };
-  $('tLog').onclick = () => { const h = !$('log').classList.contains('hidden'); $('log').classList.toggle('hidden', h); store.set('log', !h); if (!h) renderLog(); };
+  $('tLog').onclick = () => { const h = !$('log').classList.contains('hidden'); $('log').classList.toggle('hidden', h); if (!h) renderLog(); };
   $('tVis').onclick = () => { S.vis = VIS[(VIS.indexOf(S.vis) + 1) % VIS.length]; applySettings(); toast(`画面：${VISNAME[S.vis]}`); };
   $('tExit').onclick = async () => {
     if (!mode) return;

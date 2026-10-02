@@ -36,7 +36,7 @@ const Camp = (() => {
       P(G.box(6, 2.6, 4.4), st.tent, 0, 1.3, 0),
       P(G.box(6.1, 0.3, 4.5), st.stripe, 0, 2.5, 0),
       P(G.box(6.3, 0.18, 4.7), st.trim, 0, 2.72, 0),
-      P(new THREE.ConeGeometry(4.4, 2.2, 4), st.roof, 0, 3.9, 0, 0, Math.PI / 4, 0, 1, 1, 0.75),
+      P(new THREE.ConeGeometry(4.4, 2.2, 4).rotateY(Math.PI / 4), st.roof, 0, 3.9, 0, 0, 0, 0, 1.06, 1, 0.8),
       P(G.cone(0.15, 0.6, 6), st.trim, 0, 5.2, 0),
       P(G.box(1.8, 2.0, 0.1), 0x1a1614, 0, 1.0, 2.22), // 帐门
       P(G.box(0.3, 2.2, 0.3), st.stripe, 1.1, 1.1, 2.3), P(G.box(0.3, 2.2, 0.3), st.stripe, -1.1, 1.1, 2.3),

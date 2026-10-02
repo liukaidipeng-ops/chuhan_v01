@@ -1,7 +1,7 @@
 // ===== 棋盘、棋子、楚河汉界流水、水墨山水 =====
 const Board = (() => {
   const { scene, toon, inked, canvasTex, rnd, inkBlot, Tex } = Core;
-  const TOP = 0.25, PH = 0.2, HALF = 0.24, RZ = 0.62, BX = 4.75, BZ = RZ + 4 + 0.75, BRIDGE_X = 6.97;
+  const TOP = 0.25, PH = 0.2, HALF = 0.24, RZ = 0.62, BX = 4.75, BZ = RZ + 4 + 1.2, BRIDGE_X = 6.97;
   const X = f => f - 4;
   const Z = r => (r <= 4 ? RZ + (4 - r) : -(RZ + (r - 5)));
   const pos = (f, r, y = TOP) => new THREE.Vector3(X(f), y, Z(r));
@@ -109,7 +109,7 @@ const Board = (() => {
       }
       // —— 外缘装饰：回纹带、四角如意、河岸海水纹、正中印章 ——
       const sg = isRed ? 1 : -1, bw = 0.27 * PPU;
-      const sx = 4.46, zf = sg * 5.08, zn = sg * 0.4;
+      const sx = 4.46, zf = sg * 5.52, zn = sg * 0.4;
       g.strokeStyle = 'rgba(148,105,42,.8)'; g.lineWidth = 3;
       g.strokeRect(cx(-BX + 0.06), Math.min(cy(sg * (BZ - 0.06)), cy(sg * (HALF + 0.04))), (2 * BX - 0.12) * PPU, Math.abs(cy(sg * (BZ - 0.06)) - cy(sg * (HALF + 0.04))));
       for (const x of [-sx, sx]) fretBand(g, cx(x), cy(zf) - sg * 0.2 * PPU * 0, cx(x), cy(zn), bw, GOLD, GOLD_HI);
@@ -125,7 +125,7 @@ const Board = (() => {
       g.translate(cx(0), cy(zf));
       if (!isRed) g.rotate(Math.PI);
       const ss = 0.46 * PPU;
-      g.fillStyle = 'rgba(160,36,22,.92)'; g.fillRect(-ss / 2, -ss / 2, ss, ss);
+      g.fillStyle = isRed ? 'rgba(160,36,22,.92)' : 'rgba(30,26,24,.94)'; g.fillRect(-ss / 2, -ss / 2, ss, ss);   // 汉朱印、楚墨印
       g.strokeStyle = 'rgba(247,232,205,.85)'; g.lineWidth = 4; g.strokeRect(-ss / 2 + 7, -ss / 2 + 7, ss - 14, ss - 14);
       g.fillStyle = '#f5e6c8'; g.font = `bold ${Math.round(ss * 0.66)}px ${FONT}`; g.textAlign = 'center'; g.textBaseline = 'middle';
       g.fillText(isRed ? '漢' : '楚', 0, ss * 0.04);
@@ -647,7 +647,7 @@ const Board = (() => {
   //   boxAz / boxEl / boxI / zen = 斜上方柔光箱的方位半宽、仰角范围、亮度，天顶灯亮度（决定金属顶面那块高光有多大、多亮）
   //   domeM = 金属顶面的弧度（略微隆起，高光才是一块有形状的光斑，而不是整面发白）
   //   jade = 玉面纹理：gu 谷纹 / pu 蒲纹 / yun 云纹 / su 素面
-  const SK = { boxAz: [13, 20], boxEl: [30, 37, 55, 61], boxI: [1.2, 3.0], zen: 2.4, domeM: 0.2, anisoTop: 0.16, jade: 'gu' };
+  const SK = { boxAz: [9, 14], boxEl: [33, 39, 51, 56], boxI: [1.2, 3.0], zen: 2.4, domeM: 0.2, anisoTop: 0.16, envS: 0.9, envG: 0.82, jade: 'yun' };   // 顶面高光占比：银约 35%、金约 25%；白玉用云纹
   try { const o = JSON.parse(localStorage.getItem('xq3d-sk') || 'null'); if (o) Object.assign(SK, o); } catch (e) { }
   function studioEnv() {
     const W = 512, H = 256, lin = new Float32Array(W * H * 3);
@@ -851,7 +851,7 @@ const Board = (() => {
       else { g.fillStyle = 'rgb(255,120,255)'; g.beginPath(); g.arc(c, c, R1, 0, 7); g.arc(c, c, R0, 0, 7, true); g.fill(); for (let i = 0; i < 60; i++) { const a = i / 60 * Math.PI * 2, r = (R0 + R1) / 2; g.fillStyle = 'rgb(255,22,255)'; g.beginPath(); g.arc(c + Math.cos(a) * r, c + Math.sin(a) * r, 6, 0, 7); g.fill(); } }
     }));
     const aniso = dataTex(spunAniso(256)); aniso.minFilter = aniso.magFilter = THREE.NearestFilter; aniso.generateMipmaps = false;
-    return { map, orm, normal: dataTex(normalFrom(blurred(hc, 0.8), silver ? 1.6 : 3, false, SK.domeM)), aniso };
+    return { map, orm, normal: dataTex(normalFrom(blurred(hc, 0.8), silver ? 1.6 : 3, false, (silver ? SK.domeS : SK.domeG) ?? SK.domeM)), aniso };
   }
   function meanderRing(g, c, r0, r1, n) {
     g.lineJoin = 'miter'; g.lineCap = 'square';
@@ -1006,20 +1006,20 @@ const Board = (() => {
     const sb = silverBand(), gb = goldBand(), jb = jadeBand(), st = topSet('silver'), gt = topSet('gold');
     const MET = envTex ? 1 : 0.55;
     const metal = (color, rough, extra = {}) => phys({ color, metalness: MET, roughness: rough, envMapIntensity: 1, ...E, ...extra });
-    const top = o => { const m = metal(o.color, 1, { map: o.t.map, roughnessMap: o.t.orm, metalnessMap: o.t.orm, normalMap: o.t.normal, normalScale: new THREE.Vector2(1, 1), anisotropy: SK.anisoTop, anisotropyMap: o.t.aniso, polygonOffset: true, polygonOffsetFactor: -1 }); return m; };
+    const top = o => { const m = metal(o.color, 1, { map: o.t.map, roughnessMap: o.t.orm, metalnessMap: o.t.orm, normalMap: o.t.normal, normalScale: new THREE.Vector2(1, 1), anisotropy: SK.anisoTop, anisotropyMap: o.t.aniso, envMapIntensity: o.env, polygonOffset: true, polygonOffsetFactor: -1 }); return m; };
     const gold = metal(GOLD_RIM, 0.13);
     const jadeBody = v => jadeGlow(phys({ map: jadeBodyTex(v), color: 0xffffff, metalness: 0, roughness: 0.4, clearcoat: 0.6, clearcoatRoughness: 0.16, sheen: 0.3, sheenColor: new THREE.Color(0xfff0d8), sheenRoughness: 0.5, emissive: 0x2a2012, emissiveIntensity: 0.25, envMapIntensity: 0.45, ...E }), 0xffcf8e, 0.04, 0.42);
     const jadeTop = v => { const t = jadeTopSet(v, SK.jade); return jadeGlow(phys({ map: t.map, normalMap: t.normal, ...(t.rough ? { roughnessMap: t.rough, roughness: 0.4 } : { roughness: 0.36 }), color: 0xffffff, metalness: 0, clearcoat: 0.55, clearcoatRoughness: 0.18, sheen: 0.3, sheenColor: new THREE.Color(0xfff2de), emissive: 0x2a2012, emissiveIntensity: 0.22, envMapIntensity: 0.4, polygonOffset: true, polygonOffsetFactor: -1, ...E }), 0xffd49a, 0.03, 0.24); };
     skins = {
       2: {
         body: metal(SILVER, 0.13),
-        top: top({ color: SILVER, t: st }),
+        top: top({ color: SILVER, t: st, env: SK.envS ?? 1 }),
         band: metal(SILVER, 1, { map: sb.map, roughnessMap: sb.orm, metalnessMap: sb.orm, normalMap: sb.normal, normalScale: new THREE.Vector2(0.5, 0.5) }),
         wire: 'silver',
       },
       3: {
         body: metal(GOLDC, 0.13),
-        top: top({ color: GOLDC, t: gt }),
+        top: top({ color: GOLDC, t: gt, env: SK.envG ?? 1 }),
         band: metal(GOLDC, 1, { map: gb.map, roughnessMap: gb.orm, metalnessMap: gb.orm, normalMap: gb.normal, normalScale: new THREE.Vector2(0.9, 0.9) }),
         wire: 'gold',
       },
