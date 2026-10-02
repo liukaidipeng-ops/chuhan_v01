@@ -370,7 +370,107 @@
     kingPos(s) { return findKing(this.board, s); }
   }
 
-  const XQ = { Game, W, H, NAMES, TYPE_CN, other, inPalace, allLegalMoves, inCheck, initialBoard, JQ_SQ, JQ_STD, JQ_COUNT, randomLayout, jieqiBoard, shuffle, rand, et, pseudoMoves, findKing, inBoard, ownHalf, checkers };
+  // ---------- 杀法名：将死时判断是哪一种经典杀法（重炮、马后炮、卧槽马……），认不出就按参与的兵种给个合杀名 ----------
+  // b = 终局棋盘，loser = 被将死的一方；last（可选）= 最后一步 { to, cap: 被吃的子 }
+  function mateName(b, loser, last) {
+    const W_ = other(loser), K = findKing(b, loser);
+    if (!K) return '';
+    const [kf, kr] = K, back = loser === 'r' ? 0 : H - 1, dirIn = loser === 'r' ? 1 : -1;
+    const at = (f, r) => (inBoard(f, r) ? b[r][f] : null);
+    const mine = []; // 胜方所有子
+    for (let r = 0; r < H; r++) for (let f = 0; f < W; f++) { const p = b[r][f]; if (p && p.s === W_) mine.push({ p, f, r, t: et(p) }); }
+    const hits = (x, f, r) => pseudoMoves(b, x.f, x.r).some(m => m.to[0] === f && m.to[1] === r);
+    const chk = mine.filter(x => x.t !== 'k' && hits(x, kf, kr));
+    const of = t => mine.filter(x => x.t === t);
+    // 两格之间（同一直线）的子
+    const between = (f0, r0, f1, r1) => {
+      const out = [], df = Math.sign(f1 - f0), dr = Math.sign(r1 - r0);
+      if (df && dr) return out;
+      for (let f = f0 + df, r = r0 + dr; f !== f1 || r !== r1; f += df, r += dr) { const q = b[r][f]; if (q) out.push({ p: q, f, r, t: et(q) }); }
+      return out;
+    };
+    // 将能逃去的格子里，哪些只是因为“将帅对面”才去不得（胜方的帅也出了力）
+    const kingHelps = () => {
+      const wk = findKing(b, W_); if (!wk) return false;
+      for (const [df, dr] of [[1, 0], [-1, 0], [0, 1], [0, -1]]) {
+        const f = kf + df, r = kr + dr; if (!inBoard(f, r) || !inPalace(loser, f, r)) continue;
+        const q = b[r][f]; if (q && q.s === loser) continue;
+        if (f !== wk[0]) continue;
+        // 把将挪过去，看除了帅之外有没有别的子攻击到
+        const save = b[r][f]; b[r][f] = b[kr][kf]; b[kr][kf] = null;
+        const clear = between(f, r, wk[0], wk[1]).length === 0;
+        const others = mine.some(x => x.t !== 'k' && !(x.f === f && x.r === r) && pseudoMoves(b, x.f, x.r).some(m => m.to[0] === f && m.to[1] === r));
+        b[kr][kf] = b[r][f]; b[r][f] = save;
+        if (clear && !others) return true;
+      }
+      return false;
+    };
+    const horses = of('n'), rooks = of('r'), cannons = of('c'), pawns = of('p');
+    const corner = (kf === 3 || kf === 5) && (kr === back || kr === back + 2 * dirIn); // 将在九宫角上
+    const baJiao = corner && horses.some(h => Math.abs(h.f - kf) === 2 && Math.abs(h.r - kr) === 2 && h.f >= 3 && h.f <= 5);
+    const diaoYu = horses.some(h => (h.f === 2 || h.f === 6) && h.r === back + 2 * dirIn);
+    const c0 = chk[0];
+    if (chk.length >= 2) {
+      const ts = chk.map(x => x.t).sort().join('');
+      if (ts === 'cc') return '重炮';
+      if (ts === 'nn') return '双马饮泉';
+      if (ts === 'rr') return '双车错';
+      return '双将';
+    }
+    if (!c0) return kingHelps() ? '白脸将' : '';
+    if (c0.t === 'c') {
+      const scr = between(c0.f, c0.r, kf, kr)[0];
+      if (scr && scr.p.s === W_ && scr.t === 'c') return '重炮';
+      if (scr && scr.p.s === W_ && scr.t === 'n') return '马后炮';
+      if (cannons.length >= 2) {
+        // 天地炮：一门炮镇中路，一门炮沉底线
+        const o = cannons.find(x => x !== c0);
+        const onFile = x => x.f === 4, onBack = x => x.r === back;
+        if ((onFile(c0) && onBack(o)) || (onBack(c0) && onFile(o))) return '天地炮';
+      }
+      if (scr && scr.p.s === loser && (scr.t === 'a' || scr.t === 'e') && Math.abs(scr.f - kf) + Math.abs(scr.r - kr) === 1) return '闷宫';
+      if (baJiao) return '八角马';
+      if (rooks.length) return '车炮合杀';
+      if (horses.length) return '马炮合杀';
+      if (pawns.length) return '炮兵合杀';
+      return scr && scr.p.s === loser ? '闷宫' : '';
+    }
+    if (c0.t === 'n') {
+      if (kr === back && kf === 4 && (c0.f === 2 || c0.f === 6) && c0.r === back + dirIn) return '卧槽马';
+      if (kr === back && kf === 4 && (c0.f === 3 || c0.f === 5) && c0.r === back + 2 * dirIn) return '挂角马';
+      if (horses.length >= 2 && horses.every(h => Math.abs(h.f - kf) <= 3 && Math.abs(h.r - kr) <= 3)) return '双马饮泉';
+      if (rooks.length) return '车马合杀';
+      if (cannons.length) return '马炮合杀';
+      if (pawns.length) return '马兵合杀';
+      return '单马擒王';
+    }
+    if (c0.t === 'r' || c0.t === 'p') {
+      if (c0.t === 'r' && last && last.cap && et(last.cap) === 'a' && last.to && last.to[0] === 4 && last.to[1] === back + dirIn && c0.f === 4 && c0.r === back + dirIn) return '大刀剜心';
+      // 铁门栓：中炮镇住中路，车（兵）在底线或将旁一击致命
+      if (cannons.some(c => c.f === 4 && kf === 4 || (c.f === kf && between(c.f, c.r, kf, kr).length >= 1 && between(c.f, c.r, kf, kr).length <= 2))) return '铁门栓';
+      if (baJiao) return '八角马';
+      if (c0.t === 'r' && diaoYu) return '钓鱼马';
+      if (c0.t === 'r' && rooks.length >= 2) {
+        const o = rooks.find(x => x !== c0);
+        if ((c0.r === kr && Math.abs(o.r - kr) === 1) || (c0.f === kf && Math.abs(o.f - kf) === 1) || Math.abs(o.r - c0.r) === 1 || Math.abs(o.f - c0.f) === 1) return '双车错';
+      }
+      if (c0.t === 'p' && pawns.filter(x => x.f >= 3 && x.f <= 5 && Math.abs(x.r - back) <= 2).length >= 2) return '二鬼拍门';
+      if (kingHelps()) return '白脸将';
+      if (c0.t === 'r') {
+        if (horses.length) return '车马合杀';
+        if (cannons.length) return '车炮合杀';
+        if (rooks.length >= 2) return '双车合杀';
+        if (pawns.length) return '车兵合杀';
+        return '单车擒王';
+      }
+      if (rooks.length) return '车兵合杀';
+      if (horses.length) return '马兵合杀';
+      if (cannons.length) return '炮兵合杀';
+      return '兵临城下';
+    }
+    return '';
+  }
+  const XQ = { Game, W, H, NAMES, TYPE_CN, other, inPalace, allLegalMoves, inCheck, initialBoard, JQ_SQ, JQ_STD, JQ_COUNT, randomLayout, jieqiBoard, shuffle, rand, et, pseudoMoves, findKing, inBoard, ownHalf, checkers, mateName };
   if (typeof module !== 'undefined' && module.exports) module.exports = XQ;
   global.XQ = XQ;
 })(typeof window !== 'undefined' ? window : globalThis);

@@ -538,7 +538,22 @@ const Fx = (() => {
   async function slowmo(scale, gameDur) { Time.scale = scale; await sleep(gameDur); Time.scale = 1; }
 
   // ---------- 将军 ----------
-  function checkStamp(sideInCheck, text) {
+  // 绝杀 / 困毙：近乎满屏的行书大字，一字一顿砸下来，下面盖一方朱印写杀法（重炮、马后炮……）
+  function mateSplash(big, name, sideInCheck) {
+    const el = document.getElementById('mate');
+    el.querySelector('.c1').textContent = big[0]; el.querySelector('.c2').textContent = big[1];
+    const mn = el.querySelector('.mn'); mn.querySelector('b').textContent = name || ''; mn.style.display = name ? '' : 'none';
+    el.classList.remove('show'); void el.offsetWidth; el.classList.add('show');
+    clearTimeout(mateSplash.t); mateSplash.t = setTimeout(() => el.classList.remove('show'), 3600);
+    // 鼓点：第一字一记，第二字一记重的加锣，朱印落下再一声
+    Sfx.B.taiko(0.05, 0.95, 0.85); Sfx.B.taiko(0.38, 1, 0.7); Sfx.B.gong(0.4, 0.9); Sfx.B.clang(0.4, 0.5);
+    if (name) { Sfx.B.taiko(0.98, 0.8, 1.1); Sfx.B.bell(1.0, 660, 0.1); }
+    const k = [...Board.pieces.values()].find(x => x.userData.t === 'k' && x.userData.s === sideInCheck), kp = k ? k.position.clone() : new V3();
+    setTimeout(() => { Cam.shake(0.16); if (k) P.ink(kp.clone().setY(TOP + 0.2), 8, 0.6, 0.35, 0.8); }, 60);
+    setTimeout(() => { Cam.shake(0.34); flash(kp, 40, 0.5, 0.5); if (k) { ring(kp, 3.2, 1.1, 0xb0301f, 0.95); P.ink(kp.clone().setY(TOP + 0.2), 16, 0.8, 0.45, 0.9); } }, 390);
+  }
+  function checkStamp(sideInCheck, text, mateName) {
+    if (text === '殺' || text === '困') { mateSplash(text === '殺' ? '绝杀' : '困毙', text === '殺' ? mateName : '', sideInCheck); return; }
     const el = document.getElementById('stamp');
     el.textContent = text || (sideInCheck === 'b' ? '將' : '帥');
     el.classList.remove('show'); void el.offsetWidth; el.classList.add('show');
@@ -678,12 +693,12 @@ const Fx = (() => {
     c.m.rotation.set(0, Board.viewSide === 'b' ? Math.PI : 0, 0);
     if (Cam.cine && !info.result) { cineOff(); await Cam.home(0.8); }
     cineOff();
-    if (info.result) { checkStamp(XQ.other(info.mover), info.result.reason === 'checkmate' ? '殺' : '困'); }
+    if (info.result) { checkStamp(XQ.other(info.mover), info.result.reason === 'checkmate' ? '殺' : '困', info.mateName); }
     else if (info.check) { checkStamp(XQ.other(info.mover)); }
   }
 
   return {
-    P, spawn, ring, slash, flash, sink, rise, playMove, undoMove, checkStamp, reveal, flip, cineOn, cineOff, geom, bits, Marks, clearMarks, addSmoke,
+    P, spawn, ring, slash, flash, sink, rise, playMove, undoMove, checkStamp, mateSplash, reveal, flip, cineOn, cineOff, geom, bits, Marks, clearMarks, addSmoke,
     chunks, throwObj, removePiece, flyFace, groundY, onWater, groundAt, shot, follow, slowmo, ctxOf, rv, R, state, resultAt, lowMove,
     get smokeCount() { return smokes.length; },
     get level() { return state.level; }, set level(v) { state.level = v; },

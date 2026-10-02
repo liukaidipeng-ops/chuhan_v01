@@ -177,6 +177,8 @@ const Models = (() => {
       const set = o => Object.assign(J, o);
       switch (u.pose) {
         case 'idle': set({ crouch: 0, lean: 0.02, twist: Math.sin(T * 0.4) * 0.08, sway: 0, hx: 0, hy: Math.sin(T * 0.3) * 0.25, aW: kp.aW, wAbs: kp.wAbs, aS: kp.aS, sAbs: kp.sAbs, aWz: 0.05, aSz: -0.05 }); break;
+        // 坐立不安：东张西望、挪重心、手里兵器攥了又松（倒计时最后几秒的本方观战士兵）
+        case 'fidget': set({ crouch: 0.03 + 0.035 * Math.sin(T * 5.3), lean: 0.07 + 0.06 * Math.sin(T * 3.1), twist: Math.sin(T * 2.3) * 0.38, sway: Math.sin(T * 4.1) * 0.09, hx: 0.08 * Math.sin(T * 6.1), hy: Math.sin(T * 3.7) * 0.85, aW: kp.aW + 0.2 * Math.sin(T * 7.3), wAbs: kp.wAbs + 0.12 * Math.sin(T * 5.1), aS: kp.aS + 0.18 * Math.sin(T * 6.4), sAbs: kp.sAbs, aWz: 0.05, aSz: -0.05 }); break;
         case 'march': walk = 1; rate = 1.5; set({ crouch: 0, lean: 0.06, twist: 0, sway: 0, hx: 0, hy: 0, aW: kp.aW, wAbs: kp.wAbs, aS: kp.aS, sAbs: kp.sAbs }); break;
         case 'run': walk = 1.25; rate = 2.5; set({ crouch: 0.02, lean: 0.22, twist: 0, sway: 0, hx: -0.15, hy: 0, aW: kp.aW - 0.2, wAbs: kp.wAbs + 0.3, aS: kp.aS - 0.2, sAbs: kp.sAbs }); break;
         case 'charge': walk = 1.35; rate = 2.7; set({ crouch: 0.04, lean: 0.3, twist: 0, sway: 0, hx: -0.25, hy: 0, aW: kp.chargeW, wAbs: kp.chargeAbs, aS: -1.0, sAbs: 0.2 }); break;

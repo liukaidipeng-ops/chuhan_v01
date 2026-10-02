@@ -1312,6 +1312,90 @@ const Board = (() => {
     g.fillStyle = gr; g.fillRect(0, 0, w, w);
   });
   const SEL_COL = 0x7f927c;
+  // ---- 可走提示：低饱和的绿、带呼吸；落点是一团墨点（深绿墨边 + 浅绿心），从棋子到落点有一条顺着走向流动的墨带（干笔飞白）----
+  //   被动技能的走法（兵法：神速营 / 回防 / 铁甲禁卫）用金色
+  const HINT = { edge: 0x2f4d3a, core: 0xc4dfbb, belt: 0x4f7c5f, edgeV: 0x6e4f12, coreV: 0xf4d892, beltV: 0xb88a2c };
+  // 一块贴图里两笔：尾宽头尖、朝 +u 方向，一根根笔毛往笔尖收拢；滚动起来就像墨在往前走
+  const flowTex = canvasTex(512, 128, (g, w, h) => {
+    g.clearRect(0, 0, w, h);
+    // 底：一道淡淡的连笔（让带子连成一条），上面每块两笔浓墨
+    for (let i = 0; i < 40; i++) { g.strokeStyle = `rgba(255,255,255,${0.1 + rnd() * 0.16})`; g.lineWidth = 1 + rnd() * 3; const y = h * 0.3 + rnd() * h * 0.4; g.beginPath(); g.moveTo(0, y); g.lineTo(w, y); g.stroke(); }
+    for (let k = 0; k < 2; k++) {
+      const x0 = k * w / 2 + 6, L = w / 2 - 22;
+      // 笔肚：实心的一笔，尾宽头尖
+      const gr = g.createLinearGradient(x0, 0, x0 + L, 0); gr.addColorStop(0, 'rgba(255,255,255,.55)'); gr.addColorStop(0.5, 'rgba(255,255,255,.8)'); gr.addColorStop(1, 'rgba(255,255,255,.95)');
+      g.fillStyle = gr; g.beginPath(); g.moveTo(x0 + 8, h * 0.2); g.quadraticCurveTo(x0 + L * 0.6, h * 0.22, x0 + L, h * 0.5); g.quadraticCurveTo(x0 + L * 0.6, h * 0.78, x0 + 8, h * 0.8); g.quadraticCurveTo(x0 + 26, h * 0.5, x0 + 8, h * 0.2); g.fill();
+      // 飞白：笔尾擦掉几道
+      g.globalCompositeOperation = 'destination-out';
+      for (let i = 0; i < 16; i++) { g.strokeStyle = `rgba(0,0,0,${0.35 + rnd() * 0.5})`; g.lineWidth = 1 + rnd() * 2.6; const y = h * 0.22 + rnd() * h * 0.56, st = x0 + rnd() * 30; g.beginPath(); g.moveTo(st, y); g.lineTo(st + 30 + rnd() * L * 0.5, y + (h / 2 - y) * 0.3); g.stroke(); }
+      g.globalCompositeOperation = 'source-over';
+      // 笔毛：散开的细丝往笔尖收
+      for (let i = 0; i < 26; i++) {
+        const y = h * 0.08 + rnd() * h * 0.84, t = Math.abs(y - h / 2) / (h * 0.42);
+        const len = L * (1 - 0.5 * t * t) * (0.7 + rnd() * 0.3), st = x0 + rnd() * 16 + t * 20;
+        g.strokeStyle = `rgba(255,255,255,${0.2 + rnd() * 0.5})`; g.lineWidth = 1 + rnd() * 2.4; g.lineCap = 'round';
+        g.beginPath(); g.moveTo(st, y); g.quadraticCurveTo(st + len * 0.55, y + (h / 2 - y) * 0.3, st + len, y + (h / 2 - y) * 0.86); g.stroke();
+      }
+    }
+  }, { repeat: true });
+  // 沿折线铺一条带子：u = 沿线长度（贴图顺着流），两端用顶点透明度淡出
+  function ribbonGeo(pts, width, y, tile = 1.5) {
+    const n = pts.length, pos = new Float32Array(n * 6), uv = new Float32Array(n * 4), col = new Float32Array(n * 8), idx = [];
+    const L = [0]; for (let i = 1; i < n; i++) L.push(L[i - 1] + Math.hypot(pts[i][0] - pts[i - 1][0], pts[i][1] - pts[i - 1][1]));
+    const tot = L[n - 1] || 1, sm = x => { x = Math.min(1, Math.max(0, x)); return x * x * (3 - 2 * x); };
+    for (let i = 0; i < n; i++) {
+      const a = pts[Math.max(0, i - 1)], b = pts[Math.min(n - 1, i + 1)];
+      let tx = b[0] - a[0], tz = b[1] - a[1]; const tl = Math.hypot(tx, tz) || 1; tx /= tl; tz /= tl;
+      const nx = -tz * width / 2, nz = tx * width / 2, al = sm(L[i] / 0.32) * sm((tot - L[i]) / 0.3);
+      pos.set([pts[i][0] + nx, y, pts[i][1] + nz, pts[i][0] - nx, y, pts[i][1] - nz], i * 6);
+      uv.set([L[i] / tile, 0, L[i] / tile, 1], i * 4);
+      col.set([1, 1, 1, al, 1, 1, 1, al], i * 8);
+      if (i) { const k = i * 2; idx.push(k - 2, k - 1, k, k - 1, k + 1, k); }
+    }
+    const g = new THREE.BufferGeometry();
+    g.setAttribute('position', new THREE.BufferAttribute(pos, 3)); g.setAttribute('uv', new THREE.BufferAttribute(uv, 2)); g.setAttribute('color', new THREE.BufferAttribute(col, 4)); g.setIndex(idx);
+    return g;
+  }
+  // 一组走法 → 若干条墨带的路径：直线走法按方向合并（只铺到最远的落点），马走“日”拐个弯
+  function beltPaths(sel, moves, occ) {
+    const out = [], straight = new Map(), [sf, sr] = sel, A = [X(sf), Z(sr)];
+    for (const m of moves) {
+      const df = m.to[0] - sf, dr = m.to[1] - sr, af = Math.abs(df), ar = Math.abs(dr), B = [X(m.to[0]), Z(m.to[1])];
+      const endGap = occ(m.to[0], m.to[1]) ? 0.5 : 0.17;
+      if ((af === 1 && ar === 2) || (af === 2 && ar === 1)) {
+        // 马：先直走一格（马腿），再斜出去
+        const leg = af === 2 ? [X(sf + Math.sign(df)), Z(sr)] : [X(sf), Z(sr + Math.sign(dr))], pts = [];
+        for (let i = 0; i <= 14; i++) { const t = i / 14, u = 1 - t; pts.push([u * u * A[0] + 2 * u * t * leg[0] + t * t * B[0], u * u * A[1] + 2 * u * t * leg[1] + t * t * B[1]]); }
+        out.push({ pts: trimPath(pts, 0.5, endGap), via: m.via });
+        continue;
+      }
+      if (df && dr && af !== ar) { out.push({ pts: trimPath([A, B], 0.5, endGap), via: m.via }); continue; }
+      const key = Math.sign(df) + ',' + Math.sign(dr) + (m.via ? 'v' : ''), d = Math.max(af, ar), cur = straight.get(key);
+      if (!cur || d > cur.d) straight.set(key, { d, B, endGap, via: m.via });
+    }
+    for (const v of straight.values()) {
+      const n = Math.max(2, Math.ceil(Math.hypot(v.B[0] - A[0], v.B[1] - A[1]) / 0.25)), pts = [];
+      for (let i = 0; i <= n; i++) pts.push([A[0] + (v.B[0] - A[0]) * i / n, A[1] + (v.B[1] - A[1]) * i / n]);
+      out.push({ pts: trimPath(pts, 0.5, v.endGap), via: v.via });
+    }
+    return out.filter(p => p.pts.length >= 2);
+  }
+  // 把路径两头各裁掉一段（起点让开选中的棋子，终点让开落点的墨点 / 朱圈）
+  function trimPath(pts, a, b) {
+    const cut = (list, d) => {
+      let acc = 0;
+      for (let i = 1; i < list.length; i++) {
+        const seg = Math.hypot(list[i][0] - list[i - 1][0], list[i][1] - list[i - 1][1]);
+        if (acc + seg >= d) { const t = (d - acc) / (seg || 1); return [[list[i - 1][0] + (list[i][0] - list[i - 1][0]) * t, list[i - 1][1] + (list[i][1] - list[i - 1][1]) * t], ...list.slice(i)]; }
+        acc += seg;
+      }
+      return [];
+    };
+    const p1 = cut(pts, a); if (p1.length < 2) return [];
+    return cut(p1.slice().reverse(), b).reverse();
+  }
+  let moveDots = [], belts = [];
+  const DOT_E = 0.92, DOT_C = 0.56;
   let selRing = null, selGlow = null, selShade = null, selCol = null, selHalo = null, selDrop = null, hovered = null, kills = [], killRings = [], hoverT = 0;
   const dropping = new Set();
   function showMoves(sel, moves, hints = true) {
@@ -1344,8 +1428,15 @@ const Board = (() => {
         sp.userData.ph = Math.random() * 6;
         markRoot.add(sp); kills.push(sp);
       } else {
-        markRoot.add(decal(dotTex, 0x2c332b, 0.3, X(f), Z(r), TOP + 0.005, 0.72));
+        const e = decal(dotTex, m.via ? HINT.edgeV : HINT.edge, DOT_E, X(f), Z(r), TOP + 0.005, 0.9), c = decal(dotTex, m.via ? HINT.coreV : HINT.core, DOT_C, X(f), Z(r), TOP + 0.0056, 0.95);
+        e.rotation.y = rnd() * 6; c.rotation.y = rnd() * 6; e.userData.ph = c.userData.ph = (f * 0.7 + r * 0.4) % 1;
+        markRoot.add(e, c); moveDots.push(e, c);
       }
+    }
+    // 流动的墨带：顺着能走的方向指过去
+    if (sel && moves.length) for (const b of beltPaths(sel, moves, (f, r) => !!meshAt(f, r))) {
+      const mesh = new THREE.Mesh(ribbonGeo(b.pts, 0.4, TOP + 0.0042), new THREE.MeshBasicMaterial({ map: flowTex, color: b.via ? HINT.beltV : HINT.belt, transparent: true, opacity: 0.5, depthWrite: false, vertexColors: true, side: THREE.DoubleSide }));
+      mesh.userData.own = true; mesh.renderOrder = 3; markRoot.add(mesh); belts.push(mesh);
     }
   }
   // 兵法：本回合技能可用的子，脚下金圈呼吸闪烁
@@ -1391,11 +1482,22 @@ const Board = (() => {
       hovered = null;
     }
     if (immediate) { for (const m of dropping) { m.position.y = TOP; m.rotation.x = m.rotation.z = 0; } dropping.clear(); }
-    markRoot.traverse(o => { if (o.material && o.material !== goldM) o.material.dispose(); });
-    markRoot.clear(); selRing = selGlow = selShade = selCol = selHalo = selDrop = null; kills = []; killRings = [];
+    markRoot.traverse(o => { if (o.material && o.material !== goldM) o.material.dispose(); if (o.userData.own && o.geometry) o.geometry.dispose(); });
+    markRoot.clear(); selRing = selGlow = selShade = selCol = selHalo = selDrop = null; kills = []; killRings = []; moveDots = []; belts = [];
   }
   Core.onFrame(dt => {
     hoverT += dt;
+    // 落点墨点呼吸；墨带顺着走向流动、明暗起伏
+    if (moveDots.length || belts.length) {
+      const t = performance.now() / 1000;
+      flowTex.offset.x = -(t * 0.55) % 1;
+      for (let i = 0; i < moveDots.length; i++) {
+        const d = moveDots[i], core = i % 2 === 1, b = 0.5 + 0.5 * Math.sin(t * 2.6 - d.userData.ph * 2.2), s = (core ? DOT_C : DOT_E) * (0.9 + 0.2 * b);
+        d.scale.set(s, 1, s); d.material.opacity = core ? 0.7 + 0.3 * b : 0.62 + 0.3 * b;
+      }
+      const bb = 0.5 + 0.5 * Math.sin(t * 2.6);
+      for (const m of belts) m.material.opacity = 0.5 + 0.3 * bb;
+    }
     if (selRing) {
       selRing.rotation.y += dt * 0.6; selShade.rotation.y = selRing.rotation.y;
       const b = 0.5 + 0.5 * Math.sin(hoverT * 3);

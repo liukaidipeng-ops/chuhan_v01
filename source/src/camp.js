@@ -181,7 +181,10 @@ const Camp = (() => {
       scene.add(f); return f;
     });
     let smokeT = 0, t = 0;
-    const camp = { s, sg, group, guards, sentries, archers, troops, banners, flames, fires, drops: [], gen: 0, state: 'home', goneN: 0, total: guards.count + sentries.count };
+    // 中军大帐旁的两把火炬（最后两只火盆）是“轮到谁走”的信号：轮到这一方才点亮，平时熄着
+    const lordFires = [4, 5];
+    for (const i of lordFires) { flames[i].userData.lord = true; flames[i].userData.lit = 0; const g = new THREE.Sprite(new THREE.SpriteMaterial({ map: Tex.spark, color: 0xffb060, blending: THREE.AdditiveBlending, transparent: true, depthWrite: false, opacity: 0 })); g.position.copy(fires[i]).add(new V3(0, 0.1, 0)); scene.add(g); flames[i].userData.glow = g; }
+    const camp = { s, sg, group, guards, sentries, archers, troops, banners, flames, fires, drops: [], gen: 0, state: 'home', goneN: 0, total: guards.count + sentries.count, torch: false };
     camps.push(camp);
     onFrame(dt => {
       t += dt;
@@ -190,6 +193,17 @@ const Camp = (() => {
       for (const b of banners) b.update(dt);
       for (const f of flames) {
         const k = 0.7 + 0.3 * Math.sin(t * 13 + f.userData.ph) * Math.sin(t * 7.3 + f.userData.ph * 2);
+        if (f.userData.lord) {
+          // 点亮 / 熄灭各用半秒过渡；点亮时火头比别的火盆旺，外面罩一圈暖光
+          const u = f.userData, was = u.lit; u.lit += ((camp.torch ? 1 : 0) - u.lit) * Math.min(1, dt * 5);
+          const L = u.lit;
+          f.scale.set(0.5 * k * L + 0.001, 0.72 * k * L + 0.001, 1); f.material.opacity = (0.8 + 0.2 * k) * L; f.visible = L > 0.02;
+          u.glow.scale.setScalar((1.5 + 0.25 * k) * L + 0.001); u.glow.material.opacity = 0.28 * L; u.glow.visible = L > 0.02;
+          // 刚熄的一刻冒一缕青烟；刚点着蹿几点火星
+          if (was > 0.5 && L <= 0.5 && Fx.spawn) for (let i = 0; i < 3; i++) Fx.spawn({ pos: f.position.clone(), vel: new V3((Math.random() - 0.5) * 0.1, 0.5 + Math.random() * 0.3, 0), color: 0x6a655e, size: 0.1, size2: 0.7, life: 2.2, op: 0.35, drag: 0.4, fadeIn: 0.2 });
+          if (was <= 0.5 && L > 0.5 && Fx.spawn) for (let i = 0; i < 8; i++) Fx.spawn({ pos: f.position.clone(), vel: new V3((Math.random() - 0.5) * 0.8, 0.8 + Math.random() * 1.2, (Math.random() - 0.5) * 0.8), tex: Tex.spark, add: true, color: 0xffc070, size: 0.06, size2: 0.01, life: 0.8, op: 1, drag: 0.6 });
+          continue;
+        }
         f.scale.set(0.34 * k, 0.46 * k, 1);
         f.material.opacity = 0.75 + 0.25 * k;
       }
@@ -197,7 +211,7 @@ const Camp = (() => {
       if (smokeT > 0.35 && Fx.P) {
         smokeT = 0;
         // 河边两只火盆紧挨棋盘中线：只留火光，不冒烟，免得烟飘到棋盘上
-        const far = fires.filter(f => Math.abs(f.z) > 2);
+        const far = fires.filter((f, i) => Math.abs(f.z) > 2 && (i < 4 || camp.torch));
         const p = far[Math.floor(Math.random() * far.length)];
         Fx.spawn({ pos: p.clone().add(new V3(0, 0.12, 0)), vel: new V3(0.05, 0.35, 0), color: 0x4a4540, size: 0.12, size2: 0.9, life: 3.2, op: 0.28, drag: 0.3, fadeIn: 0.4 });
         if (Math.random() < 0.5) Fx.spawn({ pos: p.clone().add(new V3(0, 0.1, 0)), vel: new V3((Math.random() - 0.5) * 0.3, 0.8, (Math.random() - 0.5) * 0.3), tex: Tex.spark, add: true, color: 0xffb060, size: 0.04, size2: 0.01, life: 1.1, op: 1, drag: 0.5 });
@@ -206,6 +220,39 @@ const Camp = (() => {
     return camp;
   }
   function init() { build('r'); build('b'); }
+  // 倒计时最后几秒：这一方棋盘边的护卫坐立不安——原地东张西望，不时有人挪两步又站回去
+  let restT = 0;
+  function restless(side) {
+    for (const c of camps) {
+      const on = c.s === side && c.state === 'home';
+      if (on === !!c.restless) continue;
+      c.restless = on;
+      for (const u of c.guards.units) {
+        if (u.gone || (u.mv && !u.mv.rest)) continue;
+        if (on) { if (u.pose === 'idle') u.pose = 'fidget'; }
+        else if (u.pose === 'fidget' || u.mv) {
+          // 安静下来：站回原位、转回原来的朝向
+          const away = u.p.distanceTo(u.home) > 0.02, m = { to: away ? u.home.clone() : null, speed: 1.2, pose: away ? 'march' : 'idle', end: 'idle', face: u.homeYaw };
+          u.pose = 'idle'; u.mv = m; setTimeout(() => { if (u.mv === m) u.mv = null; }, 1300);
+        }
+      }
+    }
+  }
+  onFrame(dt => {
+    restT -= dt; if (restT > 0) return; restT = 0.22;
+    for (const c of camps) {
+      if (!c.restless || c.state !== 'home') continue;
+      for (const u of c.guards.units) if (!u.gone && !u.mv && u.pose === 'idle') u.pose = 'fidget';
+      const us = c.guards.units.filter(u => !u.gone && !u.mv && u.pose === 'fidget');
+      for (let i = 0; i < 2 && us.length; i++) {
+        const u = us[Math.floor(Math.random() * us.length)];
+        const to = u.home.clone().add(new V3((Math.random() - 0.5) * 0.22, 0, (Math.random() - 0.5) * 0.26));
+        u.mv = { rest: true, to, speed: 0.9 + Math.random() * 0.6, pose: 'march', end: 'fidget', face: u.homeYaw, onArrive: uu => { uu.mv = null; uu.yaw = uu.homeYaw + (Math.random() - 0.5) * 0.9; } };
+      }
+    }
+  });
+  // 轮到哪一方走：那一方大帐旁的两把火炬点亮（null = 都熄）
+  function setTurn(side) { for (const c of camps) c.torch = c.s === side; }
 
   // ======================================================================
   //  士兵调度：每个士兵可有一个移动目标 u.mv
@@ -337,6 +384,43 @@ const Camp = (() => {
       }
     }, 2100);
   }
+  // —— 连吃三子：另有几名护卫直接冲上棋盘，蹚过楚河，到对方阵前（敌方半场头两排之间）挥兵器、大笑叫阵，再跑回来 ——
+  function tauntBoard(s) {
+    const c = campOf(s);
+    if (!c || c.state !== 'home') return;
+    const gen = c.gen, sg = c.sg, RZ = Board.RZ;
+    const cand = c.guards.units.filter(u => !u.gone && !u.mv).sort((a, b) => Math.abs(a.p.z) - Math.abs(b.p.z));
+    const n = Math.min(cand.length, 4 + Math.floor(Math.random() * 2));
+    if (!n) return;
+    // 站在格子之间（半格位），不压棋子
+    const xs = [-3.5, -2.5, -1.5, -0.5, 0.5, 1.5, 2.5, 3.5].sort(() => Math.random() - 0.5).slice(0, n).sort((a, b) => a - b);
+    const picked = cand.slice(0, n).sort((a, b) => a.home.x - b.home.x);
+    const face = sg > 0 ? Math.PI : 0; // 面朝对方底线
+    picked.forEach((u, j) => {
+      const sx = Math.sign(u.home.x) || 1;
+      const w1 = new V3(sx * 4.35, 0, sg * (RZ + 0.5)); // 从侧面跳上棋盘（己方河岸）
+      const spot = new V3(xs[j], 0, -sg * (RZ + 0.5 + (j % 2)));
+      route(c, u, [w1, spot], {
+        speed: 2.7 + Math.random() * 0.4, pose: 'run', delay: j * 0.1 + Math.random() * 0.12,
+        onDone: () => {
+          if (c.gen !== gen) return;
+          const m = { face, pose: 'wave' }; u.mv = m; c.guards.act(u.i, 'raise', 0.5, Math.random() * 0.3);
+          const ok = () => c.gen === gen && u.mv === m;
+          setTimeout(() => { if (ok()) u.pose = 'laugh'; }, 800 + Math.random() * 300);
+          setTimeout(() => { if (ok()) { u.pose = 'wave'; c.guards.act(u.i, 'raise', 0.5); } }, 1900);
+          setTimeout(() => { if (ok()) u.pose = 'laugh'; }, 2500);
+          setTimeout(() => {
+            if (!ok()) return;
+            route(c, u, [w1, u.home.clone()], {
+              speed: 2.5 + Math.random() * 0.3, pose: 'run',
+              onDone: () => { const m2 = { face: u.homeYaw, pose: 'idle' }; u.mv = m2; setTimeout(() => { if (u.mv === m2) u.mv = null; }, 900); },
+            });
+          }, 3400 + Math.random() * 300);
+        },
+      });
+    });
+    setTimeout(() => { if (c.gen === gen) { try { Sfx.jeer && Sfx.jeer(s, 0.9); } catch (e) { } } }, 1700);
+  }
   // —— 连吃三子：被吃方有几人丢盔弃甲逃走，本局不再回来（最多逃掉三分之二） ——
   function desert(s, n) {
     const c = campOf(s);
@@ -374,7 +458,7 @@ const Camp = (() => {
     const big = streak >= 3;
     cheer(s, big ? 3.2 : 2.4, 1, big);
     dismay(XQ.other(s));
-    if (big) { taunt(s); setTimeout(() => desert(XQ.other(s), 3 + (Math.random() < 0.5 ? 1 : 0)), 1300); }
+    if (big) { tauntBoard(s); taunt(s); setTimeout(() => desert(XQ.other(s), 3 + (Math.random() < 0.5 ? 1 : 0)), 1300); }
   }
   // —— 将死：全军冲上棋盘，持兵器包围敌方主帅 ——
   function surround(s, center) {
@@ -448,7 +532,7 @@ const Camp = (() => {
   // —— 复位（新一局） ——
   function reset() {
     for (const c of camps) {
-      c.gen++; c.state = 'home'; c.goneN = 0;
+      c.gen++; c.state = 'home'; c.goneN = 0; c.restless = false;
       for (const o of c.drops) Core.disposeTree(o);
       c.drops.length = 0;
       for (const tr of c.troops) for (const u of tr.units) {
@@ -457,5 +541,5 @@ const Camp = (() => {
       }
     }
   }
-  return { init, camps, cheer, surround, rout, reset, K, onCapture, taunt, desert, dismay, get gone() { return camps.map(c => c.goneN); } };
+  return { init, camps, cheer, surround, rout, reset, K, onCapture, taunt, desert, dismay, setTurn, restless, tauntBoard, get gone() { return camps.map(c => c.goneN); } };
 })();

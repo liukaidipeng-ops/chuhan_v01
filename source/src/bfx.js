@@ -147,7 +147,7 @@ const BFX = (() => {
     const tKill = T0 && evs.some(e => e.e === 'kill' && e.id === T0.id);
     const tHit = T0 && evs.find(e => e.e === 'hit' && e.id === T0.id);
     const info = moveInfo(P0, from, to, T0, mover, opts.mt);
-    info.check = !!opts.check; info.result = opts.result || null; info.streak = opts.streak || 1;
+    info.check = !!opts.check; info.result = opts.result || null; info.streak = opts.streak || 1; info.mateName = opts.mateName || '';
     const c = { lv: P0.lv, dlv: T0 ? T0.lv : 1 };
     if (T0) { c.survive = !!tHit && !tKill; c.killed = !!tKill; c.counter = died ? 'die' : counter ? 'hurt' : null; c.ranged = !!opts.ranged; }
     await Fx.playMove(info, { c, noCamp: opts.noCamp });
@@ -164,10 +164,10 @@ const BFX = (() => {
         if (info.extra && info.extra.via === 'shensu') {
           // 被动「神速营」：疾奔越子，落到空位（不走普通的行军演出）
           await dash(before[info.from[1]][info.from[0]], info.from, info.to, side);
-          if (info.result) Fx.checkStamp(XQ.other(side), info.result.reason === 'checkmate' ? '殺' : '困');
+          if (info.result) Fx.checkStamp(XQ.other(side), info.result.reason === 'checkmate' ? '殺' : '困', info.mateName);
           else if (info.check) Fx.checkStamp(XQ.other(side));
         } else {
-          await strike(before, info.from, info.to, ev.filter(notTrample), side, { check: info.check, result: info.result, streak: info.streak });
+          await strike(before, info.from, info.to, ev.filter(notTrample), side, { check: info.check, result: info.result, streak: info.streak, mateName: info.mateName });
           await trampleFx(ev, side);
         }
       }
@@ -182,7 +182,7 @@ const BFX = (() => {
     Board.reconcile(game);
     if (info.k !== 'mv' && info.k !== 'up') {
       if (Cam.cine) await Cam.home(0.8);
-      if (info.result) Fx.checkStamp(XQ.other(side), info.result.reason === 'checkmate' ? '殺' : '困');
+      if (info.result) Fx.checkStamp(XQ.other(side), info.result.reason === 'checkmate' ? '殺' : '困', info.mateName);
       else if (info.check) Fx.checkStamp(XQ.other(side));
     }
   }

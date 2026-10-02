@@ -24,7 +24,7 @@
   if (!VIS.includes(S.vis)) S.vis = 'cine';
   let ropts = Object.assign({ side: 'r', undo: 3, total: 15, step: 60, hints: 1, jq: 0 }, store.get('ropts', {}));
   if (!ropts.v) ropts.v = ropts.jq ? 'jq' : 'std';
-  let aopts = Object.assign({ level: 'mid', side: 'r', undo: 3, total: 0, hints: 1 }, store.get('aopts', {}));
+  let aopts = Object.assign({ level: 'mid', side: 'r', undo: 3, total: 0, step: 0, hints: 1 }, store.get('aopts', {}));
 
   function applySettings() {
     Fx.level = S.vis; Fx.gore = +S.gore; Voice.enabled = !!+S.voice;
@@ -321,6 +321,8 @@
     $('statusT').textContent = st; $('status').classList.toggle('warn', warn);
     renderBar();
     paintVeil();
+    // 大帐旁的火炬：轮到谁走谁的亮
+    Camp.setTurn(mode && started && !ended && !game.result && !RP ? game.turn : null);
     $('netDot').classList.toggle('hidden', !(online() || watching()));
     $('netDot').classList.toggle('bad', (online() && Net.peerState !== 'ok') || ((online() || watching()) && !Net.lineOk));
     $('specN').textContent = (online() || watching()) && Spect.count ? `观战 ${Spect.count}` : '';
@@ -365,7 +367,12 @@
   }
   window.addEventListener('resize', () => setTimeout(layoutHud, 60));
   if (window.ResizeObserver) { const ro = new ResizeObserver(() => layoutHud()); ro.observe($('cardOpp')); ro.observe($('cardMe')); }
+  const CN10 = ['', '一', '二', '三', '四', '五', '六', '七', '八', '九', '十'];
+  const fmtStep = ms => { const t = Math.max(0, Math.ceil(ms / 1000)); return t >= 60 ? Math.floor(t / 60) + ':' + String(t % 60).padStart(2, '0') : t + ' 秒'; };
+  let cdSec = -1;
   function paintClocks() {
+    let urgent = null; // 正在走的一方只剩 10 秒以内：{ side, sec }
+    const live = mode && started && !ended && !game.result && !RP;
     for (const s of ['r', 'b']) {
       const c = cardFor(s);
       let total = clock[s], step = game.turn === s ? clock.step : stepMax();
@@ -373,7 +380,12 @@
         const el = performance.now() - clock.oppStamp;
         total = clock.oppTotal - (opts.total ? el : 0); step = clock.oppStep - el;
       }
-      const ck = c.querySelector('.clk'); ck.textContent = opts.total ? fmt(total) : '不限时'; ck.classList.toggle('inf', !opts.total);
+      // 卡片上：总时 + 这一步还剩多久（只有轮到的一方显示步时）
+      const ck = c.querySelector('.clk'), turnNow = live && game.turn === s;
+      const stepLow = turnNow && opts.step && step < 10000;
+      const html = (opts.total ? fmt(total) : opts.step ? '' : '不限时') + (opts.step ? `<i class="stp${stepLow ? ' low' : ''}${opts.total ? '' : ' solo'}">${turnNow ? '本步 ' + fmtStep(step) : '每步 ' + fmtStep(stepMax())}</i>` : '');
+      if (ck.dataset.h !== html) { ck.dataset.h = html; ck.innerHTML = html; }
+      ck.classList.toggle('inf', !opts.total && !opts.step);
       ck.classList.toggle('low', !!opts.total && total < 60000 && game.turn === s && started && !game.result);
       // 头像外的计时环：优先显示步时，其次总时
       let k = 1, low = false;
@@ -382,8 +394,26 @@
       const arc = c.querySelector('.arc');
       arc.style.strokeDashoffset = (226.2 * (1 - Math.max(0, Math.min(1, k)))).toFixed(1);
       arc.classList.toggle('low', low && game.turn === s);
+      if (turnNow && (opts.total || opts.step)) {
+        const left = Math.min(opts.total ? total : 1e12, opts.step ? step : 1e12);
+        if (left > 0 && left <= 10000 && !busy && !Ending.running && !netDown() && !paused()) urgent = { side: s, sec: Math.ceil(left / 1000) };
+      }
     }
+    // 最后十秒：屏幕中央一个半透明的行书大字逐秒跳动；自己的钟（或同屏对战）时四周泛红；这一方的观战士兵坐立不安
+    const big = $('cdBig'), red = $('cdRed');
+    if (urgent) {
+      if (urgent.sec !== cdSec) {
+        cdSec = urgent.sec; big.textContent = CN10[urgent.sec] || '';
+        big.classList.remove('on'); void big.offsetWidth; big.classList.add('on'); big.classList.toggle('hot', urgent.sec <= 3);
+        if (urgent.sec <= 5) { try { Sfx.B.taiko(0, 0.35 + (5 - urgent.sec) * 0.08, 0.7); } catch (e) { } }
+      }
+      red.classList.toggle('on', !watching() && (mode === 'local' || urgent.side === mySide));
+    } else if (cdSec !== -1) { cdSec = -1; big.classList.remove('on', 'hot'); red.classList.remove('on'); }
+    Camp.restless(urgent ? urgent.side : null);
   }
+  // 暂停中（见下面的暂停功能）
+  let pause = null;
+  const paused = () => !!pause;
 
   // ---------- 计时 ----------
   let lastTickSec = -1;
@@ -678,6 +708,8 @@
     if (info.captured && game.history[game.history.length - 1].cap) info.captured = { ...game.history[game.history.length - 1].cap };
     info.dt = capView(info);
     if (info.captured) info.streak = captureStreak();
+    // 将死：认一下是哪种杀法（重炮、马后炮……），绝杀大字下面要写
+    if (info.result && info.result.reason === 'checkmate') info.mateName = XQ.mateName(game.board, info.result.loser, { to: m.to, cap: info.captured });
     notes.push(note); renderLog();
     Fx.ply = game.history.length;
     if (!remote && !sent && online()) Net.send({ t: 'move', n: info.ply, from: m.from, to: m.to, clk: clock[info.mover] });
@@ -1320,6 +1352,7 @@
     clock.step = stepMax(); clock.oppStamp = 0;
     turnStartAt = 0;
     info.captured = info.cap; info.streak = captureStreak();
+    if (info.result && info.result.reason === 'checkmate') info.mateName = XQ.mateName(game.board, info.result.loser);
     bfReport(info); bfMerit(info);
     queueBF(info);
     updateHud(); publish();
@@ -1924,7 +1957,7 @@
   $('bAIGo').onclick = () => {
     Sfx.init(); applySettings();
     const side = aopts.side === 'x' ? (Math.random() < 0.5 ? 'r' : 'b') : aopts.side;
-    startGame('ai', side, { undo: aopts.undo, total: aopts.total, step: 0, hints: aopts.hints, level: aopts.level });
+    startGame('ai', side, { undo: aopts.undo, total: aopts.total, step: aopts.step || 0, hints: aopts.hints, level: aopts.level });
   };
   $('bCreate').onclick = () => { createFor = 'host'; $('createTitle').textContent = '房 间 设 置'; $('bCreateGo').textContent = '创 建'; showPane('pCreate'); };
   $('bLocal').onclick = () => { createFor = 'local'; $('createTitle').textContent = '本 地 对 战'; $('bCreateGo').textContent = '开 始'; showPane('pCreate'); };
