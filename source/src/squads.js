@@ -525,17 +525,12 @@ const Squads = (() => {
     }
     // 日字路线：先直走一格，拐角处头马人立，再斜冲到位
     async march(path, dur, charge = false) {
-      const [a, corner, b] = path;
+      // 马走日：不再“先直后斜、拐角人立”，一口气沿对角线奔到位
+      const a = path[0], b = path[path.length - 1];
       const s = snd('n', this.side);
-      this.riders.forEach(h => { h.speed = 0.55; });
-      s.move(1.2);
-      await walkPath(this, [a, corner], 0.45);
-      const newYaw = yawOf(b.clone().sub(corner));
-      this.riders[0].speed = 0;
-      Sfx.B.neigh(0, 0.1);
-      await Promise.all([tween(0.35, k => { this.riders[0].rearK = Math.sin(k * Math.PI) * 0.9; }), turnTo(this, newYaw, 0.35)]);
       this.riders.forEach(h => { h.speed = charge ? 1 : 0.85; });
-      await walkPath(this, [corner, b], charge ? 0.35 : 0.5);
+      s.move(1.0);
+      await walkPath(this, [a, b], Math.max(0.4, a.distanceTo(b) * (charge ? 0.3 : 0.42)));
       this.riders.forEach(h => { h.speed = 0; });
     }
     async attack(target, c) {
@@ -925,7 +920,8 @@ const Squads = (() => {
     await sq.dissolve();
     await Fx.rise(m, B, 0.35);
   }
-  const knightCorner = info => { const [ff, fr] = info.from, [tf, tr] = info.to; return Math.abs(tr - fr) === 2 ? Board.pos(ff, fr + Math.sign(tr - fr)) : Board.pos(ff + Math.sign(tf - ff), fr); };
+  // 马的行进路线：直奔落点（这里给出路线中点，供朝向和镜头用）
+  const knightCorner = info => Board.pos(info.from[0], info.from[1]).lerp(Board.pos(info.to[0], info.to[1]), 0.5);
 
   // ---------- 渡河：兵卒三条帆船，炮一条大船 ----------
   async function boatSquad(c) {

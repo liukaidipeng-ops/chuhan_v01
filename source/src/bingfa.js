@@ -16,9 +16,9 @@
       checkReward: 1, pawnCrossRiverReward: 1, lostPieceCompensation: 1,
     },
     // cost[兵种] = [升二级, 升三级, 升四级]；每击杀一个单位攒一片甲，下次升级少花 killDiscount 功，升级后清零，最少 minCost 功
-    upgrade: { cost: { p: [3, 5, 8], a: [2, 3, 4], e: [2, 3], n: [5, 7], c: [5, 7], r: [6, 8, 20] }, maxLevel: { r: 4, p: 4, a: 4 }, defaultMaxLevel: 3, maxPerTurn: 1, healOnUpgrade: true, cooldownOnUnlock: 1, killDiscount: 1, minCost: 1 },
+    upgrade: { cost: { p: [3, 5, 8], a: [2, 3, 4], e: [2, 3, 5], n: [5, 7], c: [5, 7], r: [6, 8, 20] }, maxLevel: { r: 4, p: 4, a: 4, e: 4 }, autoByPlates: true, defaultMaxLevel: 3, maxPerTurn: 1, healOnUpgrade: true, cooldownOnUnlock: 1, killDiscount: 1, minCost: 1 },
     hp: [1, 2, 3, 4],
-    hpByType: { p: [1, 2, 3, 3], a: [1, 2, 3, 3] }, // 兵、士四级不再加血
+    hpByType: { p: [1, 2, 3, 3], a: [1, 2, 3, 3], e: [1, 2, 3, 3] }, // 兵、士、相/象四级不再加血
     attack: { a: [1, 2, 2, 2] }, // 按等级的攻击力（一次攻击扣的血）；没列出的兵种都是 1
     skillLevel: 3, // 几级解锁兵种技能（单个技能可用 level 另定）
     skills: {
@@ -29,8 +29,9 @@
       chongzhen: { cooldown: 3, springDamage: 1 }, // 车：前方第一枚子当跳板（挨 1 点），落到它身后一格
       taying: { cooldown: 2, enemyHalfOnly: true }, // 马：只能在敌方半场用
       pili: { cooldown: 4, splashDamage: 1, splashMinLevel: 2 },
-      qishe: { cooldown: 3, range: 2, damage: 1 },
-      jianta: { passive: true, splashDamage: 1, splashMinLevel: 2 }, // 被动：三级战象每次落子都溅伤四周，无冷却
+      feiyue: { cooldown: 5 }, // 相 / 象三级主动：这一步无视塞象眼
+      qishe: { level: 4, cooldown: 3, range: 2, damage: 1 }, // 汉相四级
+      jianta: { level: 4, passive: true, splashDamage: 1, splashMinLevel: 2 }, // 楚象四级被动：每次落子都溅伤四周，无冷却
       hujia: { cooldown: 4 },
     },
     generalArts: { xiaohe: { usesPerGame: 1 }, pofu: { usesPerGame: 1, steps: 2, mayEndInCheck: false, skillLockRounds: 3 } },
@@ -39,28 +40,41 @@
   };
   // 主技能（三级解锁）；SKILLS_OF 列出这一兵种全部技能（含四级的）
   const SKILL_OF = (t, s) => ({ p: 'juma', r: 'chongzhen', n: 'taying', c: 'pili', a: 'hujia', e: s === 'r' ? 'qishe' : 'jianta' })[t] || null;
-  const SKILLS_OF = (t, s) => ({ p: ['juma', 'shensu', 'huifang'], a: ['hujia', 'jinwei'] })[t] || (SKILL_OF(t, s) ? [SKILL_OF(t, s)] : []);
-  const SKILL_CN = { juma: '拒马', chongzhen: '冲阵', taying: '踏营', pili: '霹雳', qishe: '齐射', jianta: '践踏', hujia: '护驾', shensu: '神速营', huifang: '回防', jinwei: '铁甲禁卫' };
+  const SKILLS_OF = (t, s) => ({ p: ['juma', 'shensu', 'huifang'], a: ['hujia', 'jinwei'], e: [s === 'r' ? 'qishe' : 'jianta', 'feiyue'] })[t] || (SKILL_OF(t, s) ? [SKILL_OF(t, s)] : []);
+  const SKILL_CN = { juma: '拒马', chongzhen: '冲阵', taying: '踏营', pili: '霹雳', qishe: '齐射', jianta: '践踏', hujia: '护驾', shensu: '神速营', huifang: '回防', jinwei: '铁甲禁卫', feiyue: '飞越' };
   const ART_CN = { r: '召回良将', b: '破釜沉舟' }, ULT_CN = { r: '四面楚歌', b: '鸿门宴' };
   const ORTHO = [[1, 0], [-1, 0], [0, 1], [0, -1]];
   // 称号：兵种随等级晋升（界面显示、升级演出用）
   const RANK_CN = {
-    r: { p: ['汉军兵', '汉伍长', '汉什长', '无当飞军'], r: ['汉军车', '汉轻车', '汉武刚车', '虎贲车骑'], n: ['汉军马', '汉骁骑', '郎中骑'], c: ['汉军炮', '汉抛石', '汉霹雳车'], e: ['汉军相', '汉材官', '蹶张强弩'], a: ['汉军士', '汉郎卫', '汉中涓', '参乘虎卫'], k: ['汉王刘邦'] },
-    b: { p: ['楚军卒', '楚锐卒', '楚持戟', '江东甲士'], r: ['楚军车', '楚戎车', '楚陷阵车', '霸王车骑'], n: ['楚军马', '楚骁骑', '乌骓骑'], c: ['楚军炮', '楚抛石', '楚霹雳炮'], e: ['楚军象', '楚战象', '云梦巨象'], a: ['楚军士', '楚郎卫', '楚执戟郎', '重瞳亲卫'], k: ['西楚霸王'] },
+    r: { p: ['汉军兵', '汉伍长', '汉什长', '无当飞军'], r: ['汉军车', '汉轻车', '汉武刚车', '虎贲车骑'], n: ['汉军马', '汉骁骑', '郎中骑'], c: ['汉军炮', '汉抛石', '汉霹雳车'], e: ['汉军相', '汉材官', '蹶张强弩', '大黄弩士'], a: ['汉军士', '汉郎卫', '汉中涓', '参乘虎卫'], k: ['汉王刘邦'] },
+    b: { p: ['楚军卒', '楚锐卒', '楚持戟', '江东甲士'], r: ['楚军车', '楚戎车', '楚陷阵车', '霸王车骑'], n: ['楚军马', '楚骁骑', '乌骓骑'], c: ['楚军炮', '楚抛石', '楚霹雳炮'], e: ['楚军象', '楚战象', '云梦巨象', '金甲象军'], a: ['楚军士', '楚郎卫', '楚执戟郎', '重瞳亲卫'], k: ['西楚霸王'] },
   };
   const rankName = (s, t, lv) => { const a = (RANK_CN[s] || {})[t] || []; return a[Math.max(1, Math.min(a.length, lv || 1)) - 1] || ''; };
+  // 四级名将：升到四级的子各得一个楚汉名将的名字（按晋升先后依次取；名字用完就只显示称号）
+  const HERO_CN = {
+    r: { r: ['韩信', '夏侯婴'], p: ['周勃', '曹参', '王陵', '卢绾', '傅宽'], a: ['樊哙', '纪信'], e: ['张良', '萧何'] },
+    b: { r: ['龙且', '钟离昧'], p: ['季布', '英布', '虞子期', '桓楚', '周殷'], a: ['项庄', '项伯'], e: ['范增', '项佗'] },
+  };
+  const heroName = p => (p && p.nm != null ? (((HERO_CN[p.s] || {})[p.t] || [])[p.nm] || '') : '');
+  // 晋升一级（手动升级、甲片攒够自动升级共用）：回满血；刚解锁的主动技能先冷却；升到四级时取名
+  function promote(S, p) {
+    p.lv++; p.hp = CFG_CUR.upgrade.healOnUpgrade ? hpOf(p.t, p.lv) : p.hp + 1;
+    for (const sk of SKILLS_OF(p.t, p.s)) if (skLevel(sk) === p.lv && !isPassive(sk)) { const k = cdKey(p, sk); p[k] = Math.max(p[k] || 0, S.cnt[p.s] + CFG_CUR.upgrade.cooldownOnUnlock); }
+    if (p.lv === 4 && p.nm == null) { const N = S.named || (S.named = { r: {}, b: {} }), i = N[p.s][p.t] || 0; if (i < (((HERO_CN[p.s] || {})[p.t] || []).length)) { p.nm = i; N[p.s][p.t] = i + 1; } }
+  }
   // 技能说明（界面悬停 / 长按用）
   const SKILL_DESC = {
-    juma: '原地架矛，不占本回合行动：架完还要再走一步棋（这枚兵本回合不能动，也不能再用技能或兵法）。持续到对方下一次行动结束；期间敌子来吃或攻击它，攻方先挨 1 点伤害，一级攻方直接阵亡。对帅将无效。',
-    chongzhen: '车前方直线上的第一枚子（敌我都行，帅将除外）当跳板，挨 1 点伤害（1 血直接阵亡）；车随即冲到它身后一格：空格就落下；那格有子且一下能打死就杀掉占位（己方子也会被杀）；打不死就只扣血，车退回原位。',
-    shensu: '兵四级被动，冷却 5：横、竖、斜八个方向直线疾行 1～2 格，中间有子也能越过，落点必须是空格，不能吃子或攻击。不用点技能，直接走。',
-    huifang: '兵四级被动，冷却 2：可以后退一格（能吃子、攻击），不用点技能，直接走。',
-    jinwei: '士四级被动，冷却 2：士在田字格（九宫）内获得自由移动的能力——可以上下左右走一格（能吃子、攻击），不用点技能，直接走。',
-    taying: '只能在敌方半场（过河之后）使用：本次走子无视蹩马腿，其余同普通走子。',
-    pili: '按炮的吃子走法炮击一个敌子（按吃子或攻击结算），目标和前后左右四格同时落弹：四格内二级以上的敌子各扣 1 点。',
-    qishe: '不移动，射击斜线 1～2 格内的一个敌子，扣 1 点，一级子直接阵亡；射 2 格时中间有子会被挡，可以射过河。',
-    jianta: '被动，无冷却：三级战象每次落子（含吃子）后，前后左右四格内二级以上的敌子各扣 1 点；攻击没得手、退回原位时不触发。',
-    hujia: '与己方帅/将互换位置，九宫内即可，不要求相邻，可用来解将。汉军的士在鸿门宴期间护驾，会当场破掉鸿门宴（樊哙闯帐）。',
+    juma: '原地架矛，不占行动，架完还能再走一步。对方下一步来犯的敌子先挨 1 点伤害。',
+    chongzhen: '撞开前方第一枚子（它挨 1 点），冲到它身后一格；那格有子，能杀就杀，杀不了就扣血退回。',
+    shensu: '八个方向疾行 1～2 格，可以越子，只能落在空格。',
+    huifang: '可以后退一格。',
+    jinwei: '士在田字格内获得自由移动的能力：可上下左右走一格。',
+    taying: '这一步无视蹩马腿。只能在敌方半场用。',
+    feiyue: '这一步无视塞象眼（仍不能过河）。',
+    pili: '炮击一个敌子，落点四周二级以上的敌子各扣 1 点。',
+    qishe: '不动身，射斜线 1～2 格内的一个敌子，扣 1 点。',
+    jianta: '每次落子，震伤四周二级以上的敌子各 1 点。',
+    hujia: '与帅（将）互换位置，可解将；鸿门宴期间可救出汉王。',
   };
   // 每枚子的开局位置（复活用）
   const START = {};
@@ -74,6 +88,7 @@
       board: b, turn: 'r', cnt: { r: 0, b: 0 }, merit: { r: cfg.merit.start, b: cfg.merit.start },
       used: { art: { r: 0, b: 0 }, ult: { r: 0, b: 0 } }, fx: { hm: 0, sm: 0, pf: 0 },
       crossed: {}, dead: { r: [], b: [] }, upgraded: false, ckHist: { r: [], b: [] },
+      named: { r: {}, b: {} }, // 四级名将已经取到第几个
       freeUsed: false, jmLock: null, // 本回合已用过不占行动的拒马（还得再走一步棋）；架拒马的那枚兵本回合不能动
     };
   }
@@ -83,6 +98,7 @@
       used: { art: { ...S.used.art }, ult: { ...S.used.ult } }, fx: { ...S.fx }, crossed: { ...S.crossed },
       dead: { r: S.dead.r.slice(), b: S.dead.b.slice() }, upgraded: S.upgraded, ckHist: { r: S.ckHist.r.slice(), b: S.ckHist.b.slice() },
       freeUsed: !!S.freeUsed, jmLock: S.jmLock == null ? null : S.jmLock,
+      named: { r: { ...((S.named || {}).r || {}) }, b: { ...((S.named || {}).b || {}) } },
     };
   }
   const at = (S, f, r) => (inBoard(f, r) ? S.board[r][f] : null);
@@ -132,7 +148,15 @@
     if (friendly) return v;
     addMerit(S, killerSide, gain, ev, '击杀');
     addMerit(S, v.s, m.lostPieceCompensation, ev, '哀兵');
-    if (by && by.s === killerSide && by.t !== 'k') { by.xp = (by.xp || 0) + 1; by.kills = (by.kills || 0) + 1; ev.push({ e: 'xp', id: by.id, xp: by.xp }); }
+    if (by && by.s === killerSide && by.t !== 'k') {
+      by.xp = (by.xp || 0) + 1; by.kills = (by.kills || 0) + 1; ev.push({ e: 'xp', id: by.id, xp: by.xp });
+      // 甲片攒够了下一级的价钱：当场自动晋升，不花军功（甲片用掉）
+      const U = CFG_CUR.upgrade;
+      if (U.autoByPlates && by.hp > 0 && by.lv < maxLv(by.t) && by.xp * U.killDiscount >= U.cost[by.t][by.lv - 1]) {
+        const used = by.xp; by.xp = 0; promote(S, by);
+        ev.push({ e: 'autoup', id: by.id, s: by.s, t: by.t, lv: by.lv, hp: by.hp, usedXp: used, nm: by.nm });
+      }
+    }
     return v;
   }
   function damage(S, f, r, n, killerSide, ev, how, by) {
@@ -175,7 +199,7 @@
   }
   // 楚战象被动「践踏」：三级战象落子（走到空格或吃掉）后溅伤四周
   function trample(S, P, to, res, side, ev) {
-    if (!P || SKILL_OF(P.t, P.s) !== 'jianta' || P.lv < CFG_CUR.skillLevel) return;
+    if (!P || SKILL_OF(P.t, P.s) !== 'jianta' || P.lv < skLevel('jianta')) return;
     if (side === 'b' && smActive(S)) return; // 四面楚歌期间楚军没有技能
     if (res === 'move' || res === 'kill') splash(S, to, side, ev, 'jianta', P);
   }
@@ -189,6 +213,14 @@
       ms = [];
       for (const [df, dr] of [[1, 2], [-1, 2], [1, -2], [-1, -2], [2, 1], [2, -1], [-2, 1], [-2, -1]]) {
         const tf = f + df, tr = r + dr; if (!inBoard(tf, tr)) continue;
+        const q = S.board[tr][tf]; if (q && q.s === p.s) continue;
+        ms.push({ from: [f, r], to: [tf, tr] });
+      }
+    } else if (ignoreLeg && p.t === 'e') {
+      // 飞越：田字照走，象眼被塞也能过；仍然不能过河
+      ms = [];
+      for (const [df, dr] of [[2, 2], [2, -2], [-2, 2], [-2, -2]]) {
+        const tf = f + df, tr = r + dr; if (!inBoard(tf, tr) || !ownHalf(p.s, tr)) continue;
         const q = S.board[tr][tf]; if (q && q.s === p.s) continue;
         ms.push({ from: [f, r], to: [tf, tr] });
       }
@@ -298,6 +330,10 @@
         if (CFG_CUR.skills.taying.enemyHalfOnly && ownHalf(side, a.at[1])) return null;
         if (!a.to || !has(moveTargets(S, a.at[0], a.at[1], true), a.to)) return null;
         extra.res = strike(S, a.at, a.to, side, ev, 'taying');
+      } else if (sk === 'feiyue') {
+        if (!a.to || !has(moveTargets(S, a.at[0], a.at[1], true), a.to)) return null;
+        extra.res = strike(S, a.at, a.to, side, ev, 'feiyue');
+        trample(S, p, a.to, extra.res, side, ev);
       } else if (sk === 'pili') {
         if (!a.to || !has(cannonShots(S, a.at[0], a.at[1]), a.to)) return null;
         if (p.s === 'b' && smActive(S)) return null;
@@ -428,6 +464,7 @@
       if ((only && sk !== only) || !skillOk(S, p, sk)) continue;
       const tg = sk === 'chongzhen' ? springTargets(S, f, r)
         : sk === 'taying' ? (CFG_CUR.skills.taying.enemyHalfOnly && ownHalf(p.s, r) ? [] : moveTargets(S, f, r, true))
+          : sk === 'feiyue' ? moveTargets(S, f, r, true)
           : sk === 'pili' ? cannonShots(S, f, r)
             : sk === 'qishe' ? arrowTargets(S, f, r) : null;
       const mk = to => { const a = { k: 'sk', at: [f, r] }; if (to) a.to = to; if (sk !== main) a.sk = sk; return a; };
@@ -544,6 +581,7 @@
     skillReady(p, sk) { CFG_CUR = this.cfg; return !!p && skillReady(this.S, p, sk); }
     skillWhy(f, r, sk) { CFG_CUR = this.cfg; return skillWhy(this.S, f, r, sk); }
     rankName(p, lv) { return p ? rankName(p.s, p.t, lv || p.lv) : ''; }
+    heroName(p) { return heroName(p); }
     reviveOptions() { return this.result ? [] : reviveOptions(this.S); }
     pofuFirst() { return this.result ? [] : pofuFirst(this.S); }
     pofuSecond(m1) { return pofuSecond(this.S, m1); }
@@ -574,13 +612,11 @@
         const p = this.at(e.at[0], e.at[1]);
         const cost = upCost(p), xp = p.xp || 0;
         S.merit[p.s] -= cost;
-        p.lv++; p.hp = this.cfg.upgrade.healOnUpgrade ? hpOf(p.t, p.lv) : p.hp + 1;
+        promote(S, p);
         p.xp = 0; // 甲片在升级时用掉
-        // 刚解锁的主动技能先冷却一回合
-        for (const sk of SKILLS_OF(p.t, p.s)) if (skLevel(sk) === p.lv && !isPassive(sk)) { const k = cdKey(p, sk); p[k] = Math.max(p[k] || 0, S.cnt[p.s] + this.cfg.upgrade.cooldownOnUnlock); }
         S.upgraded = true;
         this.entries.push({ k: 'up', at: e.at.slice() }); this.sides.push(p.s); this.ends.push(0);
-        const info = { k: 'up', side: p.s, id: p.id, t: p.t, at: e.at.slice(), lv: p.lv, hp: p.hp, cost, usedXp: xp, ev: [], after: S };
+        const info = { k: 'up', side: p.s, id: p.id, t: p.t, at: e.at.slice(), lv: p.lv, hp: p.hp, cost, usedXp: xp, nm: p.nm, ev: [], after: S };
         this.last = info;
         return info;
       }
@@ -667,7 +703,7 @@
       maxLv: t === 'k' ? 1 : (cfg.upgrade.maxLevel[t] || cfg.upgrade.defaultMaxLevel),
     };
   }
-  const BF = { Game, CFG, view, pofuPreview, SKILL_OF, SKILLS_OF, SKILL_CN, SKILL_DESC, ART_CN, ULT_CN, RANK_CN, rankName, START, newState, cloneState, attempt, evaluate, levelInfo, hpOf: (t, lv) => hpOf(t, lv, CFG) };
+  const BF = { Game, CFG, view, pofuPreview, SKILL_OF, SKILLS_OF, SKILL_CN, SKILL_DESC, ART_CN, ULT_CN, RANK_CN, HERO_CN, heroName, rankName, START, newState, cloneState, attempt, evaluate, levelInfo, hpOf: (t, lv) => hpOf(t, lv, CFG) };
   if (typeof module !== 'undefined' && module.exports) module.exports = BF;
   global.BF = BF;
 })(typeof window !== 'undefined' ? window : globalThis);

@@ -597,10 +597,8 @@ const Fx = (() => {
     const A0 = m.position.clone();
     const su = Sfx.unit(unitKey(t, c.s)); su.move && su.move(0.6);
     if (c.mt === 'n') {
-      const [ff, fr] = info.from, [tf, tr] = info.to;
-      const leg = Math.abs(tr - fr) === 2 ? Board.pos(ff, fr + Math.sign(tr - fr)) : Board.pos(ff + Math.sign(tf - ff), fr);
-      await tween(0.24, k => { m.position.lerpVectors(A0, leg, k); m.position.y = TOP + Math.sin(k * Math.PI) * 0.25; });
-      await tween(0.26, k => { m.position.lerpVectors(leg, B, k); m.position.y = TOP + Math.sin(k * Math.PI) * 0.3; });
+      // 马：一跃沿对角线直接到位（不再分“直一步、斜一步”两段）
+      await tween(0.42, k => { m.position.lerpVectors(A0, B, k); m.position.y = TOP + Math.sin(k * Math.PI) * 0.34; }, ease.inOut);
     } else {
       const dist = A.distanceTo(B), dur = Math.min(0.7, 0.2 + dist * 0.07);
       await tween(dur, k => { m.position.lerpVectors(A0, B, k); m.position.y = A0.y + (TOP - A0.y) * k + Math.sin(k * Math.PI) * Math.min(0.2, 0.06 + dist * 0.03); });

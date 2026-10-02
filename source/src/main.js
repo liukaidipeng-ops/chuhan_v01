@@ -132,7 +132,7 @@
   // ---------- 提示 ----------
   let toastT = null;
   function toast(msg, ms = 2200) { const t = $('toast'); t.innerHTML = msg; t.classList.add('on'); clearTimeout(toastT); toastT = setTimeout(() => t.classList.remove('on'), ms); }
-  function banner(t, s, ms = 2600) { $('bannerT').textContent = t; $('bannerS').textContent = s || ''; $('banner').classList.add('on'); setTimeout(() => $('banner').classList.remove('on'), ms); }
+  function banner(t, s, ms = 2600) { $('banner').classList.remove('lite'); $('bannerT').textContent = t; $('bannerS').textContent = s || ''; $('banner').classList.add('on'); setTimeout(() => $('banner').classList.remove('on'), ms); }
   let askTimer = null;
   function ask(title, text, secs = 0, yes = '同 意', no = '拒 绝') {
     return new Promise(res => {
@@ -612,7 +612,7 @@
     rebuildNotes();
     $('log').classList.toggle('jq', game.jq || !!game.bf);
     bfMode = null; dbgOn = false; $('bfDebug').classList.add('hidden'); $('bfReport').innerHTML = ''; $('bfReport').classList.toggle('hidden', !game.bf);
-    $('tDebug').classList.toggle('hidden', !(game.bf && m === 'local'));
+    $('tRule').classList.toggle('hidden', !game.bf);
     setView(mode === 'local' ? 'r' : side);
     $('lobby').classList.add('hidden'); $('hud').classList.remove('hidden');
     $('netbadge').classList.add('hidden');
@@ -646,6 +646,7 @@
     if (mode !== m) return;
     if (game.jq && !game.history.length && intro) { bubble('r', '十五子尽数扣下，翻开方知是何兵马！', 2600); await Core.sleep(1.2); }
     if (game.bf && !game.history.length && intro) { bubble('b', '论兵法，你还嫩了些！', 2400); await Core.sleep(1.0); }
+    if (mode === m && game.bf && !game.entries.length && !state) showBfTip(false);
     if (mode !== m) return;
     started = true; clock.last = performance.now(); clock.step = stepMax();
     turnStartAt = performance.now(); slowIdx = 0;
@@ -1112,7 +1113,7 @@
       if (sel && sel[0] === f && sel[1] === r) { Board.clearMoves(false); sel = null; selMoves = []; return; }
       sel = [f, r];
       selMoves = game.legalFrom(f, r);
-      Board.showMoves(sel, selMoves, !!+opts.hints);
+      Board.showMoves(sel, bfDmg(selMoves), !!+opts.hints);
       Sfx.select();
       if (!selMoves.length) toast('这枚棋子无路可走');
     } else { Board.clearMoves(false); sel = null; selMoves = []; }
@@ -1153,7 +1154,7 @@
     sel = [f, r];
     const me = game.at(f, r);
     selMoves = game.legalFrom(f, r).map(m => { const q = game.at(m.to[0], m.to[1]); return { ...m, atk: !!(q && q.hp > game.atkOf(me)) }; });
-    Board.showMoves(sel, selMoves, !!+opts.hints);
+    Board.showMoves(sel, bfDmg(selMoves), !!+opts.hints);
     Sfx.select();
   }
   function bfClear() { Board.clearMoves(false); sel = null; selMoves = []; }
@@ -1229,9 +1230,35 @@
     return (barCache = o);
   }
   const LVCN = ['', '一', '二', '三', '四'];
+  // 兵法规则速览：开局自动亮一下（十几秒后自己收起），右侧「法」按钮随时可再看
+  let bfTipT = null;
+  function showBfTip(manual) {
+    const touch = matchMedia('(pointer: coarse)').matches;
+    $('bfTipBody').innerHTML = [
+      `<b>${touch ? '长按' : '鼠标停在'}棋子上</b>，看它的等级、血量和技能`,
+      '<b>军功</b>：吃子、将军、兵卒过河都得军功',
+      '<b>升级</b>：选中棋子点「升级」；杀敌攒的甲片够数会<b>自动升级</b>',
+      '<b>三级</b>解锁技能，<b>四级</b>成名将；棋身 木 → 银 → 金 → 玉',
+      '打不死的目标头顶标 <b>-1</b>，能一击杀死才标<b>「殺」</b>',
+      '<b>军功 20</b> 可发终极兵法；主帅兵法每局一次',
+    ].map(x => `<li>${x}</li>`).join('');
+    $('bfTip').classList.remove('hidden');
+    clearTimeout(bfTipT);
+    if (!manual) bfTipT = setTimeout(() => $('bfTip').classList.add('hidden'), 14000);
+  }
+  // 兵法：给落点标上“这一下打不死，只扣 N 血”（棋盘上显示 -N；能一击杀死的仍显示「殺」）
+  function bfDmg(moves, sk) {
+    if (!game || !game.bf) return moves;
+    return moves.map(m => {
+      const p = game.at(m.from[0], m.from[1]), q = game.at(m.to[0], m.to[1]);
+      if (!p || !q || q.t === 'k') return m;
+      const n = sk === 'qishe' ? BF.CFG.skills.qishe.damage : sk === 'chongzhen' ? BF.CFG.skills.chongzhen.springDamage : game.atkOf(p);
+      return q.hp > n ? { ...m, dmg: n } : m;
+    });
+  }
   const escTip = t => String(t || '').replace(/&/g, '&amp;').replace(/"/g, '&quot;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
-  const ART_DESC = { r: '复活一枚己方被吃的子，放回它的开局位置（一级 1 血）；开局位置被占着就不能复活。可用来挡将。每局一次，占用本次行动，不花军功。', b: '本次行动连走两步普通走子（可吃子、攻击，不能用技能），每步走完己方不能被将军，两步走完不能将军对方。之后 3 回合楚军不能用兵种技能。每局一次，不花军功。' };
-  const ULT_DESC = { r: `花 ${BF.CFG.ultimates.cost} 军功，且楚将周围两格内（以楚将为中心 5×5）至少 ${BF.CFG.ultimates.simian.minPiecesInRadius} 枚汉军棋子。楚军 ${BF.CFG.ultimates.simian.rounds} 回合军心涣散：除楚将外所有楚子都不能移动，只能吃掉正在将军的那枚子；不能用技能和兵法；也不算将军——汉帅被楚子指着也不必应将（可借此解将）。楚军没被将军时可以走将或停着。每局一次。`, b: `花 ${BF.CFG.ultimates.cost} 军功。汉帅 ${BF.CFG.ultimates.hongmen.rounds} 回合不能移动；汉军三级以上的士用「护驾」可以当场破掉（樊哙闯帐）。每局一次。` };
+  const ART_DESC = { r: '复活一枚被吃的己方子，回到它的开局位置（一级）。每局一次。', b: '连走两步（不能用技能，第二步不能将军）。此后 3 回合楚军不能用兵种技能。每局一次。' };
+  const ULT_DESC = { r: `${BF.CFG.ultimates.cost} 军功，楚将两格内须有 ${BF.CFG.ultimates.simian.minPiecesInRadius} 枚汉子。${BF.CFG.ultimates.simian.rounds} 回合内楚军除将外不能移动，只能吃掉将军的子，也不算将军。`, b: `${BF.CFG.ultimates.cost} 军功。汉帅 ${BF.CFG.ultimates.hongmen.rounds} 回合不能动；汉士「护驾」可破。` };
   const artTip = s => `<b>主帅兵法 · ${BF.ART_CN[s]}</b><br>${ART_DESC[s]}`;
   const ultTip = s => `<b>终极兵法 · ${BF.ULT_CN[s]}</b><br>${ULT_DESC[s]}`;
   // 某一级的能力（血、攻、技能）
@@ -1243,30 +1270,31 @@
     if (lv === 2 && !out.length) out.push('换乌银棋身');
     return out.join('、') || '换装';
   }
+  // 技能的一行小标签：几级 · 被动 / 冷却
+  const skTag = sk => { const c = BF.CFG.skills[sk], lv = c.level || BF.CFG.skillLevel; return `${LVCN[lv]}级 · ${c.passive ? '被动' : '主动'}${c.cooldown ? ` · 冷却 ${c.cooldown}` : ''}`; };
   function skillTip(p, sk) {
     sk = sk || BF.SKILL_OF(p.t, p.s); if (!sk) return '';
     const c = BF.CFG.skills[sk], lv = c.level || BF.CFG.skillLevel;
-    return `<b>${BF.SKILL_CN[sk]}</b>（${LVCN[lv]}级解锁${c.passive ? '，被动' + (c.cooldown ? `，冷却 ${c.cooldown} 回合` : '，无冷却') : `，冷却 ${c.cooldown} 回合`}${c.free ? '，不占行动' : ''}）<br>${BF.SKILL_DESC[sk]}`;
+    return `<b>${BF.SKILL_CN[sk]}</b> <small>${skTag(sk)}</small><br>${BF.SKILL_DESC[sk]}`;
   }
   function upTip(p, cost, base) {
     const nx = p.lv + 1;
-    return `<b>升${LVCN[nx]}级 · 晋升「${game.rankName(p, nx)}」</b>（${['', '木', '乌银', '錾金', '白玉金缕'][nx]}棋身）：${lvGain(p, nx)}，升级回满血。<br>花 ${cost} 军功` + (base > cost ? `（原价 ${base}，用掉 ${p.xp} 片甲省 ${base - cost}）` : '') + `。<br><small>每击杀一个单位镶一片甲，下次升级少花 1 功。</small>`;
+    return `<b>升${LVCN[nx]}级 ·「${game.rankName(p, nx)}」</b><br>${lvGain(p, nx)}，回满血。<br>花 ${cost} 军功` + (base > cost ? `（甲片省 ${base - cost}）` : '') + `<br><small>甲片攒满 ${base} 片会自动升级，不花军功。</small>`;
   }
-  // 棋子说明（悬停 / 长按棋子）
+  // 棋子说明（悬停 / 长按棋子）：只说要紧的，一条一行
   function pieceTip(p) {
-    const nm = `${SIDE_ARMY[p.s]}${pname(p)}`;
-    if (p.t === 'k') return `<b>${game.rankName(p)}</b>（${nm}）<br>主帅没有生命值，不能升级，免疫技能伤害；不能被吃，只能被将死。` + (p.s === 'r' && game.fx.hm ? `<br><em>鸿门宴：还有 ${game.fx.hm} 回合不能移动；三级以上的士护驾可破</em>` : '');
+    const nm = `${SIDE_ARMY[p.s]}${pname(p)}`, hero = game.heroName ? game.heroName(p) : '';
+    if (p.t === 'k') return `<b>${game.rankName(p)}</b><br>不能升级，不受技能伤害，只能被将死。` + (p.s === 'r' && game.fx.hm ? `<br><em>鸿门宴：还有 ${game.fx.hm} 回合不能动，士护驾可破</em>` : '');
     const info = BF.levelInfo(p.t, p.s, p.lv), mx = info.maxLv;
-    let h = `<b>${game.rankName(p)}</b>（${nm} · ${LVCN[p.lv]}级）<br>生命 ${p.hp}/${info.hp} · 攻击 ${game.atkOf(p)}<br>击杀 ${p.kills || 0} · 甲片 ${p.xp || 0}`;
+    let h = `<b>${hero ? hero + ' · ' : ''}${game.rankName(p)}</b> <small>${nm} ${LVCN[p.lv]}级</small><br>生命 ${p.hp}/${info.hp} · 攻击 ${game.atkOf(p)} · 甲片 ${p.xp || 0}`;
     for (const sk of game.skillsOf(p)) {
       const c = BF.CFG.skills[sk], lv = c.level || BF.CFG.skillLevel, cd = game.cdLeft(p, sk);
-      const st = p.lv < lv ? `（${LVCN[lv]}级解锁）` : cd ? `（冷却还剩 ${cd} 回合）` : c.passive ? '（被动）' : '（可用）';
-      h += `<br><br><b>${c.passive ? '被动' : '技能'}「${BF.SKILL_CN[sk]}」</b>${st}<br>${BF.SKILL_DESC[sk]}`;
+      const st = p.lv < lv ? `${LVCN[lv]}级解锁` : cd ? `冷却 ${cd}` : c.passive ? '被动' : '可用';
+      h += `<br><b>「${BF.SKILL_CN[sk]}」</b><small>${st}</small> ${BF.SKILL_DESC[sk]}`;
     }
-    if (p.lv < mx) { const cost = game.upgradeCost(p), base = game.baseCost(p); h += `<br><br><b>下一级「${game.rankName(p, p.lv + 1)}」</b>：${lvGain(p, p.lv + 1)}（${cost} 功${base > cost ? `，甲片已省 ${base - cost}` : ''}）`; }
-    else h += '<br><br>已到最高级';
-    if (game.jmActive(p)) h += '<br><em>拒马中：敌子来吃或攻击它先挨 1 点伤害</em>';
-    if (p.s === 'b' && game.fx.sm) h += `<br><em>军心涣散：还有 ${game.fx.sm} 回合不能移动，只能吃掉正在将军的子</em>`;
+    if (p.lv < mx) { const cost = game.upgradeCost(p), base = game.baseCost(p); h += `<br><b>下一级</b>「${game.rankName(p, p.lv + 1)}」${lvGain(p, p.lv + 1)} <small>${cost} 功，或攒满 ${base} 片甲</small>`; }
+    if (game.jmActive(p)) h += '<br><em>拒马中：来犯者先挨 1 点</em>';
+    if (p.s === 'b' && game.fx.sm) h += `<br><em>军心涣散：还有 ${game.fx.sm} 回合不能移动</em>`;
     return h;
   }
   // 本回合技能可用的子（有目标、不在冷却）
@@ -1336,7 +1364,7 @@
       // 按钮不可用时不用 disabled（点了没反应像坏了），改成灰色 + 点一下说明原因；所有按钮悬停 / 长按看说明
       const btn = (cls, act, ok, label, small, why, extra = '', tip = '') => `<button class="sk ${cls}${ok ? '' : ' off'}" data-a="${act}" ${ok ? '' : `data-why="${why}"`} data-tip="${escTip(tip || why)}">${label}<small>${small}</small>${extra}</button>`;
       if (a.p) {
-        hint = (a.p.t === 'k' ? game.rankName(a.p) : `${game.rankName(a.p)} · ${LVCN[a.p.lv]}级${pname(a.p)} · ${a.p.hp} 血`) + (game.atkOf(a.p) > 1 ? ` · 攻 ${game.atkOf(a.p)}` : '') + (a.p.xp ? ` · 甲 ${a.p.xp}` : '');
+        hint = (a.p.t === 'k' ? game.rankName(a.p) : `${game.heroName(a.p) ? game.heroName(a.p) + ' · ' : ''}${game.rankName(a.p)} · ${LVCN[a.p.lv]}级${pname(a.p)} · ${a.p.hp} 血`) + (game.atkOf(a.p) > 1 ? ` · 攻 ${game.atkOf(a.p)}` : '') + (a.p.xp ? ` · 甲 ${a.p.xp}` : '');
         if (a.p.t !== 'k') {
           if (a.cost != null) {
             const m = game.merit[a.p.s], save = a.base - a.cost;
@@ -1395,7 +1423,7 @@
       const cn = BF.SKILL_CN[skn];
       if (k.targets.length === 1 && !k.targets[0].to) { doBF(k.targets[0]); return; }
       bfMode = { kind: 'sk', targets: k.targets, hint: `${cn}：点选目标（${{ chongzhen: '点前方第一枚子当跳板', taying: '无视马腿', pili: '炮击敌子', qishe: '斜线两格内' }[skn] || ''}）` };
-      Board.showMoves(sel, k.targets.map(t => ({ from: t.at, to: t.to, atk: true })), true);
+      Board.showMoves(sel, bfDmg(k.targets.map(t => ({ from: t.at, to: t.to, atk: true })), k.sk), true);
       renderBar(); return;
     }
     if (a === 'art') {
@@ -1511,6 +1539,8 @@
     else if (info.k === 'ult') line = s === 'b' ? `鸿门宴：汉王 ${BF.CFG.ultimates.hongmen.rounds} 回合不得移动` : '四面楚歌：楚军军心涣散，动弹不得';
     else if (info.k === 'pass') line = `${SIDE_ARMY[s]}按兵不动`;
     if (info.k === 'mv' && info.extra && info.extra.via === 'shensu') line = `${nm(s, 'p')}神速营疾行` + (info.check ? '，将军！' : '');
+    const au = ev.find(x => x.e === 'autoup');
+    if (au) { const hero = BF.heroName({ s: au.s, t: au.t, nm: au.nm }); line = (line ? line + '；' : '') + `${nm(au.s, au.t)}战功晋升「${hero || BF.rankName(au.s, au.t, au.lv)}」`; }
     if (!line) return;
     const L = $('bfReport'); L.classList.remove('hidden');
     const li = document.createElement('li'); li.className = s; li.textContent = line; L.appendChild(li);
@@ -1578,7 +1608,11 @@
   $('dbgClear').onclick = () => dbgApply(T => { for (let r = 0; r < 10; r++) for (let f = 0; f < 9; f++) { const p = T.board[r][f]; if (p && p.t !== 'k') T.board[r][f] = null; } });
   $('dbgReset').onclick = () => { game = new BF.Game(); dbgApply(() => { }); };
   $('dbgClose').onclick = () => { dbgOn = false; dbgPick = null; $('bfDebug').classList.add('hidden'); Board.clearMoves(false); updateHud(); };
-  $('tDebug').onclick = () => { if (!game.bf || mode !== 'local') return; dbgOn = !dbgOn; $('bfDebug').classList.toggle('hidden', !dbgOn); if (dbgOn) { dbgPick = null; dbgSel = null; dbgPaint(); toast('调试摆子：选子后点棋盘；改完关掉面板即可接着下'); } updateHud(); };
+  $('tRule').onclick = () => showBfTip(true);
+  $('bfTipMore').onclick = () => { $('bfTip').classList.add('hidden'); $('mHelp').classList.remove('hidden'); };
+  $('bfTipOk').onclick = () => { $('bfTip').classList.add('hidden'); clearTimeout(bfTipT); };
+  $('tDebug').onclick = () => {
+    $('mSet').classList.add('hidden'); if (!game.bf || mode !== 'local') return; dbgOn = !dbgOn; $('bfDebug').classList.toggle('hidden', !dbgOn); if (dbgOn) { dbgPick = null; dbgSel = null; dbgPaint(); toast('调试摆子：选子后点棋盘；改完关掉面板即可接着下'); } updateHud(); };
 
   // ---------- 悔棋 ----------
   function undoPlies(side) { return game.turn === side ? 2 : 1; }
@@ -2273,7 +2307,7 @@
   $('vMusic').oninput = e => { S.vMusic = +e.target.value; applySettings(); };
   $('vSfx').oninput = e => { S.vSfx = +e.target.value; applySettings(); };
   $('oServer').onchange = e => { S.server = e.target.value.trim(); applySettings(); };
-  const openSet = () => { repaintSegs($('mSet')); $('setGame').classList.toggle('hidden', !(mode && started)); $('tExit').textContent = watching() ? '离开观战席' : '退出对局'; $('mSet').classList.remove('hidden'); };
+  const openSet = () => { repaintSegs($('mSet')); $('setGame').classList.toggle('hidden', !(mode && started)); $('tDebug').classList.toggle('hidden', !(mode === 'local' && started && game && game.bf)); $('tExit').textContent = watching() ? '离开观战席' : '退出对局'; $('mSet').classList.remove('hidden'); };
   $('tSet').onclick = $('bSetL').onclick = $('pzSet').onclick = openSet;
   $('bSetClose').onclick = () => $('mSet').classList.add('hidden');
   $('bHelp').onclick = $('bHelpL').onclick = () => $('mHelp').classList.remove('hidden');

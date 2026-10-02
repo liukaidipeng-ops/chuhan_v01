@@ -288,6 +288,13 @@ body.compact #log.jq{width:214px}
 .tool.red{background:linear-gradient(#b43a26,#86241a);color:#fbe9cf;box-shadow:0 4px 12px rgba(120,30,10,.3),inset 0 0 0 2px rgba(255,220,170,.4),inset 0 0 0 4px #9a2c1c,inset 0 0 0 5px rgba(255,220,170,.25)}
 .tool[disabled]{opacity:.35}
 .tool.flash{animation:toolFlash 1.1s ease-in-out infinite}
+#bfTip{position:fixed;left:50%;top:50%;transform:translate(-50%,-50%);z-index:24;width:min(430px,calc(100vw - 28px));background:linear-gradient(rgba(249,244,232,.97),rgba(236,226,202,.96));border:1px solid rgba(184,145,74,.85);box-shadow:inset 0 0 0 3px rgba(249,244,232,.85),inset 0 0 0 4px rgba(184,145,74,.3),0 14px 40px rgba(40,25,10,.35);border-radius:4px;padding:14px 18px 10px;pointer-events:auto;animation:bfTipIn .35s both}
+@keyframes bfTipIn{from{opacity:0}to{opacity:1}}
+#bfTip.hidden{display:none}
+#bfTip h4{margin:0 0 6px;text-align:center;font-size:18px;letter-spacing:.2em;color:var(--ink)}
+#bfTip ul{margin:0;padding-left:1.15em;font-size:15px;line-height:1.85;color:var(--ink2)}
+#bfTip li b{color:#8e2418}
+#bfTip .row{margin:10px 0 2px}
 @keyframes toolFlash{0%,100%{box-shadow:0 4px 12px rgba(0,0,0,.28),inset 0 0 0 2px rgba(217,184,119,.35),inset 0 0 0 4px #25201d,inset 0 0 0 5px rgba(217,184,119,.22);color:#f1e3c2}50%{box-shadow:0 0 18px 4px rgba(255,214,130,.85),inset 0 0 0 2px rgba(255,226,160,.95),inset 0 0 0 4px #4a3a1c,inset 0 0 0 5px rgba(255,226,160,.6);color:#ffe9a8}}
 #pauseOv{position:fixed;inset:0;z-index:25;display:flex;align-items:center;justify-content:center;background:radial-gradient(ellipse at center,rgba(20,17,15,.5),rgba(12,10,9,.78));backdrop-filter:blur(3px);-webkit-backdrop-filter:blur(3px);pointer-events:auto}
 #pauseOv.hidden{display:none}
@@ -348,6 +355,8 @@ body.cine #specTags{opacity:0}
 @keyframes stamp{0%{opacity:0;transform:translate(-50%,-50%) scale(3.2) rotate(-8deg)}14%{opacity:1;transform:translate(-50%,-50%) scale(1) rotate(-8deg)}20%{transform:translate(-50%,-50%) scale(1.08) rotate(-8deg)}28%{transform:translate(-50%,-50%) scale(1) rotate(-8deg)}78%{opacity:1}100%{opacity:0;transform:translate(-50%,-50%) scale(1) rotate(-8deg)}}
 #banner{position:fixed;inset:0;z-index:8;display:flex;flex-direction:column;align-items:center;justify-content:center;text-align:center;pointer-events:none;opacity:0;transition:opacity .8s ease;background:radial-gradient(ellipse at center,rgba(244,236,219,.55),rgba(226,214,188,.35) 70%);-webkit-backdrop-filter:blur(10px) saturate(.8);backdrop-filter:blur(10px) saturate(.8);padding:0 16px}
 #banner.on{opacity:1}
+/* 技能题签：不糊背景，只在字后垫一小片纸色，棋盘要看得清 */
+#banner.lite{-webkit-backdrop-filter:none;backdrop-filter:none;background:radial-gradient(ellipse 58% 30% at center,rgba(244,236,219,.6),rgba(244,236,219,.25) 55%,rgba(244,236,219,0) 80%)}
 #banner .t{font-family:"XK",var(--font);font-weight:normal;font-size:clamp(76px,18vw,176px);letter-spacing:.1em;padding-left:.1em;line-height:1.15;color:#1b1a19;white-space:nowrap;text-shadow:0 3px 0 rgba(255,250,240,.6),0 0 50px rgba(244,236,219,.9)}
 #banner.on .t{animation:bannerIn 1.5s cubic-bezier(.2,.7,.2,1) both}
 @keyframes bannerIn{from{opacity:0;filter:blur(16px);transform:scale(1.14)}to{opacity:1;filter:blur(0);transform:none}}
@@ -500,7 +509,7 @@ body.compact #log{width:164px;max-height:34vh}
     <button class="tool" id="tView" title="视角复位">視</button>
     <button class="tool hidden" id="tLaugh" title="哈哈大笑">笑</button>
     <button class="tool" id="tPause" title="暂停（P）">停</button>
-    <button class="tool hidden" id="tDebug" title="调试摆子">調</button>
+    <button class="tool hidden" id="tRule" title="兵法规则速览">法</button>
     <button class="tool" id="tSet" title="设置 · 认输 · 退出">設</button>
   </div>
 </div>
@@ -586,7 +595,7 @@ body.compact #log{width:164px;max-height:34vh}
   <div class="opt"><div class="lbl">配音</div><div class="seg" data-s="voice"><button data-v="1">开</button><button data-v="0">关</button></div></div>
   <div class="opt"><div class="lbl">画质<small>卡顿时调低</small></div><div class="seg" data-s="quality"><button data-v="high">高</button><button data-v="mid">中</button><button data-v="low">低</button></div></div>
   <div class="opt" id="optServer"><div class="lbl">自定义线路<small>一般不用填</small></div><input id="oServer" placeholder="wss://…/mqtt" style="flex:1;min-width:0;font-size:14px;padding:6px;border:1px solid #bba;background:rgba(255,255,255,.5)"></div>
-  <div class="row hidden" id="setGame"><button class="btn small red" id="tResign">认 输</button><button class="btn small" id="tExit">退出对局</button></div>
+  <div class="row hidden" id="setGame"><button class="btn small hidden" id="tDebug">调试摆子</button><button class="btn small red" id="tResign">认 输</button><button class="btn small" id="tExit">退出对局</button></div>
   <div class="row"><button class="btn small" id="bHelp">玩法说明</button><button class="btn small solid" id="bSetClose">完 成</button></div>
   <p class="note" style="text-align:center;margin:6px 0 0;font-size:12px;opacity:.7"><span id="verTag"></span> · <button class="link" id="bNews" style="font-size:12px">更新说明</button></p>
 </div></div></div>
@@ -615,6 +624,9 @@ body.compact #log{width:164px;max-height:34vh}
   <div class="news" id="newsBody"></div>
   <div class="row"><button class="btn small solid" id="bNewsClose">知道了</button></div>
 </div></div></div>
+
+<!-- 兵法规则速览 -->
+<div id="bfTip" class="hidden"><h4>兵 法 速 览</h4><ul id="bfTipBody"></ul><div class="row"><button class="btn small" id="bfTipMore">完整规则</button><button class="btn small solid" id="bfTipOk">知道了</button></div></div>
 
 <!-- 暂停 -->
 <div id="pauseOv" class="hidden"><div class="pz">

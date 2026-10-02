@@ -118,11 +118,11 @@ const BFX = (() => {
     document.body.appendChild(d); setTimeout(() => d.remove(), 1700);
   }
   // 晋升题签：升级时在棋子上方亮出新的称号（四级更隆重）
-  function rankPop(at, name, side, lv, max) {
+  function rankPop(at, name, side, lv, max, sub) {
     const p = Board.pos(at[0], at[1]).setY(TOP + 0.75).project(Core.camera);
     if (p.z > 1 || !name) return;
     const d = document.createElement('div'); d.className = 'rankpop ' + (side === 'r' ? 'r' : 'b') + (lv >= max ? ' top' : '');
-    d.innerHTML = `<small>${lv >= max ? '登峰' : '晋升'}</small><b>${name}</b>`;
+    d.innerHTML = `<small>${sub || (lv >= max ? '登峰' : '晋升')}</small><b>${name}</b>`;
     d.style.left = Math.min(innerWidth - 90, Math.max(90, (p.x + 1) / 2 * innerWidth)) + 'px'; d.style.top = Math.max(70, (1 - p.y) / 2 * innerHeight) + 'px';
     document.body.appendChild(d); setTimeout(() => d.remove(), 2600);
   }
@@ -137,7 +137,7 @@ const BFX = (() => {
   function title(t, s, ms = 2400) {
     const b = document.getElementById('banner');
     document.getElementById('bannerT').textContent = t; document.getElementById('bannerS').textContent = s || '';
-    b.classList.add('on'); setTimeout(() => b.classList.remove('on'), ms);
+    b.classList.add('on', 'lite'); clearTimeout(title.t); title.t = setTimeout(() => { b.classList.remove('on'); setTimeout(() => { if (!b.classList.contains('on')) b.classList.remove('lite'); }, 900); }, ms);
   }
 
   // 一次“走到敌子格”的演出：普通走子 / 吃子 / 攻击未下 / 拒马反伤
@@ -182,6 +182,14 @@ const BFX = (() => {
     Core.Time.scale = 1;
     document.body.classList.remove('cine');
     Board.reconcile(game);
+    // 甲片攒够、当场自动晋升的子：等它落定换好装，再补上晋升的仪式
+    try {
+      for (const e of ev.filter(x => x.e === 'autoup')) {
+        const B = info.after && info.after.board; let at = null;
+        if (B) for (let r = 0; r < 10 && !at; r++) for (let f = 0; f < 9; f++) if (B[r][f] && B[r][f].id === e.id) { at = [f, r]; break; }
+        if (at) await levelUp({ id: e.id, t: e.t, side: e.s, at, lv: e.lv, nm: e.nm, auto: true });
+      }
+    } catch (e) { console.error(e); }
     if (info.k !== 'mv' && info.k !== 'up') {
       if (Cam.cine) await Cam.home(0.8);
       if (info.result) Fx.checkStamp(XQ.other(side), info.result.reason === 'checkmate' ? '殺' : '困', info.mateName);
@@ -198,7 +206,10 @@ const BFX = (() => {
     if (top) Fx.ring(c.clone().setY(TOP + 0.03), 3.2, 1.1, 0xffe2a0, 0.6);
     for (let i = 0; i < (top ? 34 : 18); i++) Fx.spawn({ pos: c.clone().add(new V3(R(-0.3, 0.3), 0.1, R(-0.3, 0.3))), vel: new V3(R(-0.2, 0.2), R(1.2, top ? 3 : 2.2), R(-0.2, 0.2)), tex: Core.Tex.spark, add: true, color: 0xffd27a, size: 0.12, size2: 0.03, life: R(0.6, top ? 1.4 : 1), drag: 1.2 });
     // 称号题签要等棋子换好新装（落回棋盘）再亮出来
-    setTimeout(() => rankPop(info.at, BF.rankName(info.side, info.t, info.lv), info.side, info.lv, max), 200);
+    const hero = BF.heroName({ s: info.side, t: info.t, nm: info.nm }), rk = BF.rankName(info.side, info.t, info.lv);
+    setTimeout(() => rankPop(info.at, hero || rk, info.side, info.lv, max, hero ? rk : info.auto ? '战功晋升' : ''), 200);
+    // 四级：名将登场，题字亮名
+    if (hero && (cine() || Fx.level === 'std')) { title(hero, (info.side === 'r' ? '汉' : '楚') + ' · ' + rk, 1700); Sfx.B.gong(0.1, 0.8); }
     await tween(0.3, k => { m.position.y = TOP + Math.sin(k * Math.PI) * 0.35; m.rotation.y = (Board.viewSide === 'b' ? Math.PI : 0) + k * Math.PI * 2; }, ease.inOut);
     m.position.y = TOP; m.rotation.y = Board.viewSide === 'b' ? Math.PI : 0;
   }
@@ -276,6 +287,16 @@ const BFX = (() => {
       if (m) await tween(0.35, k => { m.position.y = TOP + Math.sin(k * Math.PI) * 0.6; m.rotation.x = Math.sin(k * Math.PI) * 0.3; });
       if (m) { m.position.y = TOP; m.rotation.x = 0; }
       await strike(before, at, to, ev, side, { mt: 'n', streak: info.streak });
+    } else if (sk === 'feiyue') {
+      // 飞越：腾身一跃，越过塞住象眼的子落到田字对角
+      const m = Board.pieces.get(P0.id), A = Board.pos(at[0], at[1]), B = Board.pos(to[0], to[1]), mid = A.clone().lerp(B, 0.5);
+      Sfx.B.whoosh(0, 0.5, 0.5); if (side === 'b') { try { Sfx.unit('ele').trumpet(); } catch (e) { } }
+      P.dust(A, 10, null, 0.3);
+      if (m) await tween(0.3, k => { m.position.lerpVectors(A, mid, k); m.position.y = TOP + Math.sin(k * Math.PI / 2) * 0.85; }, ease.out);
+      if (m) { m.position.copy(A); m.position.y = TOP; }
+      await strike(before, at, to, ev.filter(notTrample), side, { mt: 'e', streak: info.streak });
+      Cam.shake(0.16); ring(to, 0x5a4a38, 2.2);
+      await trampleFx(ev, side);
     } else if (sk === 'pili') {
       // 雷霆炮击：一开炮就齐射覆盖目标和前后左右四格（炸成焦土），落弹之后才结算目标，炮最后再落位
       const T0 = before[to[1]][to[0]], m = Board.pieces.get(P0.id), A = Board.pos(at[0], at[1]), B = Board.pos(to[0], to[1]);
@@ -339,41 +360,112 @@ const BFX = (() => {
     }
   }
 
+  // 光柱：一道从天而降的金光（叠加发亮的空心圆柱，上细下粗、由下往上淡出）
+  let beamTex = null;
+  function beam(pos, color, h = 9, r = 0.5, dur = 2.2) {
+    if (!beamTex) beamTex = Core.canvasTex(64, 256, (g, w, hh) => {
+      const gr = g.createLinearGradient(0, 0, 0, hh); gr.addColorStop(0, 'rgba(255,255,255,0)'); gr.addColorStop(0.55, 'rgba(255,255,255,.35)'); gr.addColorStop(1, 'rgba(255,255,255,1)');
+      g.fillStyle = gr; g.fillRect(0, 0, w, hh);
+      for (let i = 0; i < 14; i++) { g.fillStyle = `rgba(255,255,255,${0.1 + Math.random() * 0.25})`; g.fillRect(Math.random() * w, 0, 1 + Math.random() * 3, hh); }
+    });
+    const mk = (rad, op) => { const m = new THREE.Mesh(new THREE.CylinderGeometry(rad * 0.7, rad, h, 28, 1, true), new THREE.MeshBasicMaterial({ map: beamTex, color, transparent: true, opacity: 0, blending: THREE.AdditiveBlending, depthWrite: false, side: THREE.DoubleSide, fog: false })); m.position.copy(pos); m.position.y = TOP + h / 2; m.renderOrder = 8; m.userData.op = op; scene.add(m); return m; };
+    const ms = [mk(r, 0.75), mk(r * 1.9, 0.3)];
+    tween(dur, k => { const a = k < 0.15 ? k / 0.15 : k > 0.7 ? (1 - k) / 0.3 : 1; ms.forEach((m, i) => { m.material.opacity = m.userData.op * a; m.rotation.y += (i ? -0.02 : 0.035); const sx = 1 + 0.08 * Math.sin(k * 30 + i); m.scale.set(sx, 1, sx); }); }, ease.linear)
+      .then(() => ms.forEach(m => { scene.remove(m); m.geometry.dispose(); m.material.dispose(); }));
+  }
+  // 螺旋上升的光点
+  function spiral(pos, color, n = 46, r = 0.5, dur = 1.6) {
+    for (let i = 0; i < n; i++) setTimeout(() => {
+      const a = i * 0.55, rr = r * (1 - i / n * 0.4);
+      Fx.spawn({ pos: pos.clone().add(new V3(Math.cos(a) * rr, 0.1 + i / n * 0.8, Math.sin(a) * rr)), vel: new V3(-Math.sin(a) * 0.8, R(1.6, 3.2), Math.cos(a) * 0.8), tex: Core.Tex.spark, add: true, color, size: 0.16, size2: 0.03, life: R(0.7, 1.3), drag: 0.8 });
+    }, i * dur * 1000 / n);
+  }
+  // 破釜沉舟的位移：出发点到落点先烧出一道火线，棋子（或它的兵）踏着火冲过去
+  function blaze(A, B) {
+    const n = Math.max(6, Math.round(A.distanceTo(B) * 7));
+    for (let i = 0; i <= n; i++) setTimeout(() => {
+      const p = A.clone().lerp(B, i / n).setY(TOP + 0.05);
+      P.flame(p, 0.34); P.flame(p.clone().add(new V3(R(-0.1, 0.1), 0, R(-0.1, 0.1))), 0.22);
+      if (i % 2 === 0) Fx.glow(p.clone().setY(TOP + 0.2), 1.1, 0.5, 0.32, 0xff7a2a);
+      if (i % 3 === 0) P.embers(p, 3);
+    }, i * 22);
+  }
   async function art(info, before) {
     const side = info.side, ev = info.ev;
+    const big = cine() || Fx.level === 'std';
     if (side === 'r') {
+      // 召回良将：金光自天而降，良将踏光归阵
       const rv = ev.find(e => e.e === 'revive');
       title('召回良将', '汉王复得良将 · ' + XQ.NAMES.r[rv.t] + '重回阵前', 2600);
-      Sfx.B.gong(0, 0.8); Sfx.B.hooves(0.2, 1.4, 1, 0.3); Sfx.B.neigh(1.1, 0.12);
+      Sfx.B.gong(0, 0.9); Sfx.B.bell(0.1, 660, 0.12); Sfx.B.bell(0.35, 880, 0.1); Sfx.B.bell(0.6, 1175, 0.08);
       const vp = say('bf_art_r');
-      shotAt(rv.at, 3.0, 2.0, 0.9);
-      await sleep(0.9);
-      const B = Board.pos(rv.at[0], rv.at[1]);
+      const B = Board.pos(rv.at[0], rv.at[1]), G = B.clone().setY(TOP + 0.02);
+      if (big) document.body.classList.add('cine');
+      shotAt(rv.at, 3.4, 2.4, 0.9);
+      // 地上先亮起一圈圈金环，光柱落下
+      for (let i = 0; i < 3; i++) setTimeout(() => Fx.ring(G, 1.6 + i * 0.9, 0.9, 0xffd27a, 0.85), i * 220);
+      await sleep(0.5);
+      beam(B, 0xffd98a, 9, 0.5, 2.6); Fx.flash(B.clone().setY(TOP + 0.6), 70, 1.2, 0.35); Fx.glow(B.clone().setY(TOP + 0.5), 3.2, 1.6, 0.5, 0xffd98a, 0.6);
+      spiral(B, 0xffe2a0, 50, 0.55, 1.5); Sfx.B.whoosh(0.1, 0.6, 0.9); Sfx.B.hooves(0.3, 1.2, 1, 0.3);
+      await sleep(0.55);
+      // 良将自光中降下，落地一震
       const m = Board.makePiece({ s: 'r', t: rv.t, id: rv.id, lv: 1, hp: 1 });
-      m.rotation.y = Board.viewSide === 'b' ? Math.PI : 0; m.scale.set(1, 0.01, 1);
+      m.rotation.y = Board.viewSide === 'b' ? Math.PI : 0;
       Board.piecesRoot.add(m); Board.pieces.set(rv.id, m);
-      Fx.ring(B.clone().setY(TOP + 0.02), 2, 0.9, 0xc9a045, 0.9);
-      for (let i = 0; i < 24; i++) Fx.spawn({ pos: B.clone().add(new V3(R(-0.3, 0.3), 0.1, R(-0.3, 0.3))), vel: new V3(0, R(1.5, 3), 0), tex: Core.Tex.spark, add: true, color: 0xffd27a, size: 0.14, size2: 0.03, life: R(0.6, 1.2), drag: 1 });
-      await Fx.rise(m, B, 0.6);
-      await Promise.race([vp, sleep(2)]);
+      const top = B.clone().setY(TOP + 4.2), yaw0 = m.rotation.y;
+      Fx.slowmo(0.5, 0.5);
+      await tween(0.75, k => { m.position.lerpVectors(top, B, k * k); m.rotation.y = yaw0 + (1 - k) * Math.PI * 4; m.scale.setScalar(0.6 + 0.4 * k); if (Math.random() < 0.8) Fx.spawn({ pos: m.position.clone(), vel: new V3(R(-0.3, 0.3), R(0.2, 1), R(-0.3, 0.3)), tex: Core.Tex.spark, add: true, color: 0xffd27a, size: 0.2, size2: 0.04, life: 0.5 }); }, ease.linear);
+      m.position.copy(B); m.rotation.y = yaw0; m.scale.set(1, 1, 1);
+      Cam.shake(0.36); Sfx.B.taiko(0, 1, 0.7); Sfx.B.gong(0.02, 0.8); Sfx.B.thud(0, 0.9); Sfx.place();
+      Fx.ring(G, 3.6, 0.9, 0xffe2a0, 0.95); Fx.ring(G, 2.2, 0.6, 0xc9a045, 0.9); P.dust(B, 18, null, 0.4); P.sparks(B.clone().setY(TOP + 0.3), 26, 1.2);
+      Fx.glow(B.clone().setY(TOP + 0.3), 4.2, 0.7, 0.6, 0xffe2a0);
+      // 四周的汉军齐声呼应
+      for (const x of Board.pieces.values()) if (x !== m && x.userData.s === 'r' && x.position.distanceTo(B) < 2.6) { const y0 = x.position.y; tween(0.35, k => { x.position.y = y0 + Math.sin(k * Math.PI) * 0.16; }); }
+      Sfx.B.shout(0.1, 8, 0.1, 0.6);
+      await Promise.race([vp, sleep(1.8)]);
+      await sleep(0.3);
     } else {
+      // 破釜沉舟：沉舟的火映红河面，楚军踏火连进两步
       title('破釜沉舟', '楚军连进两步 · 此后三回合不用技能', 2600);
-      Sfx.B.gong(0, 0.9); Sfx.B.woodbreak(0.3, 0.6); Sfx.B.boom(0.4, 0.4);
+      Sfx.B.gong(0, 0.9); Sfx.B.woodbreak(0.3, 0.7); Sfx.B.boom(0.4, 0.5); Sfx.B.taiko(0.1, 0.9); Sfx.B.taiko(0.45, 1);
       const vp = say('bf_art_b');
       const k = [...Board.pieces.values()].find(m => m.userData.t === 'k' && m.userData.s === 'b');
-      if (k && cine()) { document.body.classList.add('cine'); const hd = Cam.homeDir(); Cam.to(k.position.clone().addScaledVector(hd, -3).add(new V3(0, 2.2, 0)), k.position.clone().add(new V3(0, 0.4, 0)), 0.9); }
+      if (k && big) { document.body.classList.add('cine'); const hd = Cam.homeDir(); Cam.to(k.position.clone().addScaledVector(hd, -3).add(new V3(0, 2.2, 0)), k.position.clone().add(new V3(0, 0.4, 0)), 0.9); }
+      if (k) {
+        const kp = k.position.clone();
+        Fx.flash(kp.clone().setY(TOP + 0.5), 90, 0.9, 0.4); Cam.shake(0.3);
+        for (let i = 0; i < 3; i++) setTimeout(() => { Fx.ring(kp.clone().setY(TOP + 0.02), 2.4 + i * 1.6, 0.8, 0xc2301a, 0.9); Cam.shake(0.12); }, i * 200);
+        for (let i = 0; i < 10; i++) { const a = i / 10 * 6.28; setTimeout(() => { const c = kp.clone().add(new V3(Math.cos(a) * 0.7, 0, Math.sin(a) * 0.7)); P.fire(c.setY(TOP + 0.1), 10, 0.55); }, 120 + i * 40); }
+        Fx.glow(kp.clone().setY(TOP + 0.5), 4, 1.2, 0.55, 0xff6a2a, 0.6); P.embers(kp, 20);
+      }
+      // 沉舟：河上一排火起；全军身上腾起战意
+      for (let i = 0; i < 9; i++) { const c = new V3(-7 + i * 1.75 + R(-0.4, 0.4), 0.05, R(-0.3, 0.3)); setTimeout(() => { P.fire(c, 22, 0.8); P.smoke(c, 6, 0.7); Fx.glow(c.clone().setY(0.5), 2.2, 0.9, 0.4, 0xff7a2a); Sfx.B.boom(0, 0.25); }, 500 + i * 110); }
+      [...Board.pieces.values()].filter(m => m.userData.s === 'b').forEach((m, i) => setTimeout(() => { const c = m.position.clone().setY(TOP + 0.25); P.flame(c, 0.3); P.flame(c, 0.22); P.embers(c, 3); Fx.ring(c.clone().setY(TOP + 0.02), 1.3, 0.5, 0xc2301a, 0.7); }, 700 + i * 60));
+      Sfx.B.shout(0.8, 10, 0.1, 0.8);
       await Promise.race([vp, sleep(2.6)]);
       if (Cam.cine) await Cam.home(0.6);
-      for (let i = 0; i < 6; i++) { const c = new V3(R(-7, 7), 0.05, R(-0.3, 0.3)); setTimeout(() => { P.fire(c, 16, 0.6); P.smoke(c, 6, 0.6); }, i * 140); }
-      await sleep(1.2);
+      await sleep(0.4);
       let board = before;
       const steps = info.extra.steps || [];
       for (let i = 0; i < steps.length; i++) {
         const st = steps[i], evs = ev.slice(st.ev0, st.ev1);
-        await strike(board, st.from, st.to, evs.filter(notTrample), side, { streak: info.streak });
+        const A = Board.pos(st.from[0], st.from[1]), B = Board.pos(st.to[0], st.to[1]);
+        const P0 = board[st.from[1]][st.from[0]], m = P0 && Board.pieces.get(P0.id);
+        // 蓄势：脚下火环一收，火线直扑落点
+        Fx.ring(A.clone().setY(TOP + 0.02), 1.8, 0.35, 0xff6a2a, 0.9); P.fire(A.clone().setY(TOP + 0.1), 14, 0.6); Sfx.B.whoosh(0, 0.6, 0.5); Sfx.B.taiko(0, 0.9, 0.9);
+        labelPop(st.from, i ? '再进！' : '破釜！', side);
+        blaze(A, B);
+        await sleep(0.28);
+        // 棋子身上带着火冲过去（低特效档看得到棋子本身；电影档是它的兵踏着火线）
+        const off = m ? Core.onFrame(() => { if (m.parent && m.visible && Math.random() < 0.8) { P.flame(m.position.clone().setY(m.position.y + 0.15), 0.3); Fx.spawn({ pos: m.position.clone().setY(m.position.y + 0.1), tex: Core.Tex.spark, add: true, color: 0xff8a3a, size: 0.5, size2: 0.1, life: 0.28, op: 0.5 }); } }) : null;
+        const sp0 = Core.Time.boost; 
+        try { await strike(board, st.from, st.to, evs.filter(notTrample), side, { streak: info.streak }); } finally { if (off) off(); }
+        // 落地：火浪炸开
+        Cam.shake(0.3); Fx.ring(B.clone().setY(TOP + 0.02), 3.2, 0.7, 0xff6a2a, 0.9); Fx.ring(B.clone().setY(TOP + 0.03), 1.8, 0.5, 0xffd27a, 0.8);
+        P.fire(B.clone().setY(TOP + 0.15), 26, 0.9); P.embers(B, 14); Fx.glow(B.clone().setY(TOP + 0.3), 3.4, 0.5, 0.5, 0xff7a2a); Fx.Marks.scorch(B.clone().setY(TOP), 0.9); Sfx.B.boom(0, 0.5); Sfx.B.taiko(0, 1, 0.7);
         await trampleFx(evs, side);
         board = simBoard(board, evs);
-        await sleep(0.2);
+        await sleep(0.25);
       }
     }
   }

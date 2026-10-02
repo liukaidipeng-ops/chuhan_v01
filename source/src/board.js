@@ -1313,6 +1313,19 @@ const Board = (() => {
     for (let i = 0; i < 80; i++) { g.globalAlpha = rnd() * 0.55; g.beginPath(); g.arc((rnd() - 0.5) * s, (rnd() - 0.5) * s, 1 + rnd() * 4, 0, 7); g.fill(); }
     g.restore();
   });
+  // 兵法：打不死的目标头顶标「-1」「-2」（这一下会扣多少血），只有能一击杀死的才标「殺」
+  const dmgTexCache = {};
+  const dmgTex = n => dmgTexCache[n] || (dmgTexCache[n] = canvasTex(256, 256, (g, w) => {
+    g.clearRect(0, 0, w, w);
+    g.save(); g.translate(w / 2, w / 2); g.rotate(-0.05);
+    const s = w * 0.56;
+    g.fillStyle = 'rgba(30,20,10,.4)'; rrect(g, -s / 2 + 5, -s / 2 + 7, s, s, 16); g.fill();
+    g.fillStyle = '#2a2622'; rrect(g, -s / 2, -s / 2, s, s, 16); g.fill();
+    g.strokeStyle = '#e9c77a'; g.lineWidth = 6; rrect(g, -s / 2 + 10, -s / 2 + 10, s - 20, s - 20, 9); g.stroke();
+    g.font = `bold ${Math.round(s * 0.62)}px Georgia, ${FONT}`; g.textAlign = 'center'; g.textBaseline = 'middle'; g.fillStyle = '#f3d9a0';
+    g.fillText('-' + n, 0, s * 0.03);
+    g.restore();
+  }));
   const compassTex = canvasTex(512, 512, (g, w) => {
     const c = w / 2; g.strokeStyle = '#fff'; g.fillStyle = '#fff';
     g.lineWidth = 12; g.beginPath(); g.arc(c, c, w * 0.44, 0, 7); g.stroke();
@@ -1437,9 +1450,9 @@ const Board = (() => {
       const occupied = !!meshAt(f, r);
       if (occupied) {
         if (!hints) continue;
-        const d = decal(ringTex, 0xb0301f, 1.14, X(f), Z(r), TOP + 0.006, 0.95);
+        const d = decal(ringTex, m.dmg ? 0x8a6a2a : 0xb0301f, 1.14, X(f), Z(r), TOP + 0.006, 0.95);
         markRoot.add(d); killRings.push(d);
-        const sp = new THREE.Sprite(new THREE.SpriteMaterial({ map: killTex, transparent: true, depthWrite: false, depthTest: false }));
+        const sp = new THREE.Sprite(new THREE.SpriteMaterial({ map: m.dmg ? dmgTex(m.dmg) : killTex, transparent: true, depthWrite: false, depthTest: false }));
         sp.position.set(X(f), TOP + PH + 0.75, Z(r));
         sp.renderOrder = 20;
         sp.userData.ph = Math.random() * 6;

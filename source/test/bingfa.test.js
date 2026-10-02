@@ -255,17 +255,17 @@ const ok = (x, msg) => { assert(x, msg); };
 }
 // 10. 齐射
 {
-  const g = setup([[4, 0, K('r')], [3, 9, K('b')], [2, 4, P('r', 'e', 3)], [4, 6, P('b', 'p')], [0, 6, P('b', 'n')], [1, 5, P('r', 'p')]]);
-  const tg = g.skillTargets(2, 4).map(a => a.to.join());
+  const g = setup([[4, 0, K('r')], [3, 9, K('b')], [2, 4, P('r', 'e', 4)], [4, 6, P('b', 'p')], [0, 6, P('b', 'n')], [1, 5, P('r', 'p')]]);
+  const tg = g.skillTargets(2, 4).filter(a => !a.sk).map(a => a.to.join());
   ok(tg.includes('4,6') && !tg.includes('0,6'), '射 2 格中间有子被挡 ' + tg);
   g.apply({ k: 'sk', at: [2, 4], to: [4, 6] });
   ok(!g.at(4, 6) && g.at(2, 4).t === 'e', '一级子直接阵亡、弩手不动');
   console.log('齐射 OK');
 }
-// 11. 践踏（三级楚战象被动，无冷却）
+// 11. 践踏（四级楚战象被动，无冷却）
 {
-  const g = setup([[4, 0, K('r')], [4, 9, K('b')], [2, 9, P('b', 'e', 3)], [4, 8, P('b', 'a')], [4, 6, P('r', 'n', 2)], [3, 7, P('r', 'p')], [8, 0, P('r', 'r')]], { turn: 'b' });
-  ok(!g.skillTargets(2, 9).length, '践踏是被动，没有主动技能');
+  const g = setup([[4, 0, K('r')], [4, 9, K('b')], [2, 9, P('b', 'e', 4)], [4, 8, P('b', 'a')], [4, 6, P('r', 'n', 2)], [3, 7, P('r', 'p')], [8, 0, P('r', 'r')]], { turn: 'b' });
+  ok(g.skillTargets(2, 9).every(a => a.sk === 'feiyue'), '践踏是被动，不出现在主动技能里');
   const i = g.apply({ k: 'mv', from: [2, 9], to: [4, 7] });
   ok(i && g.at(4, 7).t === 'e' && g.at(4, 6).hp === 1 && g.at(3, 7).hp === 1, '普通落子后四周二级敌子扣 1，一级不受');
   g.apply({ k: 'mv', from: [8, 0], to: [8, 1] });
@@ -273,10 +273,43 @@ const ok = (x, msg) => { assert(x, msg); };
   g.apply({ k: 'mv', from: [8, 1], to: [8, 0] });
   g.apply({ k: 'mv', from: [2, 9], to: [4, 7] });
   ok(!g.at(4, 6) && g.at(4, 7).xp === 1, '再次落子立即再踩（无冷却），踩死记为战象击杀');
-  const g2 = setup([[4, 0, K('r')], [4, 9, K('b')], [2, 9, P('b', 'e', 2)], [4, 6, P('r', 'n', 2)]], { turn: 'b' });
+  const g2 = setup([[4, 0, K('r')], [4, 9, K('b')], [2, 9, P('b', 'e', 3)], [4, 6, P('r', 'n', 2)]], { turn: 'b' });
   g2.apply({ k: 'mv', from: [2, 9], to: [4, 7] });
-  ok(g2.at(4, 6).hp === 2, '二级战象不踩');
+  ok(g2.at(4, 6).hp === 2, '三级战象不踩（践踏是四级技能）');
   console.log('践踏 OK');
+}
+// 11b. 飞越（相 / 象三级主动，无视塞象眼，冷却 5）
+{
+  const g = setup([[4, 0, K('r')], [3, 9, K('b')], [2, 0, P('r', 'e', 3)], [3, 1, P('r', 'p')], [1, 1, P('b', 'p')], [8, 9, P('b', 'r')]]);
+  ok(!g.isLegal({ from: [2, 0], to: [4, 2] }), '象眼被塞，普通走法过不去');
+  const tg = g.skillTargets(2, 0).filter(a => a.sk === 'feiyue').map(a => a.to.join());
+  ok(tg.includes('4,2') && tg.includes('0,2'), '飞越无视塞象眼 ' + tg);
+  ok(g.apply({ k: 'sk', sk: 'feiyue', at: [2, 0], to: [4, 2] }) && g.at(4, 2).t === 'e', '飞越落子');
+  g.apply({ k: 'mv', from: [8, 9], to: [8, 8] });
+  ok(!g.skillTargets(4, 2).some(a => a.sk === 'feiyue'), '飞越进入冷却');
+  const g2 = setup([[4, 0, K('r')], [3, 9, K('b')], [2, 4, P('r', 'e', 3)], [3, 5, P('b', 'p')]]);
+  ok(!g2.skillTargets(2, 4).some(a => a.to[1] > 4), '飞越也不能过河');
+  ok(g2.maxLv(g2.at(2, 4)) === 4 && BF.hpOf('e', 4) === 3, '相可升四级，不加血');
+  const g3 = setup([[4, 0, K('r')], [3, 9, K('b')], [2, 4, P('r', 'e', 3)]]);
+  ok(!g3.skillTargets(2, 4).some(a => !a.sk), '三级相还没有齐射');
+  console.log('飞越 OK');
+}
+// 11c. 甲片攒够自动升级（不花军功）；四级取名将的名字
+{
+  const g = setup([[4, 0, K('r')], [3, 9, K('b')], [0, 0, P('r', 'a', 1, { xp: 1 })], [1, 1, P('b', 'p')], [8, 9, P('b', 'r')]], { merit: { r: 0, b: 0 } });
+  // 士升二级要 2 功：已有 1 片甲，再杀一个 → 自动升二级
+  g.setup(T => { T.board[0][0] = null; T.board[0][3] = P('r', 'a', 1, { xp: 1 }); T.board[1][4] = P('b', 'p'); T.board[1][1] = null; });
+  const i = g.apply({ k: 'mv', from: [3, 0], to: [4, 1] });
+  const a = g.at(4, 1);
+  ok(i && a.lv === 2 && a.xp === 0 && a.hp === 2 && a.kills === 1, '甲片够数，击杀后自动升二级 ' + JSON.stringify([a.lv, a.xp, a.hp]));
+  ok(i.ev.some(e => e.e === 'autoup' && e.lv === 2) && g.merit.r === 1, '自动升级不花军功（只得了击杀的 1 功）' + g.merit.r);
+  const g2 = setup([[4, 0, K('r')], [3, 9, K('b')], [3, 0, P('r', 'a', 3)], [5, 0, P('r', 'a', 3)], [8, 9, P('b', 'r')]], { merit: { r: 20, b: 0 } });
+  g2.apply({ k: 'up', at: [5, 0] });
+  ok(g2.at(5, 0).lv === 4 && g2.heroName(g2.at(5, 0)) === '樊哙', '先升四级的士叫樊哙');
+  g2.apply({ k: 'mv', from: [4, 0], to: [4, 1] }); g2.apply({ k: 'mv', from: [8, 9], to: [8, 8] });
+  g2.apply({ k: 'up', at: [3, 0] });
+  ok(g2.heroName(g2.at(3, 0)) === '纪信' && g2.heroName(g2.at(5, 0)) === '樊哙', '第二个叫纪信');
+  console.log('自动升级 / 名将 OK');
 }
 // 12. 护驾
 {
