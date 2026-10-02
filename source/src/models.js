@@ -3,6 +3,24 @@ const Models = (() => {
   const { toon, inked, merge, M4, outlineShared, outlineMat, rnd } = Core;
   const V = (x, y, z) => new THREE.Vector3(x, y, z);
   const vcMat = toon(0xffffff, { vertexColors: true });
+  // 金色部件的金属质感：顶点色落在“金”的范围里的面，不再按卡通漫反射画，改成会映出天光、带一道柔光箱亮带和边缘泛光的金属
+  vcMat.onBeforeCompile = sh => {
+    sh.fragmentShader = sh.fragmentShader.replace('#include <opaque_fragment>', `{
+      vec3 vc = vColor.rgb; float vr = max(vc.r, 1e-3);
+      float gold = smoothstep(0.3, 0.42, vc.r) * smoothstep(0.42, 0.52, vc.g / vr) * (1.0 - smoothstep(0.3, 0.42, vc.b / vr));
+      if (gold > 0.01) {
+        vec3 N = normalize(normal), V = normalize(vViewPosition), Rf = reflect(-V, N);
+        vec3 Rw = normalize((vec4(Rf, 0.0) * viewMatrix).xyz);
+        float sky = smoothstep(-0.35, 0.85, Rw.y);
+        float band = smoothstep(0.3, 0.4, Rw.y) * (1.0 - smoothstep(0.6, 0.72, Rw.y)) * (0.55 + 0.45 * sin(atan(Rw.z, Rw.x) * 2.0 + 0.6));
+        float fres = pow(1.0 - max(dot(N, V), 0.0), 3.0);
+        vec3 metal = vc * (0.3 + 1.25 * sky) + vec3(1.0, 0.92, 0.72) * (band * 0.85 + fres * 0.45);
+        outgoingLight = mix(outgoingLight, metal, gold);
+      }
+    }
+    #include <opaque_fragment>`);
+  };
+  vcMat.customProgramCacheKey = () => 'vcGold';
 
   const SIDE = {
     r: { cloth: 0xa8321f, cloth2: 0xc4553a, armor: 0x4d4541, trim: 0xc9a045, flag: 0xb0301f, tassel: 0xc0412c, horse: 0x6b4a34, barding: 0x5e2a20 },
@@ -62,7 +80,9 @@ const Models = (() => {
     const key = side + kind;
     if (partCache[key]) return partCache[key];
     // 斩马刀手（兵法四级兵）：通身金甲
-    const c = kind === 'zhanma' || kind === 'guardG' ? { ...SIDE[side], armor: 0xd6a43e, trim: 0xf3d27a } : SIDE[side];
+    const c = kind === 'zhanma' || kind === 'guardG' || kind === 'xbowG' ? { ...SIDE[side], armor: 0xd6a43e, trim: 0xf3d27a } : SIDE[side];
+    const xbG = kind === 'xbowG';
+    const GT = kind === 'guardG' ? 0xf7dc8c : SIDE[side].trim;   // 禁卫甲胄上的金饰
     const isGuard = kind === 'guard' || kind === 'guardG', goldG = kind === 'guardG';
     const helmet = kind === 'crew'
       ? [P(G.sph(0.13, 7), 0x5b5147, 0, 1.66, -0.01, 0, 0, 0, 1, 0.75, 1), P(G.cone(0.05, 0.14, 5), 0x5b5147, 0, 1.63, -0.14, 1.8)]
@@ -78,8 +98,25 @@ const Models = (() => {
         P(G.box(0.12, 0.12, 0.04), c.trim, 0, 1.3, 0.18),
         P(G.sph(0.1, 6), c.armor, 0.25, 1.42, 0, 0, 0, 0, 1, 0.8, 1), P(G.sph(0.1, 6), c.armor, -0.25, 1.42, 0, 0, 0, 0, 1, 0.8, 1),
         P(G.cyl(0.06, 0.07, 0.1, 6), C.skin, 0, 1.5, 0),
+        // 禁卫（士）：重札甲——宽大的兽吞肩甲、护心镜、三层裙甲、身后一领大氅
+        ...(isGuard ? [
+          P(G.sph(0.17, 7), c.armor, 0.3, 1.45, 0, 0, 0, 0, 1.15, 0.75, 1.1), P(G.sph(0.17, 7), c.armor, -0.3, 1.45, 0, 0, 0, 0, 1.15, 0.75, 1.1),
+          P(G.cone(0.05, 0.16, 5), GT, 0.42, 1.52, 0, 0, 0, -1.1), P(G.cone(0.05, 0.16, 5), GT, -0.42, 1.52, 0, 0, 0, 1.1),
+          P(G.box(0.36, 0.05, 0.3), GT, 0.3, 1.36, 0), P(G.box(0.36, 0.05, 0.3), GT, -0.3, 1.36, 0),
+          P(G.cyl(0.1, 0.1, 0.03, 10), GT, 0, 1.27, 0.185, Math.PI / 2), P(G.sph(0.045, 6), 0xb0301f, 0, 1.27, 0.2),
+          P(G.cyl(0.27, 0.36, 0.16, 8), c.armor, 0, 0.98, 0), P(G.cyl(0.3, 0.4, 0.16, 8), goldG ? 0xc4922e : c.cloth2, 0, 0.84, 0), P(G.cyl(0.33, 0.43, 0.14, 8), c.armor, 0, 0.71, 0),
+          P(G.cyl(0.275, 0.275, 0.03, 8), GT, 0, 1.06, 0), P(G.cyl(0.41, 0.41, 0.025, 8), GT, 0, 0.64, 0),
+          P(G.box(0.5, 0.95, 0.04), goldG ? 0x8e1c12 : (side === 'r' ? 0x7a1c12 : 0x18171a), 0, 0.92, -0.24, 0.16), P(G.box(0.52, 0.06, 0.06), GT, 0, 1.4, -0.19),
+        ] : []),
       ], hip),
-      head: mk([P(G.sph(0.12, 8), C.skin, 0, 1.6, 0), P(G.box(0.12, 0.02, 0.02), C.hair, 0, 1.62, 0.115), ...helmet], V(0, 1.5, 0)),
+      head: mk([P(G.sph(0.12, 8), C.skin, 0, 1.6, 0), P(G.box(0.12, 0.02, 0.02), C.hair, 0, 1.62, 0.115), ...helmet,
+        // 禁卫的兜鍪：护颊加宽、额前兽面、两支上扬的翎角、一束高缨
+        ...(isGuard ? [
+          P(G.cyl(0.125, 0.16, 0.1, 8), c.armor, 0, 1.62, -0.01), P(G.box(0.04, 0.16, 0.14), c.armor, 0.135, 1.57, 0), P(G.box(0.04, 0.16, 0.14), c.armor, -0.135, 1.57, 0),
+          P(G.box(0.1, 0.07, 0.03), GT, 0, 1.71, 0.125), P(G.cone(0.02, 0.07, 4), GT, 0, 1.64, 0.13, Math.PI),
+          P(G.cone(0.03, 0.3, 5), GT, 0.11, 1.86, -0.02, 0, 0, -0.5), P(G.cone(0.03, 0.3, 5), GT, -0.11, 1.86, -0.02, 0, 0, 0.5),
+          P(G.cyl(0.02, 0.025, 0.16, 5), GT, 0, 1.9, -0.02), P(G.cone(0.075, 0.36, 6), 0xb0301f, 0, 2.08, -0.07, 0.35),
+        ] : [])], V(0, 1.5, 0)),
       legL: mk([P(G.box(0.14, 0.8, 0.16), C.pants, 0.1, 0.46, 0), P(G.cyl(0.085, 0.075, 0.3, 6), c.armor, 0.1, 0.28, 0.01), P(G.box(0.16, 0.1, 0.26), C.dark, 0.1, 0.05, 0.04)], PIV.legL),
       legR: mk([P(G.box(0.14, 0.8, 0.16), C.pants, -0.1, 0.46, 0), P(G.cyl(0.085, 0.075, 0.3, 6), c.armor, -0.1, 0.28, 0.01), P(G.box(0.16, 0.1, 0.26), C.dark, -0.1, 0.05, 0.04)], PIV.legR),
       armW: mk([P(G.box(0.1, 0.5, 0.11), c.cloth, 0.28, 1.17, 0), P(G.cyl(0.055, 0.05, 0.16, 6), c.armor, 0.28, 1.03, 0), P(G.sph(0.055, 6), C.skin, 0.29, 0.93, 0.02)], V(0.27, 1.42, 0)),
@@ -88,8 +125,10 @@ const Models = (() => {
     // 兵器（握点为原点，沿 +Y）
     const tas = side === 'b' ? 0x5a1a14 : 0xb0301f;
     if (kind === 'spear') out.weapon = mk([P(G.cyl(0.018, 0.02, 2.5, 5), C.wood, 0, 0.55, 0), P(G.cone(0.042, 0.26, 5), C.metal, 0, 1.93, 0), P(G.cone(0.06, 0.12, 6), tas, 0, 1.76, 0, Math.PI)]);
-    else if (kind === 'sword' || isGuard) out.weapon = mk([P(G.cyl(0.02, 0.02, 0.2, 5), C.wood, 0, 0.02, 0), P(new THREE.TorusGeometry(0.04, 0.012, 4, 8), C.bronze, 0, -0.12, 0), P(G.box(0.12, 0.03, 0.05), C.bronze, 0, 0.13, 0), P(G.box(0.035, 0.8, 0.075), C.metal, 0, 0.54, 0.012)]);
+    else if (isGuard) out.weapon = mk([P(G.cyl(0.022, 0.026, 2.1, 5), 0x3a2416, 0, 0.5, 0), P(G.cyl(0.035, 0.03, 0.08, 6), GT, 0, 1.52, 0), P(G.box(0.05, 0.78, 0.2), goldG ? 0xf3d27a : C.metal, 0, 1.94, 0.05), P(G.box(0.04, 0.3, 0.14), goldG ? 0xf3d27a : C.metal, 0, 2.42, 0.02, -0.25), P(G.box(0.06, 0.05, 0.3), GT, 0, 1.58, 0.04), P(G.cone(0.06, 0.16, 6), 0xb0301f, 0, 1.44, 0, Math.PI), P(G.cone(0.035, 0.1, 5), GT, 0, -0.58, 0, Math.PI)]);
+    else if (kind === 'sword') out.weapon = mk([P(G.cyl(0.02, 0.02, 0.2, 5), C.wood, 0, 0.02, 0), P(new THREE.TorusGeometry(0.04, 0.012, 4, 8), C.bronze, 0, -0.12, 0), P(G.box(0.12, 0.03, 0.05), C.bronze, 0, 0.13, 0), P(G.box(0.035, 0.8, 0.075), C.metal, 0, 0.54, 0.012)]);
     else if (kind === 'halberd') out.weapon = mk([P(G.cyl(0.02, 0.022, 2.6, 5), C.wood, 0, 0.6, 0), P(G.cone(0.045, 0.3, 5), C.metal, 0, 2.05, 0), { geo: jiShape(), color: C.metal, m: M4(0, 1.62, -0.01) }, P(G.cone(0.06, 0.14, 6), tas, 0, 1.8, 0, Math.PI)]);
+    else if (xbG) out.weapon = mk([P(G.box(0.07, 0.95, 0.07), 0x5a3418, 0, 0.22, 0), P(new THREE.TorusGeometry(0.46, 0.03, 4, 14, Math.PI * 0.8), 0xd6a43e, 0, 0.66, 0.0, 0, 0, Math.PI * 0.1), P(G.box(0.94, 0.008, 0.008), C.white, 0, 0.63, 0), P(G.box(0.06, 0.14, 0.07), 0xf3d27a, 0, 0.05, 0.03), P(G.cone(0.03, 0.2, 5), 0xf7dc8c, 0, 0.8, 0)]);
     else if (kind === 'xbow') out.weapon = mk([P(G.box(0.06, 0.75, 0.06), C.wood, 0, 0.18, 0), P(new THREE.TorusGeometry(0.34, 0.02, 4, 12, Math.PI * 0.8), C.wood, 0, 0.52, 0.0, 0, 0, Math.PI * 0.1), P(G.box(0.7, 0.006, 0.006), C.white, 0, 0.5, 0), P(G.box(0.04, 0.1, 0.05), C.bronze, 0, 0.05, 0.03)]);
     else if (kind === 'archer') out.weapon = mk([P(G.cyl(0.006, 0.006, 0.8, 3), C.wood, 0, 0.3, 0), P(G.cone(0.015, 0.06, 4), C.dark, 0, 0.72, 0)]);
     else if (kind === 'crew') out.weapon = mk([P(G.cyl(0.02, 0.02, 2.0, 5), C.wood, 0, 0.5, 0), P(G.cyl(0.07, 0.07, 0.16, 7), 0x6e675b, 0, 1.5, 0)]);
@@ -121,9 +160,10 @@ const Models = (() => {
     halberd: { aW: -0.25, wAbs: 0, aS: 0.05, sAbs: 0, chargeW: -1.1, chargeAbs: 1.3 },
     zhanma: { aW: -0.3, wAbs: 0.15, aS: -0.55, sAbs: 0, chargeW: -1.2, chargeAbs: 1.25 },
     sword: { aW: -0.35, wAbs: 0.6, aS: -0.5, sAbs: 0, chargeW: -2.3, chargeAbs: -0.4 },
-    guard: { aW: -0.35, wAbs: 0.6, aS: -0.42, sAbs: 0, chargeW: -2.3, chargeAbs: -0.4 },
-    guardG: { aW: -0.35, wAbs: 0.6, aS: -0.42, sAbs: 0, chargeW: -2.3, chargeAbs: -0.4 },
+    guard: { aW: -0.3, wAbs: 0.06, aS: -0.42, sAbs: 0, chargeW: -1.3, chargeAbs: 1.15 },
+    guardG: { aW: -0.3, wAbs: 0.06, aS: -0.42, sAbs: 0, chargeW: -1.3, chargeAbs: 1.15 },
     xbow: { aW: -0.55, wAbs: 0.7, aS: -0.55, sAbs: 0, chargeW: -1.45, chargeAbs: Math.PI / 2 },
+    xbowG: { aW: -0.55, wAbs: 0.7, aS: -0.55, sAbs: 0, chargeW: -1.45, chargeAbs: Math.PI / 2 },
     archer: { aW: -0.15, wAbs: 0, aS: -0.2, sAbs: 0, chargeW: -0.3, chargeAbs: 0.2 },
     crew: { aW: -0.3, wAbs: 0.1, aS: 0.05, sAbs: 0, chargeW: -1.2, chargeAbs: Math.PI / 2 },
     banner: { aW: -0.35, wAbs: 0, aS: 0.05, sAbs: 0, chargeW: -0.6, chargeAbs: 0.25 },
@@ -628,9 +668,33 @@ const Models = (() => {
   // ======================================================================
   //  楚军战象（燧象，面向 +X）
   // ======================================================================
-  function makeElephant(side = 'b') {
-    const c = SIDE[side];
-    const skin = 0x6f6a64, skin2 = 0x5d5853;
+  // 汉相：羽扇纶巾的谋士立在华盖轺车上，一匹白马驾车（车头朝 +x）。gold：兵法四级，金华盖、金车饰
+  function makeAdvisorCart(side = 'r', opt = {}) {
+    const c = SIDE[side], gold = !!opt.gold;
+    const trim = gold ? 0xf7dc8c : c.trim, canopy = gold ? 0xd6a43e : c.cloth, robe = 0xe8dcc0;
+    const g = new THREE.Group();
+    g.add(inkedMerged([
+      P(G.box(1.5, 0.12, 1.1), C.wood, 0, 0.62, 0), P(G.box(1.5, 0.3, 0.06), c.cloth, 0, 0.82, 0.52), P(G.box(1.5, 0.3, 0.06), c.cloth, 0, 0.82, -0.52), P(G.box(0.06, 0.3, 1.1), c.cloth, -0.72, 0.82, 0),
+      P(G.box(1.54, 0.05, 0.08), trim, 0, 0.98, 0.52), P(G.box(1.54, 0.05, 0.08), trim, 0, 0.98, -0.52), P(G.box(0.08, 0.05, 1.12), trim, -0.72, 0.98, 0),
+      P(G.cyl(0.08, 0.08, 1.4, 6), C.dark, 0.1, 0.55, 0, Math.PI / 2), P(G.box(1.3, 0.07, 0.07), C.wood, 1.2, 0.6, 0),
+      // 华盖
+      P(G.cyl(0.03, 0.03, 2.3, 6), C.wood, -0.35, 1.8, 0), P(G.cone(1.0, 0.4, 12), canopy, -0.35, 3.1, 0), P(G.cyl(1.0, 1.0, 0.14, 12), trim, -0.35, 2.86, 0), P(G.sph(0.08, 6), trim, -0.35, 3.34, 0),
+      ...(gold ? [0, 1, 2, 3, 4, 5].map(i => P(G.box(0.05, 0.3, 0.05), 0xb0301f, -0.35 + Math.cos(i * 1.047) * 0.95, 2.66, Math.sin(i * 1.047) * 0.95)) : []),
+      // 谋士：宽袍大袖、进贤冠、羽扇
+      P(G.cone(0.42, 1.25, 10), robe, 0.15, 1.3, 0), P(G.cyl(0.2, 0.3, 0.5, 8), robe, 0.15, 1.85, 0), P(G.box(0.5, 0.1, 0.34), gold ? 0xd6a43e : c.cloth, 0.15, 1.7, 0),
+      P(G.box(0.16, 0.5, 0.2), robe, 0.15, 1.75, 0.3, 0.5), P(G.box(0.16, 0.5, 0.2), robe, 0.15, 1.75, -0.3, -0.5),
+      P(G.sph(0.14, 8), C.skin, 0.15, 2.26, 0), P(G.box(0.14, 0.2, 0.16), C.dark, 0.13, 2.46, 0), P(G.box(0.3, 0.04, 0.04), C.dark, 0.13, 2.42, 0), P(G.cone(0.05, 0.2, 5), C.dark, 0.26, 2.12, 0, 0, 0, Math.PI),
+      P(G.cyl(0.02, 0.02, 0.3, 5), C.wood, 0.42, 1.75, 0.42, 0, 0, -0.6), P(G.sph(0.17, 8), C.white, 0.56, 1.95, 0.42, 0, 0, 0, 0.3, 1, 0.8),
+    ]));
+    const wheels = [0.62, -0.62].map(z => { const w = inkedMerged([P(G.cyl(0.55, 0.55, 0.08, 16), C.wood, 0, 0, 0, Math.PI / 2), P(G.cyl(0.12, 0.12, 0.1, 8), trim, 0, 0, 0, Math.PI / 2), ...[0, 1, 2, 3].map(i => P(G.box(1.0, 0.05, 0.09), 0x4a3018, 0, 0, 0, 0, 0, i * Math.PI / 4))]); w.position.set(0.1, 0.55, z); g.add(w); return w; });
+    const horse = makeHorse({ color: 0xe8e2d6 }); horse.group.position.set(2.2, 0, 0); g.add(horse.group);
+    const o = { group: g, wheels, horse, speed: 0, update(dt) { horse.speed = o.speed; horse.update(dt); for (const w of wheels) w.rotation.z -= o.speed * dt * 4; } };
+    return o;
+  }
+  function makeElephant(side = 'b', opt = {}) {
+    // gold：兵法四级的黄金战象——通身鎏金甲，披挂换成金红
+    const c = opt.gold ? { ...SIDE[side], cloth: 0x8e1c12, cloth2: 0xd6a43e, trim: 0xf7dc8c } : SIDE[side];
+    const skin = opt.gold ? 0xd6a43e : 0x6f6a64, skin2 = opt.gold ? 0xc4922e : 0x5d5853;
     const g = new THREE.Group();
     const root = new THREE.Group(); g.add(root); // 整体（倒地时旋转）
     const body = new THREE.Group(); root.add(body);
@@ -1027,7 +1091,7 @@ const Models = (() => {
 
   return {
     SIDE, C, G, P, inkedMerged, soldierPartGeos, soldierStatic, Troop, Army: Troop, PARTS, POSES,
-    makeHorse, makeRider, makeCavalry, cavalryStaticGeo, makeChariot, makeCannon, makeElephant, makeBoat, makeBoatman,
+    makeHorse, makeRider, makeCavalry, cavalryStaticGeo, makeChariot, makeCannon, makeElephant, makeAdvisorCart, makeBoat, makeBoatman,
     makeHero, makeXiangYu, makeWuzhui, makeLiuBang, makeBanner, vcMat, jiShape,
     soldierGeo: (side, kind) => soldierPartGeos(side, kind).body,
   };

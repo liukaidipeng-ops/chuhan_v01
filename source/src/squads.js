@@ -295,7 +295,7 @@ const Squads = (() => {
     constructor(side, anchor, yaw, n = 0) {
       // 士：手持比人还高一点的带刺巨盾。兵法四级不再加人，三名禁卫换一身金甲、金盾
       const elite = n >= 4; if (elite) n = 3;
-      super('a', side, anchor, yaw, elite ? 'guardG' : 'guard', n ? lineUp(n, 0.34) : [[0.24, 0], [-0.24, 0]], SC * 1.08 * (n ? bigFor(n) : 1) * (elite ? 1.08 : 1));
+      super('a', side, anchor, yaw, elite ? 'guardG' : 'guard', n ? lineUp(n, 0.34) : [[0.24, 0], [-0.24, 0]], SC * 1.3 * (n ? bigFor(n) : 1) * (elite ? 1.08 : 1));
       this.elite = elite;
     }
     async attack(target, c) {
@@ -325,10 +325,33 @@ const Squads = (() => {
     }
   }
   // 汉军弩手（相）
+  // 汉相：谋士车驾——羽扇谋士立在华盖轺车上，弩手随护两侧（放箭的是弩手）
   class Crossbow extends TroopSquad {
     constructor(side, anchor, yaw, n = 0) {
-      const off = []; if (n) off.push(...lineUp(n, 0.28)); else for (let r = 0; r < 2; r++) for (let c = 0; c < 3; c++) off.push([(c - 1) * 0.26, (0.5 - r) * 0.26]);
-      super('e', side, anchor, yaw, 'xbow', off, n ? SC * bigFor(n) : SC);
+      // 随护的弩手：平时两名，兵法三级起四名；四级换金甲大黄弩、金华盖
+      const elite = n >= 4, four = n >= 3;
+      const off = four ? [[0.44, 0.1], [-0.44, 0.1], [0.44, -0.24], [-0.44, -0.24]] : [[0.42, 0], [-0.42, 0]];
+      super('e', side, anchor, yaw, elite ? 'xbowG' : 'xbow', off, SC * (elite ? 1.08 : 1));
+      this.elite = elite;
+      this.cart = Models.makeAdvisorCart(side, { gold: elite }); this.group.add(this.cart.group);
+      this.cartK = 1; this._last = anchor.clone();
+      this.updaters.push(dt => {
+        const g = this.cart.group, u = this.troop.units[0];
+        const moved = this.anchor.distanceTo(this._last); this._last.copy(this.anchor);
+        this.cart.speed += ((dt > 0 && moved / dt > 0.05 ? 0.6 : 0) - this.cart.speed) * Math.min(1, dt * 8);
+        this.cart.update(dt);
+        const p = this.anchor.clone().addScaledVector(fwd(this.yaw), -0.08);
+        g.position.set(p.x, gy(p), p.z); g.rotation.y = this.yaw - Math.PI / 2;
+        g.scale.setScalar(Math.max(0.0001, 0.19 * this.cartK * Math.min(1, this.visK ?? 1, u.dead ? 1 : Math.max(u.vis, 0.001))));
+      });
+    }
+    carrier() { const p = this.anchor.clone().addScaledVector(fwd(this.yaw), -0.24); p.y = gy(p) + 0.2; return { p, vis: this.cartK * Math.max(this.troop.units[0].vis, 0.001) }; }
+    die(hit, dir, power, center) {
+      // 车驾倾覆：翻倒、散架
+      const g = this.cart.group, c = this.center(0.2);
+      Fx.chunks(c, dir || new V3(0, 0, 1), 0.9, 8, { planks: true });
+      tween(0.5, k => { g.rotation.z = k * 1.2; this.cartK = 1 - k * 0.999; }, ease.in);
+      return super.die(hit, dir, power, center);
     }
     async attack(target, c) {
       const { A, B, d, dist } = c;
@@ -369,9 +392,9 @@ const Squads = (() => {
   }
   // 楚军战象（象）
   class Elephant extends Squad {
-    constructor(side, anchor, yaw) {
+    constructor(side, anchor, yaw, gold = false) {
       super('e', side, anchor, yaw);
-      this.m = Models.makeElephant(side); this.m.group.scale.setScalar(EL);
+      this.m = Models.makeElephant(side, { gold }); this.m.group.scale.setScalar(EL);
       this.group.add(this.m.group);
       this.updaters.push(dt => { this.m.update(dt); this.sync(); if (this.m.fire > 0.1 && !LOW()) P.flame(this.m.torch.getWorldPosition(new V3()), 0.12); });
       this.sync();
@@ -863,7 +886,7 @@ const Squads = (() => {
     const sq = make0(t, side, anchor, yaw, role, n);
     if (t === 'r' && n >= 4 && sq instanceof Chariot) { vanguard(sq); const d0 = sq.die; sq.die = (hit, dir, ...a) => { sq.echoesDie(dir || new V3(0, 0, 1)); return d0(hit, dir, ...a); }; return sq.rank ? sq.rank(lv) : sq; }
     if (n > 1) {
-      if (sq instanceof Elephant || sq instanceof Chariot) sq.addEchoes([sq.m.group], n, t === 'r' ? 0.36 : 0.4);
+      if (sq instanceof Elephant || sq instanceof Chariot) sq.addEchoes([sq.m.group], t === 'e' ? Math.min(3, n) : n, t === 'r' ? 0.36 : 0.4);   // 四级战象：三头黄金象，不再加数量
       else if (sq instanceof Cannon && sq.mode !== 'battery') sq.addEchoes([sq.gun.group].concat(sq.horse ? [sq.horse.group] : []), n, 0.42);
       if (sq.echoes) { const die = sq.die.bind(sq); sq.die = (hit, dir, ...a) => { sq.echoesDie(dir || new V3(0, 0, 1)); return die(hit, dir, ...a); }; }
     }
@@ -873,7 +896,7 @@ const Squads = (() => {
     switch (t) {
       case 'p': return new Infantry(side, anchor, yaw, n);
       case 'a': return new Guards(side, anchor, yaw, n);
-      case 'e': return side === 'r' ? new Crossbow(side, anchor, yaw, n) : new Elephant(side, anchor, yaw);
+      case 'e': return side === 'r' ? new Crossbow(side, anchor, yaw, n) : new Elephant(side, anchor, yaw, n >= 4);
       case 'r': return new Chariot(side, anchor, yaw);
       case 'n': return new Cavalry(side, anchor, yaw, n);
       case 'c': return new Cannon(side, anchor, yaw, role === 'attack' ? 'battery' : role === 'defend' ? 'defend' : 'march', n);
