@@ -41,8 +41,8 @@
 
 ## F 收尾
 - [x] F1 帮助、README、更新说明
-- [ ] F2 全套测试
-- [ ] F3 部署并核对
+- [x] F2 全套测试
+- [x] F3 部署并核对
 
 ## 备忘
 - 机器 2 核、软件渲染；截图脚本 scratchpad/v4/shots.py（步骤：js: / jsf:文件 / click:f,r / frames:n / shot:名 / wait:s / dump:）
