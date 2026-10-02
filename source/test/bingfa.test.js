@@ -176,37 +176,49 @@ const ok = (x, msg) => { assert(x, msg); };
   ok(!g4.skillTargets(4, 2).some(a => a.to.join() === '4,8') && !g4.skillTargets(4, 2).some(a => a.to.join() === '0,2'), '身后是将或出界不能冲');
   console.log('冲阵边界 OK');
 }
-// 7b. 兵四级：神速营（八方向 1～2 格可越子、只落空格）、回防（被动后退，冷却 2）；拒马后可以用被动走法
+// 7b. 兵四级：神速营（被动：八方向 1～2 格可越子、只落空格，冷却 5）、回防（被动后退，冷却 2）；拒马后可以用被动走法
 {
   const pw = P('r', 'p', 4, { hp: 3 });
   ok(BF.hpOf('p', 4) === 3 && BF.hpOf('a', 4) === 3 && BF.hpOf('r', 4) === 4, '兵士四级不加血，车四级 4 血');
   const g = setup([[4, 0, K('r')], [3, 9, K('b')], [4, 5, pw], [4, 6, P('b', 'p')], [5, 6, P('r', 'p')], [8, 9, P('b', 'r')]]);
-  const tg = g.skillTargets(4, 5, 'shensu').map(a => a.to.join());
-  ok(tg.includes('4,7') && tg.includes('6,7') && tg.includes('2,3') && !tg.includes('4,6') && !tg.includes('5,6'), '神速营越子、只落空格 ' + tg);
-  ok(g.skillTargets(4, 5).some(a => a.sk === 'shensu') && g.skillTargets(4, 5).some(a => !a.sk), '四级兵有拒马和神速营');
-  ok(g.legalFrom(4, 5).some(m => m.to.join() === '4,4'), '回防：可以后退一格');
+  const lg = g.legalFrom(4, 5), via = to => (lg.find(m => m.to.join() === to) || {}).via, has = to => lg.some(m => m.to.join() === to);
+  ok(via('4,7') === 'shensu' && via('6,7') === 'shensu' && via('2,3') === 'shensu' && via('6,5') === 'shensu', '神速营是走法：越子、斜走 ' + lg.map(m => m.to.join() + (m.via ? ':' + m.via : '')).join(' '));
+  ok(has('4,6') && !via('4,6') && !has('5,6'), '前面的敌卒仍按普通走法吃；己方子所在格不能落');
+  ok(via('4,4') === 'huifang' && via('4,3') === 'shensu', '后退一格算回防（冷却短），后退两格算神速营');
+  ok(via('3,5') === undefined && has('3,5'), '过河兵横走一格仍是普通走法');
+  ok(!g.skillTargets(4, 5).some(a => a.sk === 'shensu') && g.skillTargets(4, 5).some(a => !a.sk), '神速营不再是要点的技能；拒马还在');
+  ok(g.isPassive('shensu') && BF.SKILL_CN.shensu === '神速营', '神速营是被动');
   g.apply({ k: 'mv', from: [4, 5], to: [4, 4] });
-  ok(g.cdLeft(g.at(4, 4), 'huifang') === 2, '回防冷却 2');
+  ok(g.cdLeft(g.at(4, 4), 'huifang') === 2 && g.cdLeft(g.at(4, 4), 'shensu') === 0, '回防冷却 2，神速营没动');
   g.apply({ k: 'mv', from: [8, 9], to: [8, 8] });
-  ok(!g.legalFrom(4, 4).some(m => m.to.join() === '4,3'), '冷却中不能再后退');
-  ok(!g.apply({ k: 'sk', at: [4, 4], to: [4, 6], sk: 'shensu' }), '神速营不能落在有子的格');
-  ok(g.apply({ k: 'sk', at: [4, 4], to: [6, 6], sk: 'shensu' }) && g.at(6, 6).s === 'r' && g.cdLeft(g.at(6, 6), 'shensu') === 5, '神速营斜走两格，冷却 5');
+  ok(g.legalFrom(4, 4).find(m => m.to.join() === '4,3').via === 'shensu', '回防冷却中：后退一格改由神速营走');
+  const info = g.apply({ k: 'mv', from: [4, 4], to: [6, 6] });
+  ok(info && info.extra.via === 'shensu' && g.at(6, 6).s === 'r' && g.cdLeft(g.at(6, 6), 'shensu') === 5, '神速营斜走两格，冷却 5');
+  g.apply({ k: 'mv', from: [8, 8], to: [8, 9] });
+  ok(!g.legalFrom(6, 6).some(m => m.via === 'shensu'), '冷却中没有神速营走法');
+  // 旧版存档里的主动神速营行动仍能重放
+  const go = setup([[4, 0, K('r')], [3, 9, K('b')], [4, 5, P('r', 'p', 4, { hp: 3 })], [8, 9, P('b', 'r')]]);
+  ok(go.apply({ k: 'sk', at: [4, 5], to: [6, 7], sk: 'shensu' }) && go.at(6, 7), '旧版行动格式兼容');
   // 拒马之后另一枚兵用被动后退
   const g2 = setup([[4, 0, K('r')], [3, 9, K('b')], [0, 5, P('r', 'p', 3)], [8, 5, P('r', 'p', 4, { hp: 3 })], [8, 9, P('b', 'r')]]);
   ok(g2.apply({ k: 'sk', at: [0, 5] }) && g2.freeUsed, '拒马');
   ok(g2.apply({ k: 'mv', from: [8, 5], to: [8, 4] }) && g2.turn === 'b', '同一回合再用被动回防走一步');
   console.log('兵四级 OK');
 }
-// 7c. 士四级：禁卫（九宫内横走一格，冷却 2）
+// 7c. 士四级：铁甲禁卫（九宫内上下左右走一格，冷却 2）
 {
   const g = setup([[3, 0, K('r')], [5, 9, K('b')], [4, 1, P('r', 'a', 4, { hp: 3 })], [8, 9, P('b', 'r')]]);
-  ok(g.legalFrom(4, 1).some(m => m.to.join() === '5,1') && g.legalFrom(4, 1).some(m => m.to.join() === '3,1'), '禁卫：九宫内横走');
-  g.apply({ k: 'mv', from: [4, 1], to: [5, 1] });
-  ok(g.cdLeft(g.at(5, 1), 'jinwei') === 2, '禁卫冷却 2');
+  const lg = g.legalFrom(4, 1).map(m => m.to.join() + (m.via ? ':' + m.via : ''));
+  ok(['5,1:jinwei', '3,1:jinwei', '4,0:jinwei', '4,2:jinwei'].every(x => lg.includes(x)), '铁甲禁卫：九宫内上下左右 ' + lg);
+  ok(lg.includes('3,2') && lg.includes('5,0'), '斜走仍是普通走法');
+  g.apply({ k: 'mv', from: [4, 1], to: [4, 2] });
+  ok(g.cdLeft(g.at(4, 2), 'jinwei') === 2, '铁甲禁卫冷却 2');
   g.apply({ k: 'mv', from: [8, 9], to: [8, 8] });
-  ok(!g.legalFrom(5, 1).some(m => m.to.join() === '4,1' && m.to[1] === 1), '冷却中不能横走');
+  ok(!g.legalFrom(4, 2).some(m => m.via), '冷却中不能直走');
+  ok(!g.legalFrom(4, 2).some(m => m.to[1] === 3), '不能出九宫');
   const g2 = setup([[3, 0, K('r')], [5, 9, K('b')], [4, 1, P('r', 'a', 3)]]);
-  ok(!g2.legalFrom(4, 1).some(m => m.to[1] === 1), '三级士不能横走');
+  ok(!g2.legalFrom(4, 1).some(m => m.to[1] === 1 || m.to[0] === 4), '三级士不能直走');
+  ok(BF.SKILL_CN.jinwei === '铁甲禁卫', '改名铁甲禁卫');
   console.log('士四级 OK');
 }
 // 7d. 击杀总数：升级不清零
@@ -218,11 +230,18 @@ const ok = (x, msg) => { assert(x, msg); };
   ok(g.at(0, 6).kills === 1 && g.at(0, 6).xp === 0, '升级用掉甲片，击杀数保留');
   console.log('击杀数 OK');
 }
-// 8. 踏营
+// 8. 踏营：只能在敌方半场用
 {
   const g = setup([[4, 0, K('r')], [3, 9, K('b')], [1, 0, P('r', 'n', 3)], [1, 1, P('r', 'p')]]);
   ok(!g.isLegal({ from: [1, 0], to: [2, 2] }), '马腿被蹩');
-  ok(g.skillTargets(1, 0).some(a => a.to[0] === 2 && a.to[1] === 2), '踏营无视蹩马腿');
+  ok(!g.skillTargets(1, 0).length && !g.apply({ k: 'sk', at: [1, 0], to: [2, 2] }), '己方半场不能踏营');
+  ok(/敌方半场/.test(g.skillWhy(1, 0, 'taying')), '说明原因：' + g.skillWhy(1, 0, 'taying'));
+  const g2 = setup([[4, 0, K('r')], [3, 9, K('b')], [1, 5, P('r', 'n', 3)], [1, 6, P('b', 'p')]]);
+  ok(!g2.isLegal({ from: [1, 5], to: [2, 7] }), '过河后马腿被蹩');
+  ok(g2.skillTargets(1, 5).some(a => a.to[0] === 2 && a.to[1] === 7) && g2.skillWhy(1, 5, 'taying') === '', '敌方半场踏营无视蹩马腿');
+  ok(g2.apply({ k: 'sk', at: [1, 5], to: [2, 7] }), '踏营');
+  const g3 = setup([[4, 0, K('r')], [3, 9, K('b')], [1, 4, P('b', 'n', 3)], [1, 3, P('r', 'p')]], { turn: 'b' });
+  ok(g3.skillTargets(1, 4).some(a => a.to.join() === '2,2'), '楚马在汉方半场可以踏营');
   console.log('踏营 OK');
 }
 // 9. 霹雳
@@ -305,19 +324,37 @@ const ok = (x, msg) => { assert(x, msg); };
   ok(!g2.apply({ k: 'art', steps: [{ from: [0, 9], to: [0, 5] }, { from: [8, 9], to: [8, 0] }] }) || !g2.inCheck('r'), '不能以将军收尾');
   console.log('破釜沉舟 OK');
 }
-// 15. 鸿门宴
+// 15. 鸿门宴：3 回合；汉士护驾可破
 {
-  const g = setup([[4, 0, K('r')], [3, 9, K('b')], [0, 6, P('r', 'p')]], { turn: 'b', merit: { r: 3, b: 20 } });
-  // 黑方没有能走的子时也要能发动：这里给黑方一个子
-  g.setup(T => { T.board[9][0] = { s: 'b', t: 'r', id: 900, lv: 1, hp: 1, cd: 0, jm: 0 }; });
+  const g = setup([[4, 0, K('r')], [3, 9, K('b')], [0, 3, P('r', 'p')], [8, 9, P('b', 'r')]], { turn: 'b', merit: { r: 3, b: 20 } });
   ok(g.ultReady(), '军功 20 可发动鸿门宴');
   g.apply({ k: 'ult' });
-  ok(g.merit.b === 0 && g.fx.hm === 2, '扣 20 军功、汉方 2 回合');
+  ok(g.merit.b === 0 && g.fx.hm === 3, '扣 20 军功、汉方 3 回合');
   ok(!g.legalFrom(4, 0).length, '汉帅不能动');
-  g.apply({ k: 'mv', from: [0, 6], to: [0, 7] });
-  g.apply({ k: 'mv', from: [0, 9], to: [0, 8] });
-  ok(!g.legalFrom(4, 0).length, '第二回合汉帅仍不能动');
+  ok(g.apply({ k: 'mv', from: [0, 3], to: [0, 4] }) && g.apply({ k: 'mv', from: [8, 9], to: [8, 8] }), '第一回合');
+  ok(g.fx.hm === 2 && !g.legalFrom(4, 0).length, '第二回合汉帅仍不能动');
+  ok(g.apply({ k: 'mv', from: [0, 4], to: [0, 5] }) && g.apply({ k: 'mv', from: [8, 8], to: [8, 9] }), '第二回合');
+  ok(g.fx.hm === 1 && !g.legalFrom(4, 0).length, '第三回合汉帅仍不能动');
+  ok(g.apply({ k: 'mv', from: [0, 5], to: [0, 6] }) && g.apply({ k: 'mv', from: [8, 9], to: [8, 8] }), '第三回合');
+  ok(g.fx.hm === 0 && g.legalFrom(4, 0).length > 0, '三回合后解除');
   console.log('鸿门宴 OK');
+}
+{
+  // 樊哙闯帐：汉士护驾，当场破掉鸿门宴
+  const g = setup([[4, 0, K('r')], [5, 9, K('b')], [3, 1, P('r', 'a', 3)], [0, 9, P('b', 'r')]], { turn: 'b', merit: { r: 3, b: 20 } });
+  g.apply({ k: 'ult' });
+  ok(g.fx.hm === 3 && g.skillTargets(3, 1).length === 1 && g.skillWhy(3, 1, 'hujia') === '', '鸿门宴期间士可以护驾');
+  const info = g.apply({ k: 'sk', at: [3, 1] });
+  ok(info && info.extra.rescue && info.ev.some(e => e.e === 'rescue'), '护驾触发闯帐事件');
+  ok(g.fx.hm === 0 && g.at(3, 1).t === 'k' && g.at(4, 0).t === 'a', '帅士换位，鸿门宴解除');
+  g.apply({ k: 'mv', from: [0, 9], to: [0, 8] });
+  ok(g.legalFrom(3, 1).length > 0, '汉帅恢复行动');
+  // 二级的士没有护驾，破不了
+  const g2 = setup([[4, 0, K('r')], [5, 9, K('b')], [3, 1, P('r', 'a', 2)], [0, 9, P('b', 'r')]], { turn: 'b', merit: { r: 3, b: 20 } });
+  g2.apply({ k: 'ult' });
+  ok(!g2.skillTargets(3, 1).length, '二级士不能护驾');
+  // 楚士护驾不影响四面楚歌之类
+  console.log('护驾破鸿门宴 OK');
 }
 {
   // 鸿门宴期间汉方无子可走 → 停着，不判困毙
@@ -327,17 +364,68 @@ const ok = (x, msg) => { assert(x, msg); };
   ok(g.apply({ k: 'pass' }), '停着');
   console.log('鸿门宴停着 OK');
 }
-// 16. 四面楚歌
+// 16. 四面楚歌：楚军除将外不能动，只能吃掉正在将军的子；楚军不算将军；没被将军可以停着
 {
-  const g = setup([[4, 0, K('r')], [4, 9, K('b')], [3, 7, P('r', 'p')], [5, 7, P('r', 'p')], [2, 8, P('r', 'n')], [4, 5, P('r', 'r')], [0, 9, P('b', 'r')], [8, 7, P('b', 'c')]], { merit: { r: 20, b: 3 } });
+  const g = setup([[4, 0, K('r')], [4, 9, K('b')], [3, 7, P('r', 'p')], [5, 7, P('r', 'p')], [2, 8, P('r', 'n')], [4, 5, P('r', 'r')], [0, 9, P('b', 'r')], [8, 7, P('b', 'c')], [2, 6, P('b', 'p')]], { merit: { r: 20, b: 3 } });
   ok(g.ultReady(), '楚将 2 格内 3 枚汉子可发动');
   g.apply({ k: 'ult' });
-  ok(g.fx.sm === 2, '楚军涣散 2 回合');
-  ok(!g.legalFrom(0, 9).some(m => !g.at(m.to[0], m.to[1])), '楚方非将子只能吃子或攻击');
-  ok(g.legalFrom(4, 9).length > 0 || g.inCheck('b'), '楚将可以走');
+  ok(g.fx.sm === 2 && g.turn === 'b', '楚军涣散 2 回合');
+  // 汉马 (2,8) 正将着楚将 (4,9)
+  ok(g.inCheck('b'), '汉马、汉车将军');
+  ok(!g.legalFrom(8, 7).length && !g.legalFrom(2, 6).length, '炮、卒不能动（也够不着将军的马）');
+  const rk = g.legalFrom(0, 9).map(m => m.to.join());
+  ok(rk.length === 0, '车被自家子挡着也吃不到马 ' + rk);
+  ok(g.legalFrom(4, 9).length > 0 && !g.mayPass(), '被将军：将可以走，不能停着');
+  ok(!g.apply({ k: 'pass' }), '被将军时不能停着');
   const g2 = setup([[4, 0, K('r')], [4, 9, K('b')], [3, 7, P('r', 'p')], [0, 9, P('b', 'r')]], { merit: { r: 20, b: 3 } });
   ok(!g2.ultReady(), '人数不够不能发动');
   console.log('四面楚歌 OK');
+}
+{
+  // 只能吃将军的那枚子；吃别的不行
+  const g = setup([[4, 0, K('r')], [4, 9, K('b')], [3, 7, P('r', 'p')], [5, 7, P('r', 'p')], [2, 7, P('r', 'p')], [4, 6, P('r', 'r')], [0, 6, P('b', 'r')], [0, 4, P('r', 'p')], [8, 9, P('b', 'n')]], { merit: { r: 20, b: 3 } });
+  g.apply({ k: 'ult' });
+  ok(g.inCheck('b'), '汉车将军');
+  const lg = g.legalFrom(0, 6).map(m => m.to.join());
+  ok(lg.length === 1 && lg[0] === '4,6', '楚车只能吃将军的汉车，不能吃旁边的兵、不能走空格 ' + lg);
+  ok(g.apply({ k: 'mv', from: [0, 6], to: [4, 6] }) && !g.inCheck('b'), '吃子解将');
+  ok(!g.inCheck('r'), '楚车对着汉帅也不算将军');
+  // 汉方这回合想怎么走怎么走（不必应将）
+  ok(g.apply({ k: 'mv', from: [0, 4], to: [0, 5] }), '汉方不必应将');
+  ok(g.turn === 'b' && g.mayPass() && !g.mustPass(), '楚军没被将军：可以停着，也可以走将');
+  ok(!g.legalFrom(4, 6).length && !g.legalFrom(8, 9).length, '楚车、楚马都不能动');
+  ok(g.apply({ k: 'pass' }), '停着');
+  // 涣散结束：汉帅真的被将军了，必须应
+  ok(g.fx.sm === 0 && g.turn === 'r' && g.inCheck('r'), '两回合后楚车的将军生效');
+  ok(!g.isLegal({ from: [0, 5], to: [0, 6] }), '这时必须应将');
+  console.log('四面楚歌：只能吃将军的子、不算将军、可停着 OK');
+}
+{
+  // 汉方被将军时发动四面楚歌 = 解将
+  const g = setup([[4, 0, K('r')], [3, 9, K('b')], [2, 7, P('r', 'p')], [3, 7, P('r', 'p')], [4, 8, P('r', 'n')], [4, 5, P('b', 'r')], [8, 9, P('b', 'c')]], { merit: { r: 20, b: 3 } });
+  ok(g.inCheck('r'), '楚车将着汉帅');
+  ok(g.ultReady() && g.apply({ k: 'ult' }), '被将军时可以发动四面楚歌');
+  ok(!g.inCheck('r') && g.turn === 'b', '将军不算了');
+  // 将帅对面仍然不允许
+  const g3 = setup([[4, 0, K('r')], [4, 9, K('b')], [4, 6, P('r', 'p')], [3, 7, P('r', 'p')], [5, 7, P('r', 'p')], [3, 8, P('r', 'n')], [0, 9, P('b', 'r')]], { merit: { r: 20, b: 3 } });
+  ok(g3.apply({ k: 'ult' }) && g3.apply({ k: 'pass' }) && g3.turn === 'r', '楚军停着');
+  ok(!g3.isLegal({ from: [4, 6], to: [3, 6] }) && g3.isLegal({ from: [4, 6], to: [4, 7] }), '四面楚歌期间将帅对面仍然不允许');
+  console.log('四面楚歌解将 OK');
+}
+{
+  // 被将军又吃不掉、将也走不了 → 绝杀
+  const g = setup([[4, 0, K('r')], [3, 9, K('b')], [3, 5, P('r', 'r')], [4, 7, P('r', 'r')], [2, 8, P('r', 'p')], [4, 8, P('r', 'p')], [8, 9, P('b', 'r')], [8, 5, P('b', 'c')]], { merit: { r: 20, b: 3 } });
+  const info = g.apply({ k: 'ult' });
+  ok(g.result && g.result.reason === 'checkmate' && g.result.winner === 'r', '四面楚歌下无法解将即绝杀 ' + JSON.stringify(g.result));
+  console.log('四面楚歌绝杀 OK');
+}
+// 16b. 称号
+{
+  ok(BF.rankName('r', 'p', 1) === '汉军兵' && BF.rankName('r', 'p', 2) === '汉伍长' && BF.rankName('r', 'p', 3) === '汉什长' && BF.rankName('r', 'p', 4) === '无当飞军', '汉兵称号');
+  ok(BF.rankName('b', 'p', 1) === '楚军卒' && BF.rankName('b', 'p', 2) === '楚锐卒' && BF.rankName('b', 'p', 3) === '楚持戟' && BF.rankName('b', 'p', 4) === '江东甲士', '楚卒称号');
+  for (const s of ['r', 'b']) for (const t of 'prncea') { const info = BF.levelInfo(t, s, 1); for (let lv = 1; lv <= info.maxLv; lv++) ok(BF.rankName(s, t, lv), '称号齐全 ' + s + t + lv); ok(new Set(BF.RANK_CN[s][t]).size === info.maxLv, '每级一个称号 ' + s + t); }
+  const g = new BF.Game(); ok(g.rankName(g.at(0, 0)) === '汉军车', '对局里取称号');
+  console.log('称号 OK');
 }
 // 17. 军功：将军、过河、回合收入、上限
 {
@@ -409,7 +497,7 @@ const ok = (x, msg) => { assert(x, msg); };
       }
       if (Math.random() < 0.1) opts.push(...g.reviveOptions());
       if (g.ultReady() && Math.random() < 0.3) opts.push({ k: 'ult' });
-      if (g.mustPass()) opts.push({ k: 'pass' });
+      if (g.mustPass() || (g.mayPass() && Math.random() < 0.5)) opts.push({ k: 'pass' });
       if (!opts.length) break;
       const caps = opts.filter(a => a.to && g.at(a.to[0], a.to[1]));
       const a = caps.length && Math.random() < 0.5 ? caps[rnd(caps.length)] : opts[rnd(opts.length)];

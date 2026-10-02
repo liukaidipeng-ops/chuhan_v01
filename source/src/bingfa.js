@@ -2,6 +2,8 @@
 // 走法、将死、困毙不变；技能和生命值只改“吃子的结果”和“每回合能做什么”。没有随机数，同样的行动序列结果永远相同。
 // 一方一次行动 = 可选一次升级（不占行动）+ 走子 / 兵种技能 / 兵法 三选一。
 // v2：二级只长血，三级长血并解锁技能；车可升四级；士二级起攻击 2；击杀攒甲片抵升级价；拒马不占行动；楚战象践踏改为三级被动。
+// v4：兵种随等级换称号；神速营改被动；士四级「铁甲禁卫」九宫内上下左右走；马「踏营」只能在敌方半场用；
+//     四面楚歌——楚军除将外不能动、只能吃掉正在将军的子，且不算将军；鸿门宴 3 回合，汉士「护驾」可破。
 (function (global) {
   const XQ = global.XQ || require('./rules.js');
   const { pseudoMoves, inCheck, findKing, inBoard, ownHalf, other, initialBoard, checkers, inPalace } = XQ;
@@ -21,38 +23,44 @@
     skillLevel: 3, // 几级解锁兵种技能（单个技能可用 level 另定）
     skills: {
       juma: { cooldown: 2, duration: 1, damage: 1, free: true }, // free：不占行动，架完还要再走一步棋（这枚兵本回合不能动）
-      shensu: { level: 4, cooldown: 5, range: 2 }, // 兵四级：八方向直线 1～2 格，可越子，只能落空格
+      shensu: { level: 4, passive: true, move: true, cooldown: 5, range: 2 }, // 兵四级被动：八方向直线 1～2 格，可越子，只能落空格
       huifang: { level: 4, passive: true, move: true, cooldown: 2 }, // 兵四级被动：可后退一格
-      jinwei: { level: 4, passive: true, move: true, cooldown: 2 }, // 士四级被动：九宫内横走一格
+      jinwei: { level: 4, passive: true, move: true, cooldown: 2 }, // 士四级被动「铁甲禁卫」：九宫内上下左右走一格
       chongzhen: { cooldown: 3, springDamage: 1 }, // 车：前方第一枚子当跳板（挨 1 点），落到它身后一格
-      taying: { cooldown: 2 },
+      taying: { cooldown: 2, enemyHalfOnly: true }, // 马：只能在敌方半场用
       pili: { cooldown: 4, splashDamage: 1, splashMinLevel: 2 },
       qishe: { cooldown: 3, range: 2, damage: 1 },
       jianta: { passive: true, splashDamage: 1, splashMinLevel: 2 }, // 被动：三级战象每次落子都溅伤四周，无冷却
       hujia: { cooldown: 4 },
     },
     generalArts: { xiaohe: { usesPerGame: 1 }, pofu: { usesPerGame: 1, steps: 2, mayEndInCheck: false, skillLockRounds: 3 } },
-    ultimates: { cost: 20, hongmen: { usesPerGame: 1, rounds: 2 }, simian: { usesPerGame: 1, rounds: 2, radius: 2, minPiecesInRadius: 3 } },
+    ultimates: { cost: 20, hongmen: { usesPerGame: 1, rounds: 3 }, simian: { usesPerGame: 1, rounds: 2, radius: 2, minPiecesInRadius: 3 } },
     longCheckLimit: 6,
   };
   // 主技能（三级解锁）；SKILLS_OF 列出这一兵种全部技能（含四级的）
   const SKILL_OF = (t, s) => ({ p: 'juma', r: 'chongzhen', n: 'taying', c: 'pili', a: 'hujia', e: s === 'r' ? 'qishe' : 'jianta' })[t] || null;
   const SKILLS_OF = (t, s) => ({ p: ['juma', 'shensu', 'huifang'], a: ['hujia', 'jinwei'] })[t] || (SKILL_OF(t, s) ? [SKILL_OF(t, s)] : []);
-  const SKILL_CN = { juma: '拒马', chongzhen: '冲阵', taying: '踏营', pili: '霹雳', qishe: '齐射', jianta: '践踏', hujia: '护驾', shensu: '神速营', huifang: '回防', jinwei: '禁卫' };
+  const SKILL_CN = { juma: '拒马', chongzhen: '冲阵', taying: '踏营', pili: '霹雳', qishe: '齐射', jianta: '践踏', hujia: '护驾', shensu: '神速营', huifang: '回防', jinwei: '铁甲禁卫' };
   const ART_CN = { r: '召回良将', b: '破釜沉舟' }, ULT_CN = { r: '四面楚歌', b: '鸿门宴' };
   const ORTHO = [[1, 0], [-1, 0], [0, 1], [0, -1]];
+  // 称号：兵种随等级晋升（界面显示、升级演出用）
+  const RANK_CN = {
+    r: { p: ['汉军兵', '汉伍长', '汉什长', '无当飞军'], r: ['汉军车', '汉轻车', '汉武刚车', '虎贲车骑'], n: ['汉军马', '汉骁骑', '郎中骑'], c: ['汉军炮', '汉抛石', '汉霹雳车'], e: ['汉军相', '汉材官', '蹶张强弩'], a: ['汉军士', '汉郎卫', '汉中涓', '参乘虎卫'], k: ['汉王刘邦'] },
+    b: { p: ['楚军卒', '楚锐卒', '楚持戟', '江东甲士'], r: ['楚军车', '楚戎车', '楚陷阵车', '霸王车骑'], n: ['楚军马', '楚骁骑', '乌骓骑'], c: ['楚军炮', '楚抛石', '楚霹雳炮'], e: ['楚军象', '楚战象', '云梦巨象'], a: ['楚军士', '楚郎卫', '楚执戟郎', '重瞳亲卫'], k: ['西楚霸王'] },
+  };
+  const rankName = (s, t, lv) => { const a = (RANK_CN[s] || {})[t] || []; return a[Math.max(1, Math.min(a.length, lv || 1)) - 1] || ''; };
   // 技能说明（界面悬停 / 长按用）
   const SKILL_DESC = {
     juma: '原地架矛，不占本回合行动：架完还要再走一步棋（这枚兵本回合不能动，也不能再用技能或兵法）。持续到对方下一次行动结束；期间敌子来吃或攻击它，攻方先挨 1 点伤害，一级攻方直接阵亡。对帅将无效。',
     chongzhen: '车前方直线上的第一枚子（敌我都行，帅将除外）当跳板，挨 1 点伤害（1 血直接阵亡）；车随即冲到它身后一格：空格就落下；那格有子且一下能打死就杀掉占位（己方子也会被杀）；打不死就只扣血，车退回原位。',
-    shensu: '兵四级：横、竖、斜八个方向直线走 1～2 格，中间有子也能越过，落点必须是空格，不能吃子或攻击。',
+    shensu: '兵四级被动，冷却 5：横、竖、斜八个方向直线疾行 1～2 格，中间有子也能越过，落点必须是空格，不能吃子或攻击。不用点技能，直接走。',
     huifang: '兵四级被动，冷却 2：可以后退一格（能吃子、攻击），不用点技能，直接走。',
-    jinwei: '士四级被动，冷却 2：在九宫内可以横着走一格（能吃子、攻击），不用点技能，直接走。',
-    taying: '本次走子无视蹩马腿，其余同普通走子。',
+    jinwei: '士四级被动，冷却 2：士在田字格（九宫）内获得自由移动的能力——可以上下左右走一格（能吃子、攻击），不用点技能，直接走。',
+    taying: '只能在敌方半场（过河之后）使用：本次走子无视蹩马腿，其余同普通走子。',
     pili: '按炮的吃子走法炮击一个敌子（按吃子或攻击结算），目标和前后左右四格同时落弹：四格内二级以上的敌子各扣 1 点。',
     qishe: '不移动，射击斜线 1～2 格内的一个敌子，扣 1 点，一级子直接阵亡；射 2 格时中间有子会被挡，可以射过河。',
     jianta: '被动，无冷却：三级战象每次落子（含吃子）后，前后左右四格内二级以上的敌子各扣 1 点；攻击没得手、退回原位时不触发。',
-    hujia: '与己方帅/将互换位置，九宫内即可，不要求相邻，可用来解将。鸿门宴期间不能用。',
+    hujia: '与己方帅/将互换位置，九宫内即可，不要求相邻，可用来解将。汉军的士在鸿门宴期间护驾，会当场破掉鸿门宴（樊哙闯帐）。',
   };
   // 每枚子的开局位置（复活用）
   const START = {};
@@ -83,6 +91,10 @@
   const smActive = S => S.cnt.b < S.fx.sm; // 四面楚歌：楚军涣散
   const pfActive = S => S.cnt.b < S.fx.pf; // 破釜沉舟后楚方兵种技能封锁
   const restricted = (S, s) => (s === 'r' ? hmActive(S) : smActive(S));
+  // 将帅对面
+  const facing = b => { const k = findKing(b, 'r'), K = findKing(b, 'b'); if (!k || !K || k[0] !== K[0]) return false; for (let r = Math.min(k[1], K[1]) + 1; r < Math.max(k[1], K[1]); r++) if (b[r][k[0]]) return false; return true; };
+  // 带状态的将军判定：四面楚歌期间楚军“不算将军”——汉帅被楚子攻击也不必应将（只需避开将帅对面）
+  const inCheckS = (S, s) => (s === 'r' && smActive(S) ? facing(S.board) : inCheck(S.board, s));
   const jmActive = (S, p) => p && p.t === 'p' && p.jm > S.cnt[other(p.s)];
   const maxLv = t => (t === 'k' ? 1 : CFG_CUR.upgrade.maxLevel[t] || CFG_CUR.upgrade.defaultMaxLevel);
   const atk = p => (p.t === 'k' ? 1 : ((CFG_CUR.attack[p.t] || [])[p.lv - 1] || 1));
@@ -164,6 +176,7 @@
   // 楚战象被动「践踏」：三级战象落子（走到空格或吃掉）后溅伤四周
   function trample(S, P, to, res, side, ev) {
     if (!P || SKILL_OF(P.t, P.s) !== 'jianta' || P.lv < CFG_CUR.skillLevel) return;
+    if (side === 'b' && smActive(S)) return; // 四面楚歌期间楚军没有技能
     if (res === 'move' || res === 'kill') splash(S, to, side, ev, 'jianta', P);
   }
 
@@ -180,15 +193,26 @@
         ms.push({ from: [f, r], to: [tf, tr] });
       }
     } else ms = pseudoMoves(S.board, f, r);
-    // 被动走法（不用点技能，冷却好了就能走）：兵四级回防后退一格；士四级禁卫九宫内横走一格
-    const extra = (sk, tf, tr) => { if (!inBoard(tf, tr) || !hasSkill(p, sk) || !cdReady(S, p, sk)) return; const q = S.board[tr][tf]; if (q && q.s === p.s) return; ms.push({ from: [f, r], to: [tf, tr], via: sk }); };
-    if (!ignoreLeg && p.t === 'p') extra('huifang', f, r + (p.s === 'r' ? -1 : 1));
-    if (!ignoreLeg && p.t === 'a' && inPalace(p.s, f, r)) for (const df of [-1, 1]) if (inPalace(p.s, f + df, r)) extra('jinwei', f + df, r);
+    // 被动走法（不用点技能，冷却好了就能走）：兵四级回防后退一格、神速营八方向疾行；士四级铁甲禁卫九宫内上下左右走一格
+    //   同一个落点普通走法能到就算普通走法；回防和神速营都能到时用回防（冷却短）
+    const seen = new Set(ms.map(m => m.to[0] + ',' + m.to[1]));
+    const extra = (sk, tf, tr, emptyOnly) => {
+      if (!inBoard(tf, tr) || !hasSkill(p, sk) || !cdReady(S, p, sk) || seen.has(tf + ',' + tr)) return;
+      const q = S.board[tr][tf]; if (q && (q.s === p.s || emptyOnly)) return;
+      seen.add(tf + ',' + tr); ms.push({ from: [f, r], to: [tf, tr], via: sk });
+    };
+    if (!ignoreLeg && p.t === 'p') {
+      extra('huifang', f, r + (p.s === 'r' ? -1 : 1));
+      if (hasSkill(p, 'shensu') && cdReady(S, p, 'shensu')) for (const m of dashTargets(S, f, r)) extra('shensu', m.to[0], m.to[1], true);
+    }
+    if (!ignoreLeg && p.t === 'a' && inPalace(p.s, f, r)) for (const [df, dr] of ORTHO) if (inPalace(p.s, f + df, r + dr)) extra('jinwei', f + df, r + dr);
+    // 四面楚歌：楚军除将外不能移动，只能吃掉正在将军的那枚子
+    const sm = p.s === 'b' && p.t !== 'k' && smActive(S), ck = sm ? checkers(S.board, 'r') : null;
     return ms.filter(m => {
       const q = S.board[m.to[1]][m.to[0]];
       if (q && q.t === 'k') return false;
       if (p.s === 'r' && p.t === 'k' && hmActive(S)) return false;
-      if (p.s === 'b' && p.t !== 'k' && smActive(S) && !q) return false;
+      if (sm && (!q || !ck.includes(q.id))) return false;
       return true;
     });
   }
@@ -270,11 +294,8 @@
           extra.spring = { at: a.to.slice(), killed: !S.board[a.to[1]][a.to[0]] };
           extra.res = strike(S, a.at, t.land, side, ev, 'chongzhen');
         }
-      } else if (sk === 'shensu') {
-        if (!a.to || !has(dashTargets(S, a.at[0], a.at[1]), a.to)) return null;
-        moveTo(S, a.at, a.to, ev);
-        extra.res = 'move';
       } else if (sk === 'taying') {
+        if (CFG_CUR.skills.taying.enemyHalfOnly && ownHalf(side, a.at[1])) return null;
         if (!a.to || !has(moveTargets(S, a.at[0], a.at[1], true), a.to)) return null;
         extra.res = strike(S, a.at, a.to, side, ev, 'taying');
       } else if (sk === 'pili') {
@@ -287,12 +308,13 @@
         if (!a.to || !has(arrowTargets(S, a.at[0], a.at[1]), a.to)) return null;
         damage(S, a.to[0], a.to[1], CFG_CUR.skills.qishe.damage, side, ev, 'qishe', p);
       } else if (sk === 'hujia') {
-        if (side === 'r' && hmActive(S)) return null;
         const k = findKing(S.board, side); if (!k) return null;
         const K = S.board[k[1]][k[0]];
         S.board[k[1]][k[0]] = p; S.board[a.at[1]][a.at[0]] = K;
         ev.push({ e: 'swap', a: p.id, b: K.id, pa: a.at.slice(), pb: k.slice() });
-      }
+        // 樊哙闯帐：汉士护驾，当场破掉鸿门宴
+        if (side === 'r' && hmActive(S)) { S.fx.hm = S.cnt.r; extra.rescue = true; ev.push({ e: 'rescue', id: p.id, at: k.slice() }); }
+      } else return null;
       cd();
     } else if (a.k === 'art') {
       if (S.used.art[side] >= CFG_CUR.generalArts[side === 'r' ? 'xiaohe' : 'pofu'].usesPerGame) return null;
@@ -335,10 +357,12 @@
       S.used.ult[side]++;
       ev.push({ e: 'ult', s: side });
     } else if (a.k === 'pass') {
-      if (!restricted(S, side) || legalMoves(S, side, true).length) return null;
+      // 四面楚歌期间的楚军：没被将军就可以停着（也可以走将）；鸿门宴期间的汉军：无子可走才停着
+      if (side === 'b' && smActive(S)) { if (inCheck(S.board, 'b')) return null; }
+      else if (!restricted(S, side) || legalMoves(S, side, true).length) return null;
     } else return null;
     // 行动结束：己方帅将不能被将军（含将帅对面）
-    if (inCheck(S.board, side)) return null;
+    if (inCheckS(S, side)) return null;
     return { kind, ev, extra };
   }
   // 四面楚歌：楚将周围横竖 2 格内（5×5）的汉方棋子数
@@ -353,10 +377,10 @@
   // 行动后的结算：计数、将军军功、长将记录、回合收入、换手
   function settle(S, side, ev) {
     const opp = other(side);
-    const ck = checkers(S.board, side);
+    const ck = side === 'b' && smActive(S) ? [] : checkers(S.board, side);
     S.ckHist[side].push(ck);
-    if (inCheck(S.board, opp)) { addMerit(S, side, CFG_CUR.merit.checkReward, ev, '将军'); ev.push({ e: 'check', s: opp }); }
     S.cnt[side]++;
+    if (inCheckS(S, opp)) { addMerit(S, side, CFG_CUR.merit.checkReward, ev, '将军'); ev.push({ e: 'check', s: opp }); }
     S.upgraded = false; S.freeUsed = false; S.jmLock = null;
     S.turn = opp;
     if (side === 'b' && round(S) >= CFG_CUR.merit.autoIncomeFromRound) {
@@ -375,7 +399,7 @@
     if (lim) {
       const hist = S.ckHist[side];
       if (hist.length >= lim) {
-        const ck = checkers(T.board, side);
+        const ck = side === 'b' && smActive(T) ? [] : checkers(T.board, side);
         const last = hist.slice(-lim);
         if (ck.some(id => last.every(h => h.includes(id)))) return null;
       }
@@ -403,10 +427,9 @@
     for (const sk of SKILLS_OF(p.t, p.s)) {
       if ((only && sk !== only) || !skillOk(S, p, sk)) continue;
       const tg = sk === 'chongzhen' ? springTargets(S, f, r)
-        : sk === 'taying' ? moveTargets(S, f, r, true)
+        : sk === 'taying' ? (CFG_CUR.skills.taying.enemyHalfOnly && ownHalf(p.s, r) ? [] : moveTargets(S, f, r, true))
           : sk === 'pili' ? cannonShots(S, f, r)
-            : sk === 'qishe' ? arrowTargets(S, f, r)
-              : sk === 'shensu' ? dashTargets(S, f, r) : null;
+            : sk === 'qishe' ? arrowTargets(S, f, r) : null;
       const mk = to => { const a = { k: 'sk', at: [f, r] }; if (to) a.to = to; if (sk !== main) a.sk = sk; return a; };
       if (tg) { for (const m of tg) { const a = mk(m.to); if (attempt(S, a)) out.push(a); } }
       else { const a = mk(null); if (attempt(S, a)) out.push(a); }
@@ -462,15 +485,36 @@
   // 轮到 S.turn 时：将死 / 困毙 / 只能停着
   function evaluate(S) {
     const side = S.turn, opp = other(side);
-    if (inCheck(S.board, side)) {
+    if (inCheckS(S, side)) {
       if (!hasAnyAction(S)) return { result: { winner: opp, loser: side, reason: 'checkmate' } };
       return { check: true };
     }
+    // 四面楚歌：楚军没被将军时可以走将，也可以直接停着
+    if (side === 'b' && smActive(S)) return { mayPass: true, mustPass: !legalMoves(S, side).length };
     if (!plainMoves(S).length) {
       if (restricted(S, side)) return { mustPass: !legalMoves(S, side).length, mayPass: !legalMoves(S, side).length };
       return { result: { winner: opp, loser: side, reason: 'stalemate' } };
     }
     return {};
+  }
+
+  // 这枚子的这个技能现在为什么不能用（界面说明用）；能用返回 ''
+  const LVCN = ['', '一', '二', '三', '四'];
+  function skillWhy(S, f, r, sk) {
+    const p = at(S, f, r); if (!p || !SKILLS_OF(p.t, p.s).includes(sk)) return '';
+    if (p.lv < skLevel(sk)) return `升到${LVCN[skLevel(sk)]}级解锁`;
+    const left = Math.max(0, (p[cdKey(p, sk)] || 0) - S.cnt[p.s]);
+    if (isPassive(sk)) {
+      if (p.s === 'b' && smActive(S)) return CFG_CUR.skills[sk].move ? '四面楚歌期间楚军不能移动' : '四面楚歌期间楚军没有技能';
+      return CFG_CUR.skills[sk].cooldown && left ? `冷却中，还要 ${left} 回合` : '';
+    }
+    if (p.s === 'b' && smActive(S)) return '四面楚歌期间楚军不能用技能';
+    if (p.s === 'b' && pfActive(S)) return '破釜沉舟之后楚军暂时不能用技能';
+    if (S.freeUsed) return '已经架了拒马，这回合只能再走一步棋';
+    if (left) return `冷却中，还要 ${left} 回合`;
+    if (sk === 'taying' && CFG_CUR.skills.taying.enemyHalfOnly && ownHalf(p.s, r)) return '踏营只能在敌方半场使用——这匹马要先过河';
+    if (p.s === S.turn && !skillActions(S, f, r, sk).length) return sk === 'juma' ? '架了拒马就无棋可走' : '现在没有可用的目标';
+    return '';
   }
 
   // ---------- 对局 ----------
@@ -487,7 +531,7 @@
     get turn() { return this.S.turn; }
     get round() { return round(this.S); }
     at(f, r) { return at(this.S, f, r); }
-    inCheck(s) { return inCheck(this.S.board, s || this.S.turn); }
+    inCheck(s) { return inCheckS(this.S, s || this.S.turn); }
     kingPos(s) { return findKing(this.S.board, s); }
     // 普通走子目标（含攻击）
     legalFrom(f, r) { const p = this.at(f, r); if (!p || p.s !== this.turn || this.result) return []; return moveTargets(this.S, f, r).filter(m => attempt(this.S, { k: 'mv', from: m.from, to: m.to })); }
@@ -498,6 +542,8 @@
     skLevel(sk) { CFG_CUR = this.cfg; return skLevel(sk); }
     hasSkill(p, sk) { CFG_CUR = this.cfg; return !!p && hasSkill(p, sk); }
     skillReady(p, sk) { CFG_CUR = this.cfg; return !!p && skillReady(this.S, p, sk); }
+    skillWhy(f, r, sk) { CFG_CUR = this.cfg; return skillWhy(this.S, f, r, sk); }
+    rankName(p, lv) { return p ? rankName(p.s, p.t, lv || p.lv) : ''; }
     reviveOptions() { return this.result ? [] : reviveOptions(this.S); }
     pofuFirst() { return this.result ? [] : pofuFirst(this.S); }
     pofuSecond(m1) { return pofuSecond(this.S, m1); }
@@ -521,6 +567,8 @@
       CFG_CUR = this.cfg;
       if (this.result) return null;
       const S = this.S;
+      // 旧版存档里的神速营是主动技能，现在是走法
+      if (e.k === 'sk' && e.sk === 'shensu' && e.to) e = { k: 'mv', from: e.at, to: e.to };
       if (e.k === 'up') {
         if (!this.canUpgrade(e.at[0], e.at[1])) return null;
         const p = this.at(e.at[0], e.at[1]);
@@ -544,7 +592,7 @@
       if (r.free) {
         // 不占行动的拒马：不进棋谱主行动、不换手，状态只记“还要再走一步”
         const piece = before.board[e.at[1]][e.at[0]];
-        this.status = { free: true, check: inCheck(this.S.board, side) };
+        this.status = { free: true, check: inCheckS(this.S, side) };
         const info = { k: 'sk', free: true, side, mover: side, from: e.at.slice(), to: null, pid: piece ? piece.id : null, cap: null, kills: [], ev: r.ev, extra: r.extra, e, check: false, result: null, before, after: this.S };
         this.last = info;
         return info;
@@ -557,7 +605,7 @@
       const st = evaluate(this.S);
       this.status = st;
       if (st.result) this.result = st.result;
-      const info = { ...h, mover: side, check: inCheck(this.S.board, other(side)), result: this.result, ply: this.history.length - 1, before, after: this.S };
+      const info = { ...h, mover: side, check: inCheckS(this.S, other(side)), result: this.result, ply: this.history.length - 1, before, after: this.S };
       this.last = info;
       return info;
     }
@@ -591,6 +639,7 @@
     simianCount() { return simianCount(this.S); }
     cdLeft(p, sk) { if (!p) return 0; const k = sk ? cdKey(p, sk) : 'cd'; return Math.max(0, (p[k] || 0) - this.S.cnt[p.s]); }
     mustPass() { return !!this.status.mustPass; }
+    mayPass() { return !this.result && !!(this.status.mustPass || this.status.mayPass); }
     quietPlies() { return 0; }
   }
 
@@ -618,7 +667,7 @@
       maxLv: t === 'k' ? 1 : (cfg.upgrade.maxLevel[t] || cfg.upgrade.defaultMaxLevel),
     };
   }
-  const BF = { Game, CFG, view, pofuPreview, SKILL_OF, SKILLS_OF, SKILL_CN, SKILL_DESC, ART_CN, ULT_CN, START, newState, cloneState, attempt, evaluate, levelInfo, hpOf: (t, lv) => hpOf(t, lv, CFG) };
+  const BF = { Game, CFG, view, pofuPreview, SKILL_OF, SKILLS_OF, SKILL_CN, SKILL_DESC, ART_CN, ULT_CN, RANK_CN, rankName, START, newState, cloneState, attempt, evaluate, levelInfo, hpOf: (t, lv) => hpOf(t, lv, CFG) };
   if (typeof module !== 'undefined' && module.exports) module.exports = BF;
   global.BF = BF;
 })(typeof window !== 'undefined' ? window : globalThis);
