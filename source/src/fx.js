@@ -662,21 +662,123 @@ const Fx = (() => {
 
   // ---------- 将军 ----------
   // 绝杀 / 困毙：近乎满屏的行书大字，一字一顿砸下来，下面盖一方朱印写杀法（重炮、马后炮……）
-  function mateSplash(big, name, sideInCheck) {
-    const el = document.getElementById('mate');
-    el.querySelector('.c1').textContent = big[0]; el.querySelector('.c2').textContent = big[1];
-    const mn = el.querySelector('.mn'); mn.querySelector('b').textContent = name || ''; mn.style.display = name ? '' : 'none';
-    el.classList.remove('show'); void el.offsetWidth; el.classList.add('show');
-    clearTimeout(mateSplash.t); mateSplash.t = setTimeout(() => el.classList.remove('show'), 3600);
-    // 鼓点：第一字一记，第二字一记重的加锣，朱印落下再一声
-    Sfx.B.taiko(0.05, 0.95, 0.85); Sfx.B.taiko(0.38, 1, 0.7); Sfx.B.gong(0.4, 0.9); Sfx.B.clang(0.4, 0.5);
-    if (name) { Sfx.B.taiko(0.98, 0.8, 1.1); Sfx.B.bell(1.0, 660, 0.1); }
+  // 绝杀大字：只写「绝杀」；下出了有名有姓的杀法（马后炮、卧槽马、重炮…）就只写那几个字。
+  // 朱砂手书：每个字单独画在画布上（行书字体 + 飞白 + 浓淡），背后一笔浓墨横扫并带泼溅，朱与墨再慢慢晕开
+  const MATE_NAMED = new Set(['重炮', '马后炮', '天地炮', '闷宫', '卧槽马', '挂角马', '双马饮泉', '八角马', '钓鱼马', '铁门栓', '双车错', '大刀剜心', '二鬼拍门', '白脸将']);
+  function mateInk(el, portrait, px, rows) {
+    const W = Math.min(1400, innerWidth), H = Math.round(W * innerHeight / innerWidth), u = Math.min(W, H);
+    const [wash, stroke] = [el.querySelector('.ink.wash'), el.querySelector('.ink.stroke')];
+    for (const c of [wash, stroke]) { c.width = W; c.height = H; }
+    // 浓墨一笔：压在字的下半截，从左往右上横扫，起笔重、笔肚实、收笔拉出飞白
+    const g = stroke.getContext('2d'), sc = W / innerWidth;
+    const ang = (portrait ? -0.3 : -0.1) + R(-0.04, 0.04), L = (portrait ? Math.hypot(W, H) * 0.7 : W * 0.98), th = Math.max(u * 0.09, px * sc * R(0.26, 0.32) * (portrait ? 0.7 : 1));
+    const cy = H / 2 + (portrait ? rows * px * sc * 0.36 : px * sc * 0.3);
+    g.save(); g.translate(W / 2, cy); g.rotate(ang);
+    const prof = k => (k < 0.07 ? Math.pow(k / 0.07, 0.6) : k < 0.55 ? 1 : 1 - 0.7 * Math.pow((k - 0.55) / 0.45, 1.3));
+    const N = 90, top = [], bot = [];
+    for (let i = 0; i <= N; i++) { const k = i / N, x = -L / 2 + k * L * 0.9, h = th / 2 * prof(k); top.push([x, -h * (1 + R(-0.07, 0.07)) + Math.sin(k * 5) * th * 0.05]); bot.push([x, h * (1 + R(-0.09, 0.09)) + Math.sin(k * 5) * th * 0.05]); }
+    g.fillStyle = 'rgba(15,12,11,.94)'; g.beginPath(); top.forEach(([x, y], i) => (i ? g.lineTo(x, y) : g.moveTo(x, y))); bot.reverse().forEach(([x, y]) => g.lineTo(x, y)); g.closePath(); g.fill();
+    // 收笔的笔丝：越往外越稀
+    g.lineCap = 'round';
+    for (let i = 0; i < 60; i++) {
+      const y = R(-0.5, 0.5) * th * 0.5, x0 = L * R(0.2, 0.4), x1 = x0 + L * R(0.04, 0.2);
+      g.strokeStyle = `rgba(15,12,11,${R(0.4, 0.9)})`; g.lineWidth = R(0.8, 3) * u / 700;
+      g.beginPath(); g.moveTo(x0, y + Math.sin(0.9 * 5) * th * 0.05); g.lineTo(x1, y * 1.15 + Math.sin(0.95 * 5) * th * 0.05); g.stroke();
+    }
+    // 起笔处的墨团
+    g.fillStyle = 'rgba(14,11,10,.92)'; inkBlot(g, -L / 2 + th * 0.35, 0, th * 0.62, 0.95, 0.5);
+    // 飞白：笔肚后半段被干笔带出的白丝
+    g.globalCompositeOperation = 'destination-out';
+    for (let i = 0; i < 110; i++) {
+      const k0 = 1 - Math.pow(Math.random(), 1.7) * 0.8, x0 = -L / 2 + k0 * L * 0.9, len = L * R(0.05, 0.3), y = R(-0.5, 0.5) * th * prof(k0) * 0.96;
+      g.strokeStyle = `rgba(0,0,0,${R(0.45, 1)})`; g.lineWidth = R(0.6, 3.2) * u / 700;
+      g.beginPath(); g.moveTo(x0, y + Math.sin(k0 * 5) * th * 0.05); g.lineTo(x0 + len, y * 0.9 + Math.sin((k0 + len / L) * 5) * th * 0.05); g.stroke();
+    }
+    g.globalCompositeOperation = 'source-over';
+    // 泼溅：顺着笔势甩出去的墨点，近大远小
+    for (let i = 0; i < 46; i++) {
+      const k = Math.pow(Math.random(), 0.7), x = -L / 2 + k * L * 1.05, y = (Math.random() < 0.5 ? -1 : 1) * th * R(0.6, 1.9) * (0.5 + k * 0.7);
+      g.fillStyle = `rgba(16,12,10,${R(0.55, 0.92)})`; inkBlot(g, x, y, u * R(0.003, 0.018) * (1.2 - k * 0.6), 1, 0.5);
+    }
+    g.restore();
+    // 晕染：墨沿着笔画往纸里洇开的淡墨，再点几处朱砂的洇痕
+    const w = wash.getContext('2d');
+    w.save(); w.translate(W / 2, cy); w.rotate(ang);
+    for (let i = 0; i < 26; i++) {
+      const x = R(-0.5, 0.42) * L, y = R(-0.9, 0.9) * th, r = Math.max(th, u * 0.08) * R(0.5, 1.1);
+      const gr = w.createRadialGradient(x, y, 0, x, y, r);
+      const a = R(0.1, 0.24); gr.addColorStop(0, `rgba(24,20,18,${a})`); gr.addColorStop(0.6, `rgba(30,26,24,${a * 0.45})`); gr.addColorStop(1, 'rgba(30,26,24,0)');
+      w.fillStyle = gr; w.beginPath(); w.ellipse(x, y, r * R(1, 1.8), r * R(0.5, 0.9), R(-0.3, 0.3), 0, 7); w.fill();
+    }
+    w.restore();
+    for (let i = 0; i < 9; i++) {
+      const x = W * R(0.12, 0.88), y = H * R(0.2, 0.8), r = u * R(0.05, 0.14);
+      const gr = w.createRadialGradient(x, y, 0, x, y, r); gr.addColorStop(0, `rgba(170,20,10,${R(0.1, 0.2)})`); gr.addColorStop(1, 'rgba(170,20,10,0)');
+      w.fillStyle = gr; w.beginPath(); w.arc(x, y, r, 0, 7); w.fill();
+    }
+    for (let i = 0; i < 30; i++) { w.fillStyle = `rgba(168,18,10,${R(0.5, 0.9)})`; inkBlot(w, W * R(0.06, 0.94), H * R(0.1, 0.9), u * R(0.002, 0.012), 1, 0.5); }
+  }
+  function mateChar(ch, px) {
+    const S = Math.min(820, Math.round(px * Math.min(2, devicePixelRatio || 1)));
+    const draw = () => {
+      const c = document.createElement('canvas'); c.width = c.height = S;
+      const g = c.getContext('2d');
+      g.font = `${Math.round(S * 0.86)}px "XK", ${Board.FONT}`; g.textAlign = 'center'; g.textBaseline = 'middle';
+      g.fillStyle = '#b5150b'; g.fillText(ch, S / 2, S * 0.53);
+      // 浓淡：蘸饱了的地方朱砂发沉，带干了的地方发亮
+      g.globalCompositeOperation = 'source-atop';
+      for (let i = 0; i < 14; i++) { const x = R(0.15, 0.85) * S, y = R(0.15, 0.85) * S, r = R(0.08, 0.22) * S; const gr = g.createRadialGradient(x, y, 0, x, y, r); const dark = Math.random() < 0.6; gr.addColorStop(0, dark ? `rgba(110,8,4,${R(0.3, 0.6)})` : `rgba(214,48,30,${R(0.25, 0.5)})`); gr.addColorStop(1, 'rgba(150,12,6,0)'); g.fillStyle = gr; g.fillRect(0, 0, S, S); }
+      // 飞白：顺着运笔方向的几束干笔丝
+      g.globalCompositeOperation = 'destination-out'; g.lineCap = 'round';
+      for (let k = 0; k < 7; k++) {
+        const cx = R(0.2, 0.8) * S, cy = R(0.2, 0.8) * S, a = -0.5 + R(-0.5, 0.5), len = R(0.18, 0.42) * S, wd = R(0.03, 0.09) * S, n = 5 + Math.floor(Math.random() * 9);
+        for (let i = 0; i < n; i++) {
+          const o = R(-0.5, 0.5) * wd, l = len * R(0.5, 1);
+          g.strokeStyle = `rgba(0,0,0,${R(0.35, 0.85)})`; g.lineWidth = R(0.6, 2.2) * S / 500;
+          g.beginPath(); g.moveTo(cx - Math.cos(a) * l / 2 - Math.sin(a) * o, cy - Math.sin(a) * l / 2 + Math.cos(a) * o); g.lineTo(cx + Math.cos(a) * l / 2 - Math.sin(a) * o, cy + Math.sin(a) * l / 2 + Math.cos(a) * o); g.stroke();
+        }
+      }
+      return c;
+    };
+    const tx = draw(); tx.className = 'tx';
+    const bl = document.createElement('canvas'); bl.width = bl.height = Math.round(S / 3); bl.className = 'bl';
+    const bg = bl.getContext('2d'); bg.drawImage(tx, 0, 0, bl.width, bl.height);
+    const el = document.createElement('span'); el.className = 'ch'; el.style.width = el.style.height = px + 'px'; el.style.setProperty('--bl', Math.max(5, px * 0.035) + 'px');
+    el.append(bl, tx);
+    return el;
+  }
+  // 行书字体要先载入，画布上才写得出来（开局横幅没出过的话它还没被用到）
+  const xkReady = t => { try { return Promise.race([document.fonts.load('64px "XK"', t), new Promise(r => setTimeout(r, 600))]); } catch (e) { return Promise.resolve(); } };
+  setTimeout(() => xkReady('绝杀困毙'), 1500);
+  async function mateSplash(text, sideInCheck) {
+    await xkReady(text);
+    const el = document.getElementById('mate'), mw = el.querySelector('.mw');
+    const n = text.length, portrait = innerHeight > innerWidth * 1.1;
+    const px = Math.round(portrait ? Math.min(innerWidth * [0, 0.84, 0.84, 0.74, 0.62][n], innerHeight * 0.82 / n) : Math.min(innerWidth * 0.96 / n, innerHeight * [0, 0.72, 0.72, 0.62, 0.52][n]));
+    el.classList.remove('show');
+    mw.textContent = ''; mw.classList.toggle('col', portrait);
+    [...text].forEach((ch, i) => {
+      const c = mateChar(ch, px); const r = (i % 2 ? 1 : -1) * R(2, 5);
+      c.style.setProperty('--r0', -r * 2.5 + 'deg'); c.style.setProperty('--r1', r * 0.6 + 'deg');
+      c.style.animationDelay = (0.16 + i * (n > 2 ? 0.2 : 0.3)).toFixed(2) + 's';
+      c.querySelector('.bl').style.animationDelay = (0.3 + i * (n > 2 ? 0.2 : 0.3)).toFixed(2) + 's';
+      if (portrait) c.style.margin = `${-px * 0.07}px 0`;
+      mw.append(c);
+    });
+    mateInk(el, portrait, px, n);
+    void el.offsetWidth; el.classList.add('show');
+    clearTimeout(mateSplash.t); mateSplash.t = setTimeout(() => el.classList.remove('show'), 3700);
+    // 鼓点：一笔扫过一声，之后一字一记，最后一字加锣
+    const step = n > 2 ? 0.2 : 0.3;
+    Sfx.B.taiko(0.02, 0.7, 0.9);
+    for (let i = 0; i < n; i++) Sfx.B.taiko(0.16 + i * step, i === n - 1 ? 1 : 0.9, i === n - 1 ? 0.7 : 0.85);
+    Sfx.B.gong(0.18 + (n - 1) * step, 0.9); Sfx.B.clang(0.18 + (n - 1) * step, 0.5);
     const k = [...Board.pieces.values()].find(x => x.userData.t === 'k' && x.userData.s === sideInCheck), kp = k ? k.position.clone() : new V3();
-    setTimeout(() => { Cam.shake(0.16); if (k) P.ink(kp.clone().setY(TOP + 0.2), 8, 0.6, 0.35, 0.8); }, 60);
-    setTimeout(() => { Cam.shake(0.34); flash(kp, 40, 0.5, 0.5); if (k) { ring(kp, 3.2, 1.1, 0xb0301f, 0.95); P.ink(kp.clone().setY(TOP + 0.2), 16, 0.8, 0.45, 0.9); } }, 390);
+    setTimeout(() => { Cam.shake(0.16); if (k) P.ink(kp.clone().setY(TOP + 0.2), 8, 0.6, 0.35, 0.8); }, 160);
+    setTimeout(() => { Cam.shake(0.34); flash(kp, 40, 0.5, 0.5); if (k) { ring(kp, 3.2, 1.1, 0xb0301f, 0.95); P.ink(kp.clone().setY(TOP + 0.2), 16, 0.8, 0.45, 0.9); } }, (0.18 + (n - 1) * step) * 1000);
   }
   function checkStamp(sideInCheck, text, mateName) {
-    if (text === '殺' || text === '困') { mateSplash(text === '殺' ? '绝杀' : '困毙', text === '殺' ? mateName : '', sideInCheck); return; }
+    if (text === '殺' || text === '困') { mateSplash(text === '困' ? '困毙' : MATE_NAMED.has(mateName) ? mateName : '绝杀', sideInCheck); return; }
     const el = document.getElementById('stamp');
     el.textContent = text || (sideInCheck === 'b' ? '將' : '帥');
     el.classList.remove('show'); void el.offsetWidth; el.classList.add('show');

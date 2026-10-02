@@ -78,6 +78,7 @@ const Core = (() => {
   // ---------- 镜头 ----------
   const Cam = {
     target: new THREE.Vector3(0, 0, 0.2),
+    home0: new THREE.Vector3(0, 0, 0.2),
     theta: 0, phi: 0.72, radius: 14.5,
     homeTheta: 0,
     cine: false,
@@ -93,6 +94,7 @@ const Core = (() => {
     setSide(side) {
       this.homeTheta = side === 'b' ? Math.PI : 0;
       this.theta = this.homeTheta; this.phi = 0.72;
+      this.target.copy(this.home0);
       this.radius = this.fitRadius();
       this.pos.copy(this.orbitPos()); this.look.copy(this.target);
     },
@@ -116,6 +118,13 @@ const Core = (() => {
       this.cine = false;
     },
     shake(a) { this.shakeAmp = Math.max(this.shakeAmp, a); },
+    // 平移：沿屏幕的左右 / 前后在地面上挪动注视点（dx、dy 是屏幕像素）
+    panBy(dx, dy) {
+      const k = this.radius * 0.0016, c = Math.cos(this.theta), s = Math.sin(this.theta);
+      this.target.x += (-dx * c - dy * s) * k; this.target.z += (dx * s - dy * c) * k;
+      this.target.x = Math.max(-9, Math.min(9, this.target.x)); this.target.z = Math.max(-10, Math.min(10.4, this.target.z));
+    },
+    get panned() { return Math.hypot(this.target.x - this.home0.x, this.target.z - this.home0.z) > 0.12; },
     update(dt) {
       if (!this.cine) {
         const p = this.orbitPos();
@@ -136,19 +145,26 @@ const Core = (() => {
 
   // 鼠标/触屏 旋转缩放
   (function orbitInput() {
-    let drag = null, pinch = null;
-    canvas.addEventListener('pointerdown', e => { drag = { x: e.clientX, y: e.clientY, moved: 0, id: e.pointerId }; });
+    let drag = null, pinch = null, mid = null, twoF = false;
+    // 鼠标中键按住拖动 = 平移画面（挡掉浏览器自带的中键滚动）
+    canvas.addEventListener('mousedown', e => { if (e.button === 1) e.preventDefault(); });
+    canvas.addEventListener('auxclick', e => { if (e.button === 1) e.preventDefault(); });
+    canvas.addEventListener('pointerdown', e => {
+      if (e.pointerType === 'mouse' && e.button === 1) { drag = { x: e.clientX, y: e.clientY, moved: 99, id: e.pointerId, pan: true }; try { canvas.setPointerCapture(e.pointerId); } catch (err) { } return; }
+      drag = { x: e.clientX, y: e.clientY, moved: 0, id: e.pointerId }; twoF = false;
+    });
     window.addEventListener('pointermove', e => {
       if (!drag || e.pointerId !== drag.id || Cam.cine) return;
       const dx = e.clientX - drag.x, dy = e.clientY - drag.y;
       drag.moved += Math.abs(dx) + Math.abs(dy);
       drag.x = e.clientX; drag.y = e.clientY;
+      if (drag.pan) { Cam.panBy(dx, dy); return; }
       if (drag.moved > 6) {
         Cam.theta -= dx * 0.005;
         Cam.phi = Math.min(1.35, Math.max(0.25, Cam.phi - dy * 0.004));
       }
     });
-    window.addEventListener('pointerup', () => { Core.lastDragMoved = drag ? drag.moved : 0; drag = null; });
+    window.addEventListener('pointerup', () => { Core.lastDragMoved = drag ? drag.moved : twoF ? 99 : 0; drag = null; });
     canvas.addEventListener('wheel', e => {
       if (Cam.cine) return;
       Cam.radius = Math.min(30, Math.max(7, Cam.radius * (1 + Math.sign(e.deltaY) * 0.08)));
@@ -156,12 +172,14 @@ const Core = (() => {
     }, { passive: false });
     canvas.addEventListener('touchmove', e => {
       if (e.touches.length === 2) {
-        const d = Math.hypot(e.touches[0].clientX - e.touches[1].clientX, e.touches[0].clientY - e.touches[1].clientY);
-        if (pinch) Cam.radius = Math.min(30, Math.max(7, Cam.radius * pinch / d));
-        pinch = d; drag = null;
+        const [a, b] = e.touches;
+        const d = Math.hypot(a.clientX - b.clientX, a.clientY - b.clientY), cx = (a.clientX + b.clientX) / 2, cy = (a.clientY + b.clientY) / 2;
+        if (pinch && !Cam.cine) Cam.radius = Math.min(30, Math.max(7, Cam.radius * pinch / d));
+        if (mid && !Cam.cine) Cam.panBy(cx - mid.x, cy - mid.y);      // 双指一起拖 = 平移画面
+        pinch = d; mid = { x: cx, y: cy }; drag = null; twoF = true;
       }
     }, { passive: true });
-    canvas.addEventListener('touchend', () => { pinch = null; });
+    canvas.addEventListener('touchend', () => { pinch = null; mid = null; });
   })();
 
   // ---------- 主循环 ----------
@@ -170,7 +188,7 @@ const Core = (() => {
   function loop() {
     requestAnimationFrame(loop);
     const raw = Math.min(clock.getDelta(), 0.05);
-    const dt = raw * (Time.skip ? 14 : Time.scale) * Time.boost;
+    const dt = Time.hold ? 0 : raw * (Time.skip ? 14 : Time.scale) * Time.boost;   // hold：暂停，演出全部定住
     Time.t += dt;
     for (const u of Array.from(updaters)) u(dt);
     for (const h of frameHooks) h(dt, raw);

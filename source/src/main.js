@@ -5,6 +5,28 @@
   document.getElementById('paper').style.backgroundImage = `url(${Core.Tex.paperNoise})`;
   const NAME = { r: '刘邦', b: '项羽' }, SEAL = { r: '漢', b: '楚' }, SIDE_CN = { r: '汉', b: '楚' };
   const PHRASES = ['好棋！', '快些落子，莫要拖延！', '竖子，不足与谋！', '尔等已是瓮中之鳖。', '胜败乃兵家常事。', '此局，天命在我。', '且慢，容我三思。', '再来一局，决一雌雄！'];
+  // 更新说明（设置里、大厅底部点「更新」查看；最新的放最前）
+  const NEWS = [
+    ['第四版', '2026 年 10 月', [
+      '棋子：银、金顶面的高光收小，远看和白玉分得开；白玉压暗，玉面刻云纹',
+      '兵法：兵种升级后改称号（汉军兵 → 汉伍长 → 汉什长 → 无当飞军…），晋升有题签',
+      '兵法：四级兵的「神速营」改为被动，直接走；士「铁甲禁卫」可在九宫内上下左右走；马「踏营」只能在敌方半场用',
+      '兵法：鸿门宴持续 3 回合，汉士护驾可破（樊哙闯帐）；四面楚歌期间楚军只有将能走，其余只能吃掉将军的子，且不算将军',
+      '兵法：鸿门宴、四面楚歌有全屏特效——四周变模糊，被困的子脚下缠锁链',
+      '可走的位置改成会呼吸的淡绿墨点，并有一道流动的墨带指过去',
+      '绝杀：满屏朱砂手书，下出马后炮、卧槽马这类杀法会直接写出名字',
+      '计时：显示每步倒计时；最后 10 秒屏幕中央出大字、四周泛红，本方观战兵坐立不安',
+      '营帐旁的火炬轮到哪一方才点亮；连杀三子，观战兵会冲上棋盘嘲讽',
+      '战场：击杀腾起血雾，血迹、焦土、裂痕的大小形状都随机，同一处反复厮杀会越打越黑',
+      '马、车、象行进扬尘；帅将出行有随从擎旗；士改持带刺巨盾，四级士换金甲；炮击带一点辉光',
+      '操作：鼠标中键拖动（手机双指拖动）可平移画面，「視」闪烁时点一下归位',
+      '新增「停」暂停键（联机每人 3 次、每次最多 2 分钟）；认输、退出、画面档位收进「設」',
+      '开场白新增两套并可跳过；棋谱默认收起；常规对局可选棋子款式；可改用兵种模型代替棋子',
+    ]],
+    ['第三版', '', ['断线后回到对局、对局结束后复盘', '升级棋子材质重做（乌银、錾金、白玉）']],
+    ['第二版', '', ['兵法模式：军功、升级、兵种技能、鸿门宴与四面楚歌', '揭棋模式、人机对战、观战席']],
+    ['第一版', '', ['三维水墨棋盘、兵种战斗演出、联机对战']],
+  ];
   const REASON = { checkmate: '将死', stalemate: '困毙', resign: '认输', timeout: '超时', draw: '四十回合无吃子' };
   const LV = { easy: '新兵', mid: '校尉', hard: '霸王' };
   const VIS = ['cine', 'std', 'low'], VISNAME = { cine: '完整电影镜头', std: '精简特效', low: '低特效' }, VISBADGE = { cine: '影', std: '简', low: '低' };
@@ -32,7 +54,6 @@
     Sfx.setVol('music', S.vMusic / 100 * 0.9); Sfx.setVol('sfx', S.vSfx / 100);
     Net.custom = S.server || '';
     for (const k of ['music', 'vMusic', 'vSfx', 'voice', 'vis', 'gore', 'server', 'speed']) store.set(k, S[k]);
-    $('visLv').textContent = VISBADGE[S.vis];
   }
   Net.custom = S.server || '';
   Core.Time.boost = +S.speed || 1.5;
@@ -412,8 +433,77 @@
     Camp.restless(urgent ? urgent.side : null);
   }
   // 暂停中（见下面的暂停功能）
-  let pause = null;
+  // 人机 / 本地：随便停。联机：每人每局 3 次，每次最多 2 分钟，双方时钟都停；到点自动继续，暂停的一方可以提前继续
+  const PAUSE_MAX = 3, PAUSE_MS = 120000;
+  let introSkip = null;
+  const INTROS = [
+    [['r', '汉王刘邦在此！项籍，可敢一战？', 'r_start', 2], ['b', '吾乃西楚霸王！谁敢挡我！', 'b_start', 1.8]],
+    [['b', '哟，是汉中王来了。', 'b_start2', 1.8], ['r', '托项王的福，汉中的栈道，寡人已经修好了。', 'r_start2', 2.4]],
+    [['b', '天下匈匈数岁者，徒以吾两人耳。愿与汉王挑战，决一雌雄！', 'b_start3', 3.2], ['r', '吾宁斗智，不能斗力。', 'r_start3', 1.8]],
+  ];
+  let pause = null, pauseUsed = { r: 0, b: 0 };
   const paused = () => !!pause;
+  const mmss = ms => { const t = Math.max(0, Math.ceil(ms / 1000)); return Math.floor(t / 60) + ':' + String(t % 60).padStart(2, '0'); };
+  const myPause = () => !!pause && (pause.by === 'me' || (!watching() && pause.by === mySide));
+  function paintPause() {
+    const ov = $('pauseOv');
+    ov.classList.toggle('hidden', !pause);
+    if (!pause) return;
+    const mine = myPause();
+    ov.classList.toggle('opp', !mine);
+    for (const id of ['pzResign', 'pzSet']) $(id).classList.toggle('hidden', watching());
+    let txt = '';
+    if (pause.by === 'me') txt = '棋局已停，计时也停了';
+    else {
+      const left = mmss(pause.until - performance.now());
+      txt = mine ? `对手也在等你 · ${left} 后自动继续 · 本局还可暂停 ${PAUSE_MAX - pauseUsed[mySide]} 次`
+        : `${SIDE_CN[pause.by]}方叫了暂停 · 最多 ${left} 后继续`;
+    }
+    $('pzInfo').textContent = txt;
+  }
+  function setPause(p) {
+    const was = !!pause;
+    pause = p; Core.Time.hold = !!p;
+    if (was && !p) clock.last = performance.now();
+    paintPause();
+  }
+  function resumeGame() {
+    if (!pause) return;
+    if (online() && pause.by === mySide) Net.send({ t: 'pause', on: 0, side: mySide });
+    setPause(null);
+  }
+  function togglePause() {
+    if (pause) {
+      if (myPause()) resumeGame();
+      else toast('对手暂停中，由对手决定何时继续');
+      return;
+    }
+    if (!mode || !started || ended || game.result || Ending.running || RP) return;
+    if (watching()) { toast('观战席不能叫暂停'); return; }
+    if (online()) {
+      if (netDown()) { toast('对手不在线，计时本来就停着'); return; }
+      if (pauseUsed[mySide] >= PAUSE_MAX) { toast(`本局 ${PAUSE_MAX} 次暂停已经用完`); return; }
+      pauseUsed[mySide]++;
+      Net.send({ t: 'pause', on: 1, side: mySide, ms: PAUSE_MS, used: pauseUsed[mySide] });
+      setPause({ by: mySide, until: performance.now() + PAUSE_MS });
+    } else setPause({ by: 'me', until: 0 });
+  }
+  // 对手（或观战时任一方）发来的暂停 / 继续
+  function onPause(d, side) {
+    if (d.on) {
+      if (ended || !started) return;
+      if (d.used != null) pauseUsed[side] = d.used;
+      closeAsk();
+      setPause({ by: side, until: performance.now() + Math.min(PAUSE_MS, +d.ms || PAUSE_MS) + 1500 });
+      if (!watching()) toast('对手叫了暂停', 2200);
+    } else if (pause && pause.by === side) { setPause(null); toast('棋局继续', 1500); }
+  }
+  // 同步局面时带上暂停次数和正在进行的暂停
+  function applyPz(st) {
+    if (st.pz) pauseUsed = { r: 0, b: 0, ...st.pz };
+    if (st.pzn && st.pzn.ms > 500 && !st.result) { if (!(pause && pause.by === st.pzn.side)) setPause({ by: st.pzn.side, until: performance.now() + st.pzn.ms }); }
+    else if (pause && pause.until && !myPause()) setPause(null);
+  }
 
   // ---------- 计时 ----------
   let lastTickSec = -1;
@@ -423,6 +513,7 @@
     if (!started || ended || game.result || !mode) return;
     const s = game.turn;
     const mine = mode === 'local' || mode === 'ai' || mode === 'watch' || s === mySide;
+    if (pause) { if (pause.until && t > pause.until) { if (myPause()) resumeGame(); else setPause(null); } else paintPause(); return; }
     const paused = busy || Ending.running || netDown();
     if (mine && !paused) {
       if (opts.total) clock[s] -= dt;
@@ -508,7 +599,7 @@
     mode = m; mySide = side; opts = { ...o }; ended = false; started = false; lobbySpin = false;
     if ((m === 'local' || m === 'ai') && !state) store.del('resume');
     resumeKey = '';
-    game = mkGame(opts, state && state.layout); undoUsed = { r: 0, b: 0 }; pendingUndo = null;
+    game = mkGame(opts, state && state.layout); undoUsed = { r: 0, b: 0 }; pendingUndo = null; pauseUsed = { r: 0, b: 0 }; setPause(null);
     resetClocks();
     clearFinale(); Camp.reset();
     Board.setPosition(game); Fx.clearMarks(); Fx.ply = 0;
@@ -523,7 +614,7 @@
     $('lobby').classList.add('hidden'); $('hud').classList.remove('hidden');
     $('netbadge').classList.add('hidden');
     Core.Cam.moveId = (Core.Cam.moveId || 0) + 1;
-    for (const id of ['tUndo', 'tResign']) $(id).classList.toggle('hidden', m === 'watch');
+    for (const id of ['tUndo', 'tResign', 'tPause']) $(id).classList.toggle('hidden', m === 'watch');
     $('tLaugh').classList.toggle('hidden', m !== 'watch');
     setupChat();
     $('log').classList.add('hidden');   // 棋谱默认收起，点「譜」才展开
@@ -539,9 +630,15 @@
       if (game.jq) sub = '揭棋 · ' + sub;
       if (game.bf) sub = '兵法 · ' + sub;
       banner('楚汉相争', sub, 2700);
-      await Core.sleep(2.5);
-      bubble('r', '汉王刘邦在此！项籍，可敢一战？', 3000); await Voice.play('r_start', { minDur: 2 });
-      bubble('b', '吾乃西楚霸王！谁敢挡我！', 3000); await Voice.play('b_start', { minDur: 1.8 });
+      // 开场白三套随机；随时可以点「跳过」（或按空格）直接开局
+      let skipIntro; const skipP = new Promise(r => { skipIntro = r; });
+      introSkip = () => { introSkip = null; Voice.cancel(); $('banner').classList.remove('on'); for (const id of ['bubMe', 'bubOpp']) $(id).classList.remove('on'); skipIntro(true); };
+      $('skip').classList.remove('hidden'); $('skip').textContent = '跳过开场 ▸▸';
+      const say = async (side, text, id, min) => { if (!introSkip || mode !== m) return; bubble(side, text, 3600); await Promise.race([Voice.play(id, { minDur: min }), skipP]); };
+      await Promise.race([Core.sleep(2.5), skipP]);
+      const v = INTROS[Math.floor(Math.random() * INTROS.length)];
+      for (const [side, text, id, min] of v) await say(side, text, id, min);
+      introSkip = null; if (!busy && !Ending.running) $('skip').classList.add('hidden');
     }
     if (mode !== m) return;
     if (game.jq && !game.history.length && intro) { bubble('r', '十五子尽数扣下，翻开方知是何兵马！', 2600); await Core.sleep(1.2); }
@@ -556,7 +653,7 @@
     const G = RP ? RP.real : game; // 复盘中也发真实棋局
     const jq = G.jq && JK ? { gid: JK.gid, cin: JC.cin, cout: JC.cout } : undefined;
     const bfe = G.bf ? G.entries : undefined;
-    return { v: 2, code: Net.code, opts, hostSide, jq, bfe, moves: G.bf ? [] : G.history.map(h => ({ from: h.from, to: h.to, rv: h.rv, cj: h.cj })), result: G.result, undo: { ...undoUsed }, clk: { r: clock.r, b: clock.b }, step: clock.step, t: Date.now() };
+    return { v: 2, code: Net.code, opts, hostSide, jq, bfe, moves: G.bf ? [] : G.history.map(h => ({ from: h.from, to: h.to, rv: h.rv, cj: h.cj })), result: G.result, undo: { ...undoUsed }, clk: { r: clock.r, b: clock.b }, step: clock.step, t: Date.now(), pz: { ...pauseUsed }, pzn: pause && pause.until ? { side: pause.by, ms: Math.max(0, pause.until - performance.now()) } : null };
   }
   function applyState(st) {
     game = mkGame(opts, st.layout || (game && game.opts && game.opts.layout));
@@ -564,7 +661,7 @@
     if (game.bf) for (const e of st.bfe || []) { if (!game.apply(e)) break; }
     else for (const m of st.moves || []) game.play({ from: m.from, to: m.to, rv: m.rv, cj: m.cj });
     if (st.result) game.result = st.result;
-    undoUsed = { r: 0, b: 0, ...(st.undo || {}) };
+    undoUsed = { r: 0, b: 0, ...(st.undo || {}) }; applyPz(st);
     if (st.clk && ((st.moves || []).length || (st.bfe || []).length)) { clock.r = st.clk.r; clock.b = st.clk.b; }
     if (st.step != null) clock.step = st.step;
     jqLearnAll();
@@ -814,7 +911,7 @@
     if (ended) return;
     ended = true; endSkip = false;
     const skipP = new Promise(r => { endSkipRes = r; });
-    cancelAI();
+    cancelAI(); setPause(null);
     closeAsk(); Board.clearMoves();
     updateHud(); publish(); saveResume(true);
     $('skip').classList.remove('hidden'); $('skip').textContent = '跳过结算 ▸▸';
@@ -1682,6 +1779,7 @@
         break;
       case 'resign': { const r = game.resign(d.side); if (r) { toast('对手认输'); finishGame(r); } break; }
       case 'timeout': { const r = game.timeout(d.side); if (r) { toast('对手超时'); finishGame(r); } break; }
+      case 'pause': onPause(d, other(mySide)); break;
       case 'emote': emote(other(mySide), d.i ?? null, typeof d.text === 'string' ? d.text.replace(/[<>]/g, '').slice(0, 24) : ''); break;
       case 'bye': toast('对手离开了房间', 3000); break;
     }
@@ -1703,12 +1801,12 @@
     const same = (a, b) => a.from[0] === b.from[0] && a.from[1] === b.from[1] && a.to[0] === b.to[0] && a.to[1] === b.to[1];
     const prefix = (a, b) => a.length <= b.length && a.every((m, i) => same(m, b[i]));
     // 我请求的悔棋对方已经同意、但“同意”的消息丢了：对方棋局正好少了这几步 → 照样悔棋
-    if (pendingUndo && pendingUndo.side === mySide && prefix(theirs, mine) && mine.length - theirs.length === pendingUndo.plies) { applyUndo(pendingUndo.plies, mySide); undoUsed = { r: 0, b: 0, ...(st.undo || {}) }; updateHud(); return; }
+    if (pendingUndo && pendingUndo.side === mySide && prefix(theirs, mine) && mine.length - theirs.length === pendingUndo.plies) { applyUndo(pendingUndo.plies, mySide); undoUsed = { r: 0, b: 0, ...(st.undo || {}) }; applyPz(st); updateHud(); return; }
     if (prefix(mine, theirs)) { for (const m of theirs.slice(mine.length)) doMove({ from: m.from, to: m.to, rv: m.rv, cj: m.cj }, true); }
     else if (prefix(theirs, mine) && mine.length - theirs.length === 1 && game.turn !== mySide) { const m = mine[mine.length - 1]; Net.send({ t: 'move', n: mine.length - 1, from: m.from, to: m.to, clk: clock[mySide] }); }
     else if (prefix(theirs, mine) && mine.length - theirs.length === 1 && game.turn === mySide) { /* 对方自己的那步还没落定（揭棋等揭示），不回滚，等它补上 */ }
     else { applyState(st); }
-    undoUsed = { r: 0, b: 0, ...(st.undo || {}) };
+    undoUsed = { r: 0, b: 0, ...(st.undo || {}) }; applyPz(st);
     if (st.result && !game.result) { game.result = st.result; finishGame(st.result); }
     updateHud();
   }
@@ -1833,6 +1931,7 @@
       data(d, ch) {
         const side = ch === 'h' ? hostSide : other(hostSide);
         if (d.t === 'emote') emote(side, d.i ?? null, cleanTxt(d.text));
+        else if (d.t === 'pause') onPause(d, side);
         else if (d.t === 'bye') toast(`${SIDE_CN[side]}方棋手离开了房间`);
       },
       spec: onSpec,
@@ -1864,7 +1963,7 @@
     const same = (a, b) => JSON.stringify(a) === JSON.stringify(b);
     const prefix = (a, b) => a.length <= b.length && a.every((x, i) => same(x, b[i]));
     // 我请求的悔棋对方已同意、但“同意”的消息丢了 → 照样悔棋
-    if (!watch && pendingUndo && pendingUndo.side === mySide && T.length < E.length && prefix(T, E) && T.length === bfUndoTarget(pendingUndo.plies)) { applyUndo(pendingUndo.plies, mySide); undoUsed = { r: 0, b: 0, ...(st.undo || {}) }; updateHud(); return; }
+    if (!watch && pendingUndo && pendingUndo.side === mySide && T.length < E.length && prefix(T, E) && T.length === bfUndoTarget(pendingUndo.plies)) { applyUndo(pendingUndo.plies, mySide); undoUsed = { r: 0, b: 0, ...(st.undo || {}) }; applyPz(st); updateHud(); return; }
     if (prefix(E, T)) { for (const e of T.slice(E.length)) if (!doBF(e, true)) { applyState(st); break; } }
     else if (prefix(T, E)) {
       const extra = game.sides.slice(T.length);
@@ -1877,7 +1976,7 @@
     } else applyState(st);
     if (st.clk) { clock.r = st.clk.r; clock.b = st.clk.b; }
     if (st.step != null) clock.step = st.step;
-    undoUsed = { r: 0, b: 0, ...(st.undo || {}) };
+    undoUsed = { r: 0, b: 0, ...(st.undo || {}) }; applyPz(st);
     if (st.result && !game.result) { game.result = st.result; finishGame(st.result); }
     updateHud();
   }
@@ -1904,7 +2003,7 @@
     } else if (!prefix(mine, theirs)) applyState(st);
     if (st.clk) { clock.r = st.clk.r; clock.b = st.clk.b; }
     if (st.step != null) clock.step = st.step;
-    undoUsed = { r: 0, b: 0, ...(st.undo || {}) };
+    undoUsed = { r: 0, b: 0, ...(st.undo || {}) }; applyPz(st);
     if (st.result && !game.result) { game.result = st.result; finishGame(st.result); }
     updateHud();
   }
@@ -2145,18 +2244,27 @@
   $('vMusic').oninput = e => { S.vMusic = +e.target.value; applySettings(); };
   $('vSfx').oninput = e => { S.vSfx = +e.target.value; applySettings(); };
   $('oServer').onchange = e => { S.server = e.target.value.trim(); applySettings(); };
-  $('tSet').onclick = $('bSetL').onclick = () => { repaintSegs($('mSet')); $('mSet').classList.remove('hidden'); };
+  const openSet = () => { repaintSegs($('mSet')); $('setGame').classList.toggle('hidden', !(mode && started)); $('tExit').textContent = watching() ? '离开观战席' : '退出对局'; $('mSet').classList.remove('hidden'); };
+  $('tSet').onclick = $('bSetL').onclick = $('pzSet').onclick = openSet;
   $('bSetClose').onclick = () => $('mSet').classList.add('hidden');
   $('bHelp').onclick = $('bHelpL').onclick = () => $('mHelp').classList.remove('hidden');
   $('bHelpClose').onclick = () => $('mHelp').classList.add('hidden');
+  $('bNews').onclick = $('bNewsL').onclick = () => {
+    $('newsBody').innerHTML = NEWS.map(([v, d, items]) => `<h4>${v}<small>${d}</small></h4><ul>${items.map(x => `<li>${x}</li>`).join('')}</ul>`).join('');
+    $('mSet').classList.add('hidden'); $('mNews').classList.remove('hidden');
+  };
+  $('bNewsClose').onclick = () => $('mNews').classList.add('hidden');
 
   // ---------- 对局按钮 ----------
   $('tUndo').onclick = requestUndo;
-  $('tView').onclick = () => { if (mode === 'local') setView(viewSide === 'r' ? 'b' : 'r'); else setView(viewSide); };
+  // 視：画面被平移过就先归位；本地对战再点一次才是换边看
+  $('tView').onclick = () => { if (mode === 'local' && !Core.Cam.panned) setView(viewSide === 'r' ? 'b' : 'r'); else setView(viewSide); };
+  setInterval(() => $('tView').classList.toggle('flash', !!mode && Core.Cam.panned && !Core.Cam.cine), 300);
+  $('tPause').onclick = togglePause; $('pzGo').onclick = () => togglePause();
   $('tLog').onclick = () => { const h = !$('log').classList.contains('hidden'); $('log').classList.toggle('hidden', h); if (!h) renderLog(); };
-  $('tVis').onclick = () => { S.vis = VIS[(VIS.indexOf(S.vis) + 1) % VIS.length]; applySettings(); toast(`画面：${VISNAME[S.vis]}`); };
-  $('tExit').onclick = async () => {
+  $('tExit').onclick = $('pzExit').onclick = async () => {
     if (!mode) return;
+    $('mSet').classList.add('hidden');
     let msg;
     if (watching()) msg = '离开观战席，回到大厅？';
     else if (mode === 'local' || mode === 'ai') msg = '退出本局、回到大厅？本局不计胜负。';
@@ -2164,22 +2272,29 @@
     const ok = await ask(watching() ? '离 席' : '退 出', msg, 0, watching() ? '离 开' : '退 出', '再想想');
     if (ok) leaveGame();
   };
-  $('tResign').onclick = async () => {
-    if (!started || ended || game.result) return;
+  $('tResign').onclick = $('pzResign').onclick = async () => {
+    if (!started || ended || game.result || watching()) return;
+    $('mSet').classList.add('hidden');
     const side = actor();
     const ok = await ask('认 输', `确定${mode === 'local' ? SIDE_CN[side] + '方' : ''}认输吗？`, 0, '认 输', '再想想');
     if (!ok || game.result) return;
+    if (pause) resumeGame();
     const r = game.resign(side);
     if (online()) Net.send({ t: 'resign', side });
     finishGame(r);
   };
   const skipNow = () => {
-    if (Ending.running) Ending.skip();
+    if (introSkip) introSkip();
+    else if (Ending.running) Ending.skip();
     else if (ended && endSkipRes) { endSkip = true; Core.Time.skip = true; Voice.cancel(); endSkipRes(); }
     else if (busy) Core.Time.skip = true;
   };
   $('skip').onclick = skipNow;
-  window.addEventListener('keydown', e => { if (e.code === 'Space' && !/INPUT|TEXTAREA/.test(e.target.tagName)) { e.preventDefault(); skipNow(); } });
+  window.addEventListener('keydown', e => {
+    if (/INPUT|TEXTAREA/.test(e.target.tagName)) return;
+    if (e.code === 'Space') { e.preventDefault(); skipNow(); }
+    else if (e.code === 'KeyP' && !e.ctrlKey && !e.metaKey && !document.querySelector('.modal:not(.hidden)')) togglePause();
+  });
   window.addEventListener('beforeunload', () => { if (online()) Net.send({ t: 'bye' }); });
   applySettings();
 
