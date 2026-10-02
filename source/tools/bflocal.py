@@ -1,7 +1,7 @@
 """兵法同屏随机对局测试：python3 tools/bflocal.py [画面档 cine|std|low] [行动数] [种子] [开局军功]
 每步随机：可能先升级，再在 走子 / 兵种技能 / 主帅兵法 / 终极兵法 / 停着 里挑一个合法的执行。
 每步核对：无报错、动画结束、棋盘模型与规则状态一致（位置、甲片数 = 击杀数、头顶血条 = 生命、金星数 = 等级-1）、棋谱条数；最后悔棋再核对。"""
-import sys, time, pathlib, os, json
+import os, sys, time, pathlib, json
 from playwright.sync_api import sync_playwright
 lv = sys.argv[1] if len(sys.argv) > 1 else 'low'
 N = int(sys.argv[2]) if len(sys.argv) > 2 else 30
@@ -49,7 +49,7 @@ ok = True
 with sync_playwright() as p:
     b = p.chromium.launch(args=['--use-gl=angle', '--use-angle=swiftshader', '--enable-unsafe-swiftshader', '--ignore-gpu-blocklist'])
     pg = b.new_page(viewport={'width': 640, 'height': 400}); pg.set_default_timeout(120000)
-    pg.add_init_script("localStorage.setItem('xq3d-noaudio','1'); localStorage.setItem('xq3d-quality', JSON.stringify('low'));")
+    pg.add_init_script("localStorage.setItem('xq3d-noaudio','1'); localStorage.setItem('xq3d-quality', JSON.stringify('low'));" + ("localStorage.setItem('xq3d-models','1');" if os.environ.get('XQ_MODELS') else ''))
     logs = []
     pg.on('console', lambda m: logs.append(f'{m.type}: {m.text}') if m.type in ('error', 'warning') and 'GL Driver' not in m.text and 'deprecated' not in m.text else None)
     pg.on('pageerror', lambda e: logs.append(f'PAGEERROR: {e}'))

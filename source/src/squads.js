@@ -1189,6 +1189,7 @@ const Squads = (() => {
     function drop(m) {
       const st = map.get(m); if (!st) return;
       map.delete(m);
+      if (m.parent) showDisc(m, true);
       try { if (st.sq.flags) for (const f of st.sq.flags) scene.remove(f.group); if (st.sq.guard) st.sq.guard.dispose(); st.sq.dispose(); } catch (e) { }
     }
     function showDisc(m, show) {

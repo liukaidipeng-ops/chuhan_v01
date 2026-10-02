@@ -1729,6 +1729,7 @@
         else { restart(); Net.send({ t: 'restart', state: snapshot() }); }
         break;
       case 'move': {
+        if (introSkip) introSkip();   // 对手跳过开场先走了：我这边的开场白也收掉
         // 揭棋：对方没收到我的揭示而重发了这步 → 再发一次揭示
         if (lastJx && d.n === lastJx.n && d.n === game.history.length - 1) { Net.send(lastJx); return; }
         if (d.n !== game.history.length) { Net.send(mode === 'guest' ? { t: 'syncReq' } : { t: 'sync', state: snapshot() }); return; }
@@ -1743,6 +1744,7 @@
       }
       case 'jx': jqResolve(d); break;
       case 'bf': {
+        if (introSkip) introSkip();
         if (!game.bf) return;
         const E = game.entries;
         if (d.n < E.length && JSON.stringify(E[d.n]) === JSON.stringify(d.e)) return; // 重发的旧行动

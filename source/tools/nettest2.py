@@ -101,6 +101,23 @@ try:
         wait(lambda: ev(B, "document.getElementById('status').textContent.includes('轮到你')") and ev(B, IDLE), 40)
         ev(B, "window.__xq.doMove({from:[1,7],to:[1,3]})")
         check(wait(lambda: ev(A, 'window.__xq.game.history.length') == 2, 20), '刷新后继续对弈（黑方走子到达）')
+        # 暂停：加入方叫暂停 → 房主看到暂停幕、时钟停住、不能替对手继续；加入方继续 → 双方恢复；每人 3 次
+        wait(lambda: ev(A, IDLE) and ev(B, IDLE), 20)
+        HID = "document.getElementById('pauseOv').classList.contains('hidden')"
+        ev(B, "document.getElementById('tPause').click()")
+        check(wait(lambda: ev(A, "!" + HID + " && document.getElementById('pauseOv').classList.contains('opp')"), 10), '对手叫暂停：房主看到暂停幕，且没有「继续」按钮')
+        CL = "JSON.stringify([Math.round(window.__xq.clock.r), Math.round(window.__xq.clock.b), Math.round(window.__xq.clock.step)])"
+        c0 = ev(A, CL); time.sleep(2.5); c1 = ev(A, CL)
+        check(c0 == c1, f'暂停期间时钟不走（{c0}）')
+        ev(A, "document.getElementById('tPause').click()")
+        check(ev(A, "!" + HID), '房主点「停」不能解除对手的暂停')
+        ev(B, "document.getElementById('pzGo').click()")
+        check(wait(lambda: ev(A, HID) and ev(B, HID), 10), '叫暂停的一方继续后，双方都恢复')
+        for i in range(2):
+            ev(B, "document.getElementById('tPause').click()"); wait(lambda: ev(A, "!" + HID), 10)
+            ev(B, "document.getElementById('pzGo').click()"); wait(lambda: ev(A, HID), 10)
+        ev(B, "document.getElementById('tPause').click()"); time.sleep(0.8)
+        check(ev(B, HID) and ev(A, HID), '第 4 次暂停被拒绝（每人每局 3 次）')
         # 认输
         wait(lambda: ev(B, "!document.getElementById('skip').classList.contains('hidden')") == False, 20)
         B.evaluate("document.querySelector('#tResign').click()"); B.evaluate("document.querySelector('#askYes').click()")

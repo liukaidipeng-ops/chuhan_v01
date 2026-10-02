@@ -151,13 +151,16 @@ const Board = (() => {
   const goldM = new THREE.MeshStandardMaterial({ color: 0xc9a045, metalness: 0.45, roughness: 0.36 });
   const bronzeM = new THREE.MeshStandardMaterial({ color: 0x8a6a34, metalness: 0.55, roughness: 0.42 });
   const sideMat = len => { const t = lacquerTex.clone(); t.wrapS = THREE.RepeatWrapping; t.wrapT = THREE.ClampToEdgeWrapping; t.repeat.set(len, 1); t.needsUpdate = true; return new THREE.MeshStandardMaterial({ map: t, roughness: 0.32, metalness: 0.04 }); };
+  const boardTops = [];
   function makeHalf(isRed) {
     const depth = BZ - HALF;
     const g = new THREE.Group();
     const box = new THREE.Mesh(new THREE.BoxGeometry(2 * BX, 0.55, depth), [sideMat(depth), sideMat(depth), lacquerTop, lacquerTop, sideMat(2 * BX), sideMat(2 * BX)]);
     box.position.y = TOP - 0.275 - 0.002;
     box.receiveShadow = true; box.castShadow = true;
-    const topM = new THREE.MeshStandardMaterial({ map: drawHalf(isRed), roughness: 0.62 });
+    // 棋盘面：打磨过的缎面木器——底子偏哑，上面一层薄薄的清漆带柔和的反光（木纹起伏和环境反光在文件末尾 polishBoard 里补上）
+    const topM = new THREE.MeshPhysicalMaterial({ map: drawHalf(isRed), roughness: 0.56, clearcoat: 0.42, clearcoatRoughness: 0.4 });
+    boardTops.push(topM);
     const top = new THREE.Mesh(new THREE.PlaneGeometry(2 * BX, depth), topM);
     top.rotation.x = -Math.PI / 2; top.position.y = TOP;
     top.receiveShadow = true;
@@ -1578,6 +1581,19 @@ const Board = (() => {
     return null;
   }
 
+  // 棋盘面的质感：木纹做成细微起伏（顺纹的棕眼），再映一点柔光箱的环境反光——缎面 / 磨砂的光泽，不是镜面。低画质不做
+  (function polishBoard() {
+    if (LOWQ()) return;
+    try {
+      const hc = mkCanvas(1024, 1024, g => {
+        g.drawImage(Core.Tex.wood.image, 0, 0, 1024, 1024);
+        for (let i = 0; i < 1500; i++) { const x = rnd() * 1024, y = rnd() * 1024, L = 12 + rnd() * 60; g.strokeStyle = `rgba(30,18,8,${0.12 + rnd() * 0.25})`; g.lineWidth = 0.6 + rnd() * 0.9; g.beginPath(); g.moveTo(x, y); g.lineTo(x + L, y + (rnd() - 0.5) * 2); g.stroke(); }
+      });
+      const nm = dataTex(normalFrom(blurred(hc, 0.7), 1.5, false));
+      const env = studioEnv();
+      for (const m of boardTops) { m.normalMap = nm; m.normalScale = new THREE.Vector2(0.32, 0.32); if (env) { m.envMap = env; m.envMapIntensity = 0.3; } m.needsUpdate = true; }
+    } catch (e) { console.warn('polishBoard', e); }
+  })();
   return {
     root, TOP, PH, HALF, X, Z, pos, setPosition, pieces, piecesRoot, makePiece, faceViewer,
     showMoves, clearMoves, showZone, setGlow, showLast, pick, meshAt, get hovered() { return hovered; }, ringTex, glowTex, wakes, water, waterMat, decal, flatGeo, pine, deco, FONT,
