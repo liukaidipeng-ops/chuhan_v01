@@ -532,6 +532,7 @@ body.compact #log{width:164px;max-height:34vh}
       <div class="opt"><div class="lbl">悔棋<small>电脑总会同意</small></div><div class="seg" data-a="undo"><button data-v="0">不允许</button><button data-v="3">3 次</button><button data-v="99">不限</button></div></div>
       <div class="opt"><div class="lbl">总时长<small>每方，用完判负</small></div><div class="seg" data-a="total"><button data-v="0">不限</button><button data-v="15">15 分</button><button data-v="30">30 分</button></div></div>
       <div class="opt"><div class="lbl">每步时长<small>超时判负</small></div><div class="seg" data-a="step"><button data-v="0">不限</button><button data-v="30">30 秒</button><button data-v="60">1 分</button><button data-v="120">2 分</button></div></div>
+      <div class="opt"><div class="lbl">棋子款式</div><div class="seg" data-a="skin"><button data-v="0">木</button><button data-v="2">银</button><button data-v="3">金</button><button data-v="4">玉</button></div></div>
       <div class="opt"><div class="lbl">显示可击杀的子</div><div class="seg" data-a="hints"><button data-v="1">开</button><button data-v="0">关</button></div></div>
       <div class="row"><button class="btn red solid" id="bAIGo">开 战</button><button class="btn" id="bBack4">返 回</button></div>
     </div>
@@ -543,6 +544,7 @@ body.compact #log{width:164px;max-height:34vh}
       <div class="opt"><div class="lbl">悔棋<small>需对方同意</small></div><div class="seg" data-k="undo"><button data-v="0">不允许</button><button data-v="1">1 次</button><button data-v="3">3 次</button><button data-v="99">不限</button></div></div>
       <div class="opt"><div class="lbl">总时长<small>每方，用完判负</small></div><div class="seg" data-k="total"><button data-v="0">不限</button><button data-v="10">10 分</button><button data-v="15">15 分</button><button data-v="20">20 分</button><button data-v="30">30 分</button></div></div>
       <div class="opt"><div class="lbl">每步时长<small>超时判负</small></div><div class="seg" data-k="step"><button data-v="0">不限</button><button data-v="30">30 秒</button><button data-v="60">1 分</button><button data-v="120">2 分</button></div></div>
+      <div class="opt" id="optSkin"><div class="lbl">棋子款式<small>双方看到的一样</small></div><div class="seg" data-k="skin"><button data-v="0">木</button><button data-v="2">银</button><button data-v="3">金</button><button data-v="4">玉</button></div></div>
       <div class="opt"><div class="lbl">显示可击杀的子<small>选子时标出能吃的敌子</small></div><div class="seg" data-k="hints"><button data-v="1">开</button><button data-v="0">关</button></div></div>
       <div class="row"><button class="btn red solid" id="bCreateGo">创 建</button><button class="btn" id="bBack1">返 回</button></div>
     </div>
@@ -573,6 +575,7 @@ body.compact #log{width:164px;max-height:34vh}
 <div id="mSet" class="modal hidden"><div class="wrap"><div class="rod t"></div><div class="rod b"></div><div class="scroll">
   <h3>设 置</h3>
   <div class="opt"><div class="lbl">画面<small>镜头与战斗演出</small></div><div class="seg" data-s="vis"><button data-v="cine">完整电影镜头</button><button data-v="std">精简特效</button><button data-v="low">低特效</button></div></div>
+  <div class="opt"><div class="lbl">棋子显示<small>用兵种模型代替棋子</small></div><div class="seg" data-s="models"><button data-v="0">棋子</button><button data-v="1">兵种模型</button></div></div>
   <div class="opt"><div class="lbl">动画速度<small>走子与战斗演出的播放速度</small></div><div class="seg" data-s="speed"><button data-v="1">1×</button><button data-v="1.5">1.5×</button><button data-v="2">2×</button><button data-v="3">3×</button></div></div>
   <div class="opt"><div class="lbl">血腥程度</div><div class="seg" data-s="gore"><button data-v="3">高</button><button data-v="2">中</button><button data-v="1">低</button><button data-v="0">关</button></div></div>
   <div class="opt"><div class="lbl">背景音乐</div><div class="seg" data-s="music"><button data-v="zen">禅意</button><button data-v="war">战意</button><button data-v="off">关</button></div></div>

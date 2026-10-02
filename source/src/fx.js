@@ -847,7 +847,7 @@ const Fx = (() => {
       if (h.rv && piece && piece.h) { await flip(m, piece, 0.4); await tween(0.12, k => { m.position.y = TOP + 0.4 * (1 - k); }); m.position.y = TOP; }
     }
     if (h.cap) {
-      const cm = Board.makePiece(h.cap);
+      const cm = Board.makePiece(h.cap); if (!Board.lastGame || !Board.lastGame.bf) Board.dress(cm, h.cap);
       cm.rotation.y = Board.viewSide === 'b' ? Math.PI : 0;
       Board.piecesRoot.add(cm); Board.pieces.set(h.cap.id, cm);
       for (let i = 0; i < nn(14); i++) {

@@ -551,10 +551,21 @@ const Board = (() => {
   // 翻面：p 为暗子时扣上（显示漆背），否则显示字面
   function setFace(m, p) {
     const face = m.children[1]; if (!face) return;
-    face.material.map = p.h ? backTex(p.s, p.pt) : faceTex(p.s, p.t);
-    face.material.roughness = p.h ? 0.32 : 0.5;
-    face.material.needsUpdate = true;
+    const std = m.userData.faceStd || face.material;
+    std.map = p.h ? backTex(p.s, p.pt) : faceTex(p.s, p.t);
+    std.roughness = p.h ? 0.32 : 0.5;
+    std.needsUpdate = true;
     m.userData.t = p.h ? 'h' : p.t; m.userData.h = !!p.h;
+    if (pieceSkin && lastGame && !lastGame.bf) skinFace(m, p, pieceSkin);
+  }
+  // 常规 / 揭棋的棋子款式：0 木、2 乌银、3 錾金、4 白玉（和兵法升级用的是同一套材质）
+  let pieceSkin = 0;
+  function setSkin(v) { pieceSkin = [2, 3, 4].includes(+v) ? +v : 0; }
+  function dress(m, p) {
+    if (m.userData.deco) { m.remove(m.userData.deco); m.userData.deco = null; }
+    if (!pieceSkin) { m.userData.skinned = false; return; }
+    const d = new THREE.Group(); m.add(d); m.userData.deco = d;
+    applySkin(m, d, pieceSkin, p);
   }
 
   const pieces = new Map(); // id -> mesh
@@ -572,6 +583,7 @@ const Board = (() => {
       pieces.set(p.id, m);
     }
     if (game.bf) decorateAll(game);
+    else if (pieceSkin) for (let r = 0; r < 10; r++) for (let f = 0; f < 9; f++) { const p = game.board[r][f], m = p && pieces.get(p.id); if (m) dress(m, p); }
   }
 
   // ---------- 兵法：甲片（一片 = 1 点生命）、金星（每升一级一颗）、拒马木桩、鸿门宴、涣散 ----------
@@ -1099,6 +1111,7 @@ const Board = (() => {
   });
   function applySkin(m, d, lv, p) {
     const body = m.children[0], band = m.children[2];
+    m.userData.skinned = lv >= 2;
     if (lv < 2) { if (body) body.material = pieceWood; if (band) band.visible = true; skinFace(m, p, lv); return; }
     const S = levelSkins()[Math.min(4, lv)], vi = p && p.id != null ? Math.abs(p.id | 0) % 3 : 0; // 玉：每枚子的纹理、皮色各不相同
     if (body) body.material = S.bodies ? S.bodies[vi] : S.body;
@@ -1110,9 +1123,10 @@ const Board = (() => {
       d.add(new THREE.Mesh(topRingGeo, S.gold));
     }
     skinFace(m, p, lv);
+    for (const c of d.children) if (!c.userData.plate && !c.userData.hpBar) c.userData.skin = true;
     if (lv >= 3 && !LOWQ()) {
       const sp = new THREE.Sprite(new THREE.SpriteMaterial({ map: glintTex, color: lv >= 4 ? 0xfff6e0 : 0xffe6a8, transparent: true, opacity: 0, depthWrite: false, blending: THREE.AdditiveBlending }));
-      sp.userData = { t: 0, next: 1 + Math.random() * 5 }; sp.renderOrder = 7; d.add(sp); glints.add(sp);
+      sp.userData = { t: 0, next: 1 + Math.random() * 5, skin: true }; sp.renderOrder = 7; d.add(sp); glints.add(sp);
     }
   }
   // ---- 锁链（鸿门宴困住汉帅、四面楚歌困住楚军）：一圈环环相扣的铁环，平放在棋子脚下，缓缓转动 ----
@@ -1158,7 +1172,7 @@ const Board = (() => {
     if (m.userData.deco) { m.remove(m.userData.deco); m.userData.deco = null; }
     const face = m.children[1];
     const body = m.children[0];
-    if (!p || !p.lv) { if (body) body.material = pieceWood; if (m.children[2]) m.children[2].visible = true; skinFace(m, p, 0); if (face && face.material) face.material.color.set(o.dim ? 0x8f8a84 : 0xffffff); return; }
+    if (!p || !p.lv) { m.userData.skinned = false; if (body) body.material = pieceWood; if (m.children[2]) m.children[2].visible = true; skinFace(m, p, 0); if (face && face.material) face.material.color.set(o.dim ? 0x8f8a84 : 0xffffff); return; }
     const d = new THREE.Group(); m.add(d); m.userData.deco = d;
     const max = BF.hpOf(p.t, p.lv);
     // 棋身：一级木、二级乌银错花、三级錾金、四级羊脂白玉金丝嵌；升级后的字换成掐丝珐琅
@@ -1255,7 +1269,7 @@ const Board = (() => {
       m.position.copy(pos(f, r));
       m.rotation.set(0, Board.viewSide === 'b' ? Math.PI : 0, 0);
       if (m.userData.t !== p.t) setFace(m, p);
-      if (game.bf) decorate(m, p, decoOpts(game, p));
+      if (game.bf) decorate(m, p, decoOpts(game, p)); else if (pieceSkin && !m.userData.deco) dress(m, p);
     }
   }
   // 棋子朝向：让字朝向当前观看方
@@ -1567,6 +1581,6 @@ const Board = (() => {
   return {
     root, TOP, PH, HALF, X, Z, pos, setPosition, pieces, piecesRoot, makePiece, faceViewer,
     showMoves, clearMoves, showZone, setGlow, showLast, pick, meshAt, get hovered() { return hovered; }, ringTex, glowTex, wakes, water, waterMat, decal, flatGeo, pine, deco, FONT,
-    viewSide: 'r', skinTune, get SK() { return SK; }, pieceWood, RZ, BZ, BX, BRIDGE_X, faceTex, backTex, setFace, makeRiver, mtTex, decorate, decorateAll, reconcile, plateGeo, plateOn,
+    viewSide: 'r', setSkin, dress, get lastGame() { return lastGame; }, skinTune, get SK() { return SK; }, pieceWood, RZ, BZ, BX, BRIDGE_X, faceTex, backTex, setFace, makeRiver, mtTex, decorate, decorateAll, reconcile, plateGeo, plateOn,
   };
 })();

@@ -39,6 +39,7 @@
   };
   const S = {
     music: store.get('music', 'zen'), vMusic: store.get('vMusic', 55), vSfx: store.get('vSfx', 90), voice: store.get('voice', 1),
+    models: store.get('models', 0),
     vis: store.get('vis', store.get('fx', 1) === 0 ? 'low' : 'cine'), gore: store.get('gore', 3), server: store.get('server', ''),
     speed: store.get('speed', 1.5), // 动画播放速度
   };
@@ -50,10 +51,11 @@
 
   function applySettings() {
     Fx.level = S.vis; Fx.gore = +S.gore; Voice.enabled = !!+S.voice;
+    Squads.Stand.set(!!+S.models);
     Core.Time.boost = +S.speed || 1.5;
     Sfx.setVol('music', S.vMusic / 100 * 0.9); Sfx.setVol('sfx', S.vSfx / 100);
     Net.custom = S.server || '';
-    for (const k of ['music', 'vMusic', 'vSfx', 'voice', 'vis', 'gore', 'server', 'speed']) store.set(k, S[k]);
+    for (const k of ['music', 'vMusic', 'vSfx', 'voice', 'vis', 'gore', 'server', 'speed', 'models']) store.set(k, S[k]);
   }
   Net.custom = S.server || '';
   Core.Time.boost = +S.speed || 1.5;
@@ -602,6 +604,7 @@
     game = mkGame(opts, state && state.layout); undoUsed = { r: 0, b: 0 }; pendingUndo = null; pauseUsed = { r: 0, b: 0 }; setPause(null);
     resetClocks();
     clearFinale(); Camp.reset();
+    Board.setSkin(game.bf ? 0 : opts.skin);   // 棋子款式（木 / 银 / 金 / 玉）是开局选项，联机双方和观众一致
     Board.setPosition(game); Fx.clearMarks(); Fx.ply = 0;
     Board.clearMoves(); Board.showLast(null);
     if (state) applyState(state);
@@ -2043,7 +2046,7 @@
   const showPane = id => { panes.forEach(p => $(p).classList.toggle('hidden', p !== id)); if (id === 'pMain') paintResume(); };
   setTimeout(() => $('lobby').classList.remove('intro'), 3800);
   const VAR_NOTE = { std: '标准中国象棋', jq: '揭棋：十五子反扣，走动方知真身', bf: '兵法：升级、生命值、兵种技能与主帅兵法' };
-  const paintVar = () => { $('varNote').textContent = VAR_NOTE[ropts.v] || ''; };
+  const paintVar = () => { $('varNote').textContent = VAR_NOTE[ropts.v] || ''; $('optSkin').classList.toggle('hidden', ropts.v === 'bf'); };
   bindSeg($('pCreate'), 'data-k', k => ropts[k], (k, v) => { ropts[k] = k === 'side' || k === 'v' ? v : +v; store.set('ropts', ropts); if (k === 'v') paintVar(); });
   paintVar();
   bindSeg($('pAI'), 'data-a', k => aopts[k], (k, v) => { aopts[k] = k === 'side' ? v : +v; store.set('aopts', aopts); });
@@ -2056,7 +2059,7 @@
   $('bAIGo').onclick = () => {
     Sfx.init(); applySettings();
     const side = aopts.side === 'x' ? (Math.random() < 0.5 ? 'r' : 'b') : aopts.side;
-    startGame('ai', side, { undo: aopts.undo, total: aopts.total, step: aopts.step || 0, hints: aopts.hints, level: aopts.level });
+    startGame('ai', side, { undo: aopts.undo, total: aopts.total, step: aopts.step || 0, hints: aopts.hints, level: aopts.level, skin: aopts.skin || 0 });
   };
   $('bCreate').onclick = () => { createFor = 'host'; $('createTitle').textContent = '房 间 设 置'; $('bCreateGo').textContent = '创 建'; showPane('pCreate'); };
   $('bLocal').onclick = () => { createFor = 'local'; $('createTitle').textContent = '本 地 对 战'; $('bCreateGo').textContent = '开 始'; showPane('pCreate'); };
@@ -2069,7 +2072,7 @@
   const inviteUrl = code => location.origin + location.pathname + '?room=' + code;
   $('bCreateGo').onclick = () => {
     Sfx.init(); applySettings();
-    const o = { undo: ropts.undo, total: ropts.total, step: ropts.step, hints: ropts.hints, jq: ropts.v === 'jq' ? 1 : 0, bf: ropts.v === 'bf' ? 1 : 0 };
+    const o = { undo: ropts.undo, total: ropts.total, step: ropts.step, hints: ropts.hints, jq: ropts.v === 'jq' ? 1 : 0, bf: ropts.v === 'bf' ? 1 : 0, skin: ropts.v === 'bf' ? 0 : ropts.skin || 0 };
     const side = ropts.side === 'x' ? (Math.random() < 0.5 ? 'r' : 'b') : ropts.side;
     if (createFor === 'local') { startGame('local', 'r', o); return; }
     hostRoom(Net.gen(), o, side);

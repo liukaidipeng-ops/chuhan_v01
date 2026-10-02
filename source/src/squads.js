@@ -143,6 +143,7 @@ const Squads = (() => {
       });
     }
     get units() { return this.troop.units; }
+    setVis(k) { k = Math.max(0.001, Math.min(1, k)); for (const u of this.troop.units) if (!u.dead) u.vis = k; }
     alive() { return this.troop.units.filter(u => !u.dead); }
     appear() {
       this.place(1);
@@ -1175,5 +1176,72 @@ const Squads = (() => {
     return g;
   }
 
-  return { move, capture, pieceBoat, heroDefeat, make, charge, retreat, hurtSquad, yawOf, knightCorner, Shade, Infantry, Guards, Crossbow, Elephant, Chariot, Cavalry, Cannon, General, killUnit, walkPath, turnTo, TroopSquad };
+  // ======================================================================
+  //  模型模式（设置 →「直接显示模型」）：棋盘上不摆棋子，每枚子换成它的兵种模型站在格子上，待机时微微起伏。
+  //  做法：棋子（圆饼）照常存在、照常被各种演出移动 / 隐藏，只是不画出来；模型每帧跟着它的棋子走。
+  //  常规 / 揭棋按原编制出模型，兵法按等级出（几级几个人，四级换装）；揭棋的暗子还没翻开，仍然是扣着的棋子
+  // ======================================================================
+  const Stand = (() => {
+    let on = false, acc = 0, t = 0;
+    const map = new Map();   // 棋子 mesh → { sq, key, k, ph }
+    const faceYaw = s => yawOf(new V3(0, 0, s === 'r' ? -1 : 1));
+    const vis = (st, k) => { st.sq.setVis(k); if (st.sq.guard) st.sq.guard.setVis(k); };
+    function drop(m) {
+      const st = map.get(m); if (!st) return;
+      map.delete(m);
+      try { if (st.sq.flags) for (const f of st.sq.flags) scene.remove(f.group); if (st.sq.guard) st.sq.guard.dispose(); st.sq.dispose(); } catch (e) { }
+    }
+    function showDisc(m, show) {
+      const [body, face, band] = m.children;
+      if (body) body.visible = show; if (face) face.visible = show;
+      if (band) band.visible = show && !m.userData.skinned;
+      const d = m.userData.deco; if (d) for (const c of d.children) if (c.userData.skin) c.visible = show;
+    }
+    function reconcile() {
+      const g = Board.lastGame, lvOf = new Map();
+      if (g && g.bf) for (const row of g.board) for (const p of row) if (p) lvOf.set(p.id, p.lv || 1);
+      for (const m of [...map.keys()]) if (!m.parent || Board.pieces.get(m.userData.id) !== m) drop(m);
+      for (const m of Board.pieces.values()) {
+        const u = m.userData;
+        if (u.h || !u.t || u.t === 'h') { drop(m); continue; }
+        const lv = g && g.bf ? lvOf.get(u.id) || 1 : 0, key = u.s + u.t + lv;
+        const st = map.get(m);
+        if (st && st.key === key) continue;
+        drop(m);
+        const sq = make(u.t, u.s, new V3(m.position.x, TOP, m.position.z), faceYaw(u.s), 'move', lv || 1, lv);
+        const ns = { sq, key, k: 0, ph: Math.random() * 6.28 }; vis(ns, 0.001);
+        if (sq.setPose && sq.troop) sq.setPose('idle');
+        map.set(m, ns);
+      }
+    }
+    onFrame((dt, raw) => {
+      if (!on) return;
+      const rdt = raw == null ? dt : raw;
+      t += rdt; acc += rdt;
+      if (acc > 0.25) { acc = 0; reconcile(); }
+      const ending = typeof Ending !== 'undefined' && Ending.running;   // 结算演出时让位：模型收起，棋子照常
+      for (const [m, st] of map) {
+        showDisc(m, ending);
+        const want = !ending && m.parent && m.visible && m.scale.y > 0.6 ? 1 : 0;
+        if (st.k !== want) { st.k += Math.sign(want - st.k) * Math.min(Math.abs(want - st.k), rdt * (want ? 4 : 9)); vis(st, st.k); }
+        const sq = st.sq;
+        sq.anchor.x = m.position.x; sq.anchor.z = m.position.z;
+        if (sq.guard) { sq.guard.anchor.x = m.position.x; sq.guard.anchor.z = m.position.z; }
+        // 待机：整队一呼一吸地轻微起伏；被选中悬起时跟着棋子抬高
+        const lift = Math.max(0, m.position.y - TOP) * 0.55, br = 1 + 0.014 * Math.sin(t * 1.7 + st.ph);
+        for (const grp of sq.guard ? [sq.group, sq.guard.group] : [sq.group]) { grp.position.y = lift; grp.scale.y = br; }
+      }
+    });
+    return {
+      get on() { return on; },
+      set(v) {
+        v = !!v; if (v === on) return; on = v;
+        if (on) reconcile();
+        else { for (const m of [...map.keys()]) { showDisc(m, true); drop(m); } for (const m of Board.pieces.values()) showDisc(m, true); }
+      },
+      reconcile, get count() { return map.size; },
+    };
+  })();
+
+  return { Stand, move, capture, pieceBoat, heroDefeat, make, charge, retreat, hurtSquad, yawOf, knightCorner, Shade, Infantry, Guards, Crossbow, Elephant, Chariot, Cavalry, Cannon, General, killUnit, walkPath, turnTo, TroopSquad };
 })();
