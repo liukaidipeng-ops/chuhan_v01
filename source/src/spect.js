@@ -44,7 +44,11 @@ const Spect = (() => {
     NODES.push({ x: sx * (BX + 0.95), z: sz * (BZ + 0.95), L: 0 });                     // 棋盘后角（绕到另一侧要从后面走）
   }
   function edgeOk(a, b) {
-    if (a.L !== b.L) return !!a.stair && a.stair === b.stair;
+    if (a.L !== b.L) {
+      // 上下棋盘只能走楼梯：两头必须正好是同一架楼梯的上口和下口
+      const t = a.L ? a : b, g = a.L ? b : a;
+      return Math.abs(Math.abs(t.x) - (BX - 0.22)) < 0.06 && Math.abs(Math.abs(g.x) - (BX + 0.9)) < 0.06 && t.x * g.x > 0 && Math.abs(Math.abs(t.z) - STAIR_Z) < 0.06 && Math.abs(t.z - g.z) < 0.06;
+    }
     if (a.L) return a.z * b.z > 0 && okTop(a.x, a.z) && okTop(b.x, b.z);
     const d = Math.hypot(b.x - a.x, b.z - a.z), n = Math.max(1, Math.ceil(d / 0.12));
     for (let i = 0; i <= n; i++) { const t = i / n; if (!okGround(a.x + (b.x - a.x) * t, a.z + (b.z - a.z) * t)) return false; }

@@ -2691,6 +2691,7 @@
     const o = { app: 'chuhan3d', ver: APPV, when: new Date().toISOString(), kind, mode, me: mode === 'local' ? null : mySide };
     if (vsAI()) o.ai = aiBoth() ? { r: aiLevel('r'), b: aiLevel('b') } : { [aiSide()]: opts.level };
     o.opts = { undo: opts.undo, total: opts.total, step: opts.step };
+    o.cfg = {};   // 调过的规则配置（游戏里没有调配置的入口，恒为空；留着给模拟工具对齐格式）
     o.result = G.result || null;
     if (G.bf) {
       o.entries = G.entries;
@@ -2792,7 +2793,7 @@
   window.__xq = {
     get busy() { return busy; }, get started() { return started; }, get game() { return game; }, get mode() { return mode; }, get aiThinking() { return aiThinking; },
     doMove, startGame, finishGame, Ending, Fx, Board, Core, Camp, Squads, Spect, setView, onData, Net, requestUndo, sendEmote, get clock() { return clock; }, get opts() { return opts; }, joinRoom, notation, get notes() { return notes; }, aiSay,
-    doBF, bfButton, bfClick, get bfMode() { return bfMode; }, BF, BFX,
+    doBF, bfButton, bfClick, get bfMode() { return bfMode; }, BF, BFX, specGo, specFlick, exportGame,
     get JK() { return JK; }, get JC() { return JC; }, get pendingJ() { return pendingJ; }, get jqBad() { return jqBad; }, jqReady, capChip, XQ,
   };
   if (location.hash === '#local') { startGame('local', 'r', { undo: 3, total: 15, step: 60, hints: 1 }, { intro: false }); return; }

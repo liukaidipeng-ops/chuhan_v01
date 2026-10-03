@@ -85,6 +85,7 @@
 
   // ---------- 搜索 ----------
   let nodes = 0, deadline = Infinity, qMax = 3;
+  let nodeCap = Infinity;   // 测试用的“按搜索量收手”：搜过这么多节点就停（LEVELS.<档>.nodes），不看时间，结果可复现
   const TIMEOUT = { timeout: true };
   const hist = new Map();                     // 历史启发：哪些安静着法以前造成过剪枝
   const hk = a => (a.k === 'mv' ? a.from[0] + a.from[1] * 9 + (a.to[0] + a.to[1] * 9) * 90 : -1);
@@ -103,7 +104,7 @@
   }
   // 吃子静态搜索：只接着算“打到敌子”的着法，直到局面安静下来
   function qs(S, alpha, beta, ply, qd) {
-    if ((++nodes & 63) === 0 && now() > deadline) throw TIMEOUT;
+    if (++nodes > nodeCap || ((nodes & 63) === 0 && now() > deadline)) throw TIMEOUT;
     const side = S.turn;
     const stand = score(S, side);
     if (qd >= qMax) return stand;
@@ -127,7 +128,7 @@
   let upPly = -1;   // 在第几层考虑“对方先升级再走”（-1 = 不考虑）
   // 负极大值 + αβ（分数总是站在走子方看）
   function ab(S, depth, alpha, beta, ply) {
-    if ((++nodes & 63) === 0 && now() > deadline) throw TIMEOUT;
+    if (++nodes > nodeCap || ((nodes & 63) === 0 && now() > deadline)) throw TIMEOUT;
     const side = S.turn, inChk = A.inCheck(S, side);
     if (depth <= 0) {
       if (inChk && ply < 8) depth = 1;          // 被将军时不能“站着不动”估值：再往下应一步
@@ -229,7 +230,8 @@
     const L = tick ? { ...L0, budget: Math.min(L0.budget, 1400) } : L0;   // 在主线程里算（开不了 Worker）时少想一会儿，免得卡画面
     let S = S0, last = now();
     const breathe = async () => { if (tick && now() - last > 12) { await tick(); last = now(); } };
-    nodes = 0; qMax = L.q; hist.clear(); killers.length = 0; upPly = -1; deadline = Infinity;
+    nodes = 0; qMax = L.q; hist.clear(); killers.length = 0; upPly = -1; deadline = Infinity; nodeCap = Infinity;
+    const byNodes = L.nodes > 0;   // 设了 nodes：按搜索量收手，完全不看时间（对打、考卷、漏着率用，机器快慢不影响结果）
     const up = pickUpgrade(S, L);
     if (up) { seq.push({ k: 'up', at: up.at }); S = up.S; }
     if (L.depth >= 3) upPly = 1;
@@ -255,11 +257,18 @@
     for (const k of kids) { const w = decided(k.S, k.ev); k.done = !!w; k.q = w ? (w === me ? WIN : -WIN) : score(k.S, me); k.v = k.q; }
     kids.sort((x, y) => y.q - x.q);
     let depthDone = 0;
+    const n0 = nodes;
     // 逐层加深：每一层都把上一层最好的着法排在最前面先算
     for (let d = 1; d <= L.depth; d++) {
       const soft = t0 + L.budget;
-      if (d > 3 && now() - t0 > L.budget * 0.3) break;       // 剩下的时间不够再深一层了
-      deadline = d <= 3 ? Infinity : soft + L.budget * 0.3;
+      if (byNodes) {
+        // 前两层一定算完（保证有着可走）；再往下每一层开始前看剩下的搜索量够不够，算到上限就停
+        if (d > 2 && nodes - n0 > L.nodes * 0.5) break;
+        nodeCap = d <= 2 ? Infinity : n0 + L.nodes;
+      } else {
+        if (d > 3 && now() - t0 > L.budget * 0.3) break;       // 剩下的时间不够再深一层了
+        deadline = d <= 3 ? Infinity : soft + L.budget * 0.3;
+      }
       let alpha = -INF, n = 0, cut = false;
       const M = L.noise * 1.6 + 0.02;                          // 比当前最好的差不到 M 的着法也算出准确分数（最后要在它们之间挑）；更差的只要个上界
       try {
@@ -268,10 +277,10 @@
           if (k.nv > alpha) alpha = k.nv;
           n++;
           await breathe();
-          if (d > 3 && now() > soft) { cut = true; break; }
+          if (!byNodes && d > 3 && now() > soft) { cut = true; break; }
         }
       } catch (e) { if (e !== TIMEOUT) throw e; cut = true; }
-      deadline = Infinity;
+      deadline = Infinity; nodeCap = Infinity;
       if (cut) {
         // 这一层没算完：先算的是上一层最好的那步；算完的里头要是有更好的，就改用它
         const doneK = kids.slice(0, n);
@@ -301,7 +310,7 @@
     if (pofu.length && bestV < WIN / 2) {
       const PF_MIN = 5, need = bestV + PF_MIN, d1 = Math.max(1, depthDone) - 1;
       let bp = null;
-      deadline = now() + Math.max(400, L.budget * 0.4);
+      if (byNodes) nodeCap = nodes + Math.round(L.nodes * 0.4); else deadline = now() + Math.max(400, L.budget * 0.4);
       try {
         for (const k of pofu) {
           const w = decided(k.S, k.ev);
@@ -310,7 +319,7 @@
           await breathe();
         }
       } catch (e) { if (e !== TIMEOUT) throw e; }
-      deadline = Infinity;
+      deadline = Infinity; nodeCap = Infinity;
       if (bp) { pick = bp; kids = kids.concat([bp]); }
     }
     // 汉军防着楚军的破釜沉舟：保险（召回良将）已经用掉、对方的连击还在手里时，
@@ -359,6 +368,7 @@
     think.last = { nodes, ms: now() - t0, v: pick.v, n: kids.length, depth: depthDone, top: kids.slice(0, 5).map(k => [k.a, +k.v.toFixed(2)]) };
     return seq;
   }
-  const BFAI = { think, score, LEVELS };
+  // apiVersion：这份电脑用到的 BF.ai 接口版本（BF.ai.version）；工具拉历史版本对打时拿它核对
+  const BFAI = { think, score, LEVELS, apiVersion: 1 };
   if (typeof module !== 'undefined' && module.exports) module.exports = BFAI; else global.BFAI = BFAI;
 })(typeof window !== 'undefined' ? window : globalThis);

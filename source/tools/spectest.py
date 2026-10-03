@@ -55,6 +55,18 @@ try:
         check(ev(C, "document.getElementById('tUndo').classList.contains('hidden') && document.getElementById('tResign').classList.contains('hidden') && !document.getElementById('tLaugh').classList.contains('hidden')"), '观众界面：无悔棋/认输，有“笑”')
         check(wait(lambda: ev(A, "window.__xq.Spect.count") >= 1 and ev(B, "window.__xq.Spect.count") >= 1, 20), '双方棋手看到观众入席')
         check(wait(lambda: '观战 1' in ev(A, "document.getElementById('status').textContent"), 10), '房主状态条显示“观战 1”')
+        # 观众走动：走楼梯上棋盘；两位棋手都看到；房主点一下把他弹飞，30 秒内上不去
+        cpid = ev(C, "window.__xq.Net.myPid")
+        n = ev(C, "(()=>{const X=__xq,S=X.Spect,id=X.Net.myPid; const r=S.plan(id,{x:1,z:3,L:1}); if(!r.wp) return 0; S.walk(id,r.wp); X.Net.sendSpec({t:'go',n:'老樵',a:'n',wp:r.wp}); return r.wp.length})()")
+        check(n >= 3, '观众算出上棋盘的路线（经过楼梯）: %d 个路口' % n)
+        onTop = "(()=>{const p=__xq.Spect.get('%s'); return !!p && p.pos.L===1 && !p.path})()" % cpid
+        check(wait(lambda: ev(C, onTop), 60), '观众自己走上了棋盘')
+        check(wait(lambda: ev(A, onTop) and ev(B, onTop), 30), '两位棋手都看到观众站在棋盘上')
+        check(ev(A, "window.__xq.specFlick('%s', true)" % cpid), '房主点观众：弹飞')
+        banned = "(()=>{const p=__xq.Spect.get('%s'); return !!p && p.pos.L===0 && p.ban>Date.now()})()" % cpid
+        check(wait(lambda: ev(C, banned) and ev(B, banned), 20), '观众和另一位棋手都收到弹飞')
+        check('秒后才能再上棋盘' in (ev(C, "(__xq.Spect.plan(__xq.Net.myPid,{x:1,z:3,L:1}).err)||''") or '') or wait(lambda: '秒后才能再上棋盘' in (ev(C, "(__xq.Spect.plan(__xq.Net.myPid,{x:1,z:3,L:1}).err)||''") or ''), 6), '被弹飞后 30 秒内不能再上棋盘')
+        check(ev(A, "window.__xq.Spect.count") == 1 and ev(B, "window.__xq.Spect.count") == 1, '弹飞的消息没有把棋手登记成观众')
         IDLE = "window.__xq.busy===0 && window.__xq.started"
         wait(lambda: ev(A, IDLE) and ev(B, IDLE), 40)
         ev(A, "window.__xq.doMove({from:[7,2],to:[4,2]})")

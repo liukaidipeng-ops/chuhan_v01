@@ -848,7 +848,8 @@
   }
   const BF = { Game, CFG, view, pofuPreview, SKILL_OF, SKILLS_OF, SKILL_CN, SKILL_DESC, ART_CN, ULT_CN, RANK_CN, HERO_CN, heroName, rankName, START, newState, cloneState, attempt, evaluate, levelInfo, maxLvOf: t => maxLv(t),
     // 电脑用（调用前会把配置指到默认值）
-    ai: { gen: (S, c) => { CFG_CUR = CFG; return gen(S, c); }, atk: p => { CFG_CUR = CFG; return atk(p); }, expand: S => { CFG_CUR = CFG; return expand(S); }, upgradeState: (S, a) => { CFG_CUR = CFG; return upgradeState(S, a); }, jumaState: (S, a) => { CFG_CUR = CFG; return jumaState(S, a); }, pofuPairs: S => { CFG_CUR = CFG; return pofuPairs(S); }, inCheck: (S, s) => inCheckS(S, s), upCost: p => { CFG_CUR = CFG; return upCost(p); }, moveTargets: (S, f, r) => { CFG_CUR = CFG; return moveTargets(S, f, r); } }, hpOf: (t, lv) => hpOf(t, lv, CFG) };
+    // version：接口每加一个函数就 +1；只增不改，已有函数的参数和返回值不动
+    ai: { version: 1, gen: (S, c) => { CFG_CUR = CFG; return gen(S, c); }, atk: p => { CFG_CUR = CFG; return atk(p); }, expand: S => { CFG_CUR = CFG; return expand(S); }, upgradeState: (S, a) => { CFG_CUR = CFG; return upgradeState(S, a); }, jumaState: (S, a) => { CFG_CUR = CFG; return jumaState(S, a); }, pofuPairs: S => { CFG_CUR = CFG; return pofuPairs(S); }, inCheck: (S, s) => inCheckS(S, s), upCost: p => { CFG_CUR = CFG; return upCost(p); }, moveTargets: (S, f, r) => { CFG_CUR = CFG; return moveTargets(S, f, r); } }, hpOf: (t, lv) => hpOf(t, lv, CFG) };
   if (typeof module !== 'undefined' && module.exports) module.exports = BF;
   global.BF = BF;
 })(typeof window !== 'undefined' ? window : globalThis);
