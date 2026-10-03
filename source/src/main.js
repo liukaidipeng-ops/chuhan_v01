@@ -16,6 +16,8 @@
       '践踏：四级楚象攻击或吃掉敌子后就地高举前脚跺下，那一格周围一圈八格的敌子各扣 1 点，残血的直接踩死；没打死目标的，结算完四周才退回。走到空格不触发',
       '飞越、踏营有了一气呵成的腾空跃过动画；士的巨盾不再闪烁',
       '技能模式新规则「决战」：双方的车马兵炮都死光后，象、士、帅将都可以过河进攻；帅将按过河兵走（前、左、右各一格），各有 3 点生命，没有将军（可以对脸、可以送将），打到 0 血告负；铁甲禁卫出九宫也能用',
+      '决战·夺营：帅将走进对方九宫后，对方再走三步还没把它打死（它自己也没走出去），就算夺营获胜；顶上会显示进度',
+      '决战里主帅被斩的结算卡另写：项羽「决战阵前、力战而殁」，刘邦「决战阵前、为楚所斩」，不再是乌江自刎 / 彭城之败',
       '决战开场：「决战」大字 → 战鼓一阵紧过一阵（全用录音）→ 两边营里一直挥舞兵器助威；刘邦拔剑摆出战斗架势；主帅被斩后直接出结果，不再演常规结算',
       '模型模式：队伍停下后原地转回默认朝向，不再先缩小再长出来；帅旗加大加高',
       '完整镜头 / 精简特效下，技能打死的子（践踏、霹雳、冲阵、飞越、踏营、拒马反伤）一律换成兵种模型来演：倒地、流血、断肢；棋子显示也一样。只有低特效才是棋子碎掉',
@@ -56,7 +58,7 @@
     ['第二版', '', ['兵法模式：军功、升级、兵种技能、鸿门宴与四面楚歌', '揭棋模式、人机对战、观战席']],
     ['第一版', '', ['三维水墨棋盘、兵种战斗演出、联机对战']],
   ];
-  const REASON = { checkmate: '将死', stalemate: '困毙', kingdead: '主帅阵亡', resign: '认输', timeout: '超时', draw: '四十回合无吃子' };
+  const REASON = { checkmate: '将死', stalemate: '困毙', kingdead: '主帅阵亡', occupy: '夺营', resign: '认输', timeout: '超时', draw: '四十回合无吃子' };
   const LV = { easy: '新兵', mid: '校尉', hard: '霸王' };
   const VIS = ['cine', 'std', 'low'], VISNAME = { cine: '完整电影镜头', std: '精简特效', low: '低特效' }, VISBADGE = { cine: '影', std: '简', low: '低' };
 
@@ -380,6 +382,7 @@
     else if (vsAI()) st = game.turn === mySide ? '轮到你走' : `${NAME[aiSide()]}思考中…`;
     else st = game.turn === mySide ? '轮到你走' : '对手思考中…';
     if (!game.result && started && game.inCheck()) { st += ' · 将军！'; warn = true; }
+    if (!game.result && started && game.bf && game.final) for (const s of ['r', 'b']) if (game.occ[s] > 0) { st += ` · ${s === 'r' ? '汉帅' : '楚将'}夺营 ${game.occ[s]}/${BF.CFG.finalOccupyRounds}`; warn = true; }
     if (watching()) {
       if (game.result) st = `${SIDE_CN[game.result.winner]}胜 · ${REASON[game.result.reason]}`;
       else st = !started || (!game.history.length && watchWaiting) ? '等待棋手开局…' : `观战 · ${game.turn === 'r' ? '红方（汉）' : '黑方（楚）'}走棋` + (game.inCheck() ? ' · 将军！' : '');
@@ -1341,6 +1344,7 @@
       '<b>帅将</b>按过河兵走：前、左、右各一格，不能后退；各有 <b>3 点生命</b>',
       '<b>没有将军</b>：可以对脸、可以送将，帅将被打到 0 血就输',
       '士的<b>铁甲禁卫</b>在九宫外也能用',
+      '<b>夺营</b>：帅将走进对方九宫，对方再走三步还没把它打死，就算赢',
     ].map(x => `<li>${x}</li>`).join('');
     $('bfTip').classList.remove('hidden');
     clearTimeout(bfTipT); bfTipT = setTimeout(() => $('bfTip').classList.add('hidden'), 16000);
@@ -1656,6 +1660,8 @@
     else if (info.k === 'pass') line = `${SIDE_ARMY[s]}按兵不动`;
     if (info.k === 'mv' && info.extra && info.extra.via === 'shensu') line = `${nm(s, 'p')}神速营疾行` + (info.check ? '，将军！' : '');
     if (ev.some(x => x.e === 'final')) { line = (line ? line + '；' : '') + '决战：双方车马兵炮尽没，象、士、帅将皆可过河'; }
+    const oc = ev.find(x => x.e === 'occupy');
+    if (oc) line = (line ? line + '；' : '') + `${oc.s === 'r' ? '汉帅' : '楚将'}占住${oc.s === 'r' ? '楚' : '汉'}营九宫 ${oc.n}/${BF.CFG.finalOccupyRounds}` + (oc.n >= BF.CFG.finalOccupyRounds ? '，夺营！' : '');
     const au = ev.find(x => x.e === 'autoup');
     if (au) { const hero = BF.heroName({ s: au.s, t: au.t, nm: au.nm }); line = (line ? line + '；' : '') + `${nm(au.s, au.t)}战功晋升「${hero || BF.rankName(au.s, au.t, au.lv)}」`; }
     if (!line) return;

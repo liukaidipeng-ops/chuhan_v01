@@ -11,6 +11,7 @@
   // ---------- 数值配置（初版，集中在这里调） ----------
   const CFG = {
     finalKingHp: 3, // 决战时帅将的生命
+    finalOccupyRounds: 3, // 决战：帅将进了对方九宫，对方再走这么多步还没把它打死 / 它自己没走出去，就算夺营获胜
     merit: {
       start: 3, cap: 30, autoIncomeFromRound: 16, autoIncomePerRound: 1,
       killReward: { p: 1, a: 2, e: 2, n: 3, c: 3, r: 5 }, killRewardPerLevel: 1,
@@ -91,6 +92,7 @@
       used: { art: { r: 0, b: 0 }, ult: { r: 0, b: 0 } }, fx: { hm: 0, sm: 0, pf: 0 },
       crossed: {}, dead: { r: [], b: [] }, upgraded: false, ckHist: { r: [], b: [] },
       named: { r: {}, b: {} }, // 四级名将已经取到第几个
+      occ: { r: 0, b: 0 }, // 决战：帅将已经在对方九宫里撑过了对方几步
       final: false, // 决战：双方车马兵炮都死光之后，象、士、帅将解禁
       freeUsed: false, jmLock: null, // 本回合已用过不占行动的拒马（还得再走一步棋）；架拒马的那枚兵本回合不能动
     };
@@ -100,7 +102,7 @@
       board: S.board.map(row => row.map(p => (p ? { ...p } : null))), turn: S.turn, cnt: { ...S.cnt }, merit: { ...S.merit },
       used: { art: { ...S.used.art }, ult: { ...S.used.ult } }, fx: { ...S.fx }, crossed: { ...S.crossed },
       dead: { r: S.dead.r.slice(), b: S.dead.b.slice() }, upgraded: S.upgraded, ckHist: { r: S.ckHist.r.slice(), b: S.ckHist.b.slice() },
-      freeUsed: !!S.freeUsed, jmLock: S.jmLock == null ? null : S.jmLock, final: !!S.final,
+      freeUsed: !!S.freeUsed, jmLock: S.jmLock == null ? null : S.jmLock, final: !!S.final, occ: { r: (S.occ || {}).r || 0, b: (S.occ || {}).b || 0 },
       named: { r: { ...((S.named || {}).r || {}) }, b: { ...((S.named || {}).b || {}) } },
     };
   }
@@ -436,6 +438,15 @@
   function settle(S, side, ev) {
     const opp = other(side);
     syncFinal(S, ev);
+    // 决战·夺营：帅将站在对方九宫里，对方每走完一步记一回合；自己走出去就清零
+    if (S.final) {
+      if (!S.occ) S.occ = { r: 0, b: 0 };
+      for (const s of ['r', 'b']) {
+        const k = findKing(S.board, s), inside = k && inPalace(other(s), k[0], k[1]);
+        if (!inside) S.occ[s] = 0;
+        else if (s !== side) { S.occ[s]++; ev.push({ e: 'occupy', s, n: S.occ[s] }); }
+      }
+    }
     const ck = S.final || (side === 'b' && smActive(S)) ? [] : checkers(S.board, side);
     S.ckHist[side].push(ck);
     S.cnt[side]++;
@@ -547,6 +558,7 @@
     const side = S.turn, opp = other(side);
     // 决战：帅将被打到 0 血即告负
     if (S.final) for (const s of ['r', 'b']) if (!findKing(S.board, s)) return { result: { winner: other(s), loser: s, reason: 'kingdead' } };
+    if (S.final && S.occ) for (const s of [opp, side]) if (S.occ[s] >= CFG_CUR.finalOccupyRounds) return { result: { winner: s, loser: other(s), reason: 'occupy' } };
     if (inCheckS(S, side)) {
       if (!hasAnyAction(S)) return { result: { winner: opp, loser: side, reason: 'checkmate' } };
       return { check: true };
@@ -701,10 +713,11 @@
       const T = cloneState(this.S); fn(T);
       // 摆子之后重新判断是不是决战局面；不是了就把解禁标记和帅将的 3 点血收回
       const still = !T.board.some(row => row.some(p => p && ATTACKERS.includes(p.t)));
-      if (!still) { T.final = false; for (const row of T.board) for (const p of row) if (p) { if (p.w) p.hp = 1; delete p.w; delete p.j; } }
+      if (!still) { T.final = false; T.occ = { r: 0, b: 0 }; for (const row of T.board) for (const p of row) if (p) { if (p.w) p.hp = 1; delete p.w; delete p.j; } }
       syncFinal(T); this.reset(T); this.status = evaluate(this.S);
     }
     get final() { return !!this.S.final; }
+    get occ() { return this.S.occ || { r: 0, b: 0 }; }
     get merit() { return this.S.merit; }
     get used() { return this.S.used; }
     get fx() { return { hm: Math.max(0, this.S.fx.hm - this.S.cnt.r), sm: Math.max(0, this.S.fx.sm - this.S.cnt.b), pf: Math.max(0, this.S.fx.pf - this.S.cnt.b) }; }

@@ -1,4 +1,4 @@
-// ===== 结算动画：楚败·乌江自刎 / 汉败·彭城之败 =====
+// ===== 结算动画：楚败·乌江自刎 / 汉败·彭城之败（决战里主帅被当场斩杀时不演，只出「阵前力战而殁 / 为楚所斩」的结算卡） =====
 const Ending = (() => {
   const { scene, Time, onFrame, ease, Cam, Tex, toon, rnd, camera } = Core;
   // 一键跳过：跳过后，结算场景在下一个等待点直接中止
@@ -616,12 +616,17 @@ const Ending = (() => {
     // 和棋：鸿沟之约
     d: { cols: [['鴻溝為界', 'big'], ['楚漢相持'], ['中分天下'], ['四十回合'], ['未見殺伐']], motto: '割鴻溝以西者為漢，鴻溝而東者為楚', win: '和 局' },
   };
+  // 技能模式·决战里主帅在阵前被当场斩杀：不是乌江自刎、也不是彭城之败，另写两张结算卡
+  const INFO_SLAIN = {
+    b: { cols: [['西楚霸王', 'big'], ['項籍'], ['決戰陣前'], ['力戰而歿'], ['時年三十一'], ['漢五年十二月']], motto: '力拔山兮氣蓋世，時不利兮騅不逝', win: '漢 勝' },
+    r: { cols: [['漢王', 'big'], ['劉邦'], ['決戰陣前'], ['為楚所斬'], ['漢軍遂潰'], ['漢五年十二月']], motto: '大風未起，壯志成空', win: '楚 勝' },
+  };
   let skipNow = null;
   async function play(result, callbacks) {
     if (running) return;
     running = true; skipping = !!callbacks.instant;
     if (!result.winner) { finish(); showCard(INFO.d, result, callbacks, false); running = false; return; }
-    const base = INFO[result.loser === 'b' ? 'b' : 'r'];
+    const base = (result.reason === 'kingdead' ? INFO_SLAIN : INFO)[result.loser === 'b' ? 'b' : 'r'];
     let info = null;
     if (!skipping) {
       Voice.preload(Object.keys(Voice.LINES).filter(k => (result.loser === 'b' ? /^w\d/ : /^p\d/).test(k)));
@@ -647,6 +652,7 @@ const Ending = (() => {
     info = { ...info, cols: info.cols.slice() };
     if (result.reason === 'resign') info.cols.push([(result.loser === 'b' ? '楚' : '漢') + '方認輸']);
     if (result.reason === 'timeout') info.cols.push([(result.loser === 'b' ? '楚' : '漢') + '方超時']);
+    if (result.reason === 'occupy') info.cols.splice(2, 0, [(result.loser === 'b' ? '楚' : '漢') + '營被奪']);   // 决战·夺营：大营被对方主帅占住
     $('skip').classList.add('hidden');
     $('fade').style.transition = 'none'; $('fade').style.opacity = 1;
     endCard(info, result.loser, callbacks.again, callbacks.lobby, callbacks.mine, callbacks.againText, callbacks.review);
