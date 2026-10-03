@@ -14,6 +14,7 @@
   //   反过来，被“打中没吃掉”掉一点血，也是实打实的损失（两血的车掉一血 = 丢了三分之一个子）
   //   士、相 / 象是守家的子，多一点血用处不大（平时出不了九宫、过不了河）；到决战解禁之后才和进攻子一样算
   //   例外：对方有两点血以上的进攻子时，士的第二点血很要紧——二级士攻击 2，是唯一砍得死“贴脸将军的两血子”的守子
+  const KD = (typeof process !== 'undefined' && process.env && process.env.BFAI_KD ? process.env.BFAI_KD.split(',').map(Number) : [2.0, 1.0, 0.4, 0.9, 1.2, 0.6]);   // 砍不死的子贴近对方主帅的加分：车贴身 / 隔一格 / 同线，马，兵贴身 / 隔一格
   const HPF = [0, 1, 1.5, 1.9, 2.2], HPF_DEF = [0, 1, 1.15, 1.28, 1.36], HPF_ADV = [0, 1, 1.55, 1.75, 1.85];
   // 两点血以上的进攻子逼到了对方家门口：过了河，或者是占着九宫那三条竖线的车（它来贴脸将军，一级的士、帅砍不死它）
   //   （炮不算：它得隔着子才打得到；马、兵要真的贴到九宫边上才算）
@@ -32,7 +33,13 @@
     for (let r = 0; r < 10; r++) for (let f = 0; f < 9; f++) { const p = b[r][f]; if (p && p.t === 'k') { if (p.s === 'r') kr = [f, r]; else kb = [f, r]; } }
     let v = 0, attR = 0, attB = 0;                          // attR / attB：压到对方主帅跟前的汉 / 楚进攻子
     let hvR = false, hvB = false;                           // 汉 / 楚有没有两点血以上的进攻子已经逼到对方家门口
-    for (let r = 0; r < 10; r++) for (let f = 0; f < 9; f++) { const p = b[r][f]; if (p && heavyAt(p, f, r)) { if (p.s === 'r') hvR = true; else hvB = true; } }
+    // 守方一下最多能砍掉几点血（帅将、士里攻击最高的）：贴上来的进攻子血比这多，就砍不死它——它可以赖在主帅身边一直将军
+    let dR = 1, dB = 1;
+    for (let r = 0; r < 10; r++) for (let f = 0; f < 9; f++) {
+      const p = b[r][f]; if (!p) continue;
+      if (heavyAt(p, f, r)) { if (p.s === 'r') hvR = true; else hvB = true; }
+      if (p.t === 'k' || p.t === 'a') { const k = A.atk(p); if (p.s === 'r') { if (k > dR) dR = k; } else if (k > dB) dB = k; }
+    }
     for (let r = 0; r < 10; r++) for (let f = 0; f < 9; f++) {
       const p = b[r][f]; if (!p) continue;
       const s = p.s, adv = s === 'r' ? r : 9 - r, ek = s === 'r' ? kb : kr;
@@ -52,6 +59,12 @@
         }
         if (p.jm && p.jm > S.cnt[other(s)]) x += 0.25;
         if (dk <= 4 && (p.t === 'r' || p.t === 'c' || p.t === 'n' || (p.t === 'p' && adv >= 5))) { if (s === 'r') attR++; else attB++; }
+        // 砍不死的进攻子贴到对方主帅身边：这是这个游戏里最主要的杀法（升了级的车马兵贴脸将军，一级的士、帅拿它没办法）
+        if (!fin && ek && dk <= 4 && p.hp > (s === 'r' ? dB : dR)) {
+          if (p.t === 'r') x += dk <= 1 ? KD[0] : dk === 2 ? KD[1] : (f === ek[0] || r === ek[1]) ? KD[2] : 0;
+          else if (p.t === 'n') x += dk <= 3 ? KD[3] : 0;
+          else if (p.t === 'p' && adv >= 5) x += dk <= 1 ? KD[4] : dk === 2 ? KD[5] : 0;
+        }
       }
       v += s === me ? x : -x;
     }
