@@ -295,7 +295,7 @@ const Squads = (() => {
     constructor(side, anchor, yaw, n = 0) {
       // 士：手持比人还高一点的带刺巨盾。兵法四级不再加人，三名禁卫换一身金甲、金盾
       const elite = n >= 4; if (elite) n = 3;
-      super('a', side, anchor, yaw, elite ? 'guardG' : 'guard', n ? lineUp(n, 0.34) : [[0.24, 0], [-0.24, 0]], SC * 1.3 * (n ? bigFor(n) : 1) * (elite ? 1.08 : 1));
+      super('a', side, anchor, yaw, elite ? 'guardG' : 'guard', n ? lineUp(n, 0.34) : [[0.24, 0], [-0.24, 0]], SC * 0.65 * (n ? bigFor(n) : 1) * (elite ? 1.08 : 1));
       this.elite = elite;
     }
     async attack(target, c) {
@@ -738,7 +738,7 @@ const Squads = (() => {
       super('k', side, anchor, yaw);
       this.isX = side === 'b';
       this.hero = this.isX ? Models.makeXiangYu() : Models.makeLiuBang();
-      this.hero.group.scale.setScalar(HERO);
+      this.hero.group.scale.setScalar(HERO * (this.isX ? 1 : 1.5));   // 刘邦放大到 1.5 倍，随从不变
       this.mounted = this.isX && opts.mounted !== false;
       if (this.mounted) {
         this.horse = Models.makeWuzhui(); this.horse.group.scale.setScalar(HS); this.group.add(this.horse.group);
@@ -766,7 +766,7 @@ const Squads = (() => {
             const u = this.guard.units[2 + i]; if (!u) return;
             const sd = i ? -1 : 1;
             f.group.position.copy(u.p).addScaledVector(rightOf(this.yaw), sd * 0.07); f.group.position.y += 0.07 * this.flagK;
-            f.group.rotation.y = this.yaw - Math.PI / 2 + sd * (0.55 - 0.3 * this.flagK);
+            f.group.rotation.y = Board.viewSide === 'b' ? Math.PI : 0;   // 旗面始终正对看棋的人（之前跟着队伍朝向，字是反的）
             f.group.scale.setScalar((0.125 + 0.04 * this.flagK) * u.vis);
             f.update(dt * (1 + 1.8 * this.flagK));
           });

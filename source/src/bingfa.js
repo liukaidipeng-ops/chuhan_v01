@@ -31,7 +31,7 @@
       pili: { cooldown: 4, splashDamage: 1, splashMinLevel: 2 },
       feiyue: { cooldown: 5 }, // 相 / 象三级主动：这一步无视塞象眼
       qishe: { level: 4, cooldown: 3, range: 2, damage: 1 }, // 汉相四级
-      jianta: { level: 4, passive: true, splashDamage: 1, splashMinLevel: 2 }, // 楚象四级被动：每次落子都溅伤四周，无冷却
+      jianta: { level: 4, passive: true, splashDamage: 1, splashMinLevel: 1, nonLethal: true }, // 楚象四级被动：每次落子都溅伤四周，无冷却
       hujia: { cooldown: 4 },
     },
     generalArts: { xiaohe: { usesPerGame: 1 }, pofu: { usesPerGame: 1, steps: 2, mayEndInCheck: false, skillLockRounds: 3 } },
@@ -73,7 +73,7 @@
     feiyue: '这一步无视塞象眼（仍不能过河）。',
     pili: '炮击一个敌子，落点四周二级以上的敌子各扣 1 点。',
     qishe: '不动身，射斜线 1～2 格内的一个敌子，扣 1 点。',
-    jianta: '每次落子，震伤四周二级以上的敌子各 1 点。',
+    jianta: '每次行动后，四周的敌子各扣 1 点（踩不死，至少留 1 血）。',
     hujia: '与帅（将）互换位置，可解将；鸿门宴期间可救出汉王。',
   };
   // 每枚子的开局位置（复活用）
@@ -194,14 +194,19 @@
     ev.push({ e: 'splash', how, at: c.slice() });
     for (const [df, dr] of ORTHO) {
       const f = c[0] + df, r = c[1] + dr, q = at(S, f, r);
-      if (q && q.s !== side && q.t !== 'k' && q.lv >= minLv) damage(S, f, r, n, side, ev, how, by);
+      if (!q || q.s === side || q.t === 'k') continue;
+      // 践踏：四周敌子不论等级都挨 1 点，但踩不死（最少留 1 血）
+      if (CFG_CUR.skills[how].nonLethal) { const d = Math.min(n, q.hp - 1); if (d > 0) damage(S, f, r, d, side, ev, how, by); }
+      else if (q.lv >= minLv) damage(S, f, r, n, side, ev, how, by);
     }
   }
   // 楚战象被动「践踏」：三级战象落子（走到空格或吃掉）后溅伤四周
   function trample(S, P, to, res, side, ev) {
     if (!P || SKILL_OF(P.t, P.s) !== 'jianta' || P.lv < skLevel('jianta')) return;
     if (side === 'b' && smActive(S)) return; // 四面楚歌期间楚军没有技能
-    if (res === 'move' || res === 'kill') splash(S, to, side, ev, 'jianta', P);
+    // 不管这一步杀没杀子、甚至强攻没拿下退回原位，都以象现在站的位置为中心踩一圈
+    const c = res === 'move' || res === 'kill' ? to : (() => { for (let r = 0; r < 10; r++) for (let f = 0; f < 9; f++) if (S.board[r][f] === P) return [f, r]; return null; })();
+    if (c && P.hp > 0) splash(S, c, side, ev, 'jianta', P);
   }
 
   // ---------- 走法 ----------
