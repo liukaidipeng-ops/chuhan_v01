@@ -600,7 +600,7 @@ body.compact #log{width:164px;max-height:34vh}
       <div class="specs"><b>观战席</b><span id="roomSpecs">暂时没有观众</span></div>
       <div class="chips" id="waitChips"></div>
       <p class="note" id="waitNote"><span class="spin"></span>正在连接线路…</p>
-      <div class="row hidden" id="roomHostRow"><button class="btn red solid" id="bRoomStart">开 始</button><button class="btn small" id="bRoomAI">添加人机</button><select id="roomAILv" style="font-size:15px;padding:6px 4px;border:1px solid #bba;background:rgba(255,255,255,.5);font-family:inherit"><option value="easy">新兵</option><option value="mid" selected>校尉</option><option value="hard">霸王</option></select></div>
+      <div class="row hidden" id="roomHostRow"><button class="btn red solid" id="bRoomStart">开 始</button><button class="btn small" id="bRoomAI">添加人机</button><select id="roomAILv" style="font-size:15px;padding:6px 4px;border:1px solid #bba;background:rgba(255,255,255,.5);font-family:inherit"><option value="easy">新兵</option><option value="mid" selected>校尉</option><option value="hard">霸王</option></select><button class="btn small hidden" id="bRoomAI2">观看人机对战</button><select id="roomAI2Lv" style="font-size:15px;padding:6px 4px;border:1px solid #bba;background:rgba(255,255,255,.5);font-family:inherit"><option value="easy">新兵</option><option value="mid" selected>校尉</option><option value="hard">霸王</option></select></div>
       <div class="row hidden" id="roomGuestRow"><button class="btn red solid" id="bRoomReady">准 备</button><button class="btn small" id="bRoomWatch">改为观战</button></div>
       <div id="qrWrap" class="hidden"><div id="qr"></div><div class="note">朋友用手机扫码即可入局</div></div>
       <div class="row" id="roomInvite"><button class="btn small solid" id="bShare">发送邀请链接</button><button class="btn small" id="bCopyCode">复制房间码</button></div>
@@ -762,6 +762,7 @@ body.compact #log{width:164px;max-height:34vh}
 <script>/*QR*/</script>
 <script>window.APP_VERSION='/*APPVER*/';</script>
 <script>/*VOICE*/</script>
+<script id="eng">/*ENG*/</script>
 <script>/*APP*/</script>
 </body>
 </html>

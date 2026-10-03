@@ -19,7 +19,11 @@ const man = JSON.parse(fs.readFileSync(path.join(D, 'sfx/manifest.json'), 'utf8'
 const S = {};
 for (const [id, list] of Object.entries(man)) S[id] = list.map(x => fs.readFileSync(path.join(D, 'sfx/out', x.f)).toString('base64'));
 const data = `window.VOICE_LINES=${JSON.stringify(L)};window.VOICE_CLIPS=${JSON.stringify(C)};window.SFX_CLIPS=${JSON.stringify(S)};`;
-const app = order.filter(n => fs.existsSync(path.join(D, 'src', n + '.js')))
+// 规则引擎和技能模式的电脑单独放一个 <script id="eng">：页面照常执行，另外整段原样塞进 Web Worker 里算棋
+const ENG = ['rules', 'bingfa', 'bfai'];
+const src = n => `// ---- ${n}.js ----\n` + fs.readFileSync(path.join(D, 'src', n + '.js'), 'utf8');
+const eng = ENG.map(src).join('\n');
+const app = order.filter(n => !ENG.includes(n) && fs.existsSync(path.join(D, 'src', n + '.js')))
   .map(n => `// ---- ${n}.js ----\n` + fs.readFileSync(path.join(D, 'src', n + '.js'), 'utf8')).join('\n');
 const safe = s => s.replace(/<\/script/gi, '<\\/script');
 // 行楷字体子集（志莽行书，SIL OFL 1.1，见 fonts/OFL.txt）
@@ -27,8 +31,8 @@ const xk = 'data:font/woff2;base64,' + fs.readFileSync(path.join(D, 'fonts/xingk
 // 版本号：日期 + 内容摘要；version.json 供页面检查更新（微信等内置浏览器缓存很顽固）
 const crypto = require('crypto');
 const now = new Date(Date.now() + 8 * 3600e3);
-const ver = now.toISOString().slice(0, 10).replace(/-/g, '.') + '-' + crypto.createHash('sha1').update(app + data.length).digest('hex').slice(0, 6);
-const out = tpl.replace('/*APPVER*/', ver).replace('/*XKFONT*/', () => xk).replace('/*THREE*/', () => safe(three)).replace('/*QR*/', () => safe(qr)).replace('/*VOICE*/', () => data).replace('/*APP*/', () => safe(app));
+const ver = now.toISOString().slice(0, 10).replace(/-/g, '.') + '-' + crypto.createHash('sha1').update(eng + app + data.length).digest('hex').slice(0, 6);
+const out = tpl.replace('/*APPVER*/', ver).replace('/*XKFONT*/', () => xk).replace('/*THREE*/', () => safe(three)).replace('/*QR*/', () => safe(qr)).replace('/*VOICE*/', () => data).replace('/*ENG*/', () => safe(eng)).replace('/*APP*/', () => safe(app));
 fs.mkdirSync(path.join(D, 'dist/site'), { recursive: true });
 fs.writeFileSync(path.join(D, 'dist', '楚汉三维象棋.html'), out);
 fs.writeFileSync(path.join(D, 'dist/site/index.html'), out);

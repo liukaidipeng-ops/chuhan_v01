@@ -66,10 +66,11 @@
     return !kids.some(k => k.a.k === 'pass');
   }
 
-  let nodes = 0;
+  let nodes = 0, deadline = Infinity;
+  const TIMEOUT = { timeout: true };
   // 负极大值 + αβ；depth 层之后停，width[ply] 限制每层只展开估值靠前的若干步
   function search(S, depth, alpha, beta, me, ply, width) {
-    nodes++;
+    if ((++nodes & 63) === 0 && now() > deadline) throw TIMEOUT;
     const side = S.turn, sgn = side === me ? 1 : -1;
     if (depth <= 0) return sgn * score(S, me);
     let kids = A.expand(S);
@@ -90,7 +91,8 @@
   const LEVELS = {
     easy: { depth: 1, noise: 1.6, top: 3, up: 0.5, budget: 400 },
     mid: { depth: 2, noise: 0.35, top: 1, up: 1, budget: 1500 },
-    hard: { depth: 3, noise: 0.05, top: 1, up: 1, budget: 3200, width: [0, 10, 14] },
+    // 霸王：先把每一步都看到“对方最强应对”，再把靠前的几步往下看到第四层（我 → 敌 → 我 → 敌），每层只展开估值靠前的若干步
+    hard: { depth: 4, noise: 0.03, top: 1, up: 1, budget: 3800, roots: 12, width: [0, 12, 10, 0] },
   };
   const now = () => (typeof performance !== 'undefined' ? performance.now() : Date.now());
 
@@ -99,7 +101,7 @@
     if (S.upgraded || Math.random() > L.up) return null;
     const me = S.turn, U = CFG.ultimates;
     const ultLeft = S.used.ult[me] < U[me === 'r' ? 'simian' : 'hongmen'].usesPerGame;
-    if (L.depth >= 3 && ultLeft && S.merit[me] >= U.cost - 7) return null;
+    if (L.depth >= 4 && ultLeft && S.merit[me] >= U.cost - 7) return null;
     const base = score(S, me);
     let best = null;
     for (let r = 0; r < 10; r++) for (let f = 0; f < 9; f++) {
@@ -132,19 +134,23 @@
         await breathe();
       }
       kids.sort((x, y) => y.v - x.v);
-      // 第二遍（霸王）：靠前的几步再往下多看一层，时间不够就停
-      if (L.depth >= 3) {
-        const n = Math.min(kids.length, 10);
+      // 第二遍（霸王）：靠前的几步再往下看两层（看到第四层），时间不够就停；最后只在看得深的那几步里挑
+      if (L.depth >= 4) {
+        const n = Math.min(kids.length, L.roots || 8);
+        deadline = t0 + L.budget * 1.5;
+        let alpha2 = -Infinity;
         for (let i = 0; i < n; i++) {
           if (now() - t0 > L.budget) break;
           const k = kids[i];
-          if (!k.done && k.v > -WIN / 2) k.v = -search(k.S, 2, -Infinity, Infinity, me, 1, L.width);
-          k.deep = true;
+          try {
+            if (!k.done && k.v > -WIN / 2) k.v = -search(k.S, 3, -Infinity, -alpha2 + 1.5, me, 1, L.width);
+          } catch (e) { if (e !== TIMEOUT) throw e; break; }
+          k.deep = true; if (k.v > alpha2) alpha2 = k.v;
           await breathe();
         }
-        const deep = kids.filter(k => k.deep); deep.sort((x, y) => y.v - x.v);
-        kids = deep.concat(kids.filter(k => !k.deep && k.v > deep[0].v + 3));
-        kids.sort((x, y) => y.v - x.v);
+        deadline = Infinity;
+        const deep = kids.filter(k => k.deep);
+        if (deep.length) { deep.sort((x, y) => y.v - x.v); kids = deep; }
       }
     }
     // 破釜沉舟每局只有一次：不比普通走法明显好就先不用

@@ -8,6 +8,8 @@
   // 更新说明（设置里、大厅底部点「更新」查看；最新的放最前）
   const NEWS = [
     ['第六版', '2026 年 10 月', [
+      '自建房间里加了人机之后，可以再点「观看人机对战」把自己的座位也交给电脑：电脑对电脑，你和进房的人一起看（象棋、技能模式都行）',
+      '技能模式的霸王档再加深：靠前的十来步看到第四层（放在后台线程里算，不卡动画）',
       '技能模式可以人机对战了：人机对战里把「玩法」选成「技能模式」即可。电脑会升级、用兵种技能、架拒马、召回良将 / 破釜沉舟、发终极兵法，也会打决战；三档难度同象棋',
       '房间：客方点「准备」、房主点「开始」才开局；客方可改为观战；房主可添加人机，其他人观战',
       '技能模式：带伤害的技能先预览结果（「殺」/「-1」），再点一次目标才发动',
@@ -200,6 +202,10 @@
   // 对面是电脑：人机对战，或者联机房间里房主加了人机（客人观战）
   const vsAI = () => mode === 'ai' || (mode === 'host' && !!(opts && opts.ai));
   const aiSide = () => (vsAI() ? other(mySide) : null);
+  // 房主把自己的座位也交给电脑：电脑对电脑，房主和进房的人一起看
+  const aiBoth = () => mode === 'host' && !!(opts && opts.ai && opts.ai2);
+  const isAI = s => vsAI() && (s !== mySide || aiBoth());
+  const aiLevel = s => (aiBoth() && s === mySide ? opts.ai2 : opts.level);
   const watching = () => mode === 'watch';
   let watchWaiting = false;
   // 揭棋：同屏对战时本地随机布子；联机/观战时暗子身份未知，靠双方密钥逐个揭开（见 jq.js）
@@ -296,7 +302,7 @@
       c.querySelector('.who').textContent = NAME[s];
       const img = c.querySelector('.face'); if (faces[s] && img.src !== faces[s]) img.src = faces[s];
       c.querySelector('.tag').textContent = mode === 'local' || mode === 'watch' ? (s === 'r' ? '红方' : '黑方')
-        : vsAI() ? (s === mySide ? '你' : `电脑 · ${LV[opts.level] || ''}`)
+        : vsAI() ? (isAI(s) ? `电脑 · ${LV[aiLevel(s)] || ''}` : '你')
           : (s === mySide ? '你' : '对手');
     }
     updateHud();
@@ -346,7 +352,7 @@
     for (const s of ['r', 'b']) {
       const c = cardFor(s);
       c.classList.toggle('active', started && !game.result && game.turn === s);
-      c.classList.toggle('think', vsAI() && s === aiSide() && aiThinking);
+      c.classList.toggle('think', isAI(s) && game.turn === s && aiThinking);
       c.querySelector('.caps').innerHTML = by[s].map(capChip).join('');
       c.querySelector('.undo').textContent = opts.undo && !(vsAI() && s === aiSide()) ? (opts.undo >= 99 ? '悔棋不限' : `悔 ${Math.max(0, opts.undo - undoUsed[s])}`) : '';
       const bfm = c.querySelector('.bfm');
@@ -380,7 +386,7 @@
     else if (!started) st = mode === 'host' && !Net.connected ? '等待对手入局…' : '开 局';
     else if (netDown()) { st = netText(); warn = true; }
     else if (mode === 'local') st = `${game.turn === 'r' ? '红方（汉）' : '黑方（楚）'}走棋`;
-    else if (vsAI()) st = game.turn === mySide ? '轮到你走' : `${NAME[aiSide()]}思考中…`;
+    else if (vsAI()) st = !isAI(game.turn) ? '轮到你走' : `${NAME[game.turn]}思考中…`;
     else st = game.turn === mySide ? '轮到你走' : '对手思考中…';
     if (!game.result && started && game.inCheck()) { st += ' · 将军！'; warn = true; }
     if (!game.result && started && game.bf && game.final) for (const s of ['r', 'b']) if (game.occ[s] > 0) { st += ` · ${s === 'r' ? '汉帅' : '楚将'}夺营 ${game.occ[s]}/${BF.CFG.finalOccupyRounds}`; warn = true; }
@@ -591,7 +597,7 @@
       if (online() && Math.floor(t / 2000) !== Math.floor((t - dt) / 2000)) Net.send({ t: 'clk', side: s, total: clock[s], step: clock.step });
     }
     // 人机：玩家久不落子，对方出言相激
-    if (vsAI() && s === mySide && !paused && !pendingUndo && turnStartAt) {
+    if (vsAI() && !aiBoth() && s === mySide && !paused && !pendingUndo && turnStartAt) {
       const el = (t - turnStartAt) / 1000;
       const marks = [22, 48, 85, 130, 190, 260];
       if (slowIdx < marks.length && el > marks[slowIdx]) { aiSay('slow' + ((slowIdx % 3) + 1)); slowIdx++; }
@@ -621,22 +627,36 @@
     bubble(s, Voice.text(id), 3600);
     return Voice.play(id);
   }
+  // 技能模式的电脑放进 Web Worker 里算（和动画互不耽误）；开不了 Worker 就等动画放完在主线程分片算
+  let bfW = null, bfWSeq = 0;
+  const bfWait = new Map();
+  function bfThink(S, level, waitIdle) {
+    const local = async () => { await waitIdle(); return BFAI.think(S, level, () => new Promise(r => setTimeout(r, 0))); };
+    if (bfW === null) {
+      try {
+        const src = document.getElementById('eng').textContent + '\nself.onmessage=async e=>{const d=e.data;try{const seq=await BFAI.think(d.S,d.level);postMessage({id:d.id,seq:seq,stat:BFAI.think.last});}catch(err){postMessage({id:d.id,err:String(err&&err.stack||err)});}};';
+        bfW = new Worker(URL.createObjectURL(new Blob([src], { type: 'text/javascript' })));
+        bfW.onmessage = e => { const w = bfWait.get(e.data.id); if (!w) return; bfWait.delete(e.data.id); if (e.data.err) w.rej(new Error(e.data.err)); else { bfThink.last = e.data.stat; w.res(e.data.seq); } };
+        bfW.onerror = () => { bfW = false; for (const w of bfWait.values()) w.rej(new Error('worker')); bfWait.clear(); };
+      } catch (e) { bfW = false; }
+    }
+    if (!bfW) return local();
+    return new Promise((res, rej) => { const id = ++bfWSeq; bfWait.set(id, { res, rej }); bfW.postMessage({ id, S, level }); }).catch(e => { console.warn('电脑线程出错，改在主线程算', e); return local(); });
+  }
   function cancelAI() { aiSeq++; if (aiThinking) { try { AI.cancel(); } catch (e) { } } aiThinking = false; }
   function maybeAI() {
-    if (!vsAI() || ended || game.result || !started || game.turn !== aiSide() || pendingUndo) return;
+    if (!vsAI() || ended || game.result || !started || !isAI(game.turn) || pendingUndo) return;
     if (aiThinking) return;
-    const id = ++aiSeq;
+    const id = ++aiSeq, side = game.turn, lvl = aiLevel(side);
     aiThinking = true; updateHud();
     const t0 = performance.now();
-    const minWait = { easy: 1100, mid: 1300, hard: 700 }[opts.level] || 1000;
+    const minWait = { easy: 1100, mid: 1300, hard: 700 }[lvl] || 1000;
     if (game.bf) {
       // 技能模式：电脑给出一串行动（升级 → 拒马 → 主行动），依次执行；每一步等上一步的演出放完
       const waitIdle = async () => { await anim; while (busy) await Core.sleep(0.1); };
       (async () => {
-        await waitIdle();                       // 等玩家这一步的演出放完再算（算棋在主线程，免得卡动画）
-        if (id !== aiSeq) return;
         if (game.mustPass && game.mustPass()) return [{ k: 'pass' }];
-        return BFAI.think(BF.cloneState(game.S), opts.level, () => new Promise(r => setTimeout(r, 0)));
+        return bfThink(BF.cloneState(game.S), lvl, waitIdle);
       })().then(async seq => {
         if (id !== aiSeq || !seq) { if (id === aiSeq) { aiThinking = false; updateHud(); } return; }
         const el = performance.now() - t0;
@@ -644,14 +664,14 @@
         aiThinking = false;
         for (const a of seq) {
           await waitIdle();
-          if (id !== aiSeq || ended || game.result || game.turn !== aiSide() || pendingUndo) break;
+          if (id !== aiSeq || ended || game.result || game.turn !== side || pendingUndo) break;
           if (!doBF(a)) { console.warn('电脑行动非法', a); break; }
         }
         updateHud();
       }).catch(e => { console.error(e); aiThinking = false; updateHud(); });
       return;
     }
-    AI.think(game.history.map(h => ({ from: h.from, to: h.to })), opts.level).then(async r => {
+    AI.think(game.history.map(h => ({ from: h.from, to: h.to })), lvl).then(async r => {
       if (id !== aiSeq) return;
       const el = performance.now() - t0;
       if (el < minWait) await Core.sleep((minWait - el) / 1000);
@@ -659,7 +679,7 @@
       while (busy) await Core.sleep(0.1);
       if (id !== aiSeq) return;
       aiThinking = false;
-      if (ended || game.result || game.turn !== aiSide()) { updateHud(); return; }
+      if (ended || game.result || game.turn !== side) { updateHud(); return; }
       if (!r || !r.move) { updateHud(); console.warn('电脑无着', r); return; }
       if (!doMove({ from: r.move.from, to: r.move.to })) { console.warn('电脑着法非法', r.move); updateHud(); }
     }).catch(e => { console.error(e); aiThinking = false; });
@@ -863,7 +883,7 @@
     if (!started || ended || busy || game.result || pendingUndo || pendingJ) return false;
     if (game.jq && !jqReady()) return false;
     if (mode === 'local') return true;
-    if (vsAI()) return game.turn === mySide && !aiThinking;
+    if (vsAI()) return !aiBoth() && game.turn === mySide && !aiThinking;
     return Net.connected && game.turn === mySide;
   }
   function doMove(m, remote = false, clk, sent = false) {
@@ -906,7 +926,7 @@
     queueAnim(info);
     updateHud(); publish();
     // 电脑在玩家的动画播放时就开始思考
-    if (vsAI() && info.mover === mySide && !info.result) maybeAI();
+    if (vsAI() && !info.result && isAI(game.turn)) maybeAI();
     return true;
   }
   // 连吃：同一方连续吃子、期间对方没吃回（对方一吃回就清零）
@@ -1013,12 +1033,12 @@
       else if (!endSkip) { try { await Promise.race([boardFinale(result), skipP]); } catch (e) { console.error(e); } }
       Core.Time.skip = false; endSkipRes = null;
       Sfx.Music.stop();
-      const persp = mode === 'local' || watching() || !result.winner ? 'win' : (result.winner === mySide ? 'win' : 'lose');
+      const persp = mode === 'local' || watching() || aiBoth() || !result.winner ? 'win' : (result.winner === mySide ? 'win' : 'lose');
       const W = watching();
       await Ending.play(result, {
         again: W ? () => { Ending.hideCard(); toast('等待棋手开新局…'); } : requestAgain, againText: W ? '继 续 观 战' : '',
         lobby: toLobby, persp, instant: endSkip || slain, review: startReplay,
-        mine: mode === 'local' || W || !result.winner ? '' : (persp === 'win' ? '你 胜 了' : '你 败 了'),
+        mine: mode === 'local' || W || aiBoth() || !result.winner ? '' : (persp === 'win' ? '你 胜 了' : '你 败 了'),
       });
       if (pendingRestart) { const st = pendingRestart; pendingRestart = null; restart(st === true ? undefined : st); if (mode === 'host') Net.send({ t: 'restart', state: snapshot() }); }
     });
@@ -1656,10 +1676,11 @@
       if (info.captured) Spect.react(info.mover);
       if (!busy && game.turn === mySide) { turnStartAt = performance.now(); slowIdx = 0; }
       updateHud();
+      if (!game.bf) return;   // 演出放完时已经换了一局（退出重开）
       if (game.mustPass() && canAct() && (mode === 'local' || game.turn === mySide)) toast(`${SIDE_CN[game.turn]}方无子可走，请点「停着」`, 2600);
       else if (game.mayPass() && game.fx.sm > 0 && canAct() && (mode === 'local' || game.turn === mySide)) toast('四面楚歌：楚军只能走将，或点「停着」', 2800);
       if (info.result && !busy) finishGame(info.result);
-      else if (!busy && vsAI() && game.turn === aiSide()) maybeAI();
+      else if (!busy && vsAI() && isAI(game.turn)) maybeAI();
     });
   }
   // 战报
@@ -1813,6 +1834,7 @@
       return;
     }
     if (vsAI()) {
+      if (aiBoth()) { toast('电脑对电脑，不能悔棋'); return; }
       const plies = undoPlies(mySide);
       cancelAI();
       applyUndo(plies, mySide);
@@ -2370,7 +2392,8 @@
   $('bRoomReady').onclick = () => { if (!room || room.host) return; room.ready = !room.ready; Net.send({ t: 'ready', on: room.ready }); paintRoom(); };
   // 客人改当观众：让出座位，转去观战席
   $('bRoomWatch').onclick = () => { if (!room || room.host) return; const code = room.code; closeRoom(); clearInterval(joinTimer); try { Net.send({ t: 'bye' }); } catch (e) { } showPane('pJoin'); enterWatch(code); };
-  $('bRoomAI').onclick = () => { if (!room || !room.host || room.seated) return; room.ai = room.ai ? null : ($('roomAILv').value || 'mid'); paintRoom(); try { Net.hallTouch(); } catch (e) { } };
+  $('bRoomAI2').onclick = () => { if (!room || !room.host || !room.ai) return; room.ai2 = room.ai2 ? null : ($('roomAI2Lv').value || 'mid'); paintRoom(); };
+  $('bRoomAI').onclick = () => { if (!room || !room.host || room.seated) return; room.ai = room.ai ? null : ($('roomAILv').value || 'mid'); if (!room.ai) room.ai2 = null; paintRoom(); try { Net.hallTouch(); } catch (e) { } };
   $('lockOn').onchange = () => { $('lockPw').classList.toggle('hidden', !$('lockOn').checked); if ($('lockOn').checked) $('lockPw').focus(); };
   $('bBackH').onclick = () => showPane('pMain');
   $('bCreate').onclick = () => { createFor = 'host'; $('createTitle').textContent = '房 间 设 置'; $('bCreateGo').textContent = '创 建'; $('optPub').classList.remove('hidden'); $('optLock').classList.remove('hidden'); showPane('pCreate'); };
@@ -2402,9 +2425,9 @@
   function paintRoom() {
     if (!room) return;
     const seat = side => {
-      const hostSeat = side === room.hostSide, mine = hostSeat === room.host, ai = !hostSeat && room.ai, taken = hostSeat || room.seated || ai;
-      const who = ai ? `人机 · ${LV[room.ai] || ''}` : taken ? (mine ? '你' : hostSeat ? '房主' : '对手') : '空位';
-      const st = hostSeat ? '房主' : ai ? '电脑' : !taken ? '等待对手…' : room.ready ? '<b style="color:#2f7d4f">已准备</b>' : '还没准备';
+      const hostSeat = side === room.hostSide, ai2 = hostSeat && room.ai && room.ai2, mine = hostSeat === room.host && !ai2, ai = (!hostSeat && room.ai) || ai2, taken = hostSeat || room.seated || ai;
+      const who = ai ? `人机 · ${LV[ai] || ''}` : taken ? (mine ? '你' : hostSeat ? '房主' : '对手') : '空位';
+      const st = ai2 ? '电脑（房主观战）' : hostSeat ? '房主' : ai ? '电脑' : !taken ? '等待对手…' : room.ready ? '<b style="color:#2f7d4f">已准备</b>' : '还没准备';
       return `<div class="seat ${side}${taken ? '' : ' empty'}${mine ? ' me' : ''}"><span class="sd">${side === 'r' ? '红·汉' : '黑·楚'}</span><div class="who">${who}</div><small>${st}${side === 'r' ? ' · 先手' : ''}</small></div>`;
     };
     $('roomSeats').innerHTML = seat('r') + seat('b');
@@ -2421,7 +2444,11 @@
       $('bRoomAI').classList.toggle('hidden', !canAI || room.seated);
       $('bRoomAI').textContent = room.ai ? '移除人机' : '添加人机';
       $('roomAILv').classList.toggle('hidden', !canAI || room.seated || !!room.ai);
-      if (Net.lineOk) $('waitNote').innerHTML = room.ai ? '人机已就位，点「开始」开局；其他人进来会坐到观战席' : !room.seated ? '<span class="spin"></span>等待对手入座…（也可以添加人机）' : room.ready ? '对手已准备，点「开始」开局' : '对手已入座，等他点「准备」';
+      // 加了人机之后，房主还可以把自己的座位也交给电脑：电脑对电脑，自己和进房的人一起看
+      $('bRoomAI2').classList.toggle('hidden', !canAI || !room.ai);
+      $('bRoomAI2').textContent = room.ai2 ? '我来下' : '观看人机对战';
+      $('roomAI2Lv').classList.toggle('hidden', !canAI || !room.ai || !!room.ai2);
+      if (Net.lineOk) $('waitNote').innerHTML = room.ai && room.ai2 ? '电脑对电脑：点「开始」开局，你和进房的人一起观战' : room.ai ? '人机已就位，点「开始」开局；其他人进来会坐到观战席' : !room.seated ? '<span class="spin"></span>等待对手入座…（也可以添加人机）' : room.ready ? '对手已准备，点「开始」开局' : '对手已入座，等他点「准备」';
     } else {
       $('bRoomReady').textContent = room.ready ? '取消准备' : '准 备';
       $('bRoomReady').classList.toggle('solid', !room.ready);
@@ -2433,7 +2460,7 @@
     if (!room || !room.host || mode || mode_starting) return;
     if (!(room.ai || (room.seated && room.ready))) { toast(room.seated ? '对手还没准备' : '还没有对手：等人入座，或者添加人机'); return; }
     mode_starting = true;
-    if (room.ai) { opts = { ...opts, ai: room.ai, level: room.ai }; store.set('host', { code: room.code, opts, side: hostSide, t: Date.now() }); }
+    if (room.ai) { opts = { ...opts, ai: room.ai, level: room.ai, ai2: room.ai2 || null }; store.set('host', { code: room.code, opts, side: hostSide, t: Date.now() }); }
     closeRoom();
     startGame('host', hostSide, opts).then(() => { mode_starting = false; publish(); });
     Net.send({ t: 'welcome', state: snapshot() });
