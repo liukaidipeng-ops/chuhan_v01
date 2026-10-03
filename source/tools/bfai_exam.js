@@ -1,7 +1,7 @@
 // 技能模式电脑「智商考卷」：一组摆好的局面，专考这套棋特有的机制——
 //   血量、打不死就弹回、升级不占行动、每个兵种技能、主帅兵法与终极兵法的时机、决战规则。
 // 用法：node tools/bfai_exam.js [电脑文件...] [--level mid] [--runs 3] [--verbose] [--only 关键字] [--lint] [--nodes N]
-//   --nodes N：电脑按搜索节点数收手（LEVELS.<档>.nodes），结果和机器快慢无关、可复现
+//   --nodes N 或 mid=60000,hard=200000[,verify=1000000]：电脑按搜索节点数收手（LEVELS.<档>.nodes），结果和机器快慢无关、可复现
 //   默认考 src/bfai.js（游戏里现用的）；可以一次给几个文件对比（比如 git show 出来的旧版本）。
 //   每题按不同随机种子考 --runs 次，答对的次数记分。
 //   --lint：不考电脑，只检查考题本身摆得对不对（将帅照面、将军状态、标准答案合法且判对、错误示范判错）。
@@ -15,6 +15,10 @@ const path = require('path');
 global.XQ = require('../src/rules.js');
 const BF = global.BF = require('../src/bingfa.js');
 const XQ = global.XQ;
+// --nodes 的写法：一个数字（各档一样），或 mid=60000,hard=200000（分档）
+const parseNodes = v => { if (v == null || v === '' || v === 0) return null; if (typeof v === 'object') return v; if (/^\d+$/.test(String(v))) return { '*': +v }; const o = {}; for (const kv of String(v).split(',')) { const [k, n] = kv.split('='); o[k.trim()] = +n; } return o; };
+const applyNodes = (LEVELS, spec, extra = {}) => { if (!spec) return; for (const k of Object.keys(LEVELS)) { const base = k.replace(/Save$/, ''); const lv = extra[base] || base; const n = spec[lv] != null ? spec[lv] : spec['*']; if (n) LEVELS[k].nodes = n; } };
+
 
 const argv = process.argv.slice(2);
 const opt = { level: 'mid', runs: 3, verbose: false, files: [], only: null, lint: false, verify: 0, nodes: 0 };
@@ -24,7 +28,7 @@ for (let i = 0; i < argv.length; i++) {
   else if (argv[i] === '--verbose') opt.verbose = true;
   else if (argv[i] === '--only') opt.only = argv[++i];
   else if (argv[i] === '--lint') opt.lint = true;
-  else if (argv[i] === '--nodes') opt.nodes = +argv[++i];
+  else if (argv[i] === '--nodes') opt.nodes = argv[++i];
   else if (argv[i] === '--verify') opt.verify = argv[i + 1] && /^\d+$/.test(argv[i + 1]) ? +argv[++i] : 8000;
   else opt.files.push(argv[i]);
 }
@@ -434,7 +438,7 @@ function lint() {
 async function verify() {
   const AI = require(path.resolve(__dirname, '..', opt.files[0]));
   AI.LEVELS.verify = { ...AI.LEVELS.hard, noise: 0, top: 1, budget: opt.verify };
-  if (opt.nodes) AI.LEVELS.verify.nodes = opt.nodes;   // 复核也可以按节点数（给大一点，比如考生的 5 倍以上）
+  { const ns = parseNodes(opt.nodes); if (ns) AI.LEVELS.verify.nodes = ns.verify || ns.hard || ns['*']; }   // 复核按节点数时，用 verify= 或 hard= 的数（给大一点，比如考生的 5 倍以上）
   const list = (opt.only ? Q.filter(q => q.name.includes(opt.only) || q.cat === opt.only) : Q).filter(q => !q.multi && !q.disabled);
   // 一串行动走完之后值几分（站在走棋方看）：直接分出胜负就是 ±9000，否则让深搜替对方找最好的应着再取反
   const valueOf = async (q, seq) => {
@@ -481,7 +485,7 @@ async function verify() {
   const list = (opt.only ? Q.filter(q => q.name.includes(opt.only) || q.cat === opt.only) : Q).filter(q => !q.disabled);
   for (const q of Q) if (q.disabled) console.log(`（停用：${q.name}——${q.disabled}）`);
   const AIs = opt.files.map(f => ({ file: f, AI: require(path.resolve(__dirname, '..', f)) }));
-  if (opt.nodes) for (const { AI } of AIs) for (const k of Object.keys(AI.LEVELS)) AI.LEVELS[k].nodes = opt.nodes;
+  for (const { AI } of AIs) applyNodes(AI.LEVELS, parseNodes(opt.nodes));
   const score = AIs.map(() => 0), byCat = AIs.map(() => ({}));
   for (const q of list) {
     const row = { name: q.name, cells: [] };

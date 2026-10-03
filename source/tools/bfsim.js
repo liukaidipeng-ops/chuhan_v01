@@ -21,13 +21,17 @@
 //   每个种子下两局、双方交换先后手；电脑可以写文件路径，也可以写 git:提交号（取那一版的 src/bfai.js，配当前的规则引擎）。
 //   序贯检验（SPRT）：每下完一对就检验一次，能下结论就停。默认 e0,e1 = -30,10（Elo）：
 //     “通过”= 新版不比旧版明显弱；“不通过”= 新版明显弱了。想证明“更强”用 --sprt 0,40。
-//   --nodes N：电脑按搜索节点数收手（需要电脑支持 LEVELS.<档>.nodes；不支持时会提示）。
+//   --nodes N 或 mid=60000,hard=200000：电脑按搜索节点数收手（LEVELS.<档>.nodes），结果和机器快慢无关。
 //   拉旧版电脑时，引擎里没有它要用的接口会直接报错（不会悄悄少功能）；版本号对不上会提示。
 'use strict';
 const path = require('path');
 const os = require('os');
 const { fork } = require('child_process');
 const SRC = path.join(__dirname, '..', 'src');
+// --nodes 的写法：一个数字（各档一样），或 mid=60000,hard=200000（分档）
+const parseNodes = v => { if (v == null || v === '' || v === 0) return null; if (typeof v === 'object') return v; if (/^\d+$/.test(String(v))) return { '*': +v }; const o = {}; for (const kv of String(v).split(',')) { const [k, n] = kv.split('='); o[k.trim()] = +n; } return o; };
+const applyNodes = (LEVELS, spec, extra = {}) => { if (!spec) return; for (const k of Object.keys(LEVELS)) { const base = k.replace(/Save$/, ''); const lv = extra[base] || base; const n = spec[lv] != null ? spec[lv] : spec['*']; if (n) LEVELS[k].nodes = n; } };
+
 
 // ---------- 预设 ----------
 // baseline：关掉一切技能系统（不给军功、不能升级、不能用兵法），得到同一个电脑下的“普通象棋”对照组
@@ -76,7 +80,7 @@ function parseArgs(argv) {
     else if (k === '--ai-b') o.aiB = v();
     else if (k === '--match') o.match = v().split(',');
     else if (k === '--sprt') o.sprt = v().split(',').map(Number);
-    else if (k === '--nodes') o.nodes = +v();
+    else if (k === '--nodes') o.nodes = v();
     else if (k === '--worker') o.worker = true;
     else throw new Error('未知参数 ' + k);
   }
@@ -216,7 +220,7 @@ function worker() {
       }
       for (const X of new Set(Object.values(AIMAP))) {
         X.LEVELS.hard.budget = m.budget;
-        if (m.nodes) for (const k of Object.keys(X.LEVELS)) X.LEVELS[k].nodes = m.nodes;
+        applyNodes(X.LEVELS, parseNodes(m.nodes), { open: 'mid' });   // 开局多样化那几步按校尉算
         // 开局多样化用：校尉的搜索深度，但在分差不大的着法里随机挑
         X.LEVELS.open = { ...X.LEVELS.mid, noise: 0.9, top: 3 };
         // 攒终极兵法：这一步不升级

@@ -39,7 +39,8 @@ const rows = [];
 const gate = (name, value, limit, ok, note = '') => rows.push({ name, value, limit, verdict: limit == null ? '基准' : ok ? '合格' : '不合格', note });
 
 (async () => {
-  const nodes = conf.nodes ? ['--nodes', String(conf.nodes)] : [];
+  const nodeSpec = conf.nodes ? (typeof conf.nodes === 'object' ? Object.entries(conf.nodes).map(([k, v]) => `${k}=${v}`).join(',') : String(conf.nodes)) : null;
+  const nodes = nodeSpec ? ['--nodes', nodeSpec] : [];
   // 1. 考题自检
   const lint = await run(['tools/bfai_exam.js', '--lint'], '考题自检');
   gate('考题自检', lint.code === 0 ? '通过' : '有问题', '必须通过', lint.code === 0);
@@ -63,7 +64,7 @@ const gate = (name, value, limit, ok, note = '') => rows.push({ name, value, lim
   // 3. 漏着率
   if (!opt.quick) {
     const args = ['tools/bfai_quality.js', '--ai', opt.ai, '--games', String(opt.games), '--jobs', String(opt.jobs)];
-    if (conf.nodes) args.push('--nodes', String(conf.nodes), '--ref-nodes', String(conf.nodes * (conf.quality && conf.quality.refFactor || 5)));
+    if (conf.nodes) { const mid = typeof conf.nodes === 'object' ? conf.nodes.mid : conf.nodes; args.push('--nodes', nodeSpec, '--ref-nodes', String(mid * (conf.quality && conf.quality.refFactor || 5))); }
     const r = await run(args, '漏着率');
     const bl = num(/漏着（≥4 分）([\d.]+)/, r.out), mates = (num(/看到杀没走 (\d+) 次/, r.out) || 0) + (num(/走了送杀 (\d+) 次/, r.out) || 0), drop = num(/白丢子（≥3）([\d.]+)/, r.out);
     const q = conf.quality || {};

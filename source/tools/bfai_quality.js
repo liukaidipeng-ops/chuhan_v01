@@ -6,7 +6,7 @@
 // 注意：复核用的还是同一套估值，量的是“算得不够深”造成的错，量不出估值本身的偏差。
 // 所以另有“第二裁判”：只看子力和血量（不看位置分、不看军功），只算吃子交换（含“先升级再吃”），
 //   看这一步之后的子力净得失比最好的着法少多少；≥ 3（约一个马）记“白丢子”。它和电脑的估值毫无关系。
-//   --nodes N / --ref-nodes M：考生 / 裁判按搜索节点数收手（电脑支持 LEVELS.<档>.nodes 之后生效；裁判应是考生的 5 倍以上）
+//   --nodes N（或 mid=60000）/ --ref-nodes M：考生 / 裁判按搜索节点数收手（裁判应是考生的 5 倍以上）
 'use strict';
 const path = require('path');
 const os = require('os');
@@ -19,11 +19,15 @@ for (let i = 0; i < argv.length; i++) {
   if (k === '--ai') opt.ai = v(); else if (k === '--level') opt.level = v(); else if (k === '--games') opt.games = +v();
   else if (k === '--budget') opt.budget = +v(); else if (k === '--jobs') opt.jobs = +v(); else if (k === '--seed') opt.seed = +v();
   else if (k === '--out') opt.out = v(); else if (k === '--open') opt.open = +v(); else if (k === '--max-plies') opt.maxPlies = +v();
-  else if (k === '--nodes') opt.nodes = +v(); else if (k === '--ref-nodes') opt.refNodes = +v();
+  else if (k === '--nodes') opt.nodes = v(); else if (k === '--ref-nodes') opt.refNodes = +v();
   else if (k === '--worker') opt.worker = true; else throw new Error('未知参数 ' + k);
 }
 function mulberry32(a) { return () => { a |= 0; a = (a + 0x6D2B79F5) | 0; let t = Math.imul(a ^ (a >>> 15), 1 | a); t = (t + Math.imul(t ^ (t >>> 7), 61 | t)) ^ t; return ((t ^ (t >>> 14)) >>> 0) / 4294967296; }; }
 const WIN = 9000;
+// --nodes 的写法：一个数字（各档一样），或 mid=60000,hard=200000（分档）
+const parseNodes = v => { if (v == null || v === '' || v === 0) return null; if (typeof v === 'object') return v; if (/^\d+$/.test(String(v))) return { '*': +v }; const o = {}; for (const kv of String(v).split(',')) { const [k, n] = kv.split('='); o[k.trim()] = +n; } return o; };
+const applyNodes = (LEVELS, spec, extra = {}) => { if (!spec) return; for (const k of Object.keys(LEVELS)) { const base = k.replace(/Save$/, ''); const lv = extra[base] || base; const n = spec[lv] != null ? spec[lv] : spec['*']; if (n) LEVELS[k].nodes = n; } };
+
 
 // 棋盘画成文字：汉用 俥傌相仕帥炮兵，楚用 車馬象士將砲卒；二级以上在旁边标等级和血量
 const GLYPH = { r: { r: '俥', n: '傌', e: '相', a: '仕', k: '帥', c: '炮', p: '兵' }, b: { r: '車', n: '馬', e: '象', a: '士', k: '將', c: '砲', p: '卒' } };
@@ -123,7 +127,7 @@ function worker() {
       AI = require(path.resolve(__dirname, '..', m.ai));
       AI.LEVELS.open = { ...AI.LEVELS.mid, noise: 0.9, top: 3 };
       AI.LEVELS.ref = { ...AI.LEVELS.hard, noise: 0, top: 1, budget: m.budget };
-      if (m.nodes) for (const k of ['open', 'easy', 'mid', 'hard']) AI.LEVELS[k].nodes = m.nodes;
+      applyNodes(AI.LEVELS, parseNodes(m.nodes), { open: 'mid' });
       if (m.refNodes) AI.LEVELS.ref.nodes = m.refNodes;
       process.send({ ready: true }); return;
     }
