@@ -9,6 +9,8 @@
   const NEWS = [
     ['第六版', '2026 年 10 月', [
       '自建房间里加了人机之后，可以再点「观看人机对战」把自己的座位也交给电脑：电脑对电脑，你和进房的人一起看（象棋、技能模式都行）',
+      '观战可以四处走动了：点地面或棋盘就走过去；过楚河要走桥，上棋盘要走棋盘两侧的小楼梯。站在棋盘上的观众，棋手点一下就能弹飞，被弹飞后 30 秒内不能再上棋盘',
+      '新增「导出本局」（设置里、棋谱栏右上角）：把整局导成一段文本并复制，可以贴给别人复盘，或贴给 Claude 指出哪一步走错了',
       '技能模式的电脑会用兵法了：召回良将留着救车（车还在、对方破釜沉舟没用时，不会为一个炮马就用掉）；破釜沉舟留着杀车这样的大子，对方召回还在手里时不急着用；鸿门宴等进攻子压到汉帅跟前才发；汉军会提防对方连走两步',
       '技能模式的电脑不再开局就给士、相 / 象升级：军功先紧着车（其次炮、马），车快攒够时别的先不升；守子只在保命时才升',
       '技能模式的电脑按血量算账：多一点血的子更值钱，打中没吃掉也算赚；被捉又走不开的子会升级保命；也会算到你“先升级再走”',
@@ -1204,6 +1206,9 @@
     if (boardHold) { boardHold = false; return; }
     if (Core.lastDragMoved > 10 || Core.Cam.cine) return;
     if (dbgOn && game.bf) { const p = Board.pick(e.clientX, e.clientY); if (p) dbgClick(p[0], p[1]); return; }
+    // 观众：点哪儿走到哪儿。棋手：点到站在棋盘上的观众就把他弹飞
+    if (watching()) { if (!RP && !Ending.running) specGo(e.clientX, e.clientY); return; }
+    if (online() && Spect.count) { const sid = Spect.pickOnBoard(e.clientX, e.clientY); if (sid && specFlick(sid, true)) return; }
     if (game.bf && canAct()) { const p = Board.pick(e.clientX, e.clientY); dbgFreeTurn(p); bfClick(p); return; }
     if (!canAct()) {
       if (started && !ended && !busy && online() && Net.connected && game.turn !== mySide) toast('还没轮到你');
@@ -2165,10 +2170,14 @@
     if (!d || !d._p) return;
     setTimeout(paintRoom, 0);
     if (d.t === 'sbye') { const p = Spect.get(d._p); if (p) feed(p, '离席'); Spect.remove(d._p); updateHud(); return; }
+    // 棋手把站在棋盘上的观众弹飞（发的人是棋手，不是观众，不能把他登记进观战席）
+    if (d.t === 'flick') { specFlick(d.id, false); return; }
     const isNew = !Spect.has(d._p);
     const p = Spect.upsert(d._p, d.n, d.a, false);
     if (!p) return;
     if (isNew) { feed(p, '入席观战'); if (mode && !watching()) toast(`「${p.name}」入席观战`); }
+    if (d.t === 'go') { Spect.walk(d._p, d.wp); return; }
+    if (d.p) Spect.setPos(d._p, d.p);
     if (d.t === 'say') {
       const text = d.i != null ? SPEC_PHRASES[d.i] : cleanTxt(d.text);
       if (!text) return;
@@ -2200,7 +2209,24 @@
       startWatch(code);
     };
   }
-  function specHello() { if (Net.role === 'watch') Net.sendSpec({ t: 'sp', n: myName, a: myAlleg }); }
+  function specHello() { if (Net.role === 'watch') Net.sendSpec({ t: 'sp', n: myName, a: myAlleg, p: Spect.posOf(Net.myPid) || undefined }); }
+  // 观众走动：点地面 / 棋盘就走过去（过河走桥、上棋盘走楼梯；路线在自己这边算好，发给大家照着走）
+  function specGo(cx, cy) {
+    const me = Spect.get(Net.myPid); if (!me) return;
+    const t = Spect.rayTarget(cx, cy); if (!t) return;
+    const r = Spect.plan(Net.myPid, t);
+    if (r.err != null) { if (r.err) toast(r.err, 2200); return; }
+    if (Spect.walk(Net.myPid, r.wp)) { Net.sendSpec({ t: 'go', n: myName, a: myAlleg, wp: r.wp }); Sfx.select && Sfx.select(); }
+  }
+  // 弹飞：mine = 我点的（要告诉大家）
+  function specFlick(id, mine) {
+    const p = Spect.get(id); if (!p) return false;
+    if (!Spect.flick(id)) return false;
+    if (mine) Net.sendSpec({ t: 'flick', id });
+    feed(p, '被弹下了棋盘');
+    if (p.self) toast(`你被弹下了棋盘，${Math.round(Spect.BAN_MS / 1000)} 秒内不能再上去`, 3200);
+    return true;
+  }
   function startWatch(code) {
     Sfx.init(); applySettings();
     $('joinNote').innerHTML = '<span class="spin"></span>正在入席…';
@@ -2243,6 +2269,7 @@
       Spect.upsert(Net.myPid, myName, myAlleg, true);
       specHello();
       toast(`你以「${myName}」的名号入席观战`, 2600);
+      setTimeout(() => { if (watching()) toast('点地面或棋盘就能走过去：过河走桥，上棋盘走两侧的小楼梯', 5200); }, 3000);
       return;
     }
     syncWatch(d);
@@ -2656,6 +2683,48 @@
     $('mSet').classList.add('hidden'); $('mNews').classList.remove('hidden');
   };
   $('bNewsClose').onclick = () => $('mNews').classList.add('hidden');
+  // ---------- 导出本局：整局行动 + 模式、双方、电脑档位、结果，导成一段文本（贴给别人复盘，或贴给 Claude 分析哪一步走错了） ----------
+  function exportGame() {
+    const G = RP ? RP.real : game;
+    if (!G) return '';
+    const kind = G.bf ? 'bf' : G.jq ? 'jq' : 'xq', KIND = { bf: '技能模式', jq: '揭棋', xq: '象棋' };
+    const o = { app: 'chuhan3d', ver: APPV, when: new Date().toISOString(), kind, mode, me: mode === 'local' ? null : mySide };
+    if (vsAI()) o.ai = aiBoth() ? { r: aiLevel('r'), b: aiLevel('b') } : { [aiSide()]: opts.level };
+    o.opts = { undo: opts.undo, total: opts.total, step: opts.step };
+    o.result = G.result || null;
+    if (G.bf) {
+      o.entries = G.entries;
+      // 调试摆过子的局：起始局面不是标准开局，一并带上
+      try { if (JSON.stringify(G.base) !== JSON.stringify(BF.newState(BF.CFG))) o.base = G.base; } catch (e) { }
+    } else {
+      o.moves = G.history.map(h => { const m = { from: h.from, to: h.to }; if (h.rv != null) m.rv = h.rv; if (h.cj != null) m.cj = h.cj; return m; });
+      if (G.jq && G.opts && G.opts.layout) o.layout = G.opts.layout;
+    }
+    const who = mode === 'local' ? '同屏对战' : vsAI() ? (aiBoth() ? `电脑对电脑（汉 ${LV[aiLevel('r')]} / 楚 ${LV[aiLevel('b')]}）` : `人机：电脑执${SIDE_CN[aiSide()]} · ${LV[opts.level] || ''}`) : watching() ? '观战' : `联机：我执${SIDE_CN[mySide]}`;
+    const res = G.result ? (G.result.winner ? `${SIDE_CN[G.result.winner]}胜 · ${REASON[G.result.reason] || G.result.reason}` : `和棋 · ${REASON[G.result.reason] || ''}`) : '未分胜负';
+    const lines = [`楚汉三维象棋 · 对局导出（版本 ${APPV}）`, `玩法：${KIND[kind]} · ${who} · 共 ${notes.length} 步 · ${res}`, '棋谱：'];
+    for (let i = 0; i < notes.length; i += 2) lines.push(`${i / 2 + 1}. ${noteText(notes[i])}${notes[i + 1] ? '  ' + noteText(notes[i + 1]) : ''}`);
+    lines.push('---DATA---', JSON.stringify(o));
+    return lines.join('\n');
+  }
+  const noteText = n => { const d = document.createElement('div'); d.innerHTML = noteHtml(n); return d.textContent.replace(/\s+/g, ' ').trim(); };
+  async function doExport() {
+    const text = exportGame(); if (!text) { toast('还没有对局'); return; }
+    $('mSet').classList.add('hidden');
+    let ok = false;
+    try { await navigator.clipboard.writeText(text); ok = true; } catch (e) { }
+    $('exportText').value = text;
+    $('exportNote').textContent = ok ? '已复制到剪贴板。直接粘贴给别人，或粘贴给 Claude 说“第几步走得不对”。' : '没能自动复制：点「复制」，或长按 / 全选下面的文字手动复制。';
+    $('mExport').classList.remove('hidden');
+  }
+  $('tExport').onclick = $('logExport').onclick = doExport;
+  $('bExportClose').onclick = () => $('mExport').classList.add('hidden');
+  $('bExportCopy').onclick = async () => {
+    const t = $('exportText'); t.focus(); t.select();
+    let ok = false;
+    try { await navigator.clipboard.writeText(t.value); ok = true; } catch (e) { try { ok = document.execCommand('copy'); } catch (e2) { } }
+    toast(ok ? '已复制' : '复制失败，请手动全选复制');
+  };
 
   // ---------- 对局按钮 ----------
   $('tUndo').onclick = requestUndo;

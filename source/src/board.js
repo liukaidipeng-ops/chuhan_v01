@@ -189,6 +189,20 @@ const Board = (() => {
       const cap = new THREE.Mesh(new THREE.BoxGeometry(0.13, 0.3, 0.13), bronzeM); cap.position.set(sx * (BX - 0.04), TOP - 0.112, zFar - sg * 0.04); g.add(cap);
       for (const [x, z] of [[sx * (BX - 0.3), zFar - sg * 0.035], [sx * (BX - 0.035), zFar - sg * 0.3]]) { const r = new THREE.Mesh(new THREE.SphereGeometry(0.022, 8, 6), goldM); r.position.set(x, TOP + 0.032, z); g.add(r); }
     }
+    // 两侧各一架小木梯：观战的人从这里上棋盘（四级，从地面到棋盘面）
+    for (const sx of [-1, 1]) {
+      const zc = sg * 2.21 - sg * (HALF + depth / 2), N = 4, run = 0.17, W = 0.5, wood = 0x7a5634, dk = 0x553a22;
+      for (let i = 0; i < N; i++) {
+        const h = TOP * (N - i) / N;
+        const st = inked(new THREE.BoxGeometry(run, h, W), toon(i % 2 ? wood : 0x86603a), 0.01);
+        st.position.set(sx * (BX + run * (i + 0.5)), h / 2, zc); g.add(st);
+      }
+      for (const e of [-1, 1]) {
+        const rail = inked(new THREE.BoxGeometry(run * N + 0.04, 0.03, 0.03), toon(dk), 0.008);
+        rail.position.set(sx * (BX + run * N / 2), TOP * 0.5 + 0.2, zc + e * (W / 2)); rail.rotation.z = -sx * Math.atan2(TOP, run * N); g.add(rail);
+        for (const k of [0.04, run * N - 0.02]) { const hh = 0.2 + TOP * (1 - k / (run * N)); const post = inked(new THREE.BoxGeometry(0.035, hh + 0.02, 0.035), toon(k < 0.1 ? 0x8e2a1a : dk), 0.008); post.position.set(sx * (BX + k), hh / 2, zc + e * (W / 2)); g.add(post); }
+      }
+    }
     // 须弥座：两级台基（河一侧不设）
     const step1 = inked(new THREE.BoxGeometry(2 * BX + 0.36, 0.085, depth + 0.18), toon(0x3a2418));
     step1.position.set(0, 0.0425, sg * 0.09); g.add(step1);
