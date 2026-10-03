@@ -66,7 +66,8 @@ const PRESETS = {
 //   预设：pofu-a = noup（用户第一档）；pofu-b = noup + 1kill（用户第二档）；pofu-a2pc = noup + 2pc；pofu-a16 = noup + from16
 //   注意：封锁期不封鸿门宴（终极兵法不算技能）。
 //   这些变体定稿后应直接写进 bingfa.js 的 resolve()（界面上的破釜入口 pofuFirst / pofuSecond 才会一致），这里只供模拟。
-//   revive-free（用户想试，2026-10-03）：召回良将不占行动——召回之后这一回合还能再走一步，召回的子这一步不能动（见 applyReviveFree）
+//   revive-free（用户想试，2026-10-03）：召回良将不占行动——召回之后这一回合还能再走一步，召回的子这一步不能动；
+//              召回的子可以当回合马上升一级（用户定的：“能，但是不能移动，这样做可以防止召回的棋子直接被秒”）（见 applyReviveFree）
 PRESETS['pofu-noup'] = { set: {}, patches: ['pofu-noup'] };
 PRESETS['pofu-1kill'] = { set: {}, patches: ['pofu-1kill'] };
 PRESETS['pofu-2pc'] = { set: {}, patches: ['pofu-2pc'] };
@@ -138,7 +139,8 @@ function applyPatches(BF, names) {
 //   做法照抄不占行动的拒马：召回后 freeUsed = true（只能再走一步棋）、jmLock = 召回的子。
 //   电脑和搜索里把“召回 + 后面那一步”当成一个组合行动 { k:'art', id, then:{k:'mv',…} }（像破釜沉舟的两步一样），
 //   这样双方的搜索都知道召回不丢先手。对局里单发 { k:'art', id } 也行：先召回（不换手），下一条必须是走子。
-//   召回之后只能走子：不能再架拒马、放技能、用终极兵法（和拒马之后一样）。只供模拟。
+//   召回之后只能走子：不能再架拒马、放技能、用终极兵法（和拒马之后一样）。
+//   召回的子可以当回合马上升一级（每回合最多升一次，照常扣军功），升了也不能动：组合写成 { k:'art', id, up:true, then }。只供模拟。
 function applyReviveFree(BF) {
   const A = BF.ai, isRevive = a => a && a.k === 'art' && a.id != null && !a.steps;
   const usesLeft = S => S.used.art.r < BF.CFG.generalArts.xiaohe.usesPerGame;
@@ -161,9 +163,13 @@ function applyReviveFree(BF) {
     if (!isRevive(a) || S.turn !== 'r') return attempt0(S, a);
     if (!a.then || a.then.k !== 'mv') return null;               // 单独的召回（换手）在这个变体里不存在
     const f = freeRevive(S, a.id); if (!f) return null;
-    const r = attempt0(f.T, a.then); if (!r || r.free) return null;
+    const T = a.up ? A.upgradeState(f.T, f.ev[0].at) : f.T; if (!T) return null;
+    const r = attempt0(T, a.then); if (!r || r.free) return null;
     return { ...r, kind: 'art', ev: f.ev.concat(r.ev) };
   };
+  // 召回之后的两种走法：不升级 / 马上给召回的子升一级（军功够、本回合还没升过才有）
+  const variants = f => { const U = A.upgradeState(f.T, f.ev[0].at); return U ? [[f.T, false], [U, true]] : [[f.T, false]]; };
+  const compound = (id, up, then) => (up ? { k: 'art', id, up: true, then } : { k: 'art', id, then });
   // 搜索内部（gen）只展开电脑在根上真会召回的兵种：chat 的电脑有车在场只救车，车都没了或楚已用破釜才救炮、马，士象兵不救。
   //   每个能召回的兵种都要乘上约 40 种“后面那一步”，全展开会让汉方在攒着召回时少算一层（核查实测），
   //   跟根上的策略对齐既不丢它真会走的棋，楚方的搜索也按汉方真会做的去防
@@ -177,7 +183,7 @@ function applyReviveFree(BF) {
     for (const id of reviveIds(S)) {
       const f = freeRevive(S, id); if (!f) continue;
       const t = f.ev[0].t; if (!searchable(S, t)) continue;
-      for (const it of gen0(f.T, false)) if (it.a.k === 'mv' && it.p.id !== id) res.push({ a: { k: 'art', id, then: it.a }, p: it.p, q: it.q, art: t });
+      for (const [T, up] of variants(f)) for (const it of gen0(T, false)) if (it.a.k === 'mv' && it.p.id !== id) res.push({ a: compound(id, up, it.a), p: it.p, q: it.q, art: t });
     }
     return res;
   };
@@ -188,7 +194,7 @@ function applyReviveFree(BF) {
     const res = out.filter(k => !isRevive(k.a));
     for (const id of ids) {
       const f = freeRevive(S, id); if (!f) continue;
-      for (const k of exp0(f.T)) if (k.a.k === 'mv') res.push({ a: { k: 'art', id, then: k.a }, S: k.S, ev: f.ev.concat(k.ev) });
+      for (const [T, up] of variants(f)) for (const k of exp0(T)) if (k.a.k === 'mv') res.push({ a: compound(id, up, k.a), S: k.S, ev: f.ev.concat(k.ev) });
     }
     return res;
   };
@@ -208,17 +214,20 @@ function applyReviveFree(BF) {
   function applyRF(e) {
     if (this.result || !isRevive(e) || this.S.turn !== 'r') return apply0.call(this, e);
     const f = freeRevive(this.S, e.id); if (!f) return null;
-    if (e.then ? !attempt0(f.T, e.then) : !exp0(f.T).some(k => k.a.k === 'mv')) return null;   // 召回之后要有一步合法的棋可走
-    const before = this.S, n = this.entries.length;
+    if (e.then ? !BF.attempt(this.S, e) : (e.up || !exp0(f.T).some(k => k.a.k === 'mv'))) return null;   // 召回之后要有一步合法的棋可走
+    const before = this.S, n = this.entries.length, st0 = this.status, last0 = this.last;
     this.S = f.T;
     this.entries.push({ k: 'art', id: e.id }); this.sides.push('r'); this.ends.push(0);
     this.status = { free: true, check: this.inCheck('r') };
     const info = { k: 'art', free: true, side: 'r', mover: 'r', from: null, to: null, pid: e.id, cap: null, kills: [], ev: f.ev, extra: {}, e, check: false, result: null, before, after: this.S };
     this.last = info;
     if (!e.then) return info;
+    const back = () => { this.S = before; this.entries.length = this.sides.length = this.ends.length = n; this.status = st0; this.last = last0; return null; };
+    let upInfo = null;
+    if (e.up && !(upInfo = apply0.call(this, { k: 'up', at: f.ev[0].at }))) return back();   // 不会发生（上面试走过）
     const r = apply0.call(this, e.then);
-    if (!r) { this.S = before; this.entries.length = this.sides.length = this.ends.length = n; return null; }   // 不会发生（上面试走过）
-    const out = { ...r, ev: f.ev.concat(r.ev || []), revived: e.id };
+    if (!r) return back();
+    const out = { ...r, ev: f.ev.concat(r.ev || []), revived: e.id, upInfo };
     this.last = out;
     return out;
   }
@@ -351,6 +360,7 @@ function worker() {
       else key = a.k;
       inc(A, key);
       if (a.k === 'art' && a.then) inc(A, info.extra && info.extra.via ? 'via_' + info.extra.via : 'mv');   // revive-free：召回之后那一步也记上
+      if (a.k === 'art' && a.up && info.upInfo) { inc(A, 'art_revive_up'); inc(R.up[side], info.upInfo.t + info.upInfo.lv); if (R.firstLv[side][info.upInfo.lv] == null) R.firstLv[side][info.upInfo.lv] = g.round; }
       const via = info.extra && info.extra.via;
       for (const e of info.ev || []) {
         if (e.e === 'kill') {
@@ -593,7 +603,7 @@ function summarize(rs) {
 }
 
 const CN = {
-  mv: '普通走子', pass: '停着', ult: '终极兵法', art_revive: '召回良将', art_pofu: '破釜沉舟',
+  mv: '普通走子', pass: '停着', ult: '终极兵法', art_revive: '召回良将', art_revive_up: '召回后马上升级', art_pofu: '破釜沉舟',
   sk_juma: '拒马', sk_chongzhen: '冲阵', sk_taying: '踏营', sk_pili: '霹雳', sk_qishe: '齐射', sk_hujia: '护驾', sk_feiyue: '飞越',
   via_shensu: '神速营(被动)', via_huifang: '回防(被动)', via_jinwei: '铁甲禁卫(被动)',
   capture: '普通吃子', chongzhen: '冲阵', taying: '踏营', pili: '霹雳', qishe: '齐射', jianta: '践踏', juma: '拒马反伤', feiyue: '飞越', attack: '强攻',
