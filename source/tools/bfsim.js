@@ -218,6 +218,7 @@ async function run(o) {
         if (m.error) errors.push(m);
         done++;
         if (!o.quiet && process.stderr.isTTY) process.stderr.write(`\r${done}/${jobs.length}`);
+        else if (done % 25 === 0 || done === jobs.length) process.stderr.write(`进度 ${done}/${jobs.length}  ${Math.round((Date.now() - t0) / 1000)}s\n`);
         feed();
       });
       c.on('exit', () => { if (--alive === 0) resolve(); });
