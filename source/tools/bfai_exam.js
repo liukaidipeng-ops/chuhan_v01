@@ -348,6 +348,23 @@ Q.push({
   answer: [{ k: 'mv', from: [3, 4], to: [4, 5] }],
 });
 
+// ===== 六、实战题：用户从游戏里导出的对局，指出电脑哪一步走得蠢（tools/game2exam.js --add 收进来） =====
+{
+  const file = path.join(__dirname, 'bfai_exam_games.json');
+  if (require('fs').existsSync(file)) {
+    const { load } = require('./game_load.js');
+    const main = seq => seq[seq.length - 1];   // 电脑给的是 [升级?, 拒马?, 主行动]
+    const same = (a, b) => JSON.stringify(a) === JSON.stringify(b);
+    JSON.parse(require('fs').readFileSync(file, 'utf8')).forEach((it, i) => Q.push({
+      name: `实${i + 1} ${it.name}`, cat: '实战', desc: it.desc,
+      build: () => load(it.data, it.at).game,
+      // 给了标准答案：主行动要和答案一样（答案里有升级的，升级也要一样）；没给：只要别再走电脑原来那一步
+      check: seq => (it.answer ? same(main(seq), main(it.answer)) && it.answer.filter(a => a.k === 'up').every(u => seq.some(a => same(a, u))) : !same(main(seq), main(it.bad))),
+      answer: it.answer || undefined, bad: it.bad, adjudicated: it.adjudicated, disabled: it.disabled,
+    }));
+  }
+}
+
 // ---------- 自检：考题本身摆得对不对 ----------
 function lint() {
   let bad = 0;
@@ -369,8 +386,12 @@ function lint() {
     const other = S.turn === 'r' ? 'b' : 'r';
     if (!S.final && XQ.inCheck(b, other)) errs.push('不走棋的一方正被将军（局面不合法）');
     if (!q.multi) {
-      if (!q.answer) errs.push('没有标准答案');
-      else { pid = 500; const g1 = q.build(); const seq = q.answer.map(a => JSON.parse(JSON.stringify(a))); const g2 = q.build.length ? null : null; pid = 500; const gA = q.build(); const ok = play(gA, seq.map(x => x)); if (!ok) errs.push('标准答案不合法 ' + JSON.stringify(q.answer)); else { pid = 500; const gB = q.build(); if (!q.check(seq, gB)) errs.push('标准答案判卷判错'); } }
+      if (!q.answer && q.cat !== '实战') errs.push('没有标准答案');
+      else if (q.answer) {
+        const seq = q.answer.map(a => JSON.parse(JSON.stringify(a)));
+        pid = 500; if (!play(q.build(), seq)) errs.push('标准答案不合法 ' + JSON.stringify(q.answer));
+        else { pid = 500; if (!q.check(seq, q.build())) errs.push('标准答案判卷判错'); }
+      }
       if (q.bad) { pid = 500; const gC = q.build(); if (q.check(q.bad, gC)) errs.push('错误示范判卷判对'); }
     }
     // 走子方此刻能白吃的子（提示用：题目里多出来的吃子机会可能干扰判断）
