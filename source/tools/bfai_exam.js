@@ -4,6 +4,9 @@
 //   默认考 src/bfai.js（游戏里现用的）；可以一次给几个文件对比（比如 git show 出来的旧版本）。
 //   每题按不同随机种子考 --runs 次，答对的次数记分。
 //   --lint：不考电脑，只检查考题本身摆得对不对（将帅照面、将军状态、标准答案合法且判对、错误示范判错）。
+//   --verify [毫秒]：不考电脑，用霸王档长时间深搜（默认每次 8000 毫秒）复核每道题的标准答案：
+//     深搜自己会怎么走、判卷判它对不对；标准答案、错误示范走完之后各值几分。深搜不同意的题标出来，交人裁决。
+//     注意：深搜用的还是被考电脑的估值，“深搜同意”只说明算得更深也站得住，不能代替人的判断。
 // 出题原则：一题只考一个机制。无关的兵法默认设为已用（opts.used），免得别的强招干扰判断；
 //   每题写上标准答案 answer（和可选的错误示范 bad），--lint 会拿它们验证判卷函数。
 'use strict';
@@ -13,13 +16,14 @@ const BF = global.BF = require('../src/bingfa.js');
 const XQ = global.XQ;
 
 const argv = process.argv.slice(2);
-const opt = { level: 'mid', runs: 3, verbose: false, files: [], only: null, lint: false };
+const opt = { level: 'mid', runs: 3, verbose: false, files: [], only: null, lint: false, verify: 0 };
 for (let i = 0; i < argv.length; i++) {
   if (argv[i] === '--level') opt.level = argv[++i];
   else if (argv[i] === '--runs') opt.runs = +argv[++i];
   else if (argv[i] === '--verbose') opt.verbose = true;
   else if (argv[i] === '--only') opt.only = argv[++i];
   else if (argv[i] === '--lint') opt.lint = true;
+  else if (argv[i] === '--verify') opt.verify = argv[i + 1] && /^\d+$/.test(argv[i + 1]) ? +argv[++i] : 8000;
   else opt.files.push(argv[i]);
 }
 if (!opt.files.length) opt.files = ['src/bfai.js'];
@@ -98,11 +102,12 @@ Q.push({
 });
 Q.push({
   name: '2 看穿对方先升级再吃', cat: '血量',
-  desc: '汉炮被楚车盯着，有汉车横向保护。楚有 6 功，可以先升车（2 血）再吃炮，汉车回吃打不死——汉炮得赶紧躲开。汉车边上有个白吃的卒是诱饵。',
-  build: () => { const c = P('r', 'c'); ids.q2 = c.id; return position([[3, 0, P('r', 'k')], [0, 4, P('r', 'r')], [2, 4, c], [6, 3, P('r', 'p')], [5, 9, P('b', 'k')], [2, 8, P('b', 'r')], [0, 6, P('b', 'p')], [6, 6, P('b', 'p')], [8, 6, P('b', 'p')]], { merit: { b: 6 } }); },
-  check: (seq, g0) => { const g = play(g0, seq); return !!g && !!findId(g, ids.q2) && !killable(g.S, ids.q2); },
-  answer: [{ k: 'mv', from: [2, 4], to: [5, 4] }],
-  bad: [{ k: 'mv', from: [0, 4], to: [0, 6] }],
+  desc: '汉马过了河，身后有汉兵保护（平时楚车吃马、汉兵回吃，楚亏）。可楚有 6 功：先升车（2 血）再吃马，汉兵回吃打不死、被弹回——汉马得赶紧跳开。（汉方九宫有二级士，防得住贴脸将军，这题只考保马。）',
+  build: () => { const n = P('r', 'n'); ids.q2 = [n.id]; return position([[4, 0, P('r', 'k')], [3, 0, P('r', 'a')], [5, 0, P('r', 'a', 2)], [4, 3, P('r', 'p')], [4, 9, P('b', 'k')], [3, 9, P('b', 'a')], [5, 9, P('b', 'a')], [4, 6, P('b', 'p')], [6, 5, n], [6, 4, P('r', 'p')], [6, 8, P('b', 'r')]], { merit: { b: 6 } }); },
+  // 走完之后汉马还在，而且楚方下一步打不死它
+  check: (seq, g0) => { const g = play(g0, seq); return !!g && ids.q2.every(id => findId(g, id) && !killable(g.S, id)); },
+  answer: [{ k: 'mv', from: [6, 5], to: [8, 4] }],
+  bad: [{ k: 'mv', from: [3, 0], to: [4, 1] }],
 });
 Q.push({
   name: '3 升级保命', cat: '血量',
@@ -372,9 +377,51 @@ function lint() {
   process.exit(bad ? 1 : 0);
 }
 
+// ---------- 深搜复核：标准答案在更深的搜索下站不站得住 ----------
+async function verify() {
+  const AI = require(path.resolve(__dirname, '..', opt.files[0]));
+  AI.LEVELS.verify = { ...AI.LEVELS.hard, noise: 0, top: 1, budget: opt.verify };
+  const list = (opt.only ? Q.filter(q => q.name.includes(opt.only) || q.cat === opt.only) : Q).filter(q => !q.multi);
+  // 一串行动走完之后值几分（站在走棋方看）：直接分出胜负就是 ±9000，否则让深搜替对方找最好的应着再取反
+  const valueOf = async (q, seq) => {
+    pid = 500; const g = q.build(); const me = g.turn;
+    if (!play(g, seq)) return { v: null, note: '不合法' };
+    if (g.result) return { v: g.result.winner === me ? 9000 : -9000, note: '分出胜负' };
+    if (g.turn === me) return { v: null, note: '没换手' };
+    Math.random = mulberry32(4242);
+    await AI.think(BF.cloneState(g.S), 'verify');
+    return { v: -AI.think.last.v, depth: AI.think.last.depth };
+  };
+  console.log(`深搜复核：${opt.files[0]} 霸王档每次 ${opt.verify} 毫秒（判卷函数判深搜的着法；标准答案 / 错误示范各走完再深搜对方的应着）\n`);
+  let disputed = 0;
+  for (const q of list) {
+    pid = 500; const g0 = q.build();
+    Math.random = mulberry32(4242);
+    const seq = await AI.think(BF.cloneState(g0.S), 'verify');
+    const L = AI.think.last, vDeep = L.v;
+    pid = 500; const gC = q.build();
+    const deepPass = !!q.check(seq, gC);
+    const ans = q.answer ? await valueOf(q, q.answer) : null;
+    const bad = q.bad ? await valueOf(q, q.bad) : null;
+    const fmt = x => (x == null ? '—' : (Math.abs(x) > 4000 ? (x > 0 ? '必胜' : '必败') : x.toFixed(2)));
+    // 不同意：深搜的着法判卷判错，且深搜认为它比标准答案好出 0.5 分以上；或者错误示范反而比标准答案好
+    const worse = ans && ans.v != null && vDeep - ans.v > 0.5;
+    const badBetter = ans && bad && ans.v != null && bad.v != null && bad.v >= ans.v - 0.1;
+    const verdict = deepPass ? '✓ 深搜同意' : worse ? '⚠ 深搜不同意（深搜的着法判错，且它认为比标准答案好）' : '△ 深搜走了别的，但认为和标准答案差不多（判卷可能太严，或深搜还不够深）';
+    if (!deepPass && worse) disputed++;
+    if (badBetter) disputed++;
+    console.log(`【${q.name}】${verdict}${badBetter ? '  ⚠ 错误示范不比标准答案差' : ''}`);
+    console.log(`   深搜走：${seq.map(a => desc(g0.S, a)).join(' + ')}（${fmt(vDeep)}，${L.depth} 层）`);
+    if (ans) console.log(`   标准答案：${q.answer.map(a => desc(g0.S, a)).join(' + ')} → ${fmt(ans.v)}${ans.note ? '（' + ans.note + '）' : ''}`);
+    if (bad) console.log(`   错误示范：${q.bad.map(a => desc(g0.S, a)).join(' + ')} → ${fmt(bad.v)}${bad.note ? '（' + bad.note + '）' : ''}`);
+  }
+  console.log(disputed ? `\n${disputed} 处需要人裁决` : '\n深搜全部同意');
+}
+
 // ---------- 开考 ----------
 (async () => {
   if (opt.lint) return lint();
+  if (opt.verify) return verify();
   const list = opt.only ? Q.filter(q => q.name.includes(opt.only) || q.cat === opt.only) : Q;
   const AIs = opt.files.map(f => ({ file: f, AI: require(path.resolve(__dirname, '..', f)) }));
   const score = AIs.map(() => 0), byCat = AIs.map(() => ({}));
