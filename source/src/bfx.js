@@ -35,11 +35,13 @@ const BFX = (() => {
     P.sparks(p, 10, 0.8); Sfx.B.plate(0, 0.35); Sfx.B.clang(0.03, 0.25);
   }
   // 被技能波及：中招的子闪一下、甲片碎裂；阵亡的子化墨炸开
-  async function splashHits(evs, side) {
+  //   完整镜头 / 精简特效下，阵亡一律换成那队兵的模型来演（倒地、流血、断肢）；只有低特效才是棋子本身碎掉
+  async function splashHits(evs, side, hit) {
     for (const e of evs) {
       const m = Board.pieces.get(e.id);
       const c = Board.pos(e.at[0], e.at[1]).setY(TOP + 0.2);
       if (e.e === 'hit') { shatter(e.at, 1); P.ink(c, 6, 0.35, 0.25, 0.6); if (m) tween(0.25, k => { m.position.y = TOP + Math.sin(k * Math.PI) * 0.12; }); }
+      else if (e.e === 'kill' && modelKill(e)) { blowAway(e, c.clone().add(new V3(0, 0, side === 'r' ? 0.6 : -0.6)), 1, false, hit); Cam.shake(0.1); }
       else if (e.e === 'kill') {
         P.ink(c, 14, 0.5, 0.35); P.blood(c, 10, 0.7); Fx.chunks(c, new V3(0, 0, side === 'r' ? -1 : 1), 0.8, 8, { of: m });
         if (m) { Fx.flyFace(m, c, new V3(0, 0, 0), 0.6, false); Fx.removePiece(m); }
@@ -81,16 +83,17 @@ const BFX = (() => {
     }
   }
   // 被震飞 / 炸飞：棋子模式下棋子碎成块飞出去；模型模式下换成那队兵的模型，被掀飞、断肢落地留血
-  function blowAway(e, from, power = 1.4, burnt = false) {
+  const modelKill = e => (Squads.Stand.on || Fx.level !== 'low') && e.t && e.t !== 'k';
+  function blowAway(e, from, power = 1.4, burnt = false, hit) {
     const m = Board.pieces.get(e.id), c = Board.pos(e.at[0], e.at[1]);
     const dir = c.clone().sub(from).setY(0); if (dir.lengthSq() < 1e-4) dir.set(R(-1, 1), 0, R(-1, 1)); dir.normalize();
     P.blood(c.clone().setY(TOP + 0.25), 16, 0.9, dir, 1.5); P.ink(c.clone().setY(TOP + 0.2), 12, 0.5, 0.35);
     let done = false;
-    if (Squads.Stand.on && e.t && e.t !== 'k') {
+    if (modelKill(e)) {
       try {
         const sq = Squads.make(e.t, e.s, c.clone().setY(TOP), Squads.yawOf(dir.clone().negate()), 'defend', e.lv || 1, e.lv || 0);
         sq.setVis(1); if (sq.guard) sq.guard.setVis(1);
-        Promise.resolve(sq.die(burnt ? 'blast' : 'crush', dir, power * 1.5, c.clone().addScaledVector(dir, -0.35))).then(() => sleep(2.2)).then(() => { try { sq.dispose(); } catch (err) { } });
+        Promise.resolve(sq.die(hit || (burnt ? 'blast' : 'crush'), dir, power * 1.5, c.clone().addScaledVector(dir, -0.35))).then(() => sleep(2.2)).then(() => { try { sq.dispose(); } catch (err) { } });
         done = true;
       } catch (err) { console.error(err); }
     }
@@ -343,8 +346,8 @@ const BFX = (() => {
     if (onLand) onLand();
     if (counter) { Sfx.B.stab(0, 0.5); P.blood(top.clone().setY(TOP + 0.2), 12, 0.7, d.clone().negate()); }
     const died = ev.find(e => e.e === 'kill' && e.id === id);
-    if (tEv.length) await splashHits(tEv, side);
-    if (died) { await splashHits([died], side); return; }
+    if (tEv.length) await splashHits(tEv, side, 'trample');
+    if (died) { await splashHits([died], XQ.other(side), 'stab'); return; }
     if (killed) { m.position.copy(B); m.position.y = TOP; }
     if (onImpact) await onImpact();
     if (!killed) { await sleep(0.12); await tween(0.5, k => { m.position.lerpVectors(top, A, k); m.position.y = TOP + Math.sin(k * Math.PI) * 0.7; }, ease.inOut); }
@@ -384,7 +387,7 @@ const BFX = (() => {
       P.sparks(Q.clone().setY(TOP + 0.25), 14, 1); P.dust(Q, 10, d.clone().negate(), 0.35); ring(to, 0x5a4a38, 2.0);
       if (counter) { Sfx.B.stab(0, 0.5); P.blood(pre.clone().setY(TOP + 0.2), 12, 0.7, d.clone().negate()); }
       const died = ev.find(e => e.e === 'kill' && e.id === P0.id);
-      if (died && counter) { await splashHits([died], side); return; }
+      if (died && counter) { await splashHits([died], XQ.other(side), 'stab'); return; }
       if (qEv.length) await splashHits(qEv, side);
       const res = info.extra.res;
       const lEv = ev.filter(e => (e.e === 'hit' || e.e === 'kill') && e.at[0] === land[0] && e.at[1] === land[1] && e.id !== P0.id);
@@ -395,7 +398,7 @@ const BFX = (() => {
       if (m) m.rotation.x = 0;
       Cam.shake(0.25); P.dust(L, 14, null, 0.4); Fx.Marks.crack(L.clone().setY(TOP), 1.2); Sfx.B.thud(0, 0.8);
       if (lEv.length) await splashHits(lEv, side);
-      if (ev.some(e => e.e === 'kill' && e.id === P0.id)) { const dd = ev.find(e => e.e === 'kill' && e.id === P0.id); await splashHits([dd], side); return; }
+      if (ev.some(e => e.e === 'kill' && e.id === P0.id)) { const dd = ev.find(e => e.e === 'kill' && e.id === P0.id); await splashHits([dd], XQ.other(side), 'stab'); return; }
       if (res === 'hit' && m) {
         // 打不死：撞完退回原位
         await sleep(0.15);
@@ -430,7 +433,7 @@ const BFX = (() => {
       for (const e of all.filter(x => x.e === 'kill')) blowAway(e, B.clone().addScaledVector(A.clone().sub(B).setY(0).normalize(), 0.3), 1.6, true);
       const hurt = all.filter(x => x.e === 'hit');
       if (hurt.length) await splashHits(hurt, side); else await sleep(0.2);
-      if (died) { await splashHits([died], side); }
+      if (died) { await splashHits([died], XQ.other(side), 'stab'); }
       else if (info.extra.res === 'kill' && m) {
         await sleep(0.2);
         Sfx.unit('cannon').move && Sfx.unit('cannon').move(0.5);
