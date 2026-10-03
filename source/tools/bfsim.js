@@ -11,7 +11,8 @@
 //   --open N         开局多样化：前 N 步（双方合计）在“差不到约 1.5 分”的着法里随机挑（默认 6；0 = 关）
 //   --seed N         起始随机种子（第 i 局用 seed + i，可复现）
 //   --preset NAME    预设配置（见下方 PRESETS；可多个，逗号分隔）：baseline（普通象棋对照）、no-pofu / no-revive / no-simian / no-hongmen
-//                    （关掉某个兵法）、no-<技能>（如 no-chongzhen，关掉某个兵种技能）
+//                    （关掉某个兵法）、no-<技能>（如 no-chongzhen，关掉某个兵种技能）、
+//                    pofu-a / pofu-b / pofu-noup / pofu-1kill（破釜沉舟的规则变体，见 applyPatches）
 //   --set PATH=JSON  覆盖单个配置项，如 --set skills.jianta.splashMinLevel=2（可多次）
 //   --save-ult       军功离终极兵法差 7 以内时不再升级、攒着放大招（霸王档本来就这样；校尉 / 新兵默认不攒）
 //   --json FILE      把每局明细写到 FILE
@@ -53,6 +54,36 @@ const PRESETS = {
   'no-arts': { set: { 'generalArts.xiaohe.usesPerGame': 0, 'generalArts.pofu.usesPerGame': 0 } },
   'no-e4': { set: { 'upgrade.maxLevel': { r: 4, p: 4, a: 4, e: 3 } } },
 };
+// 规则变体（试新规则用，不改游戏源码）：在模拟进程里给引擎套一层规则，电脑和对局都受约束
+//   pofu-noup：同一回合不能“先升级再破釜沉舟”；破釜沉舟之后的封锁期（原有 3 回合不能用主动技能）里也不能升级
+//   pofu-1kill：破釜沉舟两步加起来最多杀死一个敌子（含践踏、溅射带走的）
+//   pofu-a = pofu-noup；pofu-b = pofu-noup + pofu-1kill（用户提的两档方案）
+PRESETS['pofu-noup'] = { set: {}, patches: ['pofu-noup'] };
+PRESETS['pofu-1kill'] = { set: {}, patches: ['pofu-1kill'] };
+PRESETS['pofu-a'] = { set: {}, patches: ['pofu-noup'] };
+PRESETS['pofu-b'] = { set: {}, patches: ['pofu-noup', 'pofu-1kill'] };
+function applyPatches(BF, names) {
+  if (!names || !names.length) return;
+  const has = n => names.includes(n);
+  const isPofu = a => a && a.k === 'art' && a.steps;
+  const locked = S => S.turn === 'b' && S.cnt.b < S.fx.pf;                 // 破釜沉舟之后的封锁期
+  const kills = ev => (ev || []).filter(e => e.e === 'kill' && !e.friendly && e.s === 'r').length;
+  // 一条行动按变体规则是否违规（S 是走之前的局面，r 是引擎结算结果）
+  const bad = (S, a, r) => (isPofu(a) && has('pofu-noup') && S.upgraded) || (isPofu(a) && has('pofu-1kill') && r && kills(r.ev) > 1);
+  const attempt0 = BF.attempt;
+  BF.attempt = (S, a) => { const r = attempt0(S, a); return r && bad(S, a, r) ? null : r; };
+  const pairs0 = BF.ai.pofuPairs;
+  BF.ai.pofuPairs = (S, ...rest) => (has('pofu-noup') && S.upgraded ? [] : pairs0(S, ...rest).filter(x => !bad(S, x.a, x)));
+  if (has('pofu-noup')) {
+    const up0 = BF.ai.upgradeState;
+    BF.ai.upgradeState = (S, at) => (locked(S) ? null : up0(S, at));
+    const can0 = BF.Game.prototype.canUpgrade;
+    BF.Game.prototype.canUpgrade = function (f, r) { return locked(this.S) ? false : can0.call(this, f, r); };
+  }
+  const apply0 = BF.Game.prototype.apply;
+  BF.Game.prototype.apply = function (e) { if (isPofu(e) && bad(this.S, e, attempt0(this.S, e))) return null; return apply0.call(this, e); };
+}
+
 // 每个兵种技能各一个“关掉”预设：把解锁等级设成 99（永远解锁不了），如 no-chongzhen、no-jianta
 for (const sk of ['juma', 'chongzhen', 'taying', 'pili', 'feiyue', 'hujia', 'qishe', 'jianta', 'shensu', 'huifang', 'jinwei']) PRESETS['no-' + sk] = { set: { [`skills.${sk}.level`]: 99 } };
 
@@ -93,10 +124,10 @@ function setPath(obj, p, val) {
 }
 // 把预设和 --set 合成一份覆盖表
 function overrides(o) {
-  const set = {}; let noArts = false;
-  for (const n of o.presets) { const P = PRESETS[n]; if (!P) throw new Error('没有这个预设 ' + n + '（可选：' + Object.keys(PRESETS).join(' ') + '）'); Object.assign(set, P.set); if (P.noArts) noArts = true; }
+  const set = {}; let noArts = false; const patches = [];
+  for (const n of o.presets) { const P = PRESETS[n]; if (!P) throw new Error('没有这个预设 ' + n + '（可选：' + Object.keys(PRESETS).join(' ') + '）'); Object.assign(set, P.set); if (P.noArts) noArts = true; for (const x of P.patches || []) if (!patches.includes(x)) patches.push(x); }
   for (const s of o.sets) { const i = s.indexOf('='); if (i < 0) throw new Error('--set 要写成 PATH=JSON'); const raw = s.slice(i + 1); let v; try { v = JSON.parse(raw); } catch (e) { v = raw; } set[s.slice(0, i)] = v; }
-  return { set, noArts };
+  return { set, noArts, patches };
 }
 
 // ---------- 子进程：下棋 ----------
@@ -202,6 +233,7 @@ function worker() {
     if (m.init) try {
       ov = m.init;
       for (const [k, v] of Object.entries(ov.set)) setPath(BF.CFG, k, v);
+      applyPatches(BF, ov.patches);
       const warns = [];
       // 旧版电脑：把 BF、BF.ai 包一层再加载——它用到引擎里已经没有的接口就当场报错，不会悄悄少功能
       const guard = (obj, name) => new Proxy(obj, { get(t, k) { if (k in t || typeof k === 'symbol' || k === 'then' || k === 'toJSON' || k === 'inspect') return k === 'ai' && name === 'BF' ? guard(t.ai, 'BF.ai') : t[k]; throw new Error(`电脑 ${cur} 用到了当前引擎里没有的接口 ${name}.${String(k)}`); } });
@@ -424,7 +456,10 @@ function print(S, o) {
   console.log(L.join('\n'));
 }
 
-const o = parseArgs(process.argv.slice(2));
-if (o.worker) worker();
-else run(o).catch(e => { console.error(e); process.exit(1); });
-module.exports = { PRESETS, summarize };
+// 直接运行才开工；被别的脚本 require 时只导出工具函数（测试规则变体用）
+if (require.main === module) {
+  const o = parseArgs(process.argv.slice(2));
+  if (o.worker) worker();
+  else run(o).catch(e => { console.error(e); process.exit(1); });
+}
+module.exports = { PRESETS, summarize, applyPatches };
