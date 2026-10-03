@@ -306,6 +306,9 @@ Q.push({
   },
   answer: [{ k: 'mv', from: [6, 4], to: [6, 0] }],
   bad: [{ k: 'mv', from: [0, 2], to: [0, 6] }],
+  // 深搜复核时“不同意”：电脑自己的搜索里不考虑对方的破釜沉舟，所以它深搜也觉得吃诱饵卒没事；
+  //   可真走出去、轮到楚方思考时楚方会用破釜沉舟，错误示范 −4.06 对标准答案 +4.07。裁决：标准答案成立。
+  adjudicated: '标准答案成立：深搜不同意是因为电脑搜索里看不到对方的破釜沉舟（考的正是这个）',
 });
 Q.push({
   name: '25 破釜沉舟杀车', cat: '兵法',
@@ -333,6 +336,7 @@ Q.push({
   check: seq => seq.some(a => a.k === 'ult'),
   answer: [{ k: 'ult' }],
   bad: [{ k: 'mv', from: [8, 5], to: [8, 0] }],
+  disabled: '深搜复核发现不用鸿门宴也能杀（升车后 4 路将军，5 步必杀），这题考不出鸿门宴的时机，待重出',
 });
 
 // ===== 五、决战 =====
@@ -348,6 +352,7 @@ Q.push({
 function lint() {
   let bad = 0;
   for (const q of Q) {
+    if (q.disabled) { console.log(`－ ${q.name}  停用：${q.disabled}`); continue; }
     const errs = [];
     pid = 500;
     const g = q.build();
@@ -381,7 +386,7 @@ function lint() {
 async function verify() {
   const AI = require(path.resolve(__dirname, '..', opt.files[0]));
   AI.LEVELS.verify = { ...AI.LEVELS.hard, noise: 0, top: 1, budget: opt.verify };
-  const list = (opt.only ? Q.filter(q => q.name.includes(opt.only) || q.cat === opt.only) : Q).filter(q => !q.multi);
+  const list = (opt.only ? Q.filter(q => q.name.includes(opt.only) || q.cat === opt.only) : Q).filter(q => !q.multi && !q.disabled);
   // 一串行动走完之后值几分（站在走棋方看）：直接分出胜负就是 ±9000，否则让深搜替对方找最好的应着再取反
   const valueOf = async (q, seq) => {
     pid = 500; const g = q.build(); const me = g.turn;
@@ -408,9 +413,9 @@ async function verify() {
     const worse = ans && ans.v != null && vDeep - ans.v > 0.5;
     const badBetter = ans && bad && ans.v != null && bad.v != null && bad.v >= ans.v - 0.1;
     const verdict = deepPass ? '✓ 深搜同意' : worse ? '⚠ 深搜不同意（深搜的着法判错，且它认为比标准答案好）' : '△ 深搜走了别的，但认为和标准答案差不多（判卷可能太严，或深搜还不够深）';
-    if (!deepPass && worse) disputed++;
-    if (badBetter) disputed++;
-    console.log(`【${q.name}】${verdict}${badBetter ? '  ⚠ 错误示范不比标准答案差' : ''}`);
+    if (!q.adjudicated && !deepPass && worse) disputed++;
+    if (!q.adjudicated && badBetter) disputed++;
+    console.log(`【${q.name}】${verdict}${badBetter ? '  ⚠ 错误示范不比标准答案差' : ''}${q.adjudicated ? '\n   （已裁决：' + q.adjudicated + '）' : ''}`);
     console.log(`   深搜走：${seq.map(a => desc(g0.S, a)).join(' + ')}（${fmt(vDeep)}，${L.depth} 层）`);
     if (ans) console.log(`   标准答案：${q.answer.map(a => desc(g0.S, a)).join(' + ')} → ${fmt(ans.v)}${ans.note ? '（' + ans.note + '）' : ''}`);
     if (bad) console.log(`   错误示范：${q.bad.map(a => desc(g0.S, a)).join(' + ')} → ${fmt(bad.v)}${bad.note ? '（' + bad.note + '）' : ''}`);
@@ -422,7 +427,8 @@ async function verify() {
 (async () => {
   if (opt.lint) return lint();
   if (opt.verify) return verify();
-  const list = opt.only ? Q.filter(q => q.name.includes(opt.only) || q.cat === opt.only) : Q;
+  const list = (opt.only ? Q.filter(q => q.name.includes(opt.only) || q.cat === opt.only) : Q).filter(q => !q.disabled);
+  for (const q of Q) if (q.disabled) console.log(`（停用：${q.name}——${q.disabled}）`);
   const AIs = opt.files.map(f => ({ file: f, AI: require(path.resolve(__dirname, '..', f)) }));
   const score = AIs.map(() => 0), byCat = AIs.map(() => ({}));
   for (const q of list) {
