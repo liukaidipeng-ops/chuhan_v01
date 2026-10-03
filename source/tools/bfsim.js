@@ -64,7 +64,8 @@ const PRESETS = {
 //   pofu-2pc：两子合击——两步必须由两枚不同的子各走一步，同一枚子不能连走两步
 //   pofu-fromN：第 N 回合起才能破釜沉舟（如 pofu-from16）
 //   revive-fromN：第 N 回合起才能召回良将（如 revive-from16）；arts-from16 = 两个主公技都从第 16 回合起
-//              （用户 2026-10-03：“改成15回合后才能使用主公技（破釜和复活）”，按“打满 15 回合、第 16 回合起”理解）
+//              （用户 2026-10-03：“改成15回合后才能使用主公技（破釜和复活）”，确认是第 16 回合起——那时起每回合 +1 军功）
+//              pofu-a+arts-from16 = 方案 A + 两个主公技第 16 回合起
 //   预设：pofu-a = noup（用户第一档）；pofu-b = noup + 1kill（用户第二档）；pofu-a2pc = noup + 2pc；pofu-a16 = noup + from16
 //   注意：封锁期不封鸿门宴（终极兵法不算技能）。
 //   这些变体定稿后应直接写进 bingfa.js 的 resolve()（界面上的破釜入口 pofuFirst / pofuSecond 才会一致），这里只供模拟。
@@ -79,6 +80,7 @@ PRESETS['pofu-a2pc'] = { set: {}, patches: ['pofu-noup', 'pofu-2pc'] };
 PRESETS['pofu-a16'] = { set: {}, patches: ['pofu-noup', 'pofu-from16'] };
 PRESETS['revive-free'] = { set: {}, patches: ['revive-free'] };
 PRESETS['arts-from16'] = { set: {}, patches: ['pofu-from16', 'revive-from16'] };
+PRESETS['pofu-a+arts-from16'] = { set: {}, patches: ['pofu-noup', 'pofu-from16', 'revive-from16'] };   // 用户：方案 A 的封锁期 + 第 16 回合起每回合 +1 军功，让破釜的 debuff 最大化
 PRESETS['pofu-a+revive-free'] = { set: {}, patches: ['pofu-noup', 'revive-free'] };
 function applyPatches(BF, names) {
   if (!names || !names.length) return;
