@@ -249,9 +249,12 @@
     for (let r = 0; r < 10; r++) for (let f = 0; f < 9; f++) {
       const p = S.board[r][f]; if (!p || p.s !== me || p.t === 'k') continue;
       const T = A.upgradeState(S, [f, r]); if (!T) continue;
-      const thr = threatened(S, [f, r]), must = thr || (chk && p.t !== 'e');   // 被将军时相 / 象升级没用（它砍不了人）；士升二级攻击 2，可能正好砍死将军的子
+      // 保命的升级（不受“给车攒军功”限制）：只算大子和守子正被捉、或者正被将军（相 / 象除外：它砍不了人；士升二级攻击 2，可能正好砍死将军的子）。
+      //   兵被捉不算——兵老是被捉着，回回都救的话军功全填给兵了，车永远升不上去（对打里就是这么输的）
+      const thr = p.t !== 'p' && threatened(S, [f, r]), must = thr || (chk && p.t !== 'e' && p.t !== 'p');
       const defender = (p.t === 'a' || p.t === 'e') && !fin;
-      if (defender && !must && !(p.t === 'a' && heavy)) continue;       // 守子：被捉、被将军才升；士在对方有两血进攻子时也可以升
+      // 守子：被捉、被将军才升；对方有两血进攻子逼近时，士可以先升到二级（攻击 2 才砍得死它），再往上只加血、不急
+      if (defender && !must && !(p.t === 'a' && heavy && p.lv < 2)) continue;
       if ((saving || hoard) && p.t !== 'r' && !must) continue;
       cand.push({ at: [f, r], S: T, gain: score(T, me) - base, must });
     }
