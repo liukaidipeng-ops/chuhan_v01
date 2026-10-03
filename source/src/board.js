@@ -176,15 +176,18 @@ const Board = (() => {
     const sg = isRed ? 1 : -1, zFar = sg * depth / 2, zRiv = -sg * depth / 2;
     const bar = (w, d, x, z, y = TOP + 0.004, h = 0.03) => { const m = new THREE.Mesh(new THREE.BoxGeometry(w, h, d), goldM); m.position.set(x, y, z); g.add(m); return m; };
     bar(0.05, depth, BX - 0.025, 0); bar(0.05, depth, -BX + 0.025, 0);
-    bar(2 * BX, 0.05, 0, zFar - sg * 0.025); bar(2 * BX, 0.05, 0, zRiv + sg * 0.025);
+    // 横边只铺到两条竖边之间，四个角上不再两条金边叠在一起
+    bar(2 * BX - 0.1, 0.05, 0, zFar - sg * 0.025); bar(2 * BX - 0.1, 0.05, 0, zRiv + sg * 0.025);
     // 铜包角
     for (const sx of [-1, 1]) {
-      const cxp = sx * (BX - 0.2), czp = zFar - sg * 0.2;
-      for (const [w, d, x, z] of [[0.42, 0.07, cxp, zFar - sg * 0.035], [0.07, 0.42, sx * (BX - 0.035), czp]]) {
-        const m = new THREE.Mesh(new THREE.BoxGeometry(w, 0.036, d), bronzeM); m.position.set(x, TOP + 0.008, z); g.add(m);
+      const cxp = sx * (BX - 0.2);
+      // 铜条比金边宽一圈、高一截，把金边整个包在里面；角柱再比铜条大一圈。
+      // 三层的外侧面、顶面都错开至少 1 厘米——之前它们和金边共面，两个面抢着显示，角上就一直闪
+      for (const [w, d, x, z] of [[0.42, 0.085, cxp, zFar - sg * 0.0305], [0.085, 0.32, sx * (BX - 0.0305), zFar - sg * 0.25]]) {
+        const m = new THREE.Mesh(new THREE.BoxGeometry(w, 0.036, d), bronzeM); m.position.set(x, TOP + 0.01, z); g.add(m);
       }
-      const cap = new THREE.Mesh(new THREE.BoxGeometry(0.1, 0.28, 0.1), bronzeM); cap.position.set(sx * (BX - 0.03), TOP - 0.12, zFar - sg * 0.03); g.add(cap);
-      for (const [x, z] of [[sx * (BX - 0.3), zFar - sg * 0.035], [sx * (BX - 0.035), zFar - sg * 0.3]]) { const r = new THREE.Mesh(new THREE.SphereGeometry(0.022, 8, 6), goldM); r.position.set(x, TOP + 0.03, z); g.add(r); }
+      const cap = new THREE.Mesh(new THREE.BoxGeometry(0.13, 0.3, 0.13), bronzeM); cap.position.set(sx * (BX - 0.04), TOP - 0.112, zFar - sg * 0.04); g.add(cap);
+      for (const [x, z] of [[sx * (BX - 0.3), zFar - sg * 0.035], [sx * (BX - 0.035), zFar - sg * 0.3]]) { const r = new THREE.Mesh(new THREE.SphereGeometry(0.022, 8, 6), goldM); r.position.set(x, TOP + 0.032, z); g.add(r); }
     }
     // 须弥座：两级台基（河一侧不设）
     const step1 = inked(new THREE.BoxGeometry(2 * BX + 0.36, 0.085, depth + 0.18), toon(0x3a2418));
