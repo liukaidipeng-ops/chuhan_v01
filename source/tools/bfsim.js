@@ -580,10 +580,13 @@ async function run(o) {
     console.log(`== 对打：新 ${o.match[0]} vs 旧 ${o.match[1]} | ${o.red || o.level} 档 | ${st.n} 局（每个种子换边各一局）| ${Math.round((Date.now() - t0) / 1000)}s ==`);
     console.log(`新版得分 ${pct(st.score)}，Elo 差 ${f(st.elo)}（95% 区间 ${f(st.lo)} ～ ${f(st.hi)}）`);
     console.log(`  新版执汉：${st.asR.n} 局 胜 ${st.asR.w} 和 ${st.asR.d}；新版执楚：${st.asB.n} 局 胜 ${st.asB.w} 和 ${st.asB.d}`);
-    console.log(`序贯检验（Elo ${o.sprt[0]} 对 ${o.sprt[1]}）：LLR ${st.llr.toFixed(2)}（界 ±${st.bound.toFixed(2)}）→ ${st.verdict === 'H1' ? '通过（新版不比旧版明显弱' + (o.sprt[0] >= 0 ? '，而且更强' : '') + '）' : st.verdict === 'H0' ? '不通过（新版明显' + (o.sprt[0] >= 0 ? '没有更强' : '变弱') + '）' : '还没有结论（局数上限到了，加大 --games 再跑）'}`);
+    // 提前停：越界那一刻已经下了结论（之后只是把正在下的几局下完）；收尾那几局可能把 LLR 拉回界内，结论仍以越界那一刻为准
+    const verdict = stopped ? stopped.verdict : st.verdict;
+    const when = stopped && stopped.n !== st.n ? `；第 ${stopped.n} 局时 LLR ${stopped.llr.toFixed(2)} 越界，提前停，之后只把正在下的 ${st.n - stopped.n} 局下完` : '';
+    console.log(`序贯检验（Elo ${o.sprt[0]} 对 ${o.sprt[1]}）：LLR ${st.llr.toFixed(2)}（界 ±${st.bound.toFixed(2)}${when}）→ ${verdict === 'H1' ? '通过（新版不比旧版明显弱' + (o.sprt[0] >= 0 ? '，而且更强' : '') + '）' : verdict === 'H0' ? '不通过（新版明显' + (o.sprt[0] >= 0 ? '没有更强' : '变弱') + '）' : '还没有结论（局数上限到了，加大 --games 再跑）'}`);
     if (o.nodes) console.log(nodeMoves ? `按节点数收手：平均每步 ${Math.round(nodes / nodeMoves)} 个节点（设定 ${o.nodes}）` : '⚠ 设了 --nodes，但电脑没有报告节点数，可能还不支持按节点数收手');
     if (errors.length) console.log(`✗ 有 ${errors.length} 局出错，这次对打的结论无效：`, errors.slice(0, 2).map(e => e.seed + ' ' + e.error.split('\n')[0]).join(' | '));
-    if (o.json) require('fs').writeFileSync(o.json, JSON.stringify({ args: o, results, errors, stats: st }, null, 1));
+    if (o.json) require('fs').writeFileSync(o.json, JSON.stringify({ args: o, results, errors, stats: { ...st, verdict, stoppedAt: stopped && { n: stopped.n, llr: stopped.llr, verdict: stopped.verdict } } }, null, 1));
     return st;
   }
   const sum = summarize(results);
