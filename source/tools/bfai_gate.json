@@ -1,0 +1,8 @@
+{
+  "_说明": "技能模式电脑总闸的门槛（tools/bfai_gate.js 读）。null = 还没定，只量基准。先拿当前版本量出基准，再由用户和两边商量定数。",
+  "nodes": null,
+  "exam": { "mid": null, "hard": null, "minCategory": null },
+  "quality": { "blundersPer100": null, "mateErrors": null, "dropsPer100": null, "refFactor": 5 },
+  "match": { "sprt": [-30, 10], "maxGames": 600 },
+  "humanSignoff": null
+}
