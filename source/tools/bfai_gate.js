@@ -1,10 +1,12 @@
 // 技能模式电脑「总闸」：一条命令跑完所有闸门，给出 合格 / 不合格 / 只测基准
-// 用法：node tools/bfai_gate.js [--ai src/bfai.js] [--prev git:提交号] [--quick] [--games 16] [--jobs 4]
+// 用法：node tools/bfai_gate.js [--ai src/bfai.js] [--prev git:提交号] [--no-match] [--match-json FILE] [--quick] [--games 16] [--jobs 4]
 //   闸门（门槛写在 tools/bfai_gate.json，null = 还没定、只量基准）：
-//     1. 考题自检：考卷本身摆得对（--lint）
-//     2. 考卷：校尉档、霸王档的总分和每一类的分
-//     3. 漏着率：校尉档自对弈，霸王档复核（--quick 跳过，最慢的一项）
-//     4. 不退步：和上一版对打，换边、序贯检验（给了 --prev 才跑）
+//     1. 考题自检：考卷本身摆得对（--lint，几秒钟）
+//     2. 不退步：和上一版对打，换边、序贯检验——**能不能上线由它决定，所以排在考卷前面**（2026-10-03 chat 的建议：
+//        “考卷全对 ≠ 更强”，cf47f5e 考卷满分、对打却输给旧版）。上一版默认读 bfai_gate.json 的 match.prev（线上那一版），
+//        --prev 可以改，--no-match 跳过；--match-json FILE 把每局明细存下来（升级次数、兵法使用等，方便事后对比）
+//     3. 考卷：校尉档、霸王档的总分和每一类的分（考的是“懂不懂机制”，不能代替对打）
+//     4. 漏着率：校尉档自对弈，霸王档复核（--quick 跳过，最慢的一项）
 //     5. 人工认可：用户亲自下过、认可了这一版（记在 bfai_gate.json 的 humanSignoff 里）
 //   有“按节点数收手”之后，门槛里可以写 nodes，考卷 / 对打 / 漏着率都按节点数跑，结果就能在不同机器上复现。
 'use strict';
@@ -13,15 +15,17 @@ const fs = require('fs');
 const { spawn } = require('child_process');
 
 const argv = process.argv.slice(2);
-const opt = { ai: 'src/bfai.js', prev: null, quick: false, games: 16, jobs: require('os').cpus().length };
+const opt = { ai: 'src/bfai.js', prev: undefined, quick: false, games: 16, jobs: require('os').cpus().length, matchJson: null };
 for (let i = 0; i < argv.length; i++) {
   const k = argv[i], v = () => argv[++i];
-  if (k === '--ai') opt.ai = v(); else if (k === '--prev') opt.prev = v(); else if (k === '--quick') opt.quick = true;
+  if (k === '--ai') opt.ai = v(); else if (k === '--prev') opt.prev = v(); else if (k === '--no-match') opt.prev = null; else if (k === '--quick') opt.quick = true;
+  else if (k === '--match-json') opt.matchJson = v();
   else if (k === '--games') opt.games = +v(); else if (k === '--jobs') opt.jobs = +v(); else throw new Error('未知参数 ' + k);
 }
 const ROOT = path.join(__dirname, '..');
 const CONF_FILE = path.join(__dirname, 'bfai_gate.json');
 const conf = JSON.parse(fs.readFileSync(CONF_FILE, 'utf8'));
+if (opt.prev === undefined) opt.prev = (conf.match && conf.match.prev) || null;
 
 // 跑一个子脚本，返回它的全部输出（同时原样打印，方便看过程）
 function run(args, label) {
@@ -36,7 +40,7 @@ function run(args, label) {
 }
 const num = (re, s) => { const m = re.exec(s); return m ? +m[1] : null; };
 const rows = [];
-const gate = (name, value, limit, ok, note = '') => rows.push({ name, value, limit, verdict: limit == null ? '基准' : ok ? '合格' : '不合格', note });
+const gate = (name, value, limit, ok, note = '') => rows.push({ name, value, limit, verdict: value === '出错' ? '不合格' : limit == null ? '基准' : ok ? '合格' : '不合格', note });   // 跑出错一律算不合格
 
 (async () => {
   const nodeSpec = conf.nodes ? (typeof conf.nodes === 'object' ? Object.entries(conf.nodes).map(([k, v]) => `${k}=${v}`).join(',') : String(conf.nodes)) : null;
@@ -45,7 +49,15 @@ const gate = (name, value, limit, ok, note = '') => rows.push({ name, value, lim
   const lint = await run(['tools/bfai_exam.js', '--lint'], '考题自检');
   gate('考题自检', lint.code === 0 ? '通过' : '有问题', '必须通过', lint.code === 0);
 
-  // 2. 考卷（校尉、霸王）
+  // 2. 不退步（对打，决定能不能上线）
+  if (opt.prev) {
+    const sprt = (conf.match && conf.match.sprt) || [-30, 10];
+    const r = await run(['tools/bfsim.js', '--match', `${opt.ai},${opt.prev}`, '--games', String((conf.match && conf.match.maxGames) || 600), '--sprt', sprt.join(','), '--jobs', String(opt.jobs), ...nodes, ...(opt.matchJson ? ['--json', opt.matchJson] : [])], '不退步');
+    const verdict = /→ (通过|不通过|还没有结论)/.exec(r.out), elo = /Elo 差 (\S+)（95% 区间 (\S+) ～ (\S+)）/.exec(r.out);
+    gate(`对上一版（${opt.prev}）`, elo ? `Elo ${elo[1]}（${elo[2]}～${elo[3]}）` : '出错', `序贯检验 ${sprt.join(' 对 ')} 通过`, !!verdict && verdict[1] === '通过', verdict ? verdict[1] : '');
+  }
+
+  // 3. 考卷（校尉、霸王）
   for (const [lv, runs] of [['mid', 3], ['hard', 1]]) {
     const r = await run(['tools/bfai_exam.js', opt.ai, '--level', lv, '--runs', String(runs), ...nodes], `考卷·${lv}`);
     const m = /总分（每题 \d+ 次）：\S+ (\d+)\/(\d+)/.exec(r.out);
@@ -61,7 +73,7 @@ const gate = (name, value, limit, ok, note = '') => rows.push({ name, value, lim
     }
   }
 
-  // 3. 漏着率
+  // 4. 漏着率
   if (!opt.quick) {
     const args = ['tools/bfai_quality.js', '--ai', opt.ai, '--games', String(opt.games), '--jobs', String(opt.jobs)];
     if (conf.nodes) { const mid = typeof conf.nodes === 'object' ? conf.nodes.mid : conf.nodes; args.push('--nodes', nodeSpec, '--ref-nodes', String(mid * (conf.quality && conf.quality.refFactor || 5))); }
@@ -71,14 +83,6 @@ const gate = (name, value, limit, ok, note = '') => rows.push({ name, value, lim
     gate('漏着（每 100 步）', bl, q.blundersPer100 == null ? null : `≤ ${q.blundersPer100}`, bl != null && bl <= q.blundersPer100);
     gate('漏杀 + 送杀（次）', mates, q.mateErrors == null ? null : `≤ ${q.mateErrors}`, mates <= q.mateErrors);
     gate('白丢子（第二裁判，每 100 步）', drop, q.dropsPer100 == null ? null : `≤ ${q.dropsPer100}`, drop != null && drop <= q.dropsPer100);
-  }
-
-  // 4. 不退步
-  if (opt.prev) {
-    const sprt = (conf.match && conf.match.sprt) || [-30, 10];
-    const r = await run(['tools/bfsim.js', '--match', `${opt.ai},${opt.prev}`, '--games', String((conf.match && conf.match.maxGames) || 600), '--sprt', sprt.join(','), '--jobs', String(opt.jobs), ...nodes], '不退步');
-    const verdict = /→ (通过|不通过|还没有结论)/.exec(r.out), elo = /Elo 差 (\S+)（95% 区间 (\S+) ～ (\S+)）/.exec(r.out);
-    gate(`对上一版（${opt.prev}）`, elo ? `Elo ${elo[1]}（${elo[2]}～${elo[3]}）` : '出错', `序贯检验 ${sprt.join(' 对 ')} 通过`, !!verdict && verdict[1] === '通过', verdict ? verdict[1] : '');
   }
 
   // 5. 人工认可

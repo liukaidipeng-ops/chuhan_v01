@@ -433,6 +433,8 @@ function worker() {
       for (const [k, spec] of Object.entries(m.ais)) {
         const X = AIMAP[k] = load(spec);
         if (BF.ai.version != null && X.apiVersion != null && X.apiVersion !== BF.ai.version) warns.push(`${spec.label} 按接口第 ${X.apiVersion} 版写的，当前引擎是第 ${BF.ai.version} 版`);
+        // 25eb911 之前的电脑没有“按节点数收手”：给了 --nodes 它也照样按时间算（校尉 3 层算满），对打结果和机器快慢有关、不能精确复现
+        if (parseNodes(m.nodes) && !/nodeCap|\bL\.nodes\b/.test(require('fs').readFileSync(path.resolve(__dirname, '..', spec.file), 'utf8'))) warns.push(`${spec.label} 不支持按节点数收手（--nodes 对它无效），它按时间算：结果和机器快慢有关，不能精确复现。和上一版比请用 git:25eb911 或更新的版本`);
       }
       for (const X of new Set(Object.values(AIMAP))) {
         X.LEVELS.hard.budget = m.budget;
