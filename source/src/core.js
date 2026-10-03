@@ -23,7 +23,7 @@ const Core = (() => {
   scene.background = new THREE.Color(INK.paper);
   scene.fog = new THREE.Fog(INK.paper, 26, 120);
 
-  const camera = new THREE.PerspectiveCamera(42, 1, 0.05, 400);
+  const camera = new THREE.PerspectiveCamera(42, 1, 0.3, 320);   // 近裁面别太近：手机（尤其安卓）深度精度低，太近会让贴着棋盘的各层互相打架、闪烁
 
   const hemi = new THREE.HemisphereLight(0xfff6e6, 0x8a7a66, 1.6);
   scene.add(hemi);

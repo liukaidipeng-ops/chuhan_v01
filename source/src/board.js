@@ -151,15 +151,17 @@ const Board = (() => {
   const goldM = new THREE.MeshStandardMaterial({ color: 0xc9a045, metalness: 0.45, roughness: 0.36 });
   const bronzeM = new THREE.MeshStandardMaterial({ color: 0x8a6a34, metalness: 0.55, roughness: 0.42 });
   const sideMat = len => { const t = lacquerTex.clone(); t.wrapS = THREE.RepeatWrapping; t.wrapT = THREE.ClampToEdgeWrapping; t.repeat.set(len, 1); t.needsUpdate = true; return new THREE.MeshStandardMaterial({ map: t, roughness: 0.32, metalness: 0.04 }); };
+  // 手机上棋盘面用最朴素的材质（不加清漆层、木纹法线和环境反光），稳妥第一
+  const MOBILE = /Android|iPhone|iPad|Mobile/i.test(navigator.userAgent) || (typeof matchMedia === 'function' && matchMedia('(pointer: coarse)').matches);
   const boardTops = [];
   function makeHalf(isRed) {
     const depth = BZ - HALF;
     const g = new THREE.Group();
     const box = new THREE.Mesh(new THREE.BoxGeometry(2 * BX, 0.55, depth), [sideMat(depth), sideMat(depth), lacquerTop, lacquerTop, sideMat(2 * BX), sideMat(2 * BX)]);
-    box.position.y = TOP - 0.275 - 0.002;
+    box.position.y = TOP - 0.275 - 0.02;   // 盒子顶面比棋盘面低 2 厘米：两个面贴得太近时，深度精度低的手机上会来回闪
     box.receiveShadow = true; box.castShadow = true;
     // 棋盘面：打磨过的缎面木器——底子偏哑，上面一层薄薄的清漆带柔和的反光（木纹起伏和环境反光在文件末尾 polishBoard 里补上）
-    const topM = new THREE.MeshPhysicalMaterial({ map: drawHalf(isRed), roughness: 0.56, clearcoat: 0.42, clearcoatRoughness: 0.4 });
+    const topM = MOBILE ? new THREE.MeshStandardMaterial({ map: drawHalf(isRed), roughness: 0.6 }) : new THREE.MeshPhysicalMaterial({ map: drawHalf(isRed), roughness: 0.56, clearcoat: 0.42, clearcoatRoughness: 0.4 });
     boardTops.push(topM);
     const top = new THREE.Mesh(new THREE.PlaneGeometry(2 * BX, depth), topM);
     top.rotation.x = -Math.PI / 2; top.position.y = TOP;
@@ -1596,7 +1598,7 @@ const Board = (() => {
 
   // 棋盘面的质感：木纹做成细微起伏（顺纹的棕眼），再映一点柔光箱的环境反光——缎面 / 磨砂的光泽，不是镜面。低画质不做
   (function polishBoard() {
-    if (LOWQ()) return;
+    if (LOWQ() || MOBILE) return;
     try {
       const hc = mkCanvas(1024, 1024, g => {
         g.drawImage(Core.Tex.wood.image, 0, 0, 1024, 1024);
