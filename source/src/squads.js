@@ -1259,7 +1259,8 @@ const Squads = (() => {
         else { ns.flag = Models.makeBanner(u.s, XQ.NAMES[u.s][u.t]); ns.flag.group.scale.setScalar(0.001); scene.add(ns.flag.group); }
         // 脚下的小圈：汉红、楚黑，半透明、一呼一吸，方便看清这枚子站在哪个点上
         ns.ring = new THREE.Mesh(ringGeo, new THREE.MeshBasicMaterial({ map: ringTex, color: u.s === 'r' ? 0xc8281a : 0x141210, transparent: true, opacity: 0, depthWrite: false, polygonOffset: true, polygonOffsetFactor: -14, polygonOffsetUnits: -14 }));
-        ns.ring.renderOrder = 4;   // 永远压在血迹、焦土这些地面痕迹上面 scene.add(ns.ring);
+        ns.ring.renderOrder = 4;   // 永远压在血迹、焦土这些地面痕迹上面
+        scene.add(ns.ring);
         map.set(m, ns);
       }
     }
@@ -1277,7 +1278,7 @@ const Squads = (() => {
         sq.anchor.x = m.position.x; sq.anchor.z = m.position.z;
         if (sq.guard) { sq.guard.anchor.x = m.position.x; sq.guard.anchor.z = m.position.z; }
         // 待机：整队一呼一吸地轻微起伏；被选中悬起时跟着棋子抬高
-        const lift = Math.max(0, m.position.y - TOP) * 0.55, br = 1 + 0.014 * Math.sin(t * 1.7 + st.ph);
+        const dy = Math.max(0, m.position.y - TOP), lift = dy < 0.3 ? dy * 0.55 : dy - 0.135, br = 1 + 0.014 * Math.sin(t * 1.7 + st.ph);
         for (const grp of sq.guard ? [sq.group, sq.guard.group] : [sq.group]) { grp.position.y = lift; grp.scale.y = br; }
         if (st.flag) {
           const L = leader(sq), f = st.flag.group;

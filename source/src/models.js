@@ -868,6 +868,57 @@ const Models = (() => {
   //  项羽 / 刘邦：带关节的骨架（面向 +Z）
   // ======================================================================
   const HERO_KEYS = { hy: 0, hx: 0, tx: 0, ty: 0, tz: 0, nx: 0, ny: 0, sRx: 0, sRy: 0, sRz: 0, eR: 0, sLx: 0, sLy: 0, sLz: 0, eL: 0, lLx: 0, lLz: 0, kL: 0, lRx: 0, lRz: 0, kR: 0, wx: 0, wy: 0, wz: 0 };
+  // 主帅的脸：画在贴图上（眉、眼、鼻影、唇、须），正面在 u = 0.25
+  const HERO_FACE = {
+    liu: { skin: '#dcc09a', hair: '#17130f', beard: 'long', stern: true },
+    xiang: { skin: '#cfae85', hair: '#141110', beard: 'short', fierce: true, twin: true, side: 30 },
+  };
+  const heroMats = {};
+  function heroFaceMat(kind) {
+    if (heroMats[kind]) return heroMats[kind];
+    const o = HERO_FACE[kind], PI = Math.PI;
+    const c = document.createElement('canvas'); c.width = 1024; c.height = 512; const g = c.getContext('2d');
+    g.fillStyle = o.skin; g.fillRect(0, 0, 1024, 512);
+    const cx = 256, ey = 236; const sh = g.createRadialGradient(cx, 250, 60, cx, 250, 250); sh.addColorStop(0, 'rgba(255,235,210,.25)'); sh.addColorStop(1, 'rgba(90,50,30,.28)'); g.fillStyle = sh; g.fillRect(0, 0, 512, 512);
+    g.fillStyle = o.hair; g.fillRect(0, 0, 1024, 150); g.beginPath(); g.ellipse(cx, 150, 150, 46, 0, 0, PI, true); g.fillStyle = o.skin; g.fill();
+    g.fillStyle = o.hair; g.fillRect(512, 0, 512, 512); g.fillRect(70, 140, 34, 150 + (o.side || 0)); g.fillRect(408, 140, 34, 150 + (o.side || 0));
+    for (const s of [-1, 1]) {
+      const x = cx + s * 62;
+      g.fillStyle = '#f4efe6'; g.beginPath(); g.ellipse(x, ey, 27, o.stern ? 8.5 : 11, s * -0.08 * (o.fierce ? 2 : 1), 0, 7); g.fill();
+      g.fillStyle = '#1a1210';
+      if (o.twin) { g.beginPath(); g.arc(x - 7, ey, 8.5, 0, 7); g.arc(x + 8, ey, 7.5, 0, 7); g.fill(); g.fillStyle = '#fff'; g.fillRect(x - 10, ey - 4, 3, 3); g.fillRect(x + 6, ey - 4, 3, 3); }
+      else { g.beginPath(); g.arc(x, ey, 9.5, 0, 7); g.fill(); g.fillStyle = '#fff'; g.fillRect(x - 4, ey - 5, 3, 3); }
+      g.strokeStyle = '#1a1210'; g.lineWidth = 5; g.lineCap = 'round'; g.beginPath(); g.moveTo(x - s * -30, ey - 4); g.quadraticCurveTo(x, ey - 17, x + s * -30, ey - 2 - (o.fierce ? 5 : 0)); g.stroke();
+      g.lineWidth = o.fierce ? 15 : 14; g.strokeStyle = o.hair; g.beginPath();
+      if (o.stern) { g.moveTo(x - s * 34, ey - 20); g.quadraticCurveTo(x + s * 2, ey - 42, x + s * 46, ey - 46); } else { g.moveTo(x - s * 36, ey - 22); g.quadraticCurveTo(x - s * 4, ey - 44, x + s * 44, ey - 54); }
+      g.stroke();
+    }
+    g.strokeStyle = 'rgba(110,70,45,.55)'; g.lineWidth = 5; g.beginPath(); g.moveTo(cx - 10, ey + 10); g.lineTo(cx - 16, ey + 62); g.quadraticCurveTo(cx, ey + 74, cx + 16, ey + 62); g.stroke();
+    g.strokeStyle = '#7a2e22'; g.lineWidth = 7; g.beginPath(); g.moveTo(cx - 30, ey + 104); g.quadraticCurveTo(cx, ey + (o.fierce ? 98 : 112), cx + 30, ey + 104); g.stroke();
+    g.fillStyle = o.hair; g.strokeStyle = o.hair;
+    if (o.stern) { g.strokeStyle = 'rgba(90,50,30,.6)'; g.lineWidth = 4; g.beginPath(); g.moveTo(cx - 9, ey - 34); g.lineTo(cx - 6, ey - 12); g.moveTo(cx + 9, ey - 34); g.lineTo(cx + 6, ey - 12); g.stroke(); g.strokeStyle = o.hair; g.fillStyle = o.hair; }
+    if (o.beard === 'long') {
+      g.lineCap = 'round'; g.lineWidth = 13;
+      for (const d of [-1, 1]) { g.beginPath(); g.moveTo(cx + d * 6, ey + 86); g.quadraticCurveTo(cx + d * 34, ey + 84, cx + d * 52, ey + 112); g.stroke(); }
+      g.beginPath(); g.moveTo(cx - 20, ey + 122); g.quadraticCurveTo(cx, ey + 116, cx + 20, ey + 122); g.quadraticCurveTo(cx + 30, ey + 170, cx, ey + 200); g.quadraticCurveTo(cx - 30, ey + 170, cx - 20, ey + 122); g.fill();
+    } else {
+      g.globalAlpha = 0.9; g.beginPath(); g.moveTo(cx - 120, ey + 40); g.quadraticCurveTo(cx - 110, ey + 150, cx, ey + 178); g.quadraticCurveTo(cx + 110, ey + 150, cx + 120, ey + 40); g.quadraticCurveTo(cx + 70, ey + 118, cx + 34, ey + 88); g.lineTo(cx - 34, ey + 88); g.quadraticCurveTo(cx - 70, ey + 118, cx - 120, ey + 40); g.fill();
+      g.globalAlpha = 1; g.fillStyle = o.skin; g.beginPath(); g.ellipse(cx, ey + 106, 26, 9, 0, 0, 7); g.fill(); g.strokeStyle = '#7a2e22'; g.lineWidth = 6; g.beginPath(); g.moveTo(cx - 22, ey + 106); g.lineTo(cx + 22, ey + 106); g.stroke();
+    }
+    const t = new THREE.CanvasTexture(c); t.colorSpace = THREE.SRGBColorSpace; t.anisotropy = 8;
+    return heroMats[kind] = new THREE.MeshToonMaterial({ map: t });
+  }
+  // 披风：底色 + 竖向褶皱明暗 + 金边（背后不写字）
+  function heroCapeMat(kind) {
+    const key = kind + 'cape'; if (heroMats[key]) return heroMats[key];
+    const isX = kind === 'xiang', W = 256, H = 512;
+    const c = document.createElement('canvas'); c.width = W; c.height = H; const g = c.getContext('2d');
+    g.fillStyle = isX ? '#1b191c' : '#8a1a11'; g.fillRect(0, 0, W, H);
+    for (let i = 0; i < 7; i++) { const x = (i + 0.5) / 7 * W, gr = g.createLinearGradient(x - 18, 0, x + 18, 0); gr.addColorStop(0, 'rgba(0,0,0,0)'); gr.addColorStop(0.5, isX ? 'rgba(70,66,74,.5)' : 'rgba(40,0,0,.38)'); gr.addColorStop(1, 'rgba(0,0,0,0)'); g.fillStyle = gr; g.fillRect(x - 18, 60, 36, H); }
+    g.strokeStyle = '#d9a93f'; g.lineWidth = 10; g.strokeRect(9, 9, W - 18, H - 18); g.lineWidth = 3; g.strokeStyle = '#f5d98a'; g.strokeRect(22, 22, W - 44, H - 44);
+    const t = new THREE.CanvasTexture(c); t.colorSpace = THREE.SRGBColorSpace; t.anisotropy = 4;
+    return heroMats[key] = new THREE.MeshToonMaterial({ map: t, side: THREE.DoubleSide });
+  }
   function makeHero(kind) {
     const isX = kind === 'xiang';
     const armor = isX ? 0x1e1c1b : 0xa3301f, gold = 0xb08a3a, red = isX ? 0x9e2418 : 0xa3301f, skin = isX ? 0xc9ad85 : 0xd2b893;
@@ -875,94 +926,115 @@ const Models = (() => {
     const g = new THREE.Group();
     const hips = new THREE.Group(); hips.position.y = 0.95; g.add(hips);
     const torso = new THREE.Group(); hips.add(torso);
+    const PI = Math.PI;
+    const lathe = (pts, seg = 28) => new THREE.LatheGeometry(pts.map(([r, y]) => new THREE.Vector2(r, y)), seg);
+    const cyl = (a, b, h, s = 20) => new THREE.CylinderGeometry(a, b, h, s), sph = (r, s = 20) => new THREE.SphereGeometry(r, s, Math.round(s * 0.7));
+    const tor = (R, r, s = 28) => new THREE.TorusGeometry(R, r, 8, s), box = (w, h, d) => new THREE.BoxGeometry(w, h, d), cone = (r, h, s = 16) => new THREE.ConeGeometry(r, h, s);
+    const gold2 = 0xf5d98a, blk = 0x1a191b, blk2 = 0x2b282b, wht = 0xece4d2, jade = 0x74b596, steel = 0xc2c0b8, LR = 0xb3261a, red2 = 0x6e120d, gd = 0xd9a93f, rd = 0x9a1c14;
+    // 按设计稿的尺寸做好一块，再缩到骨架上：k 缩放，oy 竖直偏移
+    const sub = (parts, k, oy, thick = 0.02, ky = k) => { const m = inkedMerged(parts, thick); m.scale.set(k, ky, k); m.position.y = oy; return m; };
+    const headOf = (y) => {
+      const o = HERO_FACE[kind], hg = new THREE.Group();
+      const h = new THREE.Mesh(sph(0.2, 40), heroFaceMat(kind)); h.scale.set(0.92, 1.1, 0.96); h.castShadow = true; hg.add(h);
+      const sk = new THREE.Color(o.skin).getHex(), hr = new THREE.Color(o.hair).getHex();
+      hg.add(inkedMerged([P(cone(0.035, 0.1, 10), sk, 0, -0.03, 0.2, PI / 2.4), P(sph(0.05, 10), sk, 0.185, 0, 0, 0, 0, 0, 0.5, 1, 0.8), P(sph(0.05, 10), sk, -0.185, 0, 0, 0, 0, 0, 0.5, 1, 0.8), P(cyl(0.085, 0.1, 0.16, 16), sk, 0, -0.24, -0.01),
+        ...(o.beard === 'long' ? [P(cone(0.05, 0.26, 12), hr, 0, -0.3, 0.13, PI - 0.12, 0, 0, 1, 1, 0.6)] : [])], 0.014));
+      hg.position.y = y; return hg;
+    };
+    let skirt = null;
     // —— 下身 ——
     if (isX) {
-      hips.add(inkedMerged([
-        P(G.cyl(0.26, 0.34, 0.22, 12), armor, 0, 0.11, 0), P(G.cyl(0.3, 0.38, 0.22, 12), 0x2a2725, 0, -0.05, 0), P(G.cyl(0.34, 0.42, 0.22, 12), armor, 0, -0.21, 0),
-        P(new THREE.TorusGeometry(0.42, 0.015, 4, 18), gold, 0, -0.31, 0, Math.PI / 2), P(new THREE.TorusGeometry(0.38, 0.015, 4, 18), gold, 0, -0.15, 0, Math.PI / 2),
-      ], 0.018));
+      const tass = [];
+      for (let i = 0; i < 12; i++) { const a = i / 12 * PI * 2; tass.push(P(box(0.175, 0.44, 0.035), i % 2 ? blk2 : blk, Math.sin(a) * 0.35, -0.06, Math.cos(a) * 0.35, 0.2, a, 0), P(box(0.175, 0.026, 0.04), gd, Math.sin(a) * 0.39, -0.26, Math.cos(a) * 0.39, 0.2, a, 0)); }
+      hips.add(inkedMerged([...tass, P(cyl(0.33, 0.32, 0.1, 24), gd, 0, 0.2, 0), P(sph(0.07, 12), rd, 0, 0.2, 0.31, 0, 0, 0, 1, 1, 0.5), P(cyl(0.27, 0.3, 0.2, 16), blk2, 0, 0.08, 0)], 0.016));
     } else {
-      hips.add(inkedMerged([
-        P(G.cyl(0.24, 0.4, 0.62, 12), red, 0, -0.26, 0),
-        P(new THREE.TorusGeometry(0.4, 0.02, 4, 18), INK.gold, 0, -0.56, 0, Math.PI / 2),
-        P(G.box(0.1, 0.6, 0.04), 0x3a1c16, 0, -0.2, 0.3),
-      ], 0.016));
+      // 长袍下摆 + 蔽膝 + 玉佩；迈步、跪下时前后撑开，免得腿穿出来
+      skirt = sub([
+        P(lathe([[0.02, 0], [0.66, 0], [0.64, 0.06], [0.5, 0.55], [0.4, 1.0], [0.36, 1.2]]), red2),
+        P(tor(0.645, 0.022), gd, 0, 0.05, 0, PI / 2), P(tor(0.56, 0.012), gd, 0, 0.32, 0, PI / 2),
+        P(box(0.3, 0.86, 0.03), gd, 0, 0.72, 0.47, -0.2), P(box(0.34, 0.035, 0.035), gd, 0, 1.14, 0.4), P(box(0.34, 0.035, 0.035), gd, 0, 0.3, 0.555),
+        P(box(0.05, 0.8, 0.035), LR, 0.13, 0.72, 0.478, -0.2), P(box(0.05, 0.8, 0.035), LR, -0.13, 0.72, 0.478, -0.2), P(cyl(0.09, 0.09, 0.02, 16), LR, 0, 0.8, 0.475, 1.37), P(cyl(0.06, 0.06, 0.02, 16), LR, 0, 0.52, 0.53, 1.37),
+        P(box(0.035, 0.5, 0.02), jade, 0.16, 0.92, 0.44, -0.15), P(box(0.035, 0.5, 0.02), jade, -0.16, 0.92, 0.44, -0.15), P(sph(0.04, 10), gold2, 0.16, 0.66, 0.48), P(sph(0.04, 10), gold2, -0.16, 0.66, 0.48),
+      ], 0.7, -0.82, 0.02, 0.85);
+      hips.add(skirt);
     }
     const leg = (s) => {
       const lg = new THREE.Group(); lg.position.set(0.13 * s, -0.02, 0); hips.add(lg);
-      lg.add(inkedMerged([P(G.cyl(0.1, 0.095, 0.45, 8), trouser, 0, -0.225, 0), ...(isX ? [P(G.box(0.2, 0.3, 0.05), armor, 0, -0.18, 0.1)] : [])], 0.016));
+      lg.add(inkedMerged([P(cyl(0.11, 0.095, 0.45, 14), isX ? blk2 : trouser, 0, -0.225, 0)], 0.016));
       const kn = new THREE.Group(); kn.position.y = -0.45; lg.add(kn);
-      kn.add(inkedMerged([P(G.cyl(0.095, 0.085, 0.42, 8), trouser, 0, -0.21, 0), P(G.cyl(0.115, 0.105, 0.34, 8), isX ? armor : 0x2b2522, 0, -0.2, 0), P(G.box(0.17, 0.12, 0.3), isX ? armor : 0x241c18, 0, -0.44, 0.05)], 0.016));
+      kn.add(inkedMerged(isX
+        ? [P(cyl(0.095, 0.085, 0.42, 14), blk2, 0, -0.21, 0), P(cyl(0.108, 0.094, 0.3, 14), gd, 0, -0.22, 0.004), P(sph(0.07, 10), gold2, 0, -0.03, 0.07), P(tor(0.1, 0.012, 14), blk, 0, -0.14, 0.004, PI / 2), P(tor(0.096, 0.012, 14), blk, 0, -0.28, 0.004, PI / 2), P(box(0.17, 0.12, 0.3), blk, 0, -0.44, 0.05)]
+        : [P(cyl(0.095, 0.085, 0.42, 12), trouser, 0, -0.21, 0), P(cyl(0.11, 0.1, 0.3, 12), 0x2b2522, 0, -0.22, 0), P(box(0.17, 0.12, 0.32), 0x241c18, 0, -0.44, 0.06), P(box(0.172, 0.03, 0.1), gd, 0, -0.4, 0.2)], 0.016));
       return { lg, kn };
     };
-    const LL = leg(1), LR = leg(-1);
+    const LL = leg(1), LR_ = leg(-1);
     // —— 上身 ——
     if (isX) {
-      torso.add(inkedMerged([
-        P(G.cyl(0.27, 0.24, 0.62, 12), armor, 0, 0.51, 0),
-        P(G.sph(0.17, 10), armor, 0.1, 0.6, 0.14, 0, 0, 0, 1, 0.9, 0.55), P(G.sph(0.17, 10), armor, -0.1, 0.6, 0.14, 0, 0, 0, 1, 0.9, 0.55),
-        P(G.sph(0.06, 6), gold, 0, 0.51, 0.26), P(G.sph(0.06, 6), gold, 0, 0.75, 0.22),
-        P(G.box(0.62, 0.08, 0.5), gold, 0, 0.23, 0), P(G.sph(0.08, 8), gold, 0, 0.23, 0.26),
-        P(G.sph(0.17, 10), armor, 0.34, 0.81, 0, 0, 0, -0.3, 1.1, 0.75, 1.1), P(G.sph(0.17, 10), armor, -0.34, 0.81, 0, 0, 0, 0.3, 1.1, 0.75, 1.1),
-        P(G.sph(0.15, 10), 0x3a2e24, 0.4, 0.73, 0, 0, 0, -0.5, 1.1, 0.6, 1.05), P(G.sph(0.15, 10), 0x3a2e24, -0.4, 0.73, 0, 0, 0, 0.5, 1.1, 0.6, 1.05),
-        P(G.cyl(0.08, 0.09, 0.12, 8), C.skin, 0, 0.87, 0),
-      ], 0.018));
+      const lam = []; for (let i = 0; i < 5; i++) lam.push(P(tor(0.455 - i * 0.012, 0.022), gd, 0, 1.36 + i * 0.13, 0, PI / 2));
+      torso.add(sub([
+        P(lathe([[0.4, 1.2], [0.46, 1.36], [0.5, 1.7], [0.46, 1.98], [0.3, 2.12], [0.14, 2.16]]), blk), ...lam,
+        // 兽面护心
+        P(sph(0.17, 16), gd, 0, 1.78, 0.44, 0, 0, 0, 1, 1, 0.45), P(cone(0.035, 0.12, 8), gold2, 0.09, 1.9, 0.5, 0.6), P(cone(0.035, 0.12, 8), gold2, -0.09, 1.9, 0.5, 0.6), P(sph(0.03, 8), rd, 0.06, 1.8, 0.52), P(sph(0.03, 8), rd, -0.06, 1.8, 0.52), P(cone(0.02, 0.07, 6), 0xe9e2d0, 0.05, 1.7, 0.52, PI), P(cone(0.02, 0.07, 6), 0xe9e2d0, -0.05, 1.7, 0.52, PI),
+        // 兽吞巨肩（三层）
+        ...[1, -1].flatMap(s => [P(sph(0.36, 20), blk2, s * 0.68, 2.08, 0, 0, 0, 0, 1.2, 0.75, 1.15), P(sph(0.36, 20), blk, s * 0.76, 1.92, 0, 0, 0, 0, 1.15, 0.6, 1.1), P(tor(0.39, 0.025), gd, s * 0.76, 1.8, 0, PI / 2), P(tor(0.4, 0.025), gd, s * 0.69, 1.98, 0, PI / 2),
+          P(sph(0.13, 12), gd, s * 0.72, 2.1, 0.33, 0, 0, 0, 1, 1, 0.5), P(cone(0.04, 0.14, 8), gold2, s * 0.66, 2.22, 0.38, 0.5), P(cone(0.04, 0.14, 8), gold2, s * 0.8, 2.22, 0.36, 0.5), P(cone(0.07, 0.34, 10), gold2, s * 1.02, 2.3, 0, 0, 0, -s * 0.95)]),
+        // 背后：披风扣带、背甲脊线
+        P(box(1.36, 0.07, 0.1), gd, 0, 2.16, -0.36), P(sph(0.08, 10), gold2, 0.62, 2.16, -0.38), P(sph(0.08, 10), gold2, -0.62, 2.16, -0.38), P(box(0.05, 0.7, 0.04), gd, 0, 1.7, -0.49),
+      ], 0.68, -0.616, 0.024));
     } else {
-      torso.add(inkedMerged([
-        P(G.cyl(0.22, 0.24, 0.55, 12), red, 0, 0.45, 0),
-        P(G.box(0.46, 0.08, 0.44), 0x3a1c16, 0, 0.23, 0), P(G.box(0.08, 0.1, 0.04), INK.gold, 0, 0.23, 0.23),
-        P(G.box(0.06, 0.34, 0.04), 0xe6dcc8, 0.075, 0.58, 0.215, 0, 0, -0.42), P(G.box(0.06, 0.34, 0.04), 0xe6dcc8, -0.075, 0.58, 0.22, 0, 0, 0.42),
-        P(G.sph(0.13, 8), red, 0.3, 0.65, 0, 0, 0, 0, 1.2, 0.8, 1), P(G.sph(0.13, 8), red, -0.3, 0.65, 0, 0, 0, 0, 1.2, 0.8, 1),
-        P(G.cyl(0.07, 0.08, 0.1, 8), C.skin, 0, 0.77, 0),
-      ], 0.016));
+      torso.add(sub([
+        P(lathe([[0.36, 1.14], [0.4, 1.32], [0.42, 1.62], [0.36, 1.84], [0.2, 1.96], [0.1, 1.98]]), LR),
+        P(cyl(0.405, 0.4, 0.11, 28), gd, 0, 1.2, 0), P(sph(0.06, 12), jade, 0, 1.2, 0.4),
+        P(box(0.09, 0.62, 0.04), wht, 0.09, 1.68, 0.33, 0.25, 0, 0.42), P(box(0.09, 0.62, 0.04), wht, -0.09, 1.68, 0.33, 0.25, 0, -0.42), P(box(0.07, 0.66, 0.045), gd, 0.16, 1.66, 0.335, 0.25, 0, 0.42), P(box(0.07, 0.66, 0.045), gd, -0.16, 1.66, 0.335, 0.25, 0, -0.42),
+        P(sph(0.2, 16), LR, 0.4, 1.8, 0, 0, 0, 0, 1.1, 0.7, 1.05), P(sph(0.2, 16), LR, -0.4, 1.8, 0, 0, 0, 0, 1.1, 0.7, 1.05),
+        P(tor(0.425, 0.016), gd, 0, 1.5, 0, PI / 2), P(tor(0.41, 0.016), gd, 0, 1.7, 0, PI / 2), P(cyl(0.11, 0.11, 0.02, 20), gd, 0, 1.58, 0.415, PI / 2), P(cyl(0.07, 0.07, 0.025, 16), LR, 0, 1.58, 0.42, PI / 2),
+        P(box(1.1, 0.06, 0.09), gd, 0, 1.93, -0.3), P(sph(0.07, 10), gold2, 0.5, 1.93, -0.32), P(sph(0.07, 10), gold2, -0.5, 1.93, -0.32),
+        // 日月纹（肩）
+        P(cyl(0.07, 0.07, 0.012, 16), gold2, 0.3, 1.86, 0.2, 1.2), P(cyl(0.07, 0.07, 0.012, 16), 0xe9e2d0, -0.3, 1.86, 0.2, 1.2),
+      ], 0.7, -0.6, 0.022));
     }
     const neck = new THREE.Group(); neck.position.y = isX ? 0.9 : 0.8; torso.add(neck);
+    const neckG = new THREE.Group(); neckG.scale.setScalar(0.7); neck.add(neckG);
     if (isX) {
-      neck.add(inkedMerged([
-        P(G.sph(0.14, 12), skin, 0, 0.12, 0.01, 0, 0, 0, 0.95, 1.08, 1),
-        P(G.box(0.07, 0.022, 0.02), C.hair, 0.055, 0.17, 0.128, 0, 0, -0.25), P(G.box(0.07, 0.022, 0.02), C.hair, -0.055, 0.17, 0.128, 0, 0, 0.25),
-        P(G.cone(0.07, 0.17, 7), C.hair, 0, -0.01, 0.1, Math.PI + 0.25), P(G.box(0.12, 0.018, 0.025), C.hair, 0.04, 0.065, 0.132, 0, 0, 0.25), P(G.box(0.12, 0.018, 0.025), C.hair, -0.04, 0.065, 0.132, 0, 0, -0.25),
-        P(new THREE.SphereGeometry(0.178, 14, 8, 0, Math.PI * 2, 0, Math.PI * 0.5), armor, 0, 0.215, -0.02),
-        P(G.cyl(0.182, 0.19, 0.045, 14), gold, 0, 0.222, -0.02),
-        P(G.box(0.04, 0.16, 0.12), armor, 0.155, 0.13, -0.05), P(G.box(0.04, 0.16, 0.12), armor, -0.155, 0.13, -0.05),
-        P(G.cone(0.05, 0.16, 6), gold, 0, 0.45, -0.02), P(G.cone(0.1, 0.24, 8), red, 0, 0.41, -0.09, 0.6),
-      ], 0.018));
-      neck.add(new THREE.Mesh(merge([P(G.box(0.045, 0.012, 0.01), C.hair, 0.052, 0.14, 0.135), P(G.box(0.045, 0.012, 0.01), C.hair, -0.052, 0.14, 0.135)]), vcMat));
-      for (const s of [1, -1]) {
-        const curve = new THREE.CatmullRomCurve3([V(0.05 * s, 0.39, -0.02), V(0.2 * s, 0.89, -0.1), V(0.45 * s, 1.24, -0.3), V(0.78 * s, 1.37, -0.52)]);
-        neck.add(inked(new THREE.TubeGeometry(curve, 16, 0.018, 4), toon(0x2b2622), 0.012));
-        for (let i = 0; i < 6; i++) { const p = curve.getPoint(0.3 + i * 0.12); const band = inked(G.sph(0.03, 5), toon(i % 2 ? 0xc9a045 : 0x2b2622)); band.position.copy(p); neck.add(band); }
-      }
+      neckG.position.y = -2.16 * 0.7;
+      const feather = (s) => { const out = []; for (let i = 0; i < 12; i++) { const t = i / 11; out.push(P(cyl(0.02 * (1 - t * 0.75), 0.026 * (1 - t * 0.65), 0.2, 8), i % 2 ? 0x8a4a1c : 0x3a2412, s * (0.14 + t * t * 0.5), 2.86 + t * 1.5 - t * t * 0.35, -0.12 - t * 0.5, -0.5 - t * 0.5, 0, -s * (0.2 + t * 0.7))); } return out; };
+      neckG.add(inkedMerged([
+        P(lathe([[0.235, 2.5], [0.24, 2.62], [0.2, 2.76], [0.08, 2.84], [0, 2.85]]), blk), P(tor(0.24, 0.022), gd, 0, 2.52, 0, PI / 2), P(box(0.07, 0.24, 0.2), blk, 0.235, 2.4, 0), P(box(0.07, 0.24, 0.2), blk, -0.235, 2.4, 0), P(box(0.16, 0.12, 0.04), gd, 0, 2.6, 0.225), P(cone(0.035, 0.12, 6), gold2, 0, 2.7, 0.24),
+        // 护颈
+        P(new THREE.CylinderGeometry(0.245, 0.31, 0.26, 18, 1, true, PI * 0.55, PI * 0.9), blk, 0, 2.36, 0), P(new THREE.CylinderGeometry(0.312, 0.316, 0.03, 18, 1, true, PI * 0.55, PI * 0.9), gd, 0, 2.24, 0),
+        P(cyl(0.035, 0.045, 0.14, 10), gd, 0, 2.9, 0), P(cone(0.11, 0.4, 12), rd, 0, 3.14, -0.06, 0.3), ...feather(1), ...feather(-1),
+      ], 0.02));
+      neckG.add(headOf(2.36));
     } else {
-      neck.add(inkedMerged([
-        P(G.sph(0.14, 12), skin, 0, 0.1, 0.01, 0, 0, 0, 0.95, 1.1, 1),
-        P(G.cone(0.06, 0.2, 6), C.hair, 0, -0.05, 0.1, Math.PI + 0.3),
-        P(G.sph(0.14, 10), C.hair, 0, 0.17, -0.02, 0, 0, 0, 1, 0.7, 1),
-        P(G.sph(0.07, 8), C.hair, 0, 0.27, -0.04),
-        P(G.box(0.05, 0.3, 0.3), 0x2b2724, 0, 0.4, -0.07, -0.35), P(G.box(0.054, 0.04, 0.3), INK.gold, 0, 0.27, -0.03, -0.35),
-        P(G.cyl(0.004, 0.004, 0.36, 3), 0x2b2724, 0, 0.27, 0, 0, 0, Math.PI / 2),
+      neckG.position.y = -1.98 * 0.7;
+      const beads = []; for (const s of [1, -1]) for (let i = 0; i < 7; i++) { const x = -0.21 + i * 0.07, z = s * 0.44, y0 = s > 0 ? 2.52 : 2.66; for (let k = 0; k < (s > 0 ? 3 : 6); k++) beads.push(P(sph(0.014, 8), k % 2 ? 0xe9e2d0 : (k % 3 ? jade : rd), x, y0 - 0.035 - k * 0.045, z)); }
+      neckG.add(inkedMerged([
+        P(cyl(0.17, 0.19, 0.2, 24), 0x5a0e0a, 0, 2.52, 0), P(tor(0.19, 0.016), gd, 0, 2.44, 0, PI / 2), P(cyl(0.012, 0.012, 0.56, 8), jade, 0, 2.5, 0, 0, 0, PI / 2), P(sph(0.03, 8), gold2, 0.28, 2.5, 0), P(sph(0.03, 8), gold2, -0.28, 2.5, 0),
+        P(box(0.5, 0.03, 0.94), 0x5a0e0a, 0, 2.66, 0, 0.16), P(box(0.52, 0.012, 0.96), gd, 0, 2.68, 0, 0.16), P(box(0.5, 0.012, 0.94), rd, 0, 2.642, 0, 0.16),
+        ...beads,
+        P(cyl(0.008, 0.008, 0.5, 6), rd, 0.2, 2.24, 0.06), P(cyl(0.008, 0.008, 0.5, 6), rd, -0.2, 2.24, 0.06),
       ], 0.016));
-      neck.add(new THREE.Mesh(merge([P(G.box(0.05, 0.013, 0.01), C.hair, 0.052, 0.13, 0.133), P(G.box(0.05, 0.013, 0.01), C.hair, -0.052, 0.13, 0.133),
-        P(G.box(0.07, 0.012, 0.01), C.hair, 0.05, 0.165, 0.128, 0, 0, -0.15), P(G.box(0.07, 0.012, 0.01), C.hair, -0.05, 0.165, 0.128, 0, 0, 0.15),
-        P(G.box(0.14, 0.016, 0.012), C.hair, 0, 0.045, 0.135), P(G.box(0.03, 0.05, 0.012), C.hair, 0.05, 0.03, 0.13, 0, 0, 0.5), P(G.box(0.03, 0.05, 0.012), C.hair, -0.05, 0.03, 0.13, 0, 0, -0.5)]), vcMat));
+      neckG.add(headOf(2.2));
     }
-    // 披风
+    // 披风：带褶皱明暗和金边，随风摆
     let cape = null, capeGeo = null, capeBase = null;
-    capeGeo = new THREE.PlaneGeometry(isX ? 0.9 : 0.8, isX ? 1.7 : 1.5, 8, 14);
+    capeGeo = new THREE.PlaneGeometry(isX ? 0.94 : 0.8, isX ? 1.7 : 1.5, 10, 16);
     capeGeo.translate(0, isX ? -0.85 : -0.75, 0);
-    cape = new THREE.Mesh(capeGeo, toon(isX ? 0xa12a1c : 0x7e1e14, { side: THREE.DoubleSide, unique: true })); cape.castShadow = true;
+    cape = new THREE.Mesh(capeGeo, heroCapeMat(kind)); cape.castShadow = true;
     cape.add(new THREE.Mesh(capeGeo, outlineMat(0.012)));
-    cape.position.set(0, isX ? 0.83 : 0.72, isX ? -0.26 : -0.22); cape.rotation.x = 0.12;
+    cape.position.set(0, isX ? 0.85 : 0.74, isX ? -0.3 : -0.25); cape.rotation.x = 0.12;
     torso.add(cape);
     capeBase = capeGeo.attributes.position.array.slice();
     // 手臂
     const arm = (s) => {
-      const sh = new THREE.Group(); sh.position.set((isX ? 0.38 : 0.32) * s, isX ? 0.71 : 0.63, 0.02); torso.add(sh);
-      sh.add(inkedMerged(isX ? [P(G.cyl(0.08, 0.07, 0.36, 8), armor, 0, -0.17, 0)] : [P(G.cyl(0.1, 0.14, 0.38, 8), red, 0, -0.17, 0)], 0.016));
+      const sh = new THREE.Group(); sh.position.set((isX ? 0.4 : 0.32) * s, isX ? 0.71 : 0.63, 0.02); torso.add(sh);
+      sh.add(inkedMerged(isX ? [P(cyl(0.1, 0.085, 0.36, 14), blk2, 0, -0.17, 0), P(tor(0.092, 0.012, 14), gd, 0, -0.3, 0, PI / 2)] : [P(cyl(0.1, 0.15, 0.38, 16), LR, 0, -0.17, 0)], 0.016));
       const el = new THREE.Group(); el.position.y = -0.34; sh.add(el);
-      el.add(inkedMerged(isX ? [P(G.cyl(0.07, 0.06, 0.32, 8), 0x2a2522, 0, -0.16, 0), P(G.cyl(0.075, 0.07, 0.18, 8), gold, 0, -0.2, 0)] : [P(G.cyl(0.12, 0.16, 0.3, 8), red, 0, -0.13, 0), P(G.cyl(0.05, 0.05, 0.1, 6), C.skin, 0, -0.3, 0)], 0.016));
+      el.add(inkedMerged(isX
+        ? [P(cyl(0.082, 0.07, 0.32, 14), blk2, 0, -0.16, 0), P(cyl(0.094, 0.08, 0.2, 14), gd, 0, -0.2, 0), P(tor(0.09, 0.01, 14), blk, 0, -0.2, 0, PI / 2)]
+        : [P(cyl(0.13, 0.2, 0.36, 18), LR, 0, -0.14, 0), P(tor(0.2, 0.014, 20), gd, 0, -0.32, 0, PI / 2), P(cyl(0.188, 0.188, 0.012, 18), 0x4a0c08, 0, -0.318, 0), P(cyl(0.05, 0.05, 0.1, 8), skin, 0, -0.3, 0)], 0.016));
       const hand = new THREE.Group(); hand.position.y = -0.33; el.add(hand);
-      hand.add(inked(G.sph(0.065, 6), toon(skin)));
+      hand.add(inked(G.sph(isX ? 0.07 : 0.062, 10), toon(isX ? blk : skin)));
       return { sh, el, hand };
     };
     const AR = arm(1), AL = arm(-1);
@@ -970,29 +1042,30 @@ const Models = (() => {
     const weapon = new THREE.Group(); AR.hand.add(weapon);
     let scabbard = null, sheathed = null;
     if (isX) {
-      // 长柄大刀：握点在杆中下部
+      // 霸王戟：握点在杆中下部
       weapon.add(inkedMerged([
-        P(G.cyl(0.03, 0.032, 2.4, 6), 0x3a2616, 0, 0.3, 0),
-        P(new THREE.TorusGeometry(0.035, 0.012, 4, 8), gold, 0, 1.28, 0, Math.PI / 2), P(new THREE.TorusGeometry(0.035, 0.012, 4, 8), gold, 0, -0.5, 0, Math.PI / 2),
-        P(G.cone(0.035, 0.22, 5), gold, 0, -1.0, 0, Math.PI),
-        P(G.box(0.08, 0.1, 0.12), gold, 0, 1.52, 0),
-        P(G.cone(0.08, 0.22, 6), red, 0, 1.42, 0, Math.PI),
-        { geo: daoBlade(0.78, 0.22), color: 0xcfc9ba, m: M4(0, 1.56, 0, 0, Math.PI / 2, 0) },
+        P(cyl(0.03, 0.034, 2.45, 10), 0x2a1c14, 0, 0.32, 0),
+        P(tor(0.036, 0.012, 10), gd, 0, 1.2, 0, PI / 2), P(tor(0.036, 0.012, 10), gd, 0, -0.5, 0, PI / 2),
+        P(cone(0.04, 0.2, 8), gd, 0, -1.0, 0, PI),
+        P(cyl(0.05, 0.05, 0.1, 10), gd, 0, 1.56, 0), P(cone(0.085, 0.24, 10), rd, 0, 1.4, 0, PI),
+        P(cone(0.055, 0.46, 8), steel, 0, 1.82, 0, 0, 0, 0, 1, 1, 0.45),
+        { geo: jiShape(), color: steel, m: M4(0, 1.36, -0.014, 0, 0, 0, 1.45, 1.45, 1.4) },
+        { geo: jiShape(), color: steel, m: M4(0, 1.36, 0.014, 0, PI, 0, 1.1, 1.1, 1.4) },
       ], 0.014));
-      scabbard = new THREE.Group(); scabbard.position.set(-0.3, 0.17, 0.12); scabbard.rotation.z = 0.5; hips.add(scabbard);
-      scabbard.add(inkedMerged([P(G.box(0.05, 0.9, 0.04), 0x2a1a12, 0, -0.4, 0), P(G.cyl(0.02, 0.02, 0.22, 5), 0x3a2616, 0, 0.14, 0), P(G.box(0.14, 0.04, 0.06), gold, 0, 0, 0)]));
+      scabbard = new THREE.Group(); scabbard.position.set(-0.36, 0.17, 0.12); scabbard.rotation.z = 0.5; hips.add(scabbard);
+      scabbard.add(inkedMerged([P(box(0.05, 0.9, 0.04), 0x2a1a12, 0, -0.4, 0), P(cyl(0.02, 0.02, 0.22, 6), 0x3a2616, 0, 0.14, 0), P(box(0.14, 0.04, 0.06), gd, 0, 0, 0), P(box(0.06, 0.05, 0.05), gd, 0, -0.84, 0)]));
     } else {
-      // 汉剑（三尺剑）
+      // 赤霄剑
       weapon.add(inkedMerged([
-        P(G.cyl(0.022, 0.022, 0.2, 6), 0x2a1a12, 0, 0.02, 0), P(G.sph(0.035, 6), INK.gold, 0, -0.1, 0),
-        P(G.box(0.14, 0.035, 0.06), INK.gold, 0, 0.13, 0),
-        P(G.box(0.045, 0.86, 0.012), 0xd8d4c8, 0, 0.58, 0), P(G.cone(0.023, 0.08, 4), 0xd8d4c8, 0, 1.05, 0, 0, Math.PI / 4),
-        P(G.box(0.008, 0.84, 0.016), 0xaaa498, 0, 0.58, 0),
+        P(cyl(0.022, 0.022, 0.2, 10), rd, 0, 0.02, 0), P(sph(0.035, 10), gold2, 0, -0.1, 0),
+        P(box(0.16, 0.035, 0.06), gd, 0, 0.13, 0),
+        P(box(0.05, 0.86, 0.012), steel, 0, 0.58, 0), P(cone(0.025, 0.08, 4), steel, 0, 1.05, 0, 0, PI / 4),
+        P(box(0.012, 0.84, 0.016), 0xe9e6dc, 0, 0.58, 0),
       ], 0.012));
       weapon.visible = false;
-      scabbard = new THREE.Group(); scabbard.position.set(-0.26, 0.15, 0.1); scabbard.rotation.z = 0.55; scabbard.rotation.x = -0.15; hips.add(scabbard);
-      scabbard.add(inkedMerged([P(G.box(0.07, 0.88, 0.035), 0x1c1614, 0, -0.42, 0), P(G.box(0.08, 0.05, 0.045), INK.gold, 0, -0.84, 0), P(G.box(0.08, 0.04, 0.045), INK.gold, 0, -0.05, 0)], 0.012));
-      sheathed = inkedMerged([P(G.cyl(0.022, 0.022, 0.2, 6), 0x2a1a12, 0, 0.12, 0), P(G.box(0.14, 0.035, 0.06), INK.gold, 0, 0.02, 0), P(G.sph(0.035, 6), INK.gold, 0, 0.24, 0)], 0.012);
+      scabbard = new THREE.Group(); scabbard.position.set(-0.3, 0.17, 0.16); scabbard.rotation.z = 0.55; scabbard.rotation.x = -0.15; hips.add(scabbard);
+      scabbard.add(inkedMerged([P(box(0.07, 0.88, 0.035), 0x1c1614, 0, -0.42, 0), P(box(0.08, 0.05, 0.045), gd, 0, -0.84, 0), P(box(0.08, 0.04, 0.045), gd, 0, -0.05, 0), P(box(0.08, 0.03, 0.045), gd, 0, -0.45, 0)], 0.012));
+      sheathed = inkedMerged([P(cyl(0.022, 0.022, 0.2, 10), rd, 0, 0.12, 0), P(box(0.16, 0.035, 0.06), gd, 0, 0.02, 0), P(sph(0.035, 10), gold2, 0, 0.24, 0)], 0.012);
       scabbard.add(sheathed);
     }
     const J = { ...HERO_KEYS };
@@ -1003,12 +1076,13 @@ const Models = (() => {
       AR.sh.rotation.set(J.sRx, J.sRy, J.sRz); AR.el.rotation.x = J.eR;
       AL.sh.rotation.set(J.sLx, J.sLy, J.sLz); AL.el.rotation.x = J.eL;
       LL.lg.rotation.set(J.lLx, 0, J.lLz); LL.kn.rotation.x = J.kL;
-      LR.lg.rotation.set(J.lRx, 0, J.lRz); LR.kn.rotation.x = J.kR;
+      LR_.lg.rotation.set(J.lRx, 0, J.lRz); LR_.kn.rotation.x = J.kR;
+      if (skirt) skirt.scale.z = 0.7 * (1 + 0.55 * Math.min(1.2, Math.max(Math.abs(J.lLx), Math.abs(J.lRx), 0.5 * J.kL, 0.5 * J.kR)));
       weapon.rotation.set(J.wx, J.wy, J.wz);
     };
     let t = rnd() * 5;
     const hero = {
-      kind, group: g, hips, torso, neck, cape, weapon, scabbard, sheathed, armR: AR.sh, armL: AL.sh, AR, AL, LL, LR, J,
+      kind, group: g, hips, torso, neck, cape, weapon, scabbard, sheathed, armR: AR.sh, armL: AL.sh, AR, AL, LL, LR: LR_, J,
       wind: 1, breathe: 1,
       setPose(p) { Object.assign(J, HERO_KEYS, p); apply(); },
       // 渐变到姿势；partial=true 时只改动给出的关节
