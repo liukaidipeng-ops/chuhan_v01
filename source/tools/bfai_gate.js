@@ -34,7 +34,7 @@ function run(args, label) {
     const c = spawn(process.execPath, args, { cwd: ROOT });
     let out = '';
     c.stdout.on('data', d => { out += d; process.stdout.write(d); });
-    c.stderr.on('data', d => { out += d; });
+    c.stderr.on('data', d => { out += d; process.stderr.write(d); });   // 对打的“进度 N/600”打在 stderr 上，长跑时也要看得到
     c.on('close', code => resolve({ code, out }));
   });
 }
