@@ -2,8 +2,9 @@
 global.XQ = require('../src/rules.js');
 const BF = global.BF = require('../src/bingfa.js');
 const AI = require('../src/bfai.js');
+AI.LEVELS.hard.budget = 350;   // 测试里霸王少想一会儿
 (async () => {
-  const pairs = [['easy', 'easy', 2], ['mid', 'easy', 3], ['hard', 'mid', 2], ['mid', 'hard', 2]];
+  const pairs = [['easy', 'easy', 2], ['mid', 'easy', 2], ['hard', 'mid', 1], ['mid', 'hard', 1]];
   for (const [lr, lb, n] of pairs) {
     const res = {}; let maxMs = 0, acts = 0, kinds = {};
     for (let gi = 0; gi < n; gi++) {

@@ -536,6 +536,35 @@
     if (!out.length) push({ k: 'pass' });
     return out;
   }
+  // 电脑用：只列出候选行动、不试走（搜索时按需一个个试，剪枝掉的就省了）。capsOnly = 只要打到敌子的
+  //   每项 { a, p: 出手的子, q: 被打的敌子或 null }
+  function gen(S, capsOnly) {
+    const out = [], side = S.turn, b = S.board;
+    for (let r = 0; r < 10; r++) for (let f = 0; f < 9; f++) {
+      const p = b[r][f]; if (!p || p.s !== side) continue;
+      for (const m of moveTargets(S, f, r)) { const q = b[m.to[1]][m.to[0]]; if (capsOnly && !q) continue; out.push({ a: { k: 'mv', from: m.from, to: m.to }, p, q: q || null }); }
+      if (p.t === 'k' || p.lv < 3 || S.freeUsed) continue;
+      const main = SKILL_OF(p.t, p.s);
+      for (const sk of SKILLS_OF(p.t, p.s)) {
+        if (sk === 'juma' || !skillOk(S, p, sk)) continue;
+        if (capsOnly && sk === 'hujia') continue;
+        const tg = sk === 'chongzhen' ? springTargets(S, f, r)
+          : sk === 'taying' ? (CFG_CUR.skills.taying.enemyHalfOnly && ownHalf(p.s, r) ? [] : moveTargets(S, f, r, true))
+            : sk === 'feiyue' ? moveTargets(S, f, r, true)
+              : sk === 'pili' ? cannonShots(S, f, r)
+                : sk === 'qishe' ? arrowTargets(S, f, r) : null;
+        const mk = to => { const a = { k: 'sk', at: [f, r] }; if (to) a.to = to; if (sk !== main) a.sk = sk; return a; };
+        if (tg) for (const m of tg) { const q = b[m.to[1]][m.to[0]]; if (capsOnly && !(q && q.s !== side)) continue; out.push({ a: mk(m.to), p, q: q && q.s !== side ? q : null, sk }); }
+        else out.push({ a: mk(null), p, q: null, sk });
+      }
+    }
+    if (!capsOnly && !S.freeUsed) {
+      if (side === 'r' && S.used.art.r < CFG_CUR.generalArts.xiaohe.usesPerGame) { const seen = new Set(); for (const d of S.dead.r) { if (seen.has(d.id)) continue; seen.add(d.id); out.push({ a: { k: 'art', id: d.id }, p: null, q: null, art: d.t }); } }
+      const U = CFG_CUR.ultimates;
+      if (S.merit[side] >= U.cost && S.used.ult[side] < U[side === 'r' ? 'simian' : 'hongmen'].usesPerGame) out.push({ a: { k: 'ult' }, p: null, q: null, ult: true });
+    }
+    return out;
+  }
   // 电脑用：架拒马（不占行动）之后的状态；不能架返回 null
   function jumaState(S, at_) { const r = attempt(S, { k: 'sk', at: at_ }); return r && r.free ? r.S : null; }
   // 电脑用：升级之后的状态；不能升返回 null
@@ -819,7 +848,7 @@
   }
   const BF = { Game, CFG, view, pofuPreview, SKILL_OF, SKILLS_OF, SKILL_CN, SKILL_DESC, ART_CN, ULT_CN, RANK_CN, HERO_CN, heroName, rankName, START, newState, cloneState, attempt, evaluate, levelInfo, maxLvOf: t => maxLv(t),
     // 电脑用（调用前会把配置指到默认值）
-    ai: { expand: S => { CFG_CUR = CFG; return expand(S); }, upgradeState: (S, a) => { CFG_CUR = CFG; return upgradeState(S, a); }, jumaState: (S, a) => { CFG_CUR = CFG; return jumaState(S, a); }, pofuPairs: S => { CFG_CUR = CFG; return pofuPairs(S); }, inCheck: (S, s) => inCheckS(S, s), upCost: p => { CFG_CUR = CFG; return upCost(p); }, moveTargets: (S, f, r) => { CFG_CUR = CFG; return moveTargets(S, f, r); } }, hpOf: (t, lv) => hpOf(t, lv, CFG) };
+    ai: { gen: (S, c) => { CFG_CUR = CFG; return gen(S, c); }, atk: p => { CFG_CUR = CFG; return atk(p); }, expand: S => { CFG_CUR = CFG; return expand(S); }, upgradeState: (S, a) => { CFG_CUR = CFG; return upgradeState(S, a); }, jumaState: (S, a) => { CFG_CUR = CFG; return jumaState(S, a); }, pofuPairs: S => { CFG_CUR = CFG; return pofuPairs(S); }, inCheck: (S, s) => inCheckS(S, s), upCost: p => { CFG_CUR = CFG; return upCost(p); }, moveTargets: (S, f, r) => { CFG_CUR = CFG; return moveTargets(S, f, r); } }, hpOf: (t, lv) => hpOf(t, lv, CFG) };
   if (typeof module !== 'undefined' && module.exports) module.exports = BF;
   global.BF = BF;
 })(typeof window !== 'undefined' ? window : globalThis);
