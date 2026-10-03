@@ -180,6 +180,7 @@ function applyReviveFree(BF) {
   //   召回这一下本身不看将军（和不占行动的拒马一样）：被将军时“召回 + 应将的那一步”也合法
   const freeRevive = (S, id) => {
     if (S.turn !== 'r' || S.freeUsed || !usesLeft(S) || (BF.__reviveGate && !BF.__reviveGate(S))) return null;
+    if (Math.floor((S.cnt.r + S.cnt.b) / 2) + 1 < (BF.CFG.generalArts.fromRound || 1)) return null;   // chat 的引擎开关（--set generalArts.fromRound=16）也认
     const i = S.dead.r.findIndex(d => d.id === id); if (i < 0) return null;
     const d = S.dead.r[i], st = BF.START[d.id];
     if (!st || S.board[st[1]][st[0]]) return null;
