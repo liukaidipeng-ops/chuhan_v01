@@ -12,7 +12,7 @@
 //   --seed N         起始随机种子（第 i 局用 seed + i，可复现）
 //   --preset NAME    预设配置（见下方 PRESETS；可多个，逗号分隔）：baseline（普通象棋对照）、no-pofu / no-revive / no-simian / no-hongmen
 //                    （关掉某个兵法）、no-<技能>（如 no-chongzhen，关掉某个兵种技能）、
-//                    pofu-a / pofu-b / pofu-noup / pofu-1kill（破釜沉舟的规则变体，见 applyPatches）
+//                    pofu-a / pofu-b / pofu-a2pc / pofu-a16（破釜沉舟的规则变体，见 applyPatches）
 //   --set PATH=JSON  覆盖单个配置项，如 --set skills.jianta.splashMinLevel=2（可多次）
 //   --save-ult       军功离终极兵法差 7 以内时不再升级、攒着放大招（霸王档本来就这样；校尉 / 新兵默认不攒）
 //   --json FILE      把每局明细写到 FILE
@@ -55,25 +55,47 @@ const PRESETS = {
   'no-e4': { set: { 'upgrade.maxLevel': { r: 4, p: 4, a: 4, e: 3 } } },
 };
 // 规则变体（试新规则用，不改游戏源码）：在模拟进程里给引擎套一层规则，电脑和对局都受约束
-//   pofu-noup：同一回合不能“先升级再破釜沉舟”；破釜沉舟之后的封锁期（原有 3 回合不能用主动技能）里也不能升级
-//   pofu-1kill：破釜沉舟两步加起来最多杀死一个敌子（含践踏、溅射带走的）
-//   pofu-a = pofu-noup；pofu-b = pofu-noup + pofu-1kill（用户提的两档方案）
+//   pofu-noup：同一回合不能“先升级再破釜沉舟”；破釜沉舟那一回合和之后的封锁期（原有 3 回合不能用主动技能）里
+//              楚方也不能升级——手动升级、甲片攒够的自动晋升都不行（甲片照攒，封锁结束后第一次击杀时再晋升）
+//   pofu-1kill：破釜沉舟两步加起来最多杀死一个敌子（践踏、溅射带走的也算；打伤不算）
+//   pofu-2pc：两子合击——两步必须由两枚不同的子各走一步，同一枚子不能连走两步
+//   pofu-fromN：第 N 回合起才能破釜沉舟（如 pofu-from16）
+//   预设：pofu-a = noup（用户第一档）；pofu-b = noup + 1kill（用户第二档）；pofu-a2pc = noup + 2pc；pofu-a16 = noup + from16
+//   注意：封锁期只封主动技能（引擎原样），被动技能（践踏、神速营、回防、铁甲禁卫）和鸿门宴照常可用。
+//   这些变体定稿后应直接写进 bingfa.js 的 resolve()（界面上的破釜入口 pofuFirst / pofuSecond 才会一致），这里只供模拟。
 PRESETS['pofu-noup'] = { set: {}, patches: ['pofu-noup'] };
 PRESETS['pofu-1kill'] = { set: {}, patches: ['pofu-1kill'] };
+PRESETS['pofu-2pc'] = { set: {}, patches: ['pofu-2pc'] };
 PRESETS['pofu-a'] = { set: {}, patches: ['pofu-noup'] };
 PRESETS['pofu-b'] = { set: {}, patches: ['pofu-noup', 'pofu-1kill'] };
+PRESETS['pofu-a2pc'] = { set: {}, patches: ['pofu-noup', 'pofu-2pc'] };
+PRESETS['pofu-a16'] = { set: {}, patches: ['pofu-noup', 'pofu-from16'] };
 function applyPatches(BF, names) {
   if (!names || !names.length) return;
   const has = n => names.includes(n);
+  const fromN = (names.map(n => /^pofu-from(\d+)$/.exec(n)).find(Boolean) || [])[1];
   const isPofu = a => a && a.k === 'art' && a.steps;
+  const eq = (x, y) => x[0] === y[0] && x[1] === y[1];
+  const round = S => Math.floor((S.cnt.r + S.cnt.b) / 2) + 1;
   const locked = S => S.turn === 'b' && S.cnt.b < S.fx.pf;                 // 破釜沉舟之后的封锁期
   const kills = ev => (ev || []).filter(e => e.e === 'kill' && !e.friendly && e.s === 'r').length;
-  // 一条行动按变体规则是否违规（S 是走之前的局面，r 是引擎结算结果）
-  const bad = (S, a, r) => (isPofu(a) && has('pofu-noup') && S.upgraded) || (isPofu(a) && has('pofu-1kill') && r && kills(r.ev) > 1);
+  // 第二步是不是第一步那枚子走的：第一步之后它要么站在落点（走了 / 吃了），要么弹回原位（攻击没打死）
+  const samePiece = a => eq(a.steps[1].from, a.steps[0].to) || eq(a.steps[1].from, a.steps[0].from);
+  const gated = S => fromN && round(S) < +fromN;
+  // 一条破釜沉舟按变体规则是否违规（S 是走之前的局面，r 是引擎结算结果，可以为空）
+  const bad = (S, a, r) => isPofu(a) && ((has('pofu-noup') && S.upgraded) || gated(S) || (has('pofu-2pc') && samePiece(a)) || (has('pofu-1kill') && r && kills(r.ev) > 1));
+  // 甲片自动晋升也算升级：楚方破釜那一回合、封锁期里，临时关掉自动晋升（bfsim 里引擎用的配置就是 BF.CFG）
+  const U = BF.CFG.upgrade;
+  const noAuto = (S, a, fn) => {
+    if (!has('pofu-noup') || !U.autoByPlates || !S || S.turn !== 'b' || !(isPofu(a) || locked(S))) return fn();
+    U.autoByPlates = false; try { return fn(); } finally { U.autoByPlates = true; }
+  };
   const attempt0 = BF.attempt;
-  BF.attempt = (S, a) => { const r = attempt0(S, a); return r && bad(S, a, r) ? null : r; };
+  BF.attempt = (S, a) => { if (isPofu(a) && bad(S, a, null)) return null; const r = noAuto(S, a, () => attempt0(S, a)); return r && bad(S, a, r) ? null : r; };
   const pairs0 = BF.ai.pofuPairs;
-  BF.ai.pofuPairs = (S, ...rest) => (has('pofu-noup') && S.upgraded ? [] : pairs0(S, ...rest).filter(x => !bad(S, x.a, x)));
+  BF.ai.pofuPairs = (S, ...rest) => ((has('pofu-noup') && S.upgraded) || gated(S) ? [] : noAuto(S, { k: 'art', steps: [] }, () => pairs0(S, ...rest)).filter(x => !bad(S, x.a, x)));
+  const exp0 = BF.ai.expand;
+  BF.ai.expand = S => noAuto(S, null, () => exp0(S));
   if (has('pofu-noup')) {
     const up0 = BF.ai.upgradeState;
     BF.ai.upgradeState = (S, at) => (locked(S) ? null : up0(S, at));
@@ -81,7 +103,38 @@ function applyPatches(BF, names) {
     BF.Game.prototype.canUpgrade = function (f, r) { return locked(this.S) ? false : can0.call(this, f, r); };
   }
   const apply0 = BF.Game.prototype.apply;
-  BF.Game.prototype.apply = function (e) { if (isPofu(e) && bad(this.S, e, attempt0(this.S, e))) return null; return apply0.call(this, e); };
+  BF.Game.prototype.apply = function (e) {
+    if (isPofu(e) && (bad(this.S, e, null) || bad(this.S, e, noAuto(this.S, e, () => attempt0(this.S, e))))) return null;
+    return noAuto(this.S, e, () => apply0.call(this, e));
+  };
+}
+// 电脑先定升不升级、再看破釜沉舟：pofu-noup 下它会为了升级白白放弃一次更好的破釜。
+//   这里替楚方多想一次“这一回合不升级”（引擎在这一回合拒绝楚方升级，往后的回合照常），两次里取电脑自评更高的那一个。
+//   破釜用掉之前，楚方每步多花一次思考。
+function wrapThinkForNoUp(X, BF) {
+  if (!BF.ai.__noUpHook) {
+    const up0 = BF.ai.upgradeState;
+    const hook = { cntb: null };
+    BF.ai.upgradeState = (S2, at) => (hook.cntb != null && S2.turn === 'b' && S2.cnt.b === hook.cntb ? null : up0(S2, at));
+    BF.ai.__noUpHook = hook;
+  }
+  const hook = BF.ai.__noUpHook, think0 = X.think;
+  const wrapped = async (S, L, tick) => {
+    const pofuLeft = S.turn === 'b' && S.used.art.b < BF.CFG.generalArts.pofu.usesPerGame && !S.upgraded && !(S.cnt.b < S.fx.pf);
+    if (pofuLeft) {
+      hook.cntb = S.cnt.b;
+      let alt, lastAlt;
+      try { alt = await think0(BF.cloneState(S), L, tick); lastAlt = think0.last; } finally { hook.cntb = null; }
+      const m = alt[alt.length - 1];
+      if (m && m.k === 'art' && m.steps) {
+        const seq = await think0(S, L, tick), last = think0.last;
+        if (lastAlt && last && lastAlt.v > last.v) { wrapped.last = lastAlt; return alt; }
+        wrapped.last = last; return seq;
+      }
+    }
+    const seq = await think0(S, L, tick); wrapped.last = think0.last; return seq;
+  };
+  X.think = wrapped;
 }
 
 // 每个兵种技能各一个“关掉”预设：把解锁等级设成 99（永远解锁不了），如 no-chongzhen、no-jianta
@@ -258,6 +311,7 @@ function worker() {
         // 攒终极兵法：这一步不升级
         for (const k of ['easy', 'mid', 'open']) X.LEVELS[k + 'Save'] = { ...X.LEVELS[k], up: -1 };
       }
+      if ((ov.patches || []).includes('pofu-noup')) for (const X of new Set(Object.values(AIMAP))) wrapThinkForNoUp(X, BF);
       process.send({ ready: true, warns });
       return;
     } catch (e) { process.send({ fatal: String(e && e.message || e) }); process.exit(1); }
@@ -462,4 +516,4 @@ if (require.main === module) {
   if (o.worker) worker();
   else run(o).catch(e => { console.error(e); process.exit(1); });
 }
-module.exports = { PRESETS, summarize, applyPatches };
+module.exports = { PRESETS, summarize, applyPatches, wrapThinkForNoUp };
