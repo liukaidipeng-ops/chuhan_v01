@@ -46,7 +46,7 @@ const gate = (name, value, limit, ok, note = '') => rows.push({ name, value, lim
 
   // 2. 考卷（校尉、霸王）
   for (const [lv, runs] of [['mid', 3], ['hard', 1]]) {
-    const r = await run(['tools/bfai_exam.js', opt.ai, '--level', lv, '--runs', String(runs)], `考卷·${lv}`);
+    const r = await run(['tools/bfai_exam.js', opt.ai, '--level', lv, '--runs', String(runs), ...nodes], `考卷·${lv}`);
     const m = /总分（每题 \d+ 次）：\S+ (\d+)\/(\d+)/.exec(r.out);
     const pctv = m ? Math.round(100 * m[1] / m[2]) : null;
     const lim = conf.exam && conf.exam[lv];

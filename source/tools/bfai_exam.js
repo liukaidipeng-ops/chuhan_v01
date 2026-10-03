@@ -1,6 +1,7 @@
 // 技能模式电脑「智商考卷」：一组摆好的局面，专考这套棋特有的机制——
 //   血量、打不死就弹回、升级不占行动、每个兵种技能、主帅兵法与终极兵法的时机、决战规则。
-// 用法：node tools/bfai_exam.js [电脑文件...] [--level mid] [--runs 3] [--verbose] [--only 关键字] [--lint]
+// 用法：node tools/bfai_exam.js [电脑文件...] [--level mid] [--runs 3] [--verbose] [--only 关键字] [--lint] [--nodes N]
+//   --nodes N：电脑按搜索节点数收手（LEVELS.<档>.nodes），结果和机器快慢无关、可复现
 //   默认考 src/bfai.js（游戏里现用的）；可以一次给几个文件对比（比如 git show 出来的旧版本）。
 //   每题按不同随机种子考 --runs 次，答对的次数记分。
 //   --lint：不考电脑，只检查考题本身摆得对不对（将帅照面、将军状态、标准答案合法且判对、错误示范判错）。
@@ -16,13 +17,14 @@ const BF = global.BF = require('../src/bingfa.js');
 const XQ = global.XQ;
 
 const argv = process.argv.slice(2);
-const opt = { level: 'mid', runs: 3, verbose: false, files: [], only: null, lint: false, verify: 0 };
+const opt = { level: 'mid', runs: 3, verbose: false, files: [], only: null, lint: false, verify: 0, nodes: 0 };
 for (let i = 0; i < argv.length; i++) {
   if (argv[i] === '--level') opt.level = argv[++i];
   else if (argv[i] === '--runs') opt.runs = +argv[++i];
   else if (argv[i] === '--verbose') opt.verbose = true;
   else if (argv[i] === '--only') opt.only = argv[++i];
   else if (argv[i] === '--lint') opt.lint = true;
+  else if (argv[i] === '--nodes') opt.nodes = +argv[++i];
   else if (argv[i] === '--verify') opt.verify = argv[i + 1] && /^\d+$/.test(argv[i + 1]) ? +argv[++i] : 8000;
   else opt.files.push(argv[i]);
 }
@@ -83,6 +85,13 @@ const isUp = (a, at) => a.k === 'up' && a.at[0] === at[0] && a.at[1] === at[1];
 const isSk = (a, at, to) => a.k === 'sk' && a.at[0] === at[0] && a.at[1] === at[1] && (!to || (a.to && a.to[0] === to[0] && a.to[1] === to[1]));
 // 走完这串行动后，这些 id 的子是不是都没了
 const allDead = (g0, seq, ids) => { const g = play(g0, seq); return !!g && ids.every(id => !findId(g, id)); };
+// 走子方这一手能不能直接将死对方（会试先升级再走、所有技能和兵法）
+function mateInOne(S) {
+  const bases = [S];
+  if (!S.upgraded) for (let r = 0; r < 10; r++) for (let f = 0; f < 9; f++) { const p = S.board[r][f]; if (p && p.s === S.turn && p.t !== 'k') { const T = BF.ai.upgradeState(S, [f, r]); if (T) bases.push(T); } }
+  for (const B of bases) for (const k of BF.ai.expand(B)) { if (k.S.turn === S.turn) continue; const st = BF.evaluate(k.S); if (st.result && st.result.winner === S.turn) return true; }
+  return false;
+}
 const countDead = (g0, seq, side) => { const before = g0.board.flat().filter(p => p && p.s === side).length; const g = play(g0, seq); return g ? before - g.board.flat().filter(p => p && p.s === side).length : -1; };
 
 // ---------- 考题 ----------
@@ -331,12 +340,11 @@ Q.push({
 });
 Q.push({
   name: '27 鸿门宴绝杀', cat: '终极',
-  desc: '汉帅身边没有士相，楚车只差一步就能沿底线将军；平时汉帅往上一闪就躲掉了。放鸿门宴（汉帅三回合不能动），下一步车沉底就是绝杀。',
-  build: () => position([[4, 0, P('r', 'k')], [0, 6, P('r', 'p')], [2, 6, P('r', 'p')], [3, 9, P('b', 'k')], [8, 5, P('b', 'r')], [6, 6, P('b', 'p')]], { turn: 'b', merit: { b: 20 } }),
+  desc: '汉帅上了一步站在 (4,1)，两个二级士守着底线角、自己动不了。楚车只要横到 1 路就是将军，平时汉帅往下或往上一闪就躲开了。楚正好 20 功：放鸿门宴（汉帅三回合不能动），下一步车横过来就是绝杀。拿军功去升级就放不了鸿门宴了。',
+  build: () => position([[4, 1, P('r', 'k')], [3, 0, P('r', 'a', 2)], [5, 0, P('r', 'a', 2)], [2, 4, P('r', 'p')], [8, 4, P('r', 'p')], [4, 9, P('b', 'k')], [4, 6, P('b', 'p')], [0, 5, P('b', 'r')]], { turn: 'b', merit: { b: 20 } }),
   check: seq => seq.some(a => a.k === 'ult'),
   answer: [{ k: 'ult' }],
-  bad: [{ k: 'mv', from: [8, 5], to: [8, 0] }],
-  disabled: '深搜复核发现不用鸿门宴也能杀（升车后 4 路将军，5 步必杀），这题考不出鸿门宴的时机，待重出',
+  bad: [{ k: 'mv', from: [0, 5], to: [0, 1] }],
 });
 
 // ===== 五、决战 =====
@@ -364,6 +372,25 @@ Q.push({
     }));
   }
 }
+
+// ===== 七、升级后贴脸将军 =====
+// 打不死将军的子不算解将：二级（2 血）的子贴在帅将身边将军，一级士、帅（攻击 1）只能打掉 1 血，帅又被自己的士堵着时就是死棋
+Q.push({
+  name: '29 升级贴脸绝杀', cat: '贴脸',
+  desc: '汉帅在底线，两边是自己的一级士，正前方 (4,1) 空着。楚车横到 (4,1) 将军：一级车会被士或帅吃掉；先花 6 功升二级（2 血），士帅都打不死它、帅又走不开——绝杀。',
+  build: () => position([[4, 0, P('r', 'k')], [3, 0, P('r', 'a')], [5, 0, P('r', 'a')], [4, 3, P('r', 'p')], [8, 0, P('r', 'r')], [8, 3, P('r', 'p')], [4, 9, P('b', 'k')], [3, 9, P('b', 'a')], [5, 9, P('b', 'a')], [4, 6, P('b', 'p')], [8, 6, P('b', 'p')], [0, 1, P('b', 'r')]], { turn: 'b', merit: { b: 6 } }),
+  check: (seq, g0) => { const g = play(g0, seq); return !!g && !!g.result && g.result.winner === 'b'; },
+  answer: [{ k: 'up', at: [0, 1] }, { k: 'mv', from: [0, 1], to: [4, 1] }],
+  bad: [{ k: 'mv', from: [0, 1], to: [4, 1] }],
+});
+Q.push({
+  name: '30 防贴脸将军', cat: '贴脸',
+  desc: '同样的阵形，轮到汉走：楚有 6 功、楚车在 1 路，下一步“升车 + 车贴到 (4,1) 将军”就是绝杀。汉有 2 功，得先防住（比如把士升二级，攻击 2 就能一刀砍死 2 血的车；或者让帅有路可走）。判卷：汉走完之后，楚方没有一步杀。',
+  build: () => position([[4, 0, P('r', 'k')], [3, 0, P('r', 'a')], [5, 0, P('r', 'a')], [4, 3, P('r', 'p')], [8, 0, P('r', 'r')], [8, 3, P('r', 'p')], [4, 9, P('b', 'k')], [3, 9, P('b', 'a')], [5, 9, P('b', 'a')], [4, 6, P('b', 'p')], [8, 6, P('b', 'p')], [0, 1, P('b', 'r')]], { merit: { r: 2, b: 6 } }),
+  check: (seq, g0) => { const g = play(g0, seq); return !!g && !g.result && !mateInOne(g.S); },
+  answer: [{ k: 'up', at: [3, 0] }, { k: 'mv', from: [8, 0], to: [7, 0] }],
+  bad: [{ k: 'mv', from: [8, 3], to: [8, 4] }],
+});
 
 // ---------- 自检：考题本身摆得对不对 ----------
 function lint() {
@@ -407,6 +434,7 @@ function lint() {
 async function verify() {
   const AI = require(path.resolve(__dirname, '..', opt.files[0]));
   AI.LEVELS.verify = { ...AI.LEVELS.hard, noise: 0, top: 1, budget: opt.verify };
+  if (opt.nodes) AI.LEVELS.verify.nodes = opt.nodes;   // 复核也可以按节点数（给大一点，比如考生的 5 倍以上）
   const list = (opt.only ? Q.filter(q => q.name.includes(opt.only) || q.cat === opt.only) : Q).filter(q => !q.multi && !q.disabled);
   // 一串行动走完之后值几分（站在走棋方看）：直接分出胜负就是 ±9000，否则让深搜替对方找最好的应着再取反
   const valueOf = async (q, seq) => {
@@ -433,7 +461,9 @@ async function verify() {
     // 不同意：深搜的着法判卷判错，且深搜认为它比标准答案好出 0.5 分以上；或者错误示范反而比标准答案好
     const worse = ans && ans.v != null && vDeep - ans.v > 0.5;
     const badBetter = ans && bad && ans.v != null && bad.v != null && bad.v >= ans.v - 0.1;
-    const verdict = deepPass ? '✓ 深搜同意' : worse ? '⚠ 深搜不同意（深搜的着法判错，且它认为比标准答案好）' : '△ 深搜走了别的，但认为和标准答案差不多（判卷可能太严，或深搜还不够深）';
+    const better = ans && ans.v != null && ans.v - vDeep > 0.5;
+    const verdict = deepPass ? '✓ 深搜同意' : worse ? '⚠ 深搜不同意（深搜的着法判错，且它认为比标准答案好）'
+      : better ? '✓ 标准答案比深搜自己走的更好（深搜没找到——这正是要考的毛病）' : '△ 深搜走了别的，但认为和标准答案差不多（判卷可能太严，或深搜还不够深）';
     if (!q.adjudicated && !deepPass && worse) disputed++;
     if (!q.adjudicated && badBetter) disputed++;
     console.log(`【${q.name}】${verdict}${badBetter ? '  ⚠ 错误示范不比标准答案差' : ''}${q.adjudicated ? '\n   （已裁决：' + q.adjudicated + '）' : ''}`);
@@ -451,6 +481,7 @@ async function verify() {
   const list = (opt.only ? Q.filter(q => q.name.includes(opt.only) || q.cat === opt.only) : Q).filter(q => !q.disabled);
   for (const q of Q) if (q.disabled) console.log(`（停用：${q.name}——${q.disabled}）`);
   const AIs = opt.files.map(f => ({ file: f, AI: require(path.resolve(__dirname, '..', f)) }));
+  if (opt.nodes) for (const { AI } of AIs) for (const k of Object.keys(AI.LEVELS)) AI.LEVELS[k].nodes = opt.nodes;
   const score = AIs.map(() => 0), byCat = AIs.map(() => ({}));
   for (const q of list) {
     const row = { name: q.name, cells: [] };
