@@ -81,6 +81,7 @@ PRESETS['pofu-a16'] = { set: {}, patches: ['pofu-noup', 'pofu-from16'] };
 PRESETS['revive-free'] = { set: {}, patches: ['revive-free'] };
 PRESETS['arts-from16'] = { set: {}, patches: ['pofu-from16', 'revive-from16'] };
 PRESETS['pofu-a+arts-from16'] = { set: {}, patches: ['pofu-noup', 'pofu-from16', 'revive-from16'] };   // 用户：方案 A 的封锁期 + 第 16 回合起每回合 +1 军功，让破釜的 debuff 最大化
+PRESETS['pofu-a+arts-from16+revive-free'] = { set: {}, patches: ['pofu-noup', 'pofu-from16', 'revive-from16', 'revive-free'] };   // 头号候选 + 召回不占行动（召回也从第 16 回合起）
 PRESETS['pofu-a+revive-free'] = { set: {}, patches: ['pofu-noup', 'revive-free'] };
 function applyPatches(BF, names) {
   if (!names || !names.length) return;
