@@ -367,11 +367,23 @@ Q.push({
     const { load } = require('./game_load.js');
     const main = seq => seq[seq.length - 1];   // 电脑给的是 [升级?, 拒马?, 主行动]
     const same = (a, b) => JSON.stringify(a) === JSON.stringify(b);
+    // survive 的裁判：当前电脑霸王档，按节点数深搜（结果可复现），看对方有没有必胜
+    let judge = null;
+    const survives = async (g, side, nodes) => {
+      if (g.result) return g.result.winner === side;
+      if (!judge) { judge = require('../src/bfai.js'); }
+      judge.LEVELS.judge = { ...judge.LEVELS.hard, noise: 0, top: 1, nodes: nodes || 1000000 };
+      const saved = Math.random; let a = 99; Math.random = () => { a = (a * 1103515245 + 12345) % 2147483648; return a / 2147483648; };
+      try { await judge.think(BF.cloneState(g.S), 'judge'); } finally { Math.random = saved; }
+      return judge.think.last.v < 4500;   // 对方找不到必胜
+    };
     JSON.parse(require('fs').readFileSync(file, 'utf8')).forEach((it, i) => Q.push({
       name: `实${i + 1} ${it.name}`, cat: '实战', desc: it.desc,
       build: () => load(it.data, it.at).game,
-      // 给了标准答案：主行动要和答案一样（答案里有升级的，升级也要一样）；没给：只要别再走电脑原来那一步
-      check: seq => (it.answer ? same(main(seq), main(it.answer)) && it.answer.filter(a => a.k === 'up').every(u => seq.some(a => same(a, u))) : !same(main(seq), main(it.bad))),
+      // same：主行动要和答案一样（答案里有升级的，升级也要一样）；avoid：别再走电脑原来那一步；survive：走完之后对方深搜找不到必胜
+      check: (it.mode || (it.answer ? 'same' : 'avoid')) === 'survive'
+        ? async (seq, g0) => { const g = play(g0, seq); return !!g && survives(g, it.side, it.judgeNodes); }
+        : seq => ((it.mode || (it.answer ? 'same' : 'avoid')) === 'same' ? same(main(seq), main(it.answer)) && it.answer.filter(a => a.k === 'up').every(u => seq.some(a => same(a, u))) : !same(main(seq), main(it.bad))),
       answer: it.answer || undefined, bad: it.bad, adjudicated: it.adjudicated, disabled: it.disabled,
     }));
   }
@@ -397,7 +409,7 @@ Q.push({
 });
 
 // ---------- 自检：考题本身摆得对不对 ----------
-function lint() {
+async function lint() {
   let bad = 0;
   for (const q of Q) {
     if (q.disabled) { console.log(`－ ${q.name}  停用：${q.disabled}`); continue; }
@@ -421,9 +433,9 @@ function lint() {
       else if (q.answer) {
         const seq = q.answer.map(a => JSON.parse(JSON.stringify(a)));
         pid = 500; if (!play(q.build(), seq)) errs.push('标准答案不合法 ' + JSON.stringify(q.answer));
-        else { pid = 500; if (!q.check(seq, q.build())) errs.push('标准答案判卷判错'); }
+        else { pid = 500; if (!(await q.check(seq, q.build()))) errs.push('标准答案判卷判错'); }
       }
-      if (q.bad) { pid = 500; const gC = q.build(); if (q.check(q.bad, gC)) errs.push('错误示范判卷判对'); }
+      if (q.bad) { pid = 500; const gC = q.build(); if (await q.check(q.bad, gC)) errs.push('错误示范判卷判对'); }
     }
     // 走子方此刻能白吃的子（提示用：题目里多出来的吃子机会可能干扰判断）
     const caps = BF.ai.gen(S, true).filter(it => it.q && it.q.t !== 'k' && it.q.hp <= BF.ai.atk(it.p) && it.a.k === 'mv').map(it => desc(S, it.a));
@@ -458,7 +470,7 @@ async function verify() {
     const seq = await AI.think(BF.cloneState(g0.S), 'verify');
     const L = AI.think.last, vDeep = L.v;
     pid = 500; const gC = q.build();
-    const deepPass = !!q.check(seq, gC);
+    const deepPass = !!(await q.check(seq, gC));
     const ans = q.answer ? await valueOf(q, q.answer) : null;
     const bad = q.bad ? await valueOf(q, q.bad) : null;
     const fmt = x => (x == null ? '—' : (Math.abs(x) > 4000 ? (x > 0 ? '必胜' : '必败') : x.toFixed(2)));
@@ -480,7 +492,7 @@ async function verify() {
 
 // ---------- 开考 ----------
 (async () => {
-  if (opt.lint) return lint();
+  if (opt.lint) return await lint();
   if (opt.verify) return verify();
   const list = (opt.only ? Q.filter(q => q.name.includes(opt.only) || q.cat === opt.only) : Q).filter(q => !q.disabled);
   for (const q of Q) if (q.disabled) console.log(`（停用：${q.name}——${q.disabled}）`);
@@ -502,7 +514,7 @@ async function verify() {
           const seq = await AI.think(BF.cloneState(g0.S), opt.level);
           note = seq.map(a => desc(g0.S, a)).join(' + ');
           if (opt.verbose && AI.think.last) note += `  （前几名：${AI.think.last.top.slice(0, 4).map(([a, v]) => desc(g0.S, a) + ' ' + v).join(' | ')}）`;
-          pass = !!q.check(seq, g0);
+          pass = !!(await q.check(seq, g0));
         }
         if (pass) ok++;
         notes.push((pass ? '✓ ' : '✗ ') + note);

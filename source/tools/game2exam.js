@@ -2,9 +2,13 @@
 // 用法：
 //   node tools/game2exam.js 对局.txt                       列出每一回合双方走了什么（标出哪边是电脑）
 //   node tools/game2exam.js 对局.txt --turn 12楚           看第 12 回合楚方那一步：走之前的棋盘、电脑走了什么、深搜觉得该走什么
-//   node tools/game2exam.js 对局.txt --turn 12楚 --add --name "白送车" [--desc "说明"] [--answer '<JSON 行动序列>'] [--verify 毫秒]
-//       把这一步收进 tools/bfai_exam_games.json（考卷会自动读）：电脑那步当“错误示范”；
-//       给了 --answer 就要求走出这个答案，没给就只要求“别再走电脑那步”。收进去之前会先确认电脑那步、答案在这个局面下都合法。
+//   node tools/game2exam.js 对局.txt --turn 12楚 --add --name "白送车" [--desc "说明"] [--answer '<JSON 行动序列>'] [--mode same|avoid|survive] [--verify 毫秒]
+//       把这一步收进 tools/bfai_exam_games.json（考卷会自动读）：电脑那步当“错误示范”。判卷方式 --mode：
+//         same    走出和 --answer 一样的主行动（答案里有升级的，升级也要一样）——有 --answer 时默认
+//         avoid   只要别再走电脑原来那一步——没 --answer 时默认
+//         survive 走完之后，裁判（当前电脑霸王档、按节点数深搜，默认 100 万节点，--judge-nodes 改）替对方找不到必胜——用于“原着法导致必败”的题，
+//                 别的同样守得住的走法也算对；--answer 只当标准答案存档、供 --lint 检查
+//       收进去之前会先确认电脑那步、答案在这个局面下都合法。
 //   对局文本也可以从标准输入读：把文件名写成 -
 // 读取、重放、画棋盘都用 tools/game_load.js（导出格式由它负责，这里只调用）。
 'use strict';
@@ -14,12 +18,12 @@ const { load, draw } = require('./game_load.js');
 const BF = global.BF;
 
 const argv = process.argv.slice(2);
-const opt = { file: null, turn: null, add: false, name: null, desc: '', answer: null, verify: 8000, ai: 'src/bfai.js' };
+const opt = { file: null, turn: null, add: false, name: null, desc: '', answer: null, verify: 8000, ai: 'src/bfai.js', mode: null, judgeNodes: 1000000 };
 for (let i = 0; i < argv.length; i++) {
   const k = argv[i], v = () => argv[++i];
   if (k === '--turn') opt.turn = v(); else if (k === '--add') opt.add = true; else if (k === '--name') opt.name = v();
   else if (k === '--desc') opt.desc = v(); else if (k === '--answer') opt.answer = JSON.parse(v()); else if (k === '--verify') opt.verify = +v();
-  else if (k === '--ai') opt.ai = v(); else if (!opt.file) opt.file = k; else throw new Error('多余的参数 ' + k);
+  else if (k === '--ai') opt.ai = v(); else if (k === '--mode') opt.mode = v(); else if (k === '--judge-nodes') opt.judgeNodes = +v(); else if (!opt.file) opt.file = k; else throw new Error('多余的参数 ' + k);
 }
 if (!opt.file) { console.log('用法见文件开头的说明'); process.exit(1); }
 const text = fs.readFileSync(opt.file === '-' ? 0 : opt.file, 'utf8');
@@ -99,7 +103,7 @@ function findTurn(spec) {
   const list = fs.existsSync(file) ? JSON.parse(fs.readFileSync(file, 'utf8')) : [];
   const item = {
     name: opt.name, desc: opt.desc || `实战第 ${t.round} 回合${SIDE[t.side]}方：电脑走了 ${played.map(x => desc(g0.S, x)).join(' + ')}`,
-    added: new Date().toISOString().slice(0, 10), at: t.from, side: t.side, bad: played, answer: opt.answer || null,
+    added: new Date().toISOString().slice(0, 10), at: t.from, side: t.side, bad: played, answer: opt.answer || null, mode: opt.mode || (opt.answer ? 'same' : 'avoid'), judgeNodes: opt.mode === 'survive' ? opt.judgeNodes : undefined,
     deep: { seq: deep, v: +L.v.toFixed(2), depth: L.depth, ms: opt.verify }, data,
   };
   list.push(item);
