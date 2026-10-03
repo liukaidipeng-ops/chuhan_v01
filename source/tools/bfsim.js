@@ -141,9 +141,11 @@ function applyPatches(BF, names) {
 //   召回之后只能走子：不能再架拒马、放技能、用终极兵法（和拒马之后一样）。只供模拟。
 function applyReviveFree(BF) {
   const A = BF.ai, isRevive = a => a && a.k === 'art' && a.id != null && !a.steps;
-  // 召回之后（不换手）的状态；召不了返回 null。和引擎 resolve() 里的召回一样：每局次数、阵亡名单、原位要空
+  const usesLeft = S => S.used.art.r < BF.CFG.generalArts.xiaohe.usesPerGame;
+  // 召回之后（不换手）的状态；召不了返回 null。和引擎 resolve() 里的召回一样：每局次数、阵亡名单、原位要空。
+  //   召回这一下本身不看将军（和不占行动的拒马一样）：被将军时“召回 + 应将的那一步”也合法
   const freeRevive = (S, id) => {
-    if (S.turn !== 'r' || S.freeUsed || S.used.art.r >= BF.CFG.generalArts.xiaohe.usesPerGame) return null;
+    if (S.turn !== 'r' || S.freeUsed || !usesLeft(S)) return null;
     const i = S.dead.r.findIndex(d => d.id === id); if (i < 0) return null;
     const d = S.dead.r[i], st = BF.START[d.id];
     if (!st || S.board[st[1]][st[0]]) return null;
@@ -153,40 +155,57 @@ function applyReviveFree(BF) {
     T.used.art.r++; T.freeUsed = true; T.jmLock = d.id;
     return { T, ev: [{ e: 'revive', id: d.id, t: d.t, at: st.slice() }] };
   };
-  const deadIds = S => { const seen = []; if (S.turn === 'r' && !S.freeUsed) for (const d of S.dead.r) if (!seen.includes(d.id)) seen.push(d.id); return seen; };
+  const reviveIds = S => { const seen = []; if (S.turn === 'r' && !S.freeUsed && usesLeft(S)) for (const d of S.dead.r) if (!seen.includes(d.id)) seen.push(d.id); return seen; };
   const attempt0 = BF.attempt;
   BF.attempt = (S, a) => {
     if (!isRevive(a) || S.turn !== 'r') return attempt0(S, a);
-    if (!a.then) return null;                                    // 单独的召回（换手）在这个变体里不存在
-    const f = freeRevive(S, a.id); if (!f || !a.then || a.then.k !== 'mv') return null;
+    if (!a.then || a.then.k !== 'mv') return null;               // 单独的召回（换手）在这个变体里不存在
+    const f = freeRevive(S, a.id); if (!f) return null;
     const r = attempt0(f.T, a.then); if (!r || r.free) return null;
     return { ...r, kind: 'art', ev: f.ev.concat(r.ev) };
   };
+  // 搜索内部（gen）只展开电脑在根上真会召回的兵种：chat 的电脑有车在场只救车，车都没了或楚已用破釜才救炮、马，士象兵不救。
+  //   每个能召回的兵种都要乘上约 40 种“后面那一步”，全展开会让汉方在攒着召回时少算一层（核查实测），
+  //   跟根上的策略对齐既不丢它真会走的棋，楚方的搜索也按汉方真会做的去防
+  const rookOn = S => S.board.some(row => row.some(p => p && p.s === 'r' && p.t === 'r'));
+  const searchable = (S, t) => t === 'r' || ((t === 'c' || t === 'n') && (!rookOn(S) || S.used.art.b > 0));
   const gen0 = A.gen, exp0 = A.expand;
   A.gen = (S, caps) => {
     const out = gen0(S, caps);
     if (caps || S.turn !== 'r' || !out.some(it => isRevive(it.a))) return out;
     const res = out.filter(it => !isRevive(it.a));
-    for (const id of deadIds(S)) {
+    for (const id of reviveIds(S)) {
       const f = freeRevive(S, id); if (!f) continue;
-      const t = f.ev[0].t;
+      const t = f.ev[0].t; if (!searchable(S, t)) continue;
       for (const it of gen0(f.T, false)) if (it.a.k === 'mv' && it.p.id !== id) res.push({ a: { k: 'art', id, then: it.a }, p: it.p, q: it.q, art: t });
     }
     return res;
   };
+  // 根上（expand）全部展开：电脑自己的召回策略在 think() 里筛。不看引擎有没有列出单独召回（被将军时引擎不列，组合却可能合法）
   A.expand = S => {
-    const out = exp0(S);
-    if (S.turn !== 'r' || !out.some(k => isRevive(k.a))) return out;
+    const out = exp0(S), ids = reviveIds(S);
+    if (S.turn !== 'r' || !ids.length) return out;
     const res = out.filter(k => !isRevive(k.a));
-    for (const id of deadIds(S)) {
+    for (const id of ids) {
       const f = freeRevive(S, id); if (!f) continue;
       for (const k of exp0(f.T)) if (k.a.k === 'mv') res.push({ a: { k: 'art', id, then: k.a }, S: k.S, ev: f.ev.concat(k.ev) });
     }
     return res;
   };
+  // 将死的判定按新规则重算：引擎的 evaluate() 还按“召回占行动”算（召回后仍被将军就不算出路）。
+  //   轮到汉方、被将军时：有普通出路，或有“召回 + 应将”的组合，就不算将死；都没有才算
+  const hasCompound = S => reviveIds(S).some(id => { const f = freeRevive(S, id); return f && exp0(f.T).some(k => k.a.k === 'mv'); });
+  const fixMate = (g, info) => {
+    const S = g.S; if (S.turn !== 'r' || S.freeUsed || !reviveIds(S).length) return;
+    const mated = g.result && g.result.reason === 'checkmate' && g.result.loser === 'r';
+    if (g.result ? !mated : !(g.status && g.status.check)) return;
+    const alive = (!mated && exp0(S).some(k => !isRevive(k.a) && k.a.k !== 'pass')) || hasCompound(S);
+    if (mated && alive) { g.result = null; g.status = { check: true }; info.result = null; }
+    else if (!mated && !alive) { g.result = { winner: 'b', loser: 'r', reason: 'checkmate' }; g.status = { result: g.result }; info.result = g.result; }
+  };
   // 对局：{k:'art', id} = 召回（不换手，记一条不结束回合的行动，下一条必须走子）；{k:'art', id, then} = 召回 + 那一步一起做
   const apply0 = BF.Game.prototype.apply;
-  BF.Game.prototype.apply = function (e) {
+  function applyRF(e) {
     if (this.result || !isRevive(e) || this.S.turn !== 'r') return apply0.call(this, e);
     const f = freeRevive(this.S, e.id); if (!f) return null;
     if (e.then ? !attempt0(f.T, e.then) : !exp0(f.T).some(k => k.a.k === 'mv')) return null;   // 召回之后要有一步合法的棋可走
@@ -199,7 +218,14 @@ function applyReviveFree(BF) {
     if (!e.then) return info;
     const r = apply0.call(this, e.then);
     if (!r) { this.S = before; this.entries.length = this.sides.length = this.ends.length = n; return null; }   // 不会发生（上面试走过）
-    return { ...r, ev: f.ev.concat(r.ev || []), revived: e.id };
+    const out = { ...r, ev: f.ev.concat(r.ev || []), revived: e.id };
+    this.last = out;
+    return out;
+  }
+  BF.Game.prototype.apply = function (e) {
+    const info = applyRF.call(this, e);
+    if (info) fixMate(this, info);
+    return info;
   };
 }
 // 电脑先定升不升级、再看破釜沉舟：pofu-noup 下它会为了升级白白放弃一次更好的破釜。
@@ -324,6 +350,7 @@ function worker() {
       else if (a.k === 'ult') { key = 'ult'; if (R.ultRound[side] == null) R.ultRound[side] = g.round; }
       else key = a.k;
       inc(A, key);
+      if (a.k === 'art' && a.then) inc(A, info.extra && info.extra.via ? 'via_' + info.extra.via : 'mv');   // revive-free：召回之后那一步也记上
       const via = info.extra && info.extra.via;
       for (const e of info.ev || []) {
         if (e.e === 'kill') {
