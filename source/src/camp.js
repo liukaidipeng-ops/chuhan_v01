@@ -147,7 +147,9 @@ const Camp = (() => {
     let n = 0;
     for (const side of [-1, 1]) for (let line = 0; line < 2; line++) for (let i = 0; i < 11; i++) {
       const u = guards.units[n++];
-      u.p.set(side * (5.25 + line * 0.36), 0, sg * (0.95 + i * 0.42));
+      // 第 4 个位置（z ≈ 2.21）让给观战者上棋盘的小楼梯：这一格的两名护卫挪到楼梯口外侧，一边一个
+      if (i === 3) u.p.set(side * 6.05, 0, sg * (2.21 + (line ? 0.42 : -0.42)));
+      else u.p.set(side * (5.25 + line * 0.36), 0, sg * (0.95 + i * 0.42));
       u.yaw = side > 0 ? -Math.PI / 2 : Math.PI / 2;
     }
     scene.add(guards.group);

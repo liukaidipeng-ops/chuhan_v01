@@ -508,7 +508,7 @@ body.compact #log{width:164px;max-height:34vh}
   <div class="bubble" id="bubMe"><b></b><span></span></div>
   <div id="status"><i class="dot hidden" id="netDot"></i><span id="statusT"></span><span id="specN"></span></div>
   <div id="netbadge" class="hidden"></div>
-  <div id="log" class="hidden"><div class="lh">棋 譜</div><ol id="logList"></ol><div id="specBox" class="hidden"><div class="lh lh2">觀 戰 席</div><ol id="specFeed"></ol></div></div>
+  <div id="log" class="hidden"><div class="lh">棋 譜<button id="logExport" title="把整局导成一段文本，可以贴给别人或贴给 Claude 分析" style="float:right;font:inherit;font-size:12px;letter-spacing:0;border:1px solid rgba(60,50,40,.35);background:rgba(255,255,255,.4);border-radius:3px;padding:0 6px;cursor:pointer;color:inherit">导出</button></div><ol id="logList"></ol><div id="specBox" class="hidden"><div class="lh lh2">觀 戰 席</div><ol id="specFeed"></ol></div></div>
   <div id="bfBar" class="hidden"><div id="bfHint"></div><div id="bfRow"></div></div>
   <button id="skHint" class="hidden" type="button"><b>本回合还未使用技能</b><small></small></button>
   <ol id="bfReport" class="hidden"></ol>
@@ -640,7 +640,7 @@ body.compact #log{width:164px;max-height:34vh}
   </div>
   <div class="tabp hidden" data-t="etc">
   <div class="opt" id="optServer"><div class="lbl">自定义线路<small>一般不用填</small></div><input id="oServer" placeholder="wss://…/mqtt" style="flex:1;min-width:0;font-size:14px;padding:6px;border:1px solid #bba;background:rgba(255,255,255,.5)"></div>
-  <div class="row hidden" id="setGame"><button class="btn small hidden" id="tDebug">调试摆子</button><button class="btn small red" id="tResign">认 输</button><button class="btn small" id="tExit">退出对局</button></div>
+  <div class="row hidden" id="setGame"><button class="btn small hidden" id="tDebug">调试摆子</button><button class="btn small" id="tExport">导出本局</button><button class="btn small red" id="tResign">认 输</button><button class="btn small" id="tExit">退出对局</button></div>
   <div class="row"><button class="btn small" id="bHelp">玩法说明</button><button class="btn small" id="bNews">更新说明</button></div>
   </div>
   <div class="row"><button class="btn small solid" id="bSetClose">完 成</button></div>
@@ -666,6 +666,12 @@ body.compact #log{width:164px;max-height:34vh}
 </div></div></div>
 
 <!-- 更新说明 -->
+<div id="mExport" class="modal hidden"><div class="wrap"><div class="rod t"></div><div class="rod b"></div><div class="scroll">
+  <h3>导 出 本 局</h3>
+  <div id="exportNote" style="font-size:14px;color:var(--ink3);margin-bottom:8px"></div>
+  <textarea id="exportText" readonly style="width:100%;height:38vh;font-size:12px;line-height:1.5;font-family:ui-monospace,Menlo,Consolas,monospace;border:1px solid #bba;background:rgba(255,255,255,.55);padding:8px;resize:none;user-select:text;-webkit-user-select:text"></textarea>
+  <div class="row"><button class="btn small solid" id="bExportCopy">复 制</button><button class="btn small" id="bExportClose">关 闭</button></div>
+</div></div></div>
 <div id="mNews" class="modal hidden"><div class="wrap"><div class="rod t"></div><div class="rod b"></div><div class="scroll">
   <h3>更 新 说 明</h3>
   <div class="news" id="newsBody"></div>
