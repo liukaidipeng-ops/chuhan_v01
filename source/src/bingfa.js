@@ -36,7 +36,7 @@
       jianta: { level: 4, passive: true, splashDamage: 1, splashMinLevel: 1, ring8: true }, // 楚象四级被动：攻击 / 吃子后踩那一格周围一圈，各扣 1 点（残血的直接踩死），走空格不踩，无冷却
       hujia: { cooldown: 4 },
     },
-    generalArts: { xiaohe: { usesPerGame: 1 }, pofu: { usesPerGame: 1, steps: 2, mayEndInCheck: false, skillLockRounds: 3 } },
+    generalArts: { fromRound: 1, xiaohe: { usesPerGame: 1 }, pofu: { usesPerGame: 1, steps: 2, mayEndInCheck: false, skillLockRounds: 3 } },
     ultimates: { cost: 20, hongmen: { usesPerGame: 1, rounds: 3 }, simian: { usesPerGame: 1, rounds: 2, radius: 2, minPiecesInRadius: 3 } },
     longCheckLimit: 6,
   };
@@ -108,6 +108,7 @@
   }
   const at = (S, f, r) => (inBoard(f, r) ? S.board[r][f] : null);
   const round = S => Math.floor((S.cnt.r + S.cnt.b) / 2) + 1;
+  const artOpen = S => round(S) >= (CFG_CUR.generalArts.fromRound || 1);   // 主帅兵法（召回良将、破釜沉舟）从第几回合起才能用
   const hmActive = S => S.cnt.r < S.fx.hm; // 鸿门宴：汉帅不能动
   const smActive = S => S.cnt.b < S.fx.sm; // 四面楚歌：楚军涣散
   const pfActive = S => S.cnt.b < S.fx.pf; // 破釜沉舟后楚方兵种技能封锁
@@ -367,7 +368,7 @@
       } else return null;
       cd();
     } else if (a.k === 'art') {
-      if (S.used.art[side] >= CFG_CUR.generalArts[side === 'r' ? 'xiaohe' : 'pofu'].usesPerGame) return null;
+      if (!artOpen(S) || S.used.art[side] >= CFG_CUR.generalArts[side === 'r' ? 'xiaohe' : 'pofu'].usesPerGame) return null;
       if (side === 'b' && smActive(S)) return null;
       if (side === 'r') {
         const i = S.dead.r.findIndex(d => d.id === a.id); if (i < 0) return null;
@@ -529,7 +530,7 @@
       }
     }
     if (!S.freeUsed) {
-      if (side === 'r' && S.used.art.r < CFG_CUR.generalArts.xiaohe.usesPerGame) { const seen = new Set(); for (const d of S.dead.r) { if (seen.has(d.id)) continue; seen.add(d.id); push({ k: 'art', id: d.id }); } }
+      if (side === 'r' && artOpen(S) && S.used.art.r < CFG_CUR.generalArts.xiaohe.usesPerGame) { const seen = new Set(); for (const d of S.dead.r) { if (seen.has(d.id)) continue; seen.add(d.id); push({ k: 'art', id: d.id }); } }
       const U = CFG_CUR.ultimates;
       if (S.merit[side] >= U.cost && S.used.ult[side] < U[side === 'r' ? 'simian' : 'hongmen'].usesPerGame) push({ k: 'ult' });
     }
@@ -559,7 +560,7 @@
       }
     }
     if (!capsOnly && !S.freeUsed) {
-      if (side === 'r' && S.used.art.r < CFG_CUR.generalArts.xiaohe.usesPerGame) { const seen = new Set(); for (const d of S.dead.r) { if (seen.has(d.id)) continue; seen.add(d.id); out.push({ a: { k: 'art', id: d.id }, p: null, q: null, art: d.t }); } }
+      if (side === 'r' && artOpen(S) && S.used.art.r < CFG_CUR.generalArts.xiaohe.usesPerGame) { const seen = new Set(); for (const d of S.dead.r) { if (seen.has(d.id)) continue; seen.add(d.id); out.push({ a: { k: 'art', id: d.id }, p: null, q: null, art: d.t }); } }
       const U = CFG_CUR.ultimates;
       if (S.merit[side] >= U.cost && S.used.ult[side] < U[side === 'r' ? 'simian' : 'hongmen'].usesPerGame) out.push({ a: { k: 'ult' }, p: null, q: null, ult: true });
     }
@@ -577,7 +578,7 @@
   }
   // 电脑用：破釜沉舟的两步组合——两步里至少有一步打到敌子（先挪开再打、先打再打、打完再撤都算）
   function pofuPairs(S) {
-    if (S.turn !== 'b' || S.freeUsed || S.used.art.b >= CFG_CUR.generalArts.pofu.usesPerGame || smActive(S)) return [];
+    if (S.turn !== 'b' || S.freeUsed || !artOpen(S) || S.used.art.b >= CFG_CUR.generalArts.pofu.usesPerGame || smActive(S)) return [];
     const out = [];
     for (let r = 0; r < 10; r++) for (let f = 0; f < 9; f++) {
       const p = S.board[r][f]; if (!p || p.s !== 'b') continue;
@@ -599,14 +600,14 @@
     return out;
   }
   function reviveOptions(S) {
-    if (S.turn !== 'r' || S.freeUsed || S.used.art.r >= CFG_CUR.generalArts.xiaohe.usesPerGame) return [];
+    if (S.turn !== 'r' || S.freeUsed || !artOpen(S) || S.used.art.r >= CFG_CUR.generalArts.xiaohe.usesPerGame) return [];
     const seen = new Set(), out = [];
     for (const d of S.dead.r) { if (seen.has(d.id)) continue; seen.add(d.id); const a = { k: 'art', id: d.id }; if (attempt(S, a)) out.push({ ...a, t: d.t, at: START[d.id] }); }
     return out;
   }
   // 破釜沉舟第一步的可选着法（必须存在能合法走完的第二步）
   function pofuFirst(S) {
-    if (S.turn !== 'b' || S.freeUsed || S.used.art.b >= CFG_CUR.generalArts.pofu.usesPerGame || smActive(S)) return [];
+    if (S.turn !== 'b' || S.freeUsed || !artOpen(S) || S.used.art.b >= CFG_CUR.generalArts.pofu.usesPerGame || smActive(S)) return [];
     const out = [];
     for (let r = 0; r < 10; r++) for (let f = 0; f < 9; f++) {
       const p = S.board[r][f]; if (!p || p.s !== 'b') continue;
