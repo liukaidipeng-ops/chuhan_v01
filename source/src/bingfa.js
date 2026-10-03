@@ -90,6 +90,7 @@
       used: { art: { r: 0, b: 0 }, ult: { r: 0, b: 0 } }, fx: { hm: 0, sm: 0, pf: 0 },
       crossed: {}, dead: { r: [], b: [] }, upgraded: false, ckHist: { r: [], b: [] },
       named: { r: {}, b: {} }, // 四级名将已经取到第几个
+      final: false, // 决战：双方车马兵炮都死光之后，象、士、帅将解禁
       freeUsed: false, jmLock: null, // 本回合已用过不占行动的拒马（还得再走一步棋）；架拒马的那枚兵本回合不能动
     };
   }
@@ -98,7 +99,7 @@
       board: S.board.map(row => row.map(p => (p ? { ...p } : null))), turn: S.turn, cnt: { ...S.cnt }, merit: { ...S.merit },
       used: { art: { ...S.used.art }, ult: { ...S.used.ult } }, fx: { ...S.fx }, crossed: { ...S.crossed },
       dead: { r: S.dead.r.slice(), b: S.dead.b.slice() }, upgraded: S.upgraded, ckHist: { r: S.ckHist.r.slice(), b: S.ckHist.b.slice() },
-      freeUsed: !!S.freeUsed, jmLock: S.jmLock == null ? null : S.jmLock,
+      freeUsed: !!S.freeUsed, jmLock: S.jmLock == null ? null : S.jmLock, final: !!S.final,
       named: { r: { ...((S.named || {}).r || {}) }, b: { ...((S.named || {}).b || {}) } },
     };
   }
@@ -109,7 +110,7 @@
   const pfActive = S => S.cnt.b < S.fx.pf; // 破釜沉舟后楚方兵种技能封锁
   const restricted = (S, s) => (s === 'r' ? hmActive(S) : smActive(S));
   // 将帅对面
-  const facing = b => { const k = findKing(b, 'r'), K = findKing(b, 'b'); if (!k || !K || k[0] !== K[0]) return false; for (let r = Math.min(k[1], K[1]) + 1; r < Math.max(k[1], K[1]); r++) if (b[r][k[0]]) return false; return true; };
+  const facing = b => { const k = findKing(b, 'r'), K = findKing(b, 'b'); if (!k || !K || k[0] !== K[0] || b[k[1]][k[0]].w) return false; for (let r = Math.min(k[1], K[1]) + 1; r < Math.max(k[1], K[1]); r++) if (b[r][k[0]]) return false; return true; };
   // 带状态的将军判定：四面楚歌期间楚军“不算将军”——汉帅被楚子攻击也不必应将（只需避开将帅对面）
   const inCheckS = (S, s) => (s === 'r' && smActive(S) ? facing(S.board) : inCheck(S.board, s));
   const jmActive = (S, p) => p && p.t === 'p' && p.jm > S.cnt[other(p.s)];
@@ -227,7 +228,7 @@
       // 飞越：田字照走，象眼被塞也能过；仍然不能过河
       ms = [];
       for (const [df, dr] of [[2, 2], [2, -2], [-2, 2], [-2, -2]]) {
-        const tf = f + df, tr = r + dr; if (!inBoard(tf, tr) || !ownHalf(p.s, tr)) continue;
+        const tf = f + df, tr = r + dr; if (!inBoard(tf, tr) || (!p.j && !ownHalf(p.s, tr))) continue;
         const q = S.board[tr][tf]; if (q && q.s === p.s) continue;
         ms.push({ from: [f, r], to: [tf, tr] });
       }
@@ -418,8 +419,19 @@
   const posOf = (S, id) => { for (let r = 0; r < 10; r++) for (let f = 0; f < 9; f++) { const p = S.board[r][f]; if (p && p.id === id) return [f, r]; } return null; };
 
   // 行动后的结算：计数、将军军功、长将记录、回合收入、换手
+  // 决战：棋盘上双方的车马兵炮都死光了——象、士、帅将都可以过河进攻（象仍走田、士仍走斜一格，只是不受河界九宫限制），
+  //   取消飞将，帅将按过河兵走（前、左、右各一格）。一旦开始就不再取消（之后召回的子照常用）
+  const ATTACKERS = 'rncp';
+  function syncFinal(S, ev) {
+    if (!S.final) {
+      for (const row of S.board) for (const p of row) if (p && ATTACKERS.includes(p.t)) return;
+      S.final = true; if (ev) ev.push({ e: 'final' });
+    }
+    for (const row of S.board) for (const p of row) if (p) { if (p.t === 'k') p.w = 1; else if (p.t === 'a' || p.t === 'e') p.j = 1; }
+  }
   function settle(S, side, ev) {
     const opp = other(side);
+    syncFinal(S, ev);
     const ck = side === 'b' && smActive(S) ? [] : checkers(S.board, side);
     S.ckHist[side].push(ck);
     S.cnt[side]++;
@@ -678,7 +690,8 @@
     timeout(side) { if (this.result) return null; this.result = { winner: other(side), loser: side, reason: 'timeout' }; return this.result; }
     resign(side) { if (this.result) return null; this.result = { winner: other(side), loser: side, reason: 'resign' }; return this.result; }
     // 调试：直接摆局面
-    setup(fn) { const T = cloneState(this.S); fn(T); this.reset(T); this.status = evaluate(this.S); }
+    setup(fn) { const T = cloneState(this.S); fn(T); T.final = false; for (const row of T.board) for (const p of row) if (p) { delete p.w; delete p.j; } syncFinal(T); this.reset(T); this.status = evaluate(this.S); }
+    get final() { return !!this.S.final; }
     get merit() { return this.S.merit; }
     get used() { return this.S.used; }
     get fx() { return { hm: Math.max(0, this.S.fx.hm - this.S.cnt.r), sm: Math.max(0, this.S.fx.sm - this.S.cnt.b), pf: Math.max(0, this.S.fx.pf - this.S.cnt.b) }; }

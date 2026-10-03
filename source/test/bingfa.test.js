@@ -561,4 +561,33 @@ const ok = (x, msg) => { assert(x, msg); };
   assert(g.at(3, 6) && g.at(3, 6).hp === BF.hpOf('p', 2) - 1, '二级子掉 1 血');
   console.log('践踏落点 OK');
 }
+{
+  // 决战：双方车马兵炮都死光 → 象士帅将解禁，取消飞将，帅将按过河兵走
+  const g = setup([[4, 0, K('r')], [4, 9, K('b')], [3, 0, P('r', 'a')], [2, 0, P('r', 'e')], [4, 5, P('r', 'p')], [2, 9, P('b', 'e')], [3, 7, P('b', 'a')], [4, 6, P('b', 'p')]], { turn: 'b' });
+  assert(!g.final, '还有兵卒：不是决战');
+  const i = g.apply({ k: 'mv', from: [4, 6], to: [4, 5] });   // 卒吃兵：还剩一个卒
+  assert(i && !g.final && !i.ev.some(e => e.e === 'final'), '还剩一个卒：不触发');
+  const g2 = setup([[4, 0, K('r')], [4, 9, K('b')], [3, 1, P('r', 'a')], [2, 0, P('r', 'e')], [2, 9, P('b', 'e')], [3, 9, P('b', 'a')], [4, 2, P('b', 'p')]]);
+  const j = g2.apply({ k: 'mv', from: [3, 1], to: [4, 2] });  // 士吃掉最后一个卒
+  assert(j && j.ev.some(e => e.e === 'final') && g2.final, '最后一个进攻子阵亡：进入决战');
+  assert(g2.at(4, 0).w && g2.at(4, 2).j && g2.at(2, 9).j, '帅将、士、象打上解禁标记');
+  // 楚将：前、左、右（黑方向前是 r-1），不能后退；可以和汉帅照面
+  const km = g2.legalFrom(4, 9).map(m => m.to.join()).sort().join(' ');
+  assert(km === '4,8 5,9', '楚将按过河兵走（3,9 有自己的士）: ' + km);
+  g2.apply({ k: 'mv', from: [4, 9], to: [4, 8] });
+  assert(g2.legalFrom(4, 2).some(m => m.to.join() === '5,3'), '士可以出九宫');
+  assert(g2.legalFrom(4, 0).map(m => m.to.join()).sort().join(' ') === '3,0 4,1 5,0', '汉帅：前左右各一格，照面不算将');
+  g2.apply({ k: 'mv', from: [2, 0], to: [0, 2] });
+  assert(g2.at(0, 2), '象走田');
+  g2.apply({ k: 'mv', from: [2, 9], to: [4, 7] });
+  g2.apply({ k: 'mv', from: [0, 2], to: [2, 4] });
+  g2.apply({ k: 'mv', from: [4, 7], to: [2, 5] });
+  assert(g2.legalFrom(2, 4).some(m => m.to.join() === '4,6'), '象可以过河');
+  // 帅将贴身：不能走到对方帅将的正前 / 左右
+  const g3 = setup([[4, 4, K('r')], [5, 6, K('b')], [0, 0, P('r', 'a')], [8, 9, P('b', 'a')]]);
+  assert(g3.final && g3.at(4, 4).w, '摆出来就是决战局面');
+  g3.apply({ k: 'mv', from: [4, 4], to: [4, 5] });
+  assert(!g3.legalFrom(5, 6).some(m => m.to.join() === '5,5') && !g3.legalFrom(5, 6).some(m => m.to.join() === '4,6'), '楚将不能走到汉帅左右 / 正前被它攻击的格子');
+  console.log('决战 OK');
+}
 console.log('BINGFA ALL OK');

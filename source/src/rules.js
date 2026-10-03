@@ -77,6 +77,8 @@
     };
     switch (et(p)) {
       case 'k':
+        // 技能模式「决战」：帅将出宫，按过河兵走（前、左、右各一格，不能后退）
+        if (p.w) { add(f, r + (s === 'r' ? 1 : -1)); add(f + 1, r); add(f - 1, r); break; }
         for (const [df, dr] of [[1, 0], [-1, 0], [0, 1], [0, -1]])
           if (inPalace(s, f + df, r + dr)) add(f + df, r + dr);
         break;
@@ -141,6 +143,11 @@
       const p = b[r][f];
       if (p && p.s === s && p.t === 'k') return [f, r];
     }
+    // 「决战」里帅将可能已经走出九宫
+    for (let r = 0; r < H; r++) for (let f = 0; f < W; f++) {
+      const p = b[r][f];
+      if (p && p.s === s && p.t === 'k') return [f, r];
+    }
     return null;
   }
 
@@ -151,8 +158,8 @@
     const [kf, kr] = k;
     const o = other(s);
     // 对面笑（飞将）
-    const dir = s === 'r' ? 1 : -1;
-    for (let r = kr + dir; r >= 0 && r < H; r += dir) {
+    const dir = s === 'r' ? 1 : -1, wk = !!b[kr][kf].w;   // wk：「决战」中，取消飞将，帅将像过河兵一样能攻击
+    if (!wk) for (let r = kr + dir; r >= 0 && r < H; r += dir) {
       const q = b[r][kf];
       if (q) { if (q.s === o && q.t === 'k') return true; break; }
     }
@@ -185,11 +192,11 @@
     // 兵卒
     const ofwd = o === 'r' ? 1 : -1; // 对方兵前进方向
     const pr = kr - ofwd;
-    if (inBoard(kf, pr)) { const q = b[pr][kf]; if (q && q.s === o && et(q) === 'p') return true; }
+    if (inBoard(kf, pr)) { const q = b[pr][kf]; if (q && q.s === o && (et(q) === 'p' || (q.t === 'k' && q.w))) return true; }
     for (const df of [1, -1]) {
       if (!inBoard(kf + df, kr)) continue;
       const q = b[kr][kf + df];
-      if (q && q.s === o && et(q) === 'p' && !ownHalf(o, kr)) return true;
+      if (q && q.s === o && ((et(q) === 'p' && !ownHalf(o, kr)) || (q.t === 'k' && q.w))) return true;
     }
     // 揭棋：翻开的士、象可以过河攻将
     for (const [df, dr] of [[1, 1], [1, -1], [-1, 1], [-1, -1]]) {

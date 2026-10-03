@@ -15,6 +15,7 @@
       '刘邦、项羽换新模型：刘邦红袍冕服、项羽乌金重甲黑披风持霸王戟，脸看得清',
       '践踏：四级楚象攻击或吃掉敌子后就地高举前脚跺下，那一格周围一圈八格的敌子各扣 1 点，残血的直接踩死；没打死目标的，结算完四周才退回。走到空格不触发',
       '飞越、踏营有了一气呵成的腾空跃过动画；士的巨盾不再闪烁',
+      '技能模式新规则「决战」：双方的车马兵炮都死光后，象、士、帅将都可以过河进攻；取消飞将；帅将按过河兵走（前、左、右各一格）',
       '完整镜头 / 精简特效下，技能打死的子（践踏、霹雳、冲阵、飞越、踏营、拒马反伤）一律换成兵种模型来演：倒地、流血、断肢；棋子显示也一样。只有低特效才是棋子碎掉',
       '棋盘四角的铜包角不再闪烁',
       '霹雳：三轮急速齐射、每轮三发，爆炸更猛；炸死的子炸碎炸飞',
@@ -1305,8 +1306,23 @@
   const LVCN = ['', '一', '二', '三', '四'];
   // 兵法规则速览：开局自动亮一下（十几秒后自己收起），右侧「法」按钮随时可再看
   let bfTipT = null;
+  // 决战提示：双方车马兵炮都死光时弹出
+  function showFinalTip() {
+    $('bfTipH').textContent = '决 战';
+    $('bfTipBody').innerHTML = [
+      '双方的<b>车、马、兵、炮都已阵亡</b>',
+      '<b>象、士、帅将</b>都可以过河进攻',
+      '象仍走田（塞象眼照旧）、士仍走斜一格，只是不再受河界、九宫限制',
+      '<b>帅将</b>按过河兵走：前、左、右各一格，不能后退',
+      '<b>取消飞将</b>：帅将可以照面',
+    ].map(x => `<li>${x}</li>`).join('');
+    $('bfTip').classList.remove('hidden');
+    clearTimeout(bfTipT); bfTipT = setTimeout(() => $('bfTip').classList.add('hidden'), 16000);
+    try { Sfx.B.taiko(0, 3, 0.7); } catch (e) { }
+  }
   function showBfTip(manual) {
     const touch = matchMedia('(pointer: coarse)').matches;
+    $('bfTipH').textContent = '技 能 模 式 速 览';
     $('bfTipBody').innerHTML = [
       `<b>${touch ? '长按' : '鼠标停在'}棋子上</b>，看它的等级、血量和技能`,
       '<b>军功</b>：吃子、将军、兵卒过河都得军功',
@@ -1314,6 +1330,7 @@
       '<b>三级</b>解锁技能，<b>四级</b>成名将；棋身 木 → 银 → 金 → 玉',
       '打不死的目标头顶标 <b>-1</b>，能一击杀死才标<b>「殺」</b>',
       '<b>军功 20</b> 可发终极兵法；主帅兵法每局一次',
+      '<b>决战</b>：双方车马兵炮都死光后，象、士、帅将可过河进攻，取消飞将',
     ].map(x => `<li>${x}</li>`).join('');
     $('bfTip').classList.remove('hidden');
     clearTimeout(bfTipT);
@@ -1612,6 +1629,7 @@
     else if (info.k === 'ult') line = s === 'b' ? `鸿门宴：汉王 ${BF.CFG.ultimates.hongmen.rounds} 回合不得移动` : '四面楚歌：楚军军心涣散，动弹不得';
     else if (info.k === 'pass') line = `${SIDE_ARMY[s]}按兵不动`;
     if (info.k === 'mv' && info.extra && info.extra.via === 'shensu') line = `${nm(s, 'p')}神速营疾行` + (info.check ? '，将军！' : '');
+    if (ev.some(x => x.e === 'final')) { line = (line ? line + '；' : '') + '决战：双方车马兵炮尽没，象、士、帅将皆可过河'; showFinalTip(); }
     const au = ev.find(x => x.e === 'autoup');
     if (au) { const hero = BF.heroName({ s: au.s, t: au.t, nm: au.nm }); line = (line ? line + '；' : '') + `${nm(au.s, au.t)}战功晋升「${hero || BF.rankName(au.s, au.t, au.lv)}」`; }
     if (!line) return;
