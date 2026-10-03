@@ -17,6 +17,7 @@
   const KD = (typeof process !== 'undefined' && process.env && process.env.BFAI_KD ? process.env.BFAI_KD.split(',').map(Number) : [2.0, 1.0, 0.4, 0.9, 1.2, 0.6]);   // 砍不死的子贴近对方主帅的加分：车贴身 / 隔一格 / 同线，马，兵贴身 / 隔一格
   const ENV = (typeof process !== 'undefined' && process.env) || {};
   // 破釜沉舟之后楚方兵种技能被封的那几回合，对汉方值多少分（封锁走完线性退掉）；PFD：这几回合里汉方多算几层。数值待量，先默认 0
+  const CX = ENV.BFAI_CX != null ? +ENV.BFAI_CX : 2;   // 将军延伸最多几次
   const PFC = +(ENV.BFAI_PFC || 0), PFA = +(ENV.BFAI_PFA || 0), PFD = +(ENV.BFAI_PFD || 0);
   const HPF = [0, 1, 1.5, 1.9, 2.2], HPF_DEF = [0, 1, 1.15, 1.28, 1.36], HPF_ADV = [0, 1, 1.55, 1.75, 1.85];
   // 两点血以上的进攻子逼到了对方家门口：过了河，或者是占着九宫那三条竖线的车（它来贴脸将军，一级的士、帅砍不死它）
@@ -154,9 +155,12 @@
   let pfPly = -1;   // 在第几层考虑“对方（楚）用破釜沉舟连走两步”（-1 = 不考虑）
   const pfCache = new Map();   // 每个局面的破釜沉舟组合只算一次（逐层加深时重复用）
   // 负极大值 + αβ（分数总是站在走子方看）
-  function ab(S, depth, alpha, beta, ply) {
+  function ab(S, depth, alpha, beta, ply, ext = 0) {
     if (++nodes > nodeCap || ((nodes & 63) === 0 && now() > deadline)) throw TIMEOUT;
     const side = S.turn, inChk = A.inCheck(S, side);
+    // 将军延伸：正被将军的一方应这一步不算层数（一条线上最多延伸 CX 次）——“贴脸将军、逃、再贴”这种连杀，三层的校尉也能算到底
+    const extd = inChk && ext < CX && ply >= 1 ? 1 : 0;
+    depth += extd; ext += extd;
     if (depth <= 0) {
       if (inChk && ply < 8) depth = 1;          // 被将军时不能“站着不动”估值：再往下应一步
       else return qs(S, alpha, beta, ply, 0);
@@ -172,7 +176,7 @@
       }
       ups.sort((x, y) => y.g - x.g);
       for (const u of ups.slice(0, 3)) {
-        const v = ab(u.S, depth, alpha, beta, ply);
+        const v = ab(u.S, depth - extd, alpha, beta, ply, ext - extd);
         if (v > best) best = v;
         if (v > alpha) alpha = v;
         if (alpha >= beta) return best;
@@ -183,7 +187,7 @@
       const r = BF.attempt(S, it.a); if (!r || r.free) continue;
       legal++;
       const w = decided(r.S, r.ev);
-      const v = w ? (w === side ? WIN - ply : -WIN + ply) : -ab(r.S, depth - 1, -beta, -alpha, ply + 1);
+      const v = w ? (w === side ? WIN - ply : -WIN + ply) : -ab(r.S, depth - 1, -beta, -alpha, ply + 1, ext);
       if (v > best) best = v;
       if (v > alpha) alpha = v;
       if (alpha >= beta) {
@@ -202,7 +206,7 @@
       }
       for (const k of pf) {
         const w = decided(k.S, k.ev);
-        const v = w ? (w === side ? WIN - ply : -WIN + ply) : -ab(k.S, Math.max(0, depth - 1), -beta, -alpha, ply + 1);
+        const v = w ? (w === side ? WIN - ply : -WIN + ply) : -ab(k.S, Math.max(0, depth - 1), -beta, -alpha, ply + 1, ext);
         if (v > best) best = v;
         if (v > alpha) alpha = v;
         if (alpha >= beta) break;
@@ -211,7 +215,7 @@
     if (!legal) {
       const r = BF.attempt(S, { k: 'pass' });
       if (!r) return -WIN + ply;                // 将死 / 困毙
-      return -ab(r.S, depth - 1, -beta, -alpha, ply + 1);
+      return -ab(r.S, depth - 1, -beta, -alpha, ply + 1, ext);
     }
     return best;
   }
