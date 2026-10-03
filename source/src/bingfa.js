@@ -507,6 +507,68 @@
     }
     return out;
   }
+  // —— 电脑用：枚举当前走子方的全部主行动（走子、主动技能、召回良将、终极兵法、停着），连同结算后的状态 ——
+  //   不含升级和不占行动的拒马（那两样由电脑另行决定），也不含破釜沉舟（组合太多，见 pofuPairs）
+  function expand(S) {
+    const out = [], side = S.turn;
+    const push = a => { const r = attempt(S, a); if (r && !r.free) out.push({ a, S: r.S, ev: r.ev }); };
+    for (let r = 0; r < 10; r++) for (let f = 0; f < 9; f++) {
+      const p = S.board[r][f]; if (!p || p.s !== side) continue;
+      for (const m of moveTargets(S, f, r)) push({ k: 'mv', from: m.from, to: m.to });
+      if (p.t === 'k' || p.lv < 3 || S.freeUsed) continue;
+      const main = SKILL_OF(p.t, p.s);
+      for (const sk of SKILLS_OF(p.t, p.s)) {
+        if (sk === 'juma' || !skillOk(S, p, sk)) continue;
+        const tg = sk === 'chongzhen' ? springTargets(S, f, r)
+          : sk === 'taying' ? (CFG_CUR.skills.taying.enemyHalfOnly && ownHalf(p.s, r) ? [] : moveTargets(S, f, r, true))
+            : sk === 'feiyue' ? moveTargets(S, f, r, true)
+              : sk === 'pili' ? cannonShots(S, f, r)
+                : sk === 'qishe' ? arrowTargets(S, f, r) : null;
+        const mk = to => { const a = { k: 'sk', at: [f, r] }; if (to) a.to = to; if (sk !== main) a.sk = sk; return a; };
+        if (tg) for (const m of tg) push(mk(m.to)); else push(mk(null));
+      }
+    }
+    if (!S.freeUsed) {
+      if (side === 'r' && S.used.art.r < CFG_CUR.generalArts.xiaohe.usesPerGame) { const seen = new Set(); for (const d of S.dead.r) { if (seen.has(d.id)) continue; seen.add(d.id); push({ k: 'art', id: d.id }); } }
+      const U = CFG_CUR.ultimates;
+      if (S.merit[side] >= U.cost && S.used.ult[side] < U[side === 'r' ? 'simian' : 'hongmen'].usesPerGame) push({ k: 'ult' });
+    }
+    if (!out.length) push({ k: 'pass' });
+    return out;
+  }
+  // 电脑用：架拒马（不占行动）之后的状态；不能架返回 null
+  function jumaState(S, at_) { const r = attempt(S, { k: 'sk', at: at_ }); return r && r.free ? r.S : null; }
+  // 电脑用：升级之后的状态；不能升返回 null
+  function upgradeState(S, at_) {
+    const p0 = at(S, at_[0], at_[1]);
+    if (!p0 || p0.s !== S.turn || p0.t === 'k' || p0.lv >= maxLv(p0.t) || S.upgraded || S.merit[p0.s] < upCost(p0)) return null;
+    const T = cloneState(S), p = T.board[at_[1]][at_[0]];
+    T.merit[p.s] -= upCost(p); promote(T, p); p.xp = 0; T.upgraded = true;
+    return T;
+  }
+  // 电脑用：破釜沉舟的两步组合（第一步只取“打到敌子”的，免得组合爆炸）
+  function pofuPairs(S) {
+    if (S.turn !== 'b' || S.freeUsed || S.used.art.b >= CFG_CUR.generalArts.pofu.usesPerGame || smActive(S)) return [];
+    const out = [];
+    for (let r = 0; r < 10; r++) for (let f = 0; f < 9; f++) {
+      const p = S.board[r][f]; if (!p || p.s !== 'b') continue;
+      for (const m1 of moveTargets(S, f, r)) {
+        if (!at(S, m1.to[0], m1.to[1])) continue;
+        const T = cloneState(S), ev = [];
+        strike(T, m1.from, m1.to, 'b', ev);
+        if (!T.final && inCheck(T.board, 'b')) continue;
+        for (let r2 = 0; r2 < 10; r2++) for (let f2 = 0; f2 < 9; f2++) {
+          const q = T.board[r2][f2]; if (!q || q.s !== 'b') continue;
+          for (const m2 of moveTargets(T, f2, r2)) {
+            if (!at(T, m2.to[0], m2.to[1])) continue;
+            const a = { k: 'art', steps: [{ from: m1.from, to: m1.to }, { from: m2.from, to: m2.to }] };
+            const res = attempt(S, a); if (res) out.push({ a, S: res.S, ev: res.ev });
+          }
+        }
+      }
+    }
+    return out;
+  }
   function reviveOptions(S) {
     if (S.turn !== 'r' || S.freeUsed || S.used.art.r >= CFG_CUR.generalArts.xiaohe.usesPerGame) return [];
     const seen = new Set(), out = [];
@@ -755,7 +817,9 @@
       maxLv: t === 'k' ? 1 : (cfg.upgrade.maxLevel[t] || cfg.upgrade.defaultMaxLevel),
     };
   }
-  const BF = { Game, CFG, view, pofuPreview, SKILL_OF, SKILLS_OF, SKILL_CN, SKILL_DESC, ART_CN, ULT_CN, RANK_CN, HERO_CN, heroName, rankName, START, newState, cloneState, attempt, evaluate, levelInfo, hpOf: (t, lv) => hpOf(t, lv, CFG) };
+  const BF = { Game, CFG, view, pofuPreview, SKILL_OF, SKILLS_OF, SKILL_CN, SKILL_DESC, ART_CN, ULT_CN, RANK_CN, HERO_CN, heroName, rankName, START, newState, cloneState, attempt, evaluate, levelInfo, maxLvOf: t => maxLv(t),
+    // 电脑用（调用前会把配置指到默认值）
+    ai: { expand: S => { CFG_CUR = CFG; return expand(S); }, upgradeState: (S, a) => { CFG_CUR = CFG; return upgradeState(S, a); }, jumaState: (S, a) => { CFG_CUR = CFG; return jumaState(S, a); }, pofuPairs: S => { CFG_CUR = CFG; return pofuPairs(S); }, inCheck: (S, s) => inCheckS(S, s), upCost: p => { CFG_CUR = CFG; return upCost(p); }, moveTargets: (S, f, r) => { CFG_CUR = CFG; return moveTargets(S, f, r); } }, hpOf: (t, lv) => hpOf(t, lv, CFG) };
   if (typeof module !== 'undefined' && module.exports) module.exports = BF;
   global.BF = BF;
 })(typeof window !== 'undefined' ? window : globalThis);

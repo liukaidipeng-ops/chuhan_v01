@@ -8,7 +8,8 @@
   // 更新说明（设置里、大厅底部点「更新」查看；最新的放最前）
   const NEWS = [
     ['第六版', '2026 年 10 月', [
-      '房间：客方点「准备」、房主点「开始」才开局；客方可改为观战；房主可添加人机，其他人观战（人机只下象棋）',
+      '技能模式可以人机对战了：人机对战里把「玩法」选成「技能模式」即可。电脑会升级、用兵种技能、架拒马、召回良将 / 破釜沉舟、发终极兵法，也会打决战；三档难度同象棋',
+      '房间：客方点「准备」、房主点「开始」才开局；客方可改为观战；房主可添加人机，其他人观战',
       '技能模式：带伤害的技能先预览结果（「殺」/「-1」），再点一次目标才发动',
       '调试摆子新增两个开关：「无冷却」（技能用完不进冷却）、「自由移动」（不分回合，点哪边的子就走哪边）',
       '调试摆子：不再每点一下整盘闪；可先选「摆放等级」，摆下去就是那一级；再点一次同一个子或点「停止摆放」即可退出摆放',
@@ -628,6 +629,28 @@
     aiThinking = true; updateHud();
     const t0 = performance.now();
     const minWait = { easy: 1100, mid: 1300, hard: 700 }[opts.level] || 1000;
+    if (game.bf) {
+      // 技能模式：电脑给出一串行动（升级 → 拒马 → 主行动），依次执行；每一步等上一步的演出放完
+      const waitIdle = async () => { await anim; while (busy) await Core.sleep(0.1); };
+      (async () => {
+        await waitIdle();                       // 等玩家这一步的演出放完再算（算棋在主线程，免得卡动画）
+        if (id !== aiSeq) return;
+        if (game.mustPass && game.mustPass()) return [{ k: 'pass' }];
+        return BFAI.think(BF.cloneState(game.S), opts.level, () => new Promise(r => setTimeout(r, 0)));
+      })().then(async seq => {
+        if (id !== aiSeq || !seq) { if (id === aiSeq) { aiThinking = false; updateHud(); } return; }
+        const el = performance.now() - t0;
+        if (el < minWait) await Core.sleep((minWait - el) / 1000);
+        aiThinking = false;
+        for (const a of seq) {
+          await waitIdle();
+          if (id !== aiSeq || ended || game.result || game.turn !== aiSide() || pendingUndo) break;
+          if (!doBF(a)) { console.warn('电脑行动非法', a); break; }
+        }
+        updateHud();
+      }).catch(e => { console.error(e); aiThinking = false; updateHud(); });
+      return;
+    }
     AI.think(game.history.map(h => ({ from: h.from, to: h.to })), opts.level).then(async r => {
       if (id !== aiSeq) return;
       const el = performance.now() - t0;
@@ -839,7 +862,6 @@
     if (watching()) return false;
     if (!started || ended || busy || game.result || pendingUndo || pendingJ) return false;
     if (game.jq && !jqReady()) return false;
-    if (game.bf && vsAI()) return false;
     if (mode === 'local') return true;
     if (vsAI()) return game.turn === mySide && !aiThinking;
     return Net.connected && game.turn === mySide;
@@ -1371,7 +1393,7 @@
     if (!game || !game.bf) return moves;
     return moves.map(m => {
       const p = game.at(m.from[0], m.from[1]), q = game.at(m.to[0], m.to[1]);
-      if (!p || !q || q.t === 'k') return m;
+      if (!p || !q) return m;   // 决战里帅将有 3 点生命：打不死同样标 -N，最后一下才标「殺」
       const n = sk === 'qishe' ? BF.CFG.skills.qishe.damage : sk === 'chongzhen' ? BF.CFG.skills.chongzhen.springDamage : game.atkOf(p);
       return q.hp > n ? { ...m, dmg: n } : m;
     });
@@ -1404,7 +1426,14 @@
   // 棋子说明（悬停 / 长按棋子）：只说要紧的，一条一行
   function pieceTip(p) {
     const nm = `${SIDE_ARMY[p.s]}${pname(p)}`, hero = game.heroName ? game.heroName(p) : '';
-    if (p.t === 'k') return `<b>${game.rankName(p)}</b><br>不能升级，不受技能伤害，只能被将死。` + (p.s === 'r' && game.fx.hm ? `<br><em>鸿门宴：还有 ${game.fx.hm} 回合不能动，士护驾可破</em>` : '');
+    if (p.t === 'k' && game.final) {
+      const N = BF.CFG.finalOccupyRounds, oc = game.occ[p.s];
+      return `<b>${game.rankName(p)}</b> <small>决战</small><br>生命 ${p.hp}/${BF.CFG.finalKingHp} · 攻击 1`
+        + '<br>按过河兵走：前、左、右各一格，不能后退；可以过河、出九宫，也能攻击。'
+        + '<br>没有将军：可以对脸、可以送将；被打到 0 血就输。不受践踏、霹雳这类范围伤害。'
+        + `<br><b>夺营</b>：走进对方九宫，对方再走 ${N} 步还没把它打死就赢` + (oc ? `<em>（已撑过 ${oc}/${N}）</em>` : '。');
+    }
+    if (p.t === 'k') return `<b>${game.rankName(p)}</b><br>不能升级，不受技能伤害，只能被将死。<small>决战（双方车马兵炮都死光）时出九宫、有 3 点生命。</small>` + (p.s === 'r' && game.fx.hm ? `<br><em>鸿门宴：还有 ${game.fx.hm} 回合不能动，士护驾可破</em>` : '');
     const info = BF.levelInfo(p.t, p.s, p.lv), mx = info.maxLv;
     let h = `<b>${hero ? hero + ' · ' : ''}${game.rankName(p)}</b> <small>${nm} ${LVCN[p.lv]}级</small><br>生命 ${p.hp}/${info.hp} · 攻击 ${game.atkOf(p)} · 甲片 ${p.xp || 0}`;
     for (const sk of game.skillsOf(p)) {
@@ -1630,6 +1659,7 @@
       if (game.mustPass() && canAct() && (mode === 'local' || game.turn === mySide)) toast(`${SIDE_CN[game.turn]}方无子可走，请点「停着」`, 2600);
       else if (game.mayPass() && game.fx.sm > 0 && canAct() && (mode === 'local' || game.turn === mySide)) toast('四面楚歌：楚军只能走将，或点「停着」', 2800);
       if (info.result && !busy) finishGame(info.result);
+      else if (!busy && vsAI() && game.turn === aiSide()) maybeAI();
     });
   }
   // 战报
@@ -2333,7 +2363,7 @@
   $('bAIGo').onclick = () => {
     Sfx.init(); applySettings();
     const side = aopts.side === 'x' ? (Math.random() < 0.5 ? 'r' : 'b') : aopts.side;
-    startGame('ai', side, { undo: aopts.undo, total: aopts.total, step: aopts.step || 0, hints: aopts.hints, level: aopts.level, skin: aopts.skin || 0 });
+    startGame('ai', side, { undo: aopts.undo, total: aopts.total, step: aopts.step || 0, hints: aopts.hints, level: aopts.level, skin: aopts.skin || 0, bf: aopts.bf ? 1 : 0 });
   };
   $('bHall').onclick = () => showPane('pHall');
   $('bRoomStart').onclick = roomBegin;
@@ -2380,7 +2410,7 @@
     $('roomSeats').innerHTML = seat('r') + seat('b');
     const ps = [...Spect.people.values()].filter(p => !p.self);
     $('roomSpecs').innerHTML = ps.length ? ps.map(p => `<i>${String(p.name).replace(/[<>&]/g, '')}</i>`).join('') : '暂时没有观众';
-    const canAI = room.host && !(opts && (opts.bf || opts.jq));
+    const canAI = room.host && !(opts && opts.jq);   // 象棋、技能模式都能加人机；揭棋没有电脑
     $('roomHostRow').classList.toggle('hidden', !room.host);
     $('roomGuestRow').classList.toggle('hidden', room.host);
     $('roomInvite').classList.toggle('hidden', !room.host);
@@ -2672,6 +2702,7 @@
     startGame('local', 'r', { undo: 99, total: 0, step: 0, hints: 1, bf: 1 }, { intro: false }).then(() => { if (location.hash === '#bfdebug') $('tDebug').click(); });
     return;
   }
+  if (location.hash.startsWith('#bfai')) { const [, lv, sd] = location.hash.split('-'); startGame('ai', sd || 'r', { undo: 3, total: 0, step: 0, hints: 1, level: lv || 'mid', bf: 1 }, { intro: false }); return; }
   if (location.hash.startsWith('#ai')) { const [, lv, sd] = location.hash.split('-'); startGame('ai', sd || 'r', { undo: 3, total: 0, step: 0, hints: 1, level: lv || 'easy' }, { intro: false }); return; }
   $('lobby').classList.remove('hidden');
   paintResume();
