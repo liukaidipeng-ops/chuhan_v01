@@ -583,11 +583,22 @@ const ok = (x, msg) => { assert(x, msg); };
   g2.apply({ k: 'mv', from: [0, 2], to: [2, 4] });
   g2.apply({ k: 'mv', from: [4, 7], to: [2, 5] });
   assert(g2.legalFrom(2, 4).some(m => m.to.join() === '4,6'), '象可以过河');
-  // 帅将贴身：不能走到对方帅将的正前 / 左右
-  const g3 = setup([[4, 4, K('r')], [5, 6, K('b')], [0, 0, P('r', 'a')], [8, 9, P('b', 'a')]]);
-  assert(g3.final && g3.at(4, 4).w, '摆出来就是决战局面');
+  assert(g2.at(4, 0) ? g2.at(4, 0).hp === 3 : g2.at(g2.kingPos('r')[0], g2.kingPos('r')[1]).hp === 3, '决战里帅将 3 点生命');
+  // 可以送将、可以对脸；帅将能被直接攻击，打到 0 血告负
+  const g3 = setup([[4, 4, K('r')], [5, 6, K('b')], [0, 0, P('r', 'a')], [8, 9, P('b', 'a', 4)]]);
+  assert(g3.final && g3.at(4, 4).w && g3.at(4, 4).hp === 3 && !g3.inCheck('r'), '摆出来就是决战局面，没有将军');
   g3.apply({ k: 'mv', from: [4, 4], to: [4, 5] });
-  assert(!g3.legalFrom(5, 6).some(m => m.to.join() === '5,5') && !g3.legalFrom(5, 6).some(m => m.to.join() === '4,6'), '楚将不能走到汉帅左右 / 正前被它攻击的格子');
+  assert(g3.legalFrom(5, 6).some(m => m.to.join() === '5,5'), '楚将可以走到汉帅旁边（送将）');
+  g3.apply({ k: 'mv', from: [5, 6], to: [5, 5] });
+  let i3 = g3.apply({ k: 'mv', from: [4, 5], to: [5, 5] });
+  assert(i3 && g3.at(5, 5).t === 'k' && g3.at(5, 5).s === 'b' && g3.at(5, 5).hp === 2 && g3.at(4, 5), '汉帅攻击楚将：扣 1 血，退回原位');
+  assert(g3.legalFrom(8, 9).some(m => m.to.join() === '8,8' && m.via === 'jinwei'), '铁甲禁卫在九宫外也能用');
+  g3.apply({ k: 'mv', from: [5, 5], to: [4, 5] });
+  g3.apply({ k: 'mv', from: [4, 5], to: [5, 5] });
+  g3.apply({ k: 'mv', from: [5, 5], to: [4, 5] });
+  assert(g3.at(4, 5).hp === 1 && g3.at(5, 5).hp === 1 && !g3.result, '互砍到各剩 1 血');
+  i3 = g3.apply({ k: 'mv', from: [4, 5], to: [5, 5] });
+  assert(i3 && g3.result && g3.result.reason === 'kingdead' && g3.result.winner === 'r', '楚将阵亡：汉胜');
   console.log('决战 OK');
 }
 console.log('BINGFA ALL OK');

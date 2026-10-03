@@ -15,7 +15,9 @@
       '刘邦、项羽换新模型：刘邦红袍冕服、项羽乌金重甲黑披风持霸王戟，脸看得清',
       '践踏：四级楚象攻击或吃掉敌子后就地高举前脚跺下，那一格周围一圈八格的敌子各扣 1 点，残血的直接踩死；没打死目标的，结算完四周才退回。走到空格不触发',
       '飞越、踏营有了一气呵成的腾空跃过动画；士的巨盾不再闪烁',
-      '技能模式新规则「决战」：双方的车马兵炮都死光后，象、士、帅将都可以过河进攻；取消飞将；帅将按过河兵走（前、左、右各一格）',
+      '技能模式新规则「决战」：双方的车马兵炮都死光后，象、士、帅将都可以过河进攻；帅将按过河兵走（前、左、右各一格），各有 3 点生命，没有将军（可以对脸、可以送将），打到 0 血告负；铁甲禁卫出九宫也能用',
+      '决战开场：「决战」大字 → 战鼓一阵紧过一阵（全用录音）→ 两边营里一直挥舞兵器助威；刘邦拔剑摆出战斗架势；主帅被斩后直接出结果，不再演常规结算',
+      '模型模式：队伍停下后原地转回默认朝向，不再先缩小再长出来；帅旗加大加高',
       '完整镜头 / 精简特效下，技能打死的子（践踏、霹雳、冲阵、飞越、踏营、拒马反伤）一律换成兵种模型来演：倒地、流血、断肢；棋子显示也一样。只有低特效才是棋子碎掉',
       '棋盘四角的铜包角不再闪烁',
       '霹雳：三轮急速齐射、每轮三发，爆炸更猛；炸死的子炸碎炸飞',
@@ -54,7 +56,7 @@
     ['第二版', '', ['兵法模式：军功、升级、兵种技能、鸿门宴与四面楚歌', '揭棋模式、人机对战、观战席']],
     ['第一版', '', ['三维水墨棋盘、兵种战斗演出、联机对战']],
   ];
-  const REASON = { checkmate: '将死', stalemate: '困毙', resign: '认输', timeout: '超时', draw: '四十回合无吃子' };
+  const REASON = { checkmate: '将死', stalemate: '困毙', kingdead: '主帅阵亡', resign: '认输', timeout: '超时', draw: '四十回合无吃子' };
   const LV = { easy: '新兵', mid: '校尉', hard: '霸王' };
   const VIS = ['cine', 'std', 'low'], VISNAME = { cine: '完整电影镜头', std: '精简特效', low: '低特效' }, VISBADGE = { cine: '影', std: '简', low: '低' };
 
@@ -314,7 +316,27 @@
     const h = game.history.find(x => x.cap && String(x.cap.id) === el.dataset.pid); if (!h) return;
     toast(`这枚暗子是「${XQ.NAMES[h.cap.s][h.cap.t]}」<br><small>（吃子方偷偷看，对手请回避）</small>`, 1800);
   });
+  // 决战的场面（战鼓、两边营里一直助威、刘邦持剑）跟着局面走：进入、悔棋退回、复盘、重开都对得上
+  let finalFx = false, finalT = null;
+  function resetFinalFx() { finalFx = false; clearTimeout(finalT); Squads.finalMode = false; Camp.frenzy(false); }
+  function syncFinalFx() {
+    const on = !!(mode && game && game.bf && game.final && started && !RP);
+    Camp.frenzy(on && !ended);
+    if (on === finalFx) return;
+    finalFx = on; clearTimeout(finalT);
+    const apply = () => {
+      Squads.finalMode = finalFx; Camp.frenzy(finalFx && !ended);
+      if (started && !ended) { try { Sfx.Music.start(finalFx && S.music !== 'off' ? 'final' : S.music); } catch (e) { } }
+    };
+    // 刚打出来的决战：先出「决战」两个大字，字落定了鼓声才起、两边才开始助威，然后弹规则提示
+    const live = on && game.last && game.last.ev && game.last.ev.some(e => e.e === 'final');
+    if (!live) { apply(); return; }
+    try { Sfx.Music.stop(true); } catch (e) { }
+    try { Fx.mateSplash('决战', null); } catch (e) { }
+    finalT = setTimeout(() => { if (!finalFx) return; apply(); finalT = setTimeout(() => { if (finalFx) showFinalTip(); }, 2400); }, 1500);
+  }
   function updateHud() {
+    syncFinalFx();
     if (!mode) return;
     if (game.bf) Fx.ply = (game.round - 1) * 2 + (game.turn === 'b' ? 1 : 0);
     const by = capturedBy();
@@ -662,7 +684,7 @@
     Ending.hideCard();
     Core.Cam.cine = false;
     Sfx.init(); applySettings();
-    Sfx.Music.start(S.music); Sfx.Music.setIntensity(0.35);
+    resetFinalFx(); Sfx.Music.start(S.music); Sfx.Music.setIntensity(0.35);
     paintCards();
     if (vsAI()) { try { AI.warm(); } catch (e) { } }
     if (intro && !game.history.length) {
@@ -960,14 +982,17 @@
     $('skip').classList.remove('hidden'); $('skip').textContent = '跳过结算 ▸▸';
     anim = anim.then(async () => {
       await Promise.race([Core.sleep(0.8), skipP]);
-      if (!endSkip) { try { await Promise.race([boardFinale(result), skipP]); } catch (e) { console.error(e); } }
+      // 决战里主帅是在棋盘上被当场斩杀的：不再演败方主帅跪地、围营那套结算，直接出结果
+      const slain = result && result.reason === 'kingdead';
+      if (slain) await Promise.race([Core.sleep(2.6), skipP]);
+      else if (!endSkip) { try { await Promise.race([boardFinale(result), skipP]); } catch (e) { console.error(e); } }
       Core.Time.skip = false; endSkipRes = null;
       Sfx.Music.stop();
       const persp = mode === 'local' || watching() || !result.winner ? 'win' : (result.winner === mySide ? 'win' : 'lose');
       const W = watching();
       await Ending.play(result, {
         again: W ? () => { Ending.hideCard(); toast('等待棋手开新局…'); } : requestAgain, againText: W ? '继 续 观 战' : '',
-        lobby: toLobby, persp, instant: endSkip, review: startReplay,
+        lobby: toLobby, persp, instant: endSkip || slain, review: startReplay,
         mine: mode === 'local' || W || !result.winner ? '' : (persp === 'win' ? '你 胜 了' : '你 败 了'),
       });
       if (pendingRestart) { const st = pendingRestart; pendingRestart = null; restart(st === true ? undefined : st); if (mode === 'host') Net.send({ t: 'restart', state: snapshot() }); }
@@ -1313,8 +1338,9 @@
       '双方的<b>车、马、兵、炮都已阵亡</b>',
       '<b>象、士、帅将</b>都可以过河进攻',
       '象仍走田（塞象眼照旧）、士仍走斜一格，只是不再受河界、九宫限制',
-      '<b>帅将</b>按过河兵走：前、左、右各一格，不能后退',
-      '<b>取消飞将</b>：帅将可以照面',
+      '<b>帅将</b>按过河兵走：前、左、右各一格，不能后退；各有 <b>3 点生命</b>',
+      '<b>没有将军</b>：可以对脸、可以送将，帅将被打到 0 血就输',
+      '士的<b>铁甲禁卫</b>在九宫外也能用',
     ].map(x => `<li>${x}</li>`).join('');
     $('bfTip').classList.remove('hidden');
     clearTimeout(bfTipT); bfTipT = setTimeout(() => $('bfTip').classList.add('hidden'), 16000);
@@ -1330,7 +1356,7 @@
       '<b>三级</b>解锁技能，<b>四级</b>成名将；棋身 木 → 银 → 金 → 玉',
       '打不死的目标头顶标 <b>-1</b>，能一击杀死才标<b>「殺」</b>',
       '<b>军功 20</b> 可发终极兵法；主帅兵法每局一次',
-      '<b>决战</b>：双方车马兵炮都死光后，象、士、帅将可过河进攻，取消飞将',
+      '<b>决战</b>：双方车马兵炮都死光后，象、士、帅将可过河进攻；帅将 3 血，打死为止',
     ].map(x => `<li>${x}</li>`).join('');
     $('bfTip').classList.remove('hidden');
     clearTimeout(bfTipT);
@@ -1629,7 +1655,7 @@
     else if (info.k === 'ult') line = s === 'b' ? `鸿门宴：汉王 ${BF.CFG.ultimates.hongmen.rounds} 回合不得移动` : '四面楚歌：楚军军心涣散，动弹不得';
     else if (info.k === 'pass') line = `${SIDE_ARMY[s]}按兵不动`;
     if (info.k === 'mv' && info.extra && info.extra.via === 'shensu') line = `${nm(s, 'p')}神速营疾行` + (info.check ? '，将军！' : '');
-    if (ev.some(x => x.e === 'final')) { line = (line ? line + '；' : '') + '决战：双方车马兵炮尽没，象、士、帅将皆可过河'; showFinalTip(); }
+    if (ev.some(x => x.e === 'final')) { line = (line ? line + '；' : '') + '决战：双方车马兵炮尽没，象、士、帅将皆可过河'; }
     const au = ev.find(x => x.e === 'autoup');
     if (au) { const hero = BF.heroName({ s: au.s, t: au.t, nm: au.nm }); line = (line ? line + '；' : '') + `${nm(au.s, au.t)}战功晋升「${hero || BF.rankName(au.s, au.t, au.lv)}」`; }
     if (!line) return;
@@ -2250,6 +2276,7 @@
       if (introSkip) introSkip();
       if (RP) exitReplay(true);
       setPause(null); closeAsk(); Voice.cancel();
+      resetFinalFx();
       mode = null; started = false; ended = false; pendingUndo = null; bfMode = null; dbgOn = false; resumeKey = '';
       try { history.replaceState(null, '', location.pathname); } catch (e) { }
       Ending.hideCard(); clearFinale(); Camp.reset(); Fx.clearMarks(); Board.clearMoves(); Board.showLast(null); Spect.clear();
@@ -2544,7 +2571,7 @@
   bindSeg($('mSet'), 'data-s', k => (k === 'quality' ? Core.quality : S[k]), (k, v) => {
     if (k === 'quality') { Core.setQuality(v); toast('画质已调整（阴影开关在下次打开时生效）'); return; }
     S[k] = (k === 'music' || k === 'vis') ? v : +v; applySettings();
-    if (k === 'music' && (started || !mode)) { Sfx.init(); if (mode && !Ending.running) Sfx.Music.start(v); }
+    if (k === 'music' && (started || !mode)) { Sfx.init(); if (mode && !Ending.running) Sfx.Music.start(finalFx && v !== 'off' ? 'final' : v); }
   });
   $('vMusic').value = S.vMusic; $('vSfx').value = S.vSfx; $('oServer').value = S.server;
   $('vMusic').oninput = e => { S.vMusic = +e.target.value; applySettings(); };

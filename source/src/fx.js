@@ -789,6 +789,7 @@ const Fx = (() => {
     setTimeout(() => { Cam.shake(0.34); flash(kp, 40, 0.5, 0.5); if (k) { ring(kp, 3.2, 1.1, 0xb0301f, 0.95); P.ink(kp.clone().setY(TOP + 0.2), 16, 0.8, 0.45, 0.9); } }, (T0 + 0.02 + (n - 1) * step) * 1000);
   }
   function checkStamp(sideInCheck, text, mateName) {
+    if (text === '斬') { mateSplash(sideInCheck === 'b' ? '斩将' : '斩帅', sideInCheck); return; }   // 决战里主帅被斩
     if (text === '殺' || text === '困') { mateSplash(text === '困' ? '困毙' : MATE_NAMED.has(mateName) ? mateName : '绝杀', sideInCheck); return; }
     const el = document.getElementById('stamp');
     el.textContent = text || (sideInCheck === 'b' ? '將' : '帥');
@@ -929,7 +930,7 @@ const Fx = (() => {
     c.m.rotation.set(0, Board.viewSide === 'b' ? Math.PI : 0, 0);
     if (Cam.cine && !info.result) { cineOff(); await Cam.home(0.8); }
     cineOff();
-    if (info.result) { checkStamp(XQ.other(info.mover), info.result.reason === 'checkmate' ? '殺' : '困', info.mateName); }
+    if (info.result) { checkStamp(XQ.other(info.mover), info.result.reason === 'checkmate' ? '殺' : info.result.reason === 'kingdead' ? '斬' : '困', info.mateName); }
     else if (info.check) { checkStamp(XQ.other(info.mover)); }
   }
 

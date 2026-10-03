@@ -10,6 +10,7 @@
 
   // ---------- 数值配置（初版，集中在这里调） ----------
   const CFG = {
+    finalKingHp: 3, // 决战时帅将的生命
     merit: {
       start: 3, cap: 30, autoIncomeFromRound: 16, autoIncomePerRound: 1,
       killReward: { p: 1, a: 2, e: 2, n: 3, c: 3, r: 5 }, killRewardPerLevel: 1,
@@ -112,7 +113,9 @@
   // 将帅对面
   const facing = b => { const k = findKing(b, 'r'), K = findKing(b, 'b'); if (!k || !K || k[0] !== K[0] || b[k[1]][k[0]].w) return false; for (let r = Math.min(k[1], K[1]) + 1; r < Math.max(k[1], K[1]); r++) if (b[r][k[0]]) return false; return true; };
   // 带状态的将军判定：四面楚歌期间楚军“不算将军”——汉帅被楚子攻击也不必应将（只需避开将帅对面）
-  const inCheckS = (S, s) => (s === 'r' && smActive(S) ? facing(S.board) : inCheck(S.board, s));
+  //   决战里没有“将军”这回事：帅将有 3 点生命，可以对脸、可以送将，被打到 0 血就输
+  const inCheckS = (S, s) => (S.final ? false : s === 'r' && smActive(S) ? facing(S.board) : inCheck(S.board, s));
+  const inCheckF = (S, s) => !S.final && inCheck(S.board, s);
   const jmActive = (S, p) => p && p.t === 'p' && p.jm > S.cnt[other(p.s)];
   const maxLv = t => (t === 'k' ? 1 : CFG_CUR.upgrade.maxLevel[t] || CFG_CUR.upgrade.defaultMaxLevel);
   const atk = p => (p.t === 'k' ? 1 : ((CFG_CUR.attack[p.t] || [])[p.lv - 1] || 1));
@@ -245,12 +248,13 @@
       extra('huifang', f, r + (p.s === 'r' ? -1 : 1));
       if (hasSkill(p, 'shensu') && cdReady(S, p, 'shensu')) for (const m of dashTargets(S, f, r)) extra('shensu', m.to[0], m.to[1], true);
     }
-    if (!ignoreLeg && p.t === 'a' && inPalace(p.s, f, r)) for (const [df, dr] of ORTHO) if (inPalace(p.s, f + df, r + dr)) extra('jinwei', f + df, r + dr);
+    // 铁甲禁卫：平时只在九宫内；决战解禁后在哪儿都能上下左右走一格
+    if (!ignoreLeg && p.t === 'a' && (p.j || inPalace(p.s, f, r))) for (const [df, dr] of ORTHO) if (p.j || inPalace(p.s, f + df, r + dr)) extra('jinwei', f + df, r + dr);
     // 四面楚歌：楚军除将外不能移动，只能吃掉正在将军的那枚子
     const sm = p.s === 'b' && p.t !== 'k' && smActive(S), ck = sm ? checkers(S.board, 'r') : null;
     return ms.filter(m => {
       const q = S.board[m.to[1]][m.to[0]];
-      if (q && q.t === 'k') return false;
+      if (q && q.t === 'k' && !S.final) return false;   // 平时不能吃帅将；决战里可以直接攻击
       if (p.s === 'r' && p.t === 'k' && hmActive(S)) return false;
       if (sm && (!q || !ck.includes(q.id))) return false;
       return true;
@@ -382,9 +386,9 @@
           if (mm.via) { setCd(S, p, mm.via); ev.push({ e: 'passive', sk: mm.via, id: p.id }); }
           trample(S, p, m.to, res, side, ev);
           extra.steps.push({ from: m.from, to: m.to, res, ev0: n0, ev1: ev.length });
-          if (inCheck(S.board, side)) return null;
+          if (inCheckF(S, side)) return null;
         }
-        if (!CFG_CUR.generalArts.pofu.mayEndInCheck && inCheck(S.board, 'r')) return null;
+        if (!CFG_CUR.generalArts.pofu.mayEndInCheck && inCheckF(S, 'r')) return null;
         S.fx.pf = S.cnt.b + 1 + CFG_CUR.generalArts.pofu.skillLockRounds;
       }
       S.used.art[side]++;
@@ -402,7 +406,7 @@
       ev.push({ e: 'ult', s: side });
     } else if (a.k === 'pass') {
       // 四面楚歌期间的楚军：没被将军就可以停着（也可以走将）；鸿门宴期间的汉军：无子可走才停着
-      if (side === 'b' && smActive(S)) { if (inCheck(S.board, 'b')) return null; }
+      if (side === 'b' && smActive(S)) { if (inCheckF(S, 'b')) return null; }
       else if (!restricted(S, side) || legalMoves(S, side, true).length) return null;
     } else return null;
     // 行动结束：己方帅将不能被将军（含将帅对面）
@@ -427,12 +431,12 @@
       for (const row of S.board) for (const p of row) if (p && ATTACKERS.includes(p.t)) return;
       S.final = true; if (ev) ev.push({ e: 'final' });
     }
-    for (const row of S.board) for (const p of row) if (p) { if (p.t === 'k') p.w = 1; else if (p.t === 'a' || p.t === 'e') p.j = 1; }
+    for (const row of S.board) for (const p of row) if (p) { if (p.t === 'k') { if (!p.w) { p.w = 1; p.hp = CFG_CUR.finalKingHp; } } else if (p.t === 'a' || p.t === 'e') p.j = 1; }
   }
   function settle(S, side, ev) {
     const opp = other(side);
     syncFinal(S, ev);
-    const ck = side === 'b' && smActive(S) ? [] : checkers(S.board, side);
+    const ck = S.final || (side === 'b' && smActive(S)) ? [] : checkers(S.board, side);
     S.ckHist[side].push(ck);
     S.cnt[side]++;
     if (inCheckS(S, opp)) { addMerit(S, side, CFG_CUR.merit.checkReward, ev, '将军'); ev.push({ e: 'check', s: opp }); }
@@ -512,7 +516,7 @@
     const T = cloneState(S), ev = [];
     if (!at(T, m1.from[0], m1.from[1])) return [];
     strike(T, m1.from, m1.to, 'b', ev);
-    if (inCheck(T.board, 'b')) return [];
+    if (!T.final && inCheck(T.board, 'b')) return [];
     const out = [];
     for (let r = 0; r < 10; r++) for (let f = 0; f < 9; f++) {
       const p = T.board[r][f]; if (!p || p.s !== 'b') continue;
@@ -541,6 +545,8 @@
   // 轮到 S.turn 时：将死 / 困毙 / 只能停着
   function evaluate(S) {
     const side = S.turn, opp = other(side);
+    // 决战：帅将被打到 0 血即告负
+    if (S.final) for (const s of ['r', 'b']) if (!findKing(S.board, s)) return { result: { winner: other(s), loser: s, reason: 'kingdead' } };
     if (inCheckS(S, side)) {
       if (!hasAnyAction(S)) return { result: { winner: opp, loser: side, reason: 'checkmate' } };
       return { check: true };
@@ -690,7 +696,14 @@
     timeout(side) { if (this.result) return null; this.result = { winner: other(side), loser: side, reason: 'timeout' }; return this.result; }
     resign(side) { if (this.result) return null; this.result = { winner: other(side), loser: side, reason: 'resign' }; return this.result; }
     // 调试：直接摆局面
-    setup(fn) { const T = cloneState(this.S); fn(T); T.final = false; for (const row of T.board) for (const p of row) if (p) { delete p.w; delete p.j; } syncFinal(T); this.reset(T); this.status = evaluate(this.S); }
+    setup(fn) {
+      CFG_CUR = this.cfg;
+      const T = cloneState(this.S); fn(T);
+      // 摆子之后重新判断是不是决战局面；不是了就把解禁标记和帅将的 3 点血收回
+      const still = !T.board.some(row => row.some(p => p && ATTACKERS.includes(p.t)));
+      if (!still) { T.final = false; for (const row of T.board) for (const p of row) if (p) { if (p.w) p.hp = 1; delete p.w; delete p.j; } }
+      syncFinal(T); this.reset(T); this.status = evaluate(this.S);
+    }
     get final() { return !!this.S.final; }
     get merit() { return this.S.merit; }
     get used() { return this.S.used; }

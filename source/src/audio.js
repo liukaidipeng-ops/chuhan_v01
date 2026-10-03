@@ -369,6 +369,7 @@ const Sfx = (() => {
     duck(on) { if (this.bus && ok()) { this.bus.gain.cancelScheduledValues(now()); this.bus.gain.linearRampToValueAtTime(on ? 0.25 : 1, now() + 0.8); } },
     setIntensity(v) { this.intensity = Math.max(0, Math.min(1, v)); },
     startPad() {
+      if (this.style === 'final') return;   // 决战：只有鼓、锣、人声的录音，不垫合成音
       const b = this.bus, zen = this.style === 'zen';
       const notes = zen ? [N.D2, N.A2, N.D3, N.E3] : [N.D2, N.A2];
       for (const f of notes) for (const d of [-6, 6]) {
@@ -390,7 +391,7 @@ const Sfx = (() => {
       if (!this.on || !ok()) return;
       while (this.next < now() + 0.8) {
         const t = this.next - now();
-        this.next += this.style === 'zen' ? this.zenBar(t) : this.warBar(t);
+        this.next += this.style === 'zen' ? this.zenBar(t) : this.style === 'final' ? this.finalBar(t) : this.warBar(t);
         this.bar++;
       }
     },
@@ -421,6 +422,22 @@ const Sfx = (() => {
       }
       if (this.bar % 4 === 0) B.bell(t + 0.1, [N.A5, N.D5 * 2][this.bar % 8 ? 0 : 1] / 2, 0.055);
       return len;
+    },
+    // —— 决战：一阵紧过一阵的战鼓（全用录音：大鼓、小鼓、滚奏、锣、呐喊），不用合成乐器 ——
+    finalBar(t) {
+      const dest = this.bus, beat = 60 / 132, st = beat / 4, bar = this.bar, ph = bar % 8;
+      const big = (i, v, r = 0.62) => { if (has('drum')) { smp('drum', { t: t + i * st, vol: v, rate: r, rj: 0.03, dest }); smp('soft', { t: t + i * st, vol: v * 0.2, rate: 0.5, dest }); } else taikoTo(dest, t + i * st, v, 0.9); };
+      const small = (i, v) => { if (has('drum')) smp('drum', { t: t + i * st, vol: v, rate: 1.25, rj: 0.06, dest, pan: i % 2 ? 0.25 : -0.25 }); else taikoTo(dest, t + i * st, v * 0.6, 1.5); };
+      // 大鼓：咚——咚咚 咚——咚咚咚；每四小节最后一小节打满
+      const bigPat = ph % 4 === 3 ? [1, 0, 0.7, 0, 1, 0, 0.7, 0.7, 1, 0.7, 0.8, 0.7, 1, 0.9, 1, 1] : ph % 2 ? [1, 0, 0, 0.6, 0, 0, 0.9, 0, 1, 0, 0.6, 0, 0.9, 0, 0.7, 0.8] : [1, 0, 0, 0, 0.8, 0, 0.6, 0, 1, 0, 0, 0.6, 0.9, 0, 0.7, 0];
+      bigPat.forEach((v, i) => { if (v) big(i, v * 0.8, i % 8 === 0 ? 0.56 : 0.66); });
+      // 小鼓：十六分音符铺底，重拍加重
+      for (let i = 0; i < 16; i++) small(i, i % 4 === 0 ? 0.3 : i % 2 === 0 ? 0.2 : 0.13);
+      if (ph % 4 === 3) smp('drumroll', { t: t + beat * 2, vol: 0.5, rate: 0.9, dest });
+      if (ph % 4 === 0) { if (has('gong')) smp('gong', { t, vol: 0.4, rate: 0.9, dest }); else B.gong(t, 0.5, dest); }
+      if (ph === 2 || ph === 6) smp('warcry', { t: t + beat * 2, vol: 0.5, dest });
+      if (ph === 4) smp('cheer', { t: t + beat, vol: 0.32, dest });
+      return beat * 4;
     },
     // —— 战意：太鼓阵 + 低音弦乐 + 琵琶轮指 + 号角 + 呐喊；随局势加密 ——
     warBar(t) {

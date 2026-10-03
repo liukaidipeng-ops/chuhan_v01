@@ -253,7 +253,7 @@ const BFX = (() => {
         if (info.extra && info.extra.via === 'shensu') {
           // 被动「神速营」：疾奔越子，落到空位（不走普通的行军演出）
           await dash(before[info.from[1]][info.from[0]], info.from, info.to, side);
-          if (info.result) Fx.checkStamp(XQ.other(side), info.result.reason === 'checkmate' ? '殺' : '困', info.mateName);
+          if (info.result) Fx.checkStamp(XQ.other(side), info.result.reason === 'checkmate' ? '殺' : info.result.reason === 'kingdead' ? '斬' : '困', info.mateName);
           else if (info.check) Fx.checkStamp(XQ.other(side));
         } else {
           await strikeT(before, info.from, info.to, ev, side, { check: info.check, result: info.result, streak: info.streak, mateName: info.mateName });
@@ -278,7 +278,7 @@ const BFX = (() => {
     } catch (e) { console.error(e); }
     if (info.k !== 'mv' && info.k !== 'up') {
       if (Cam.cine) await Cam.home(0.8);
-      if (info.result) Fx.checkStamp(XQ.other(side), info.result.reason === 'checkmate' ? '殺' : '困', info.mateName);
+      if (info.result) Fx.checkStamp(XQ.other(side), info.result.reason === 'checkmate' ? '殺' : info.result.reason === 'kingdead' ? '斬' : '困', info.mateName);
       else if (info.check) Fx.checkStamp(XQ.other(side));
     }
   }

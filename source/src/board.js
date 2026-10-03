@@ -1195,9 +1195,9 @@ const Board = (() => {
     if (m.userData.deco) { m.remove(m.userData.deco); m.userData.deco = null; }
     const face = m.children[1];
     const body = m.children[0];
-    if (!p || !p.lv) { m.userData.skinned = false; if (body) body.material = pieceWood; if (m.children[2]) m.children[2].visible = true; skinFace(m, p, 0); if (face && face.material) face.material.color.set(o.dim ? 0x8f8a84 : 0xffffff); return; }
+    if (!p || (!p.lv && !(p.t === 'k' && p.w))) { m.userData.skinned = false; if (body) body.material = pieceWood; if (m.children[2]) m.children[2].visible = true; skinFace(m, p, 0); if (face && face.material) face.material.color.set(o.dim ? 0x8f8a84 : 0xffffff); return; }
     const d = new THREE.Group(); m.add(d); m.userData.deco = d;
-    const max = BF.hpOf(p.t, p.lv);
+    const kingF = p.t === 'k' && p.w, max = kingF ? BF.CFG.finalKingHp : BF.hpOf(p.t, p.lv);   // 决战里的帅将：3 点生命，也挂血条
     // 棋身：一级木、二级乌银错花、三级錾金、四级羊脂白玉金丝嵌；升级后的字换成掐丝珐琅
     applySkin(m, d, p.lv, p);
     if (face && face.material) face.material.color.set(o.dim ? 0x8f8a84 : 0xffffff);
@@ -1211,7 +1211,7 @@ const Board = (() => {
       const rv = new THREE.Mesh(rivetGeo, plateFrame); rv.position.z = 0.007; rv.scale.z = 0.5; pl.add(rv);
       pl.userData.plate = i; d.add(pl);
     }
-    if (p.lv >= 2) {
+    if (p.lv >= 2 || kingF) {
       const tx = hpTex(p.hp, max, p.s), sc = (window.innerWidth <= 760 ? 1.25 : 1) * 0.0028;
       const sp = new THREE.Sprite(new THREE.SpriteMaterial({ map: tx, transparent: true, depthWrite: false }));
       sp.scale.set(tx.userData.w * sc, tx.userData.h * sc, 1); sp.position.y = PH + 0.34; sp.renderOrder = 6;

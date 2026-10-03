@@ -251,6 +251,24 @@ const Camp = (() => {
       }
     }
   });
+  // 决战：两边营里的兵一直挥舞兵器助威，直到分出胜负
+  let frenzyOn = false, frenzyT = 0;
+  function frenzy(on) {
+    on = !!on; if (on === frenzyOn) return; frenzyOn = on;
+    if (!on) for (const c of camps) for (const tr of c.troops) for (const u of tr.units) if (u.pose === 'wave') u.pose = 'idle';
+  }
+  onFrame(dt => {
+    if (!frenzyOn) return;
+    frenzyT -= dt; if (frenzyT > 0) return; frenzyT = 0.3;
+    for (const c of camps) {
+      if (c.state !== 'home' || c.restless) continue;
+      for (const tr of c.troops) for (const u of tr.units) {
+        if (u.mv || u.gone || u.dead || u._q || u.fall) continue;
+        if (u.pose === 'idle') u.pose = 'wave';
+        if (u.pose === 'wave' && Math.random() < 0.07) tr.act(u.i, 'raise', 0.5);
+      }
+    }
+  });
   // 轮到哪一方走：那一方大帐旁的两把火炬点亮（null = 都熄）
   function setTurn(side) { for (const c of camps) c.torch = c.s === side; }
 
@@ -549,7 +567,7 @@ const Camp = (() => {
   // —— 复位（新一局） ——
   function reset() {
     for (const c of camps) {
-      c.gen++; c.state = 'home'; c.goneN = 0; c.restless = false;
+      c.gen++; c.state = 'home'; c.goneN = 0; c.restless = false; frenzyOn = false;
       for (const o of c.drops) Core.disposeTree(o);
       c.drops.length = 0;
       for (const tr of c.troops) for (const u of tr.units) {
@@ -558,5 +576,5 @@ const Camp = (() => {
       }
     }
   }
-  return { quake, init, camps, cheer, surround, rout, reset, K, onCapture, taunt, desert, dismay, setTurn, restless, tauntBoard, get gone() { return camps.map(c => c.goneN); } };
+  return { frenzy, quake, init, camps, cheer, surround, rout, reset, K, onCapture, taunt, desert, dismay, setTurn, restless, tauntBoard, get gone() { return camps.map(c => c.goneN); } };
 })();

@@ -5,6 +5,8 @@ const Squads = (() => {
   const TOP = Board.TOP;
   const { P, R, rv } = Fx;
   const SC = 0.2, HS = 0.22, CH = 0.25, CN = 0.26, EL = 0.22, HERO = 0.21;
+  const KFLAG = 0.2;      // 帅旗大小（之前 0.125，太小气）
+  let finalMode = false;  // 技能模式「决战」：刘邦持剑、战斗架势
   const LOW = () => Core.quality === 'low';
   const gore = () => Fx.gore;
   const fwd = yaw => new V3(Math.sin(yaw), 0, Math.cos(yaw));
@@ -739,6 +741,10 @@ const Squads = (() => {
       this.isX = side === 'b';
       this.hero = this.isX ? Models.makeXiangYu() : Models.makeLiuBang();
       this.hero.group.scale.setScalar(HERO * (this.isX ? 1 : 1.5));   // 刘邦放大到 1.5 倍，随从不变
+      // 决战：刘邦拔剑在手，站成战斗架势
+      this.armed = !this.isX && finalMode;
+      this.standPose = this.armed ? Models.POSES.lGuard : Models.POSES.lStand;
+      if (this.armed) { const H = this.hero; H.weapon.visible = true; if (H.sheathed) H.sheathed.visible = false; H.setPose(this.standPose); }
       this.mounted = this.isX && opts.mounted !== false;
       if (this.mounted) {
         this.horse = Models.makeWuzhui(); this.horse.group.scale.setScalar(HS); this.group.add(this.horse.group);
@@ -749,7 +755,7 @@ const Squads = (() => {
       } else this.group.add(this.hero.group);
       // 随从：前两名执戟护卫，后两名旗手各擎一面帅旗（行进时旗举得更高、猎猎作响）
       this.guard = opts.guard === false ? null : new TroopSquad('k', side, anchor, yaw, 'halberd', this.isX ? [[0.34, -0.35], [-0.34, -0.35], [0.2, -0.68], [-0.2, -0.68]] : [[0.3, -0.15], [-0.3, -0.15], [0.2, -0.5], [-0.2, -0.5]], SC);
-      if (this.guard) this.flags = (this.isX ? ['楚', '將'] : ['漢', '帥']).map(ch => { const f = Models.makeBanner(side, ch); f.group.scale.setScalar(0.125); scene.add(f.group); return f; });
+      if (this.guard) this.flags = (this.isX ? ['楚', '將'] : ['漢', '帥']).map(ch => { const f = Models.makeBanner(side, ch); f.group.scale.setScalar(KFLAG); scene.add(f.group); return f; });
       this.flagK = 0;
       this.walkT = 0; this.walking = 0;
       this.updaters.push(dt => {
@@ -765,9 +771,9 @@ const Squads = (() => {
           this.flags.forEach((f, i) => {
             const u = this.guard.units[2 + i]; if (!u) return;
             const sd = i ? -1 : 1;
-            f.group.position.copy(u.p).addScaledVector(rightOf(this.yaw), sd * 0.07); f.group.position.y += 0.07 * this.flagK;
+            f.group.position.copy(u.p).addScaledVector(rightOf(this.yaw), sd * 0.07); f.group.position.y += 0.06 + 0.07 * this.flagK;
             f.group.rotation.y = Board.viewSide === 'b' ? Math.PI : 0;   // 旗面始终正对看棋的人（之前跟着队伍朝向，字是反的）
-            f.group.scale.setScalar((0.125 + 0.04 * this.flagK) * u.vis);
+            f.group.scale.setScalar((KFLAG + 0.04 * this.flagK) * u.vis);
             f.update(dt * (1 + 1.8 * this.flagK));
           });
         }
@@ -793,7 +799,7 @@ const Squads = (() => {
       this.marching = false; Cam.shake(0.06); if (!Fx.onWater(this.anchor)) P.dust(this.center(0), 8, null, 0.3);
       this.walking = 0; if (this.horse) this.horse.speed = 0;
       if (this.guard) this.guard.setPose('idle');
-      if (!this.mounted) this.hero.pose(Models.POSES.lStand, 0.3);
+      if (!this.mounted) this.hero.pose(this.standPose, 0.3);
     }
     async attack(target, c) {
       const { B, d } = c;
@@ -810,8 +816,8 @@ const Squads = (() => {
         await H.pose({ ...P_.xRide, ...pick(P_.xSweep, ['sRx', 'sRy', 'sRz', 'eR', 'wx', 'wz', 'ty', 'tx', 'sLx', 'sLz', 'eL']) }, 0.14, ease.in);
       } else {
         // 刘邦：拔剑疾进，连斩两剑
-        await H.pose(P_.lDraw, 0.25);
-        s.draw(); H.weapon.visible = true; if (H.sheathed) H.sheathed.visible = false;
+        if (!this.armed) { await H.pose(P_.lDraw, 0.25); s.draw(); }
+        H.weapon.visible = true; if (H.sheathed) H.sheathed.visible = false;
         await H.pose(P_.lGuard, 0.2);
         this.walking = 1.6;
         const start = this.anchor.clone(), end = B.clone().addScaledVector(d, -0.3);
@@ -832,6 +838,21 @@ const Squads = (() => {
       await sleep(0.3);
     }
   }
+  // 决战里主帅被斩：随从倒地，主帅中刀跪倒（项羽连人带马栽倒）
+  General.prototype.die = async function (hit, dir, power = 1, center) {
+    const P_ = Models.POSES, H = this.hero, c = this.center(0.3);
+    P.blood(c, 20, 0.9, dir, 1.4); Sfx.B.stab(0, 0.6);
+    const ps = [];
+    if (this.guard) ps.push(this.guard.die(hit === 'hero' ? 'slash' : hit, dir, power, center));
+    if (this.mounted) {
+      this.horse.speed = 0;
+      ps.push(tween(0.9, k => { this.horse.rearK = Math.sin(Math.min(1, k * 2) * Math.PI) * 0.7; if ('dead' in this.horse) this.horse.dead = Math.max(0, k * 1.6 - 0.6); }, ease.in));
+      ps.push(H.pose({ ...P_.xRide, tx: 0.5, nx: 0.5, sRx: 0.3, sLx: 0.3 }, 0.8));
+    } else ps.push(H.pose(this.isX ? P_.xKneel : P_.lKneel, 0.9, ease.inOut));
+    await Promise.all(ps);
+    P.dust(this.center(0), 8, null, 0.3); Sfx.B.thud(0, 0.6);
+    await sleep(0.5);
+  };
   // 未知暗子（疑兵）：墨影刀盾兵，看不出是什么兵种
   class Shade extends TroopSquad {
     constructor(side, anchor, yaw) {
@@ -921,12 +942,14 @@ const Squads = (() => {
       const hd = Cam.homeDir();
       Fx.shot(mid.clone().addScaledVector(hd, 3.2).addScaledVector(c.side, 1.6).add(new V3(0, 2.1, 0)), mid.clone().add(new V3(0, 0.25, 0)), 0.6);
     }
-    Fx.sink(m);
-    if (info.crossesRiver && (t === 'p' || t === 'c')) { await boatSquad(c); return; }
+    const boat = info.crossesRiver && (t === 'p' || t === 'c'), live = Stand.on && !boat;   // 模型模式：棋盘上那一队直接起步，不再化墨重生
+    if (live) Stand.hide(m); else Fx.sink(m);
+    if (boat) { await boatSquad(c); return; }
     const L = c.mt === 'n'; // 日字路线（揭棋中按位置走法，可能与兵种不同）
     const lvN = info.piece.lv || 0;
-    const sq = make(t, s, A, L ? yawOf(knightCorner(info).clone().sub(A)) : yaw, 'move', lvN || 1, lvN);
-    await sq.appear();
+    const yaw0 = L ? yawOf(knightCorner(info).clone().sub(A)) : yaw;
+    const sq = make(t, s, A, live ? standYaw(s) : yaw0, 'move', lvN || 1, lvN);
+    if (live) { showNow(sq); await turnTo(sq, yaw0, 0.22); } else await sq.appear();
     let stopCam = () => { };
     if (cine && A.distanceTo(B) > 1.8) stopCam = Fx.follow(() => sq.center(0.2), () => c.side.clone().multiplyScalar(2.6).addScaledVector(d, -1.4).add(new V3(0, 1.3, 0)), () => d.clone().multiplyScalar(0.8).add(new V3(0, 0.05, 0)), 4);
     const dist = L ? 2.2 : A.distanceTo(B);
@@ -940,8 +963,22 @@ const Squads = (() => {
     }
     stopCam();
     await sleep(0.1);
+    if (await settleSquad(sq, m, B)) return;
     await sq.dissolve();
     await Fx.rise(m, B, 0.35);
+  }
+  // 模型模式下的衔接：演出队伍停下后原地转回默认朝向，直接换回棋盘上立着的那一队（不再“化墨缩小 → 棋子长出来”）
+  const standYaw = s => yawOf(new V3(0, 0, s === 'r' ? -1 : 1));
+  const showNow = sq => { sq.setVis(1); if (sq.guard) sq.guard.setVis(1); };
+  const dropSquad = sq => { try { if (sq.flags) for (const f of sq.flags) scene.remove(f.group); if (sq.guard) sq.guard.dispose(); sq.dispose(); } catch (e) { } };
+  async function settleSquad(sq, m, pos) {
+    if (!Stand.on || !m || !m.parent) return false;
+    try { if (sq.setPose && sq.troop) sq.setPose('idle'); await turnTo(sq, standYaw(m.userData.s), 0.26); } catch (e) { }
+    m.position.copy(pos); m.position.y = TOP; m.visible = true; m.scale.set(1, 1, 1);
+    Stand.snap(m);
+    dropSquad(sq);
+    Sfx.place();
+    return true;
   }
   // 马的行进路线：直奔落点（这里给出路线中点，供朝向和镜头用）
   const knightCorner = info => Board.pos(info.from[0], info.from[1]).lerp(Board.pos(info.to[0], info.to[1]), 0.5);
@@ -1071,11 +1108,14 @@ const Squads = (() => {
       else Fx.shot(mid.clone().addScaledVector(side, 3.0).addScaledVector(d, -1.2).add(new V3(0, 1.6, 0)), mid.clone().lerp(B, 0.3).add(new V3(0, 0.2, 0)), 0.7);
     }
     // 双方化身
-    Fx.sink(m); Fx.sink(tgt);
+    const live = Stand.on;
+    if (live) { Stand.hide(m); Stand.hide(tgt); } else { Fx.sink(m); Fx.sink(tgt); }
     const counterDie = c.counter === 'die';
-    const att = make(t, s, A, t === 'n' && c.mt === 'n' ? yawOf(knightCorner(info).clone().sub(A)) : yaw, counterDie && t === 'c' ? 'move' : 'attack', c.lv, c.lv || 0);
-    const def = make(dt_, ds, B, yaw + Math.PI, 'defend', c.dlv, c.dlv || 0);
-    await Promise.all([att.appear(), sleep(0.15).then(() => def.appear())]);
+    const yawA = t === 'n' && c.mt === 'n' ? yawOf(knightCorner(info).clone().sub(A)) : yaw;
+    const att = make(t, s, A, live ? standYaw(s) : yawA, counterDie && t === 'c' ? 'move' : 'attack', c.lv, c.lv || 0);
+    const def = make(dt_, ds, B, live ? standYaw(ds) : yaw + Math.PI, 'defend', c.dlv, c.dlv || 0);
+    if (live) { showNow(att); showNow(def); await Promise.all([turnTo(att, yawA, 0.22), turnTo(def, yaw + Math.PI, 0.22)]); }
+    else await Promise.all([att.appear(), sleep(0.15).then(() => def.appear())]);
     if (def.setPose) def.setPose('ready');
     // 兵法·拒马：攻方先撞上木桩
     if (c.counter) {
@@ -1087,7 +1127,9 @@ const Squads = (() => {
       if (counterDie) {
         await att.die('stab', d.clone().negate(), 1, att.center(0));
         await sleep(0.6);
-        att.dissolve(); await sleep(0.2); await def.dissolve();
+        att.dissolve(); await sleep(0.2);
+        if (await settleSquad(def, tgt, B)) return;
+        await def.dissolve();
         if (tgt) await Fx.rise(tgt, B, 0.4);
         return;
       }
@@ -1106,6 +1148,7 @@ const Squads = (() => {
     if (c.survive || c.ranged) {
       await sleep(0.3);
       if (c.survive) await retreat(att, A);
+      if (live) { await Promise.all([settleSquad(att, m, A), c.survive ? settleSquad(def, tgt, B) : def.dissolve()]); return; }
       att.dissolve(); await sleep(0.25); await def.dissolve();
       await Promise.all([Fx.rise(m, A, 0.4), tgt && c.survive ? Fx.rise(tgt, B, 0.4) : null]);
       return;
@@ -1113,6 +1156,13 @@ const Squads = (() => {
     // 收尾：尸体留一会儿再化墨
     const hold = gore() >= 3 ? 1.6 : gore() >= 1 ? 0.9 : 0.4;
     await sleep(0.2);
+    if (live && att.anchor) {
+      // 模型模式：胜者踏上落点、转回默认朝向站定；地上的尸体留一会儿再化墨
+      sleep(hold).then(() => { Fx.P.ink(B.clone().setY(TOP + 0.1), 14, 0.5, 0.35, 0.7); return def.dissolve(); });
+      const from = att.anchor.clone();
+      if (from.distanceTo(B) > 0.04) { speedUp(att, 0.6); await tween(Math.max(0.25, from.distanceTo(B) / 1.6), k => att.anchor.lerpVectors(from, B, k)); speedUp(att, 0); }
+      if (await settleSquad(att, m, B)) return;
+    }
     att.dissolve();
     await sleep(hold);
     Fx.P.ink(B.clone().setY(TOP + 0.1), 14, 0.5, 0.35, 0.7);
@@ -1245,7 +1295,7 @@ const Squads = (() => {
       for (const m of Board.pieces.values()) {
         const u = m.userData;
         if (u.h || !u.t || u.t === 'h') { drop(m); continue; }
-        const lv = g && g.bf ? lvOf.get(u.id) || 1 : 0, key = u.s + u.t + lv;
+        const lv = g && g.bf ? lvOf.get(u.id) || 1 : 0, key = u.s + u.t + lv + (u.t === 'k' && finalMode ? 'F' : '');
         const st = map.get(m);
         if (st && st.key === key) continue;
         drop(m);
@@ -1295,6 +1345,15 @@ const Squads = (() => {
     return {
       get on() { return on; },
       sq(m) { const st = map.get(m); return st ? st.sq : null; },
+      // 立刻收起 / 立刻立好某枚子的那一队（演出队伍接手、交还时用，不带渐变）
+      hide(m) { if (!m) return; m.visible = false; const st = map.get(m); if (st) { st.k = 0; vis(st, 0.001); if (st.flag) st.flag.group.scale.setScalar(0.001); st.ring.material.opacity = 0; } },
+      snap(m) {
+        if (!on || !m) return; reconcile();
+        const st = map.get(m); if (!st) return;
+        st.k = 1; vis(st, 1);
+        const sq = st.sq; sq.anchor.x = m.position.x; sq.anchor.z = m.position.z; if (sq.guard) { sq.guard.anchor.x = m.position.x; sq.guard.anchor.z = m.position.z; }
+        if (sq.sync) sq.sync();
+      },
       set(v) {
         v = !!v; if (v === on) return; on = v;
         if (on) reconcile();
@@ -1304,5 +1363,5 @@ const Squads = (() => {
     };
   })();
 
-  return { Stand, move, capture, pieceBoat, heroDefeat, make, charge, retreat, hurtSquad, yawOf, knightCorner, Shade, Infantry, Guards, Crossbow, Elephant, Chariot, Cavalry, Cannon, General, killUnit, walkPath, turnTo, TroopSquad };
+  return { get finalMode() { return finalMode; }, set finalMode(v) { finalMode = !!v; }, Stand, move, capture, pieceBoat, heroDefeat, make, charge, retreat, hurtSquad, yawOf, knightCorner, Shade, Infantry, Guards, Crossbow, Elephant, Chariot, Cavalry, Cannon, General, killUnit, walkPath, turnTo, TroopSquad };
 })();
