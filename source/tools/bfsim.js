@@ -55,13 +55,14 @@ const PRESETS = {
   'no-e4': { set: { 'upgrade.maxLevel': { r: 4, p: 4, a: 4, e: 3 } } },
 };
 // 规则变体（试新规则用，不改游戏源码）：在模拟进程里给引擎套一层规则，电脑和对局都受约束
-//   pofu-noup：同一回合不能“先升级再破釜沉舟”；破釜沉舟那一回合和之后的封锁期（原有 3 回合不能用主动技能）里
-//              楚方也不能升级——手动升级、甲片攒够的自动晋升都不行（甲片照攒，封锁结束后第一次击杀时再晋升）
+//   pofu-noup（用户定的规则，2026-10-03）：同一回合不能“先升级再破釜沉舟”；破釜沉舟那一回合和之后 3 回合的封锁期里，
+//              楚方不能升级（手动升级、甲片攒够的自动晋升都不行，甲片照攒），主动、被动技能都不能用
+//              （践踏、神速营、回防、铁甲禁卫也封）；封锁一结束，甲片攒够的子立刻自动晋升
 //   pofu-1kill：破釜沉舟两步加起来最多杀死一个敌子（践踏、溅射带走的也算；打伤不算）
 //   pofu-2pc：两子合击——两步必须由两枚不同的子各走一步，同一枚子不能连走两步
 //   pofu-fromN：第 N 回合起才能破釜沉舟（如 pofu-from16）
 //   预设：pofu-a = noup（用户第一档）；pofu-b = noup + 1kill（用户第二档）；pofu-a2pc = noup + 2pc；pofu-a16 = noup + from16
-//   注意：封锁期只封主动技能（引擎原样），被动技能（践踏、神速营、回防、铁甲禁卫）和鸿门宴照常可用。
+//   注意：封锁期不封鸿门宴（终极兵法不算技能）。
 //   这些变体定稿后应直接写进 bingfa.js 的 resolve()（界面上的破釜入口 pofuFirst / pofuSecond 才会一致），这里只供模拟。
 PRESETS['pofu-noup'] = { set: {}, patches: ['pofu-noup'] };
 PRESETS['pofu-1kill'] = { set: {}, patches: ['pofu-1kill'] };
@@ -84,18 +85,33 @@ function applyPatches(BF, names) {
   const gated = S => fromN && round(S) < +fromN;
   // 一条破釜沉舟按变体规则是否违规（S 是走之前的局面，r 是引擎结算结果，可以为空）
   const bad = (S, a, r) => isPofu(a) && ((has('pofu-noup') && S.upgraded) || gated(S) || (has('pofu-2pc') && samePiece(a)) || (has('pofu-1kill') && r && kills(r.ev) > 1));
-  // 甲片自动晋升也算升级：楚方破釜那一回合、封锁期里，临时关掉自动晋升（bfsim 里引擎用的配置就是 BF.CFG）
-  const U = BF.CFG.upgrade;
+  // 楚方破釜那一回合、封锁期里：临时关掉甲片自动晋升；封锁期里再临时封掉被动技能（把解锁等级设成 99）。
+  //   bfsim 里引擎用的配置就是 BF.CFG，临时改、用完马上恢复
+  const U = BF.CFG.upgrade, PASSIVE = ['jianta', 'shensu', 'huifang', 'jinwei'];
   const noAuto = (S, a, fn) => {
-    if (!has('pofu-noup') || !U.autoByPlates || !S || S.turn !== 'b' || !(isPofu(a) || locked(S))) return fn();
-    U.autoByPlates = false; try { return fn(); } finally { U.autoByPlates = true; }
+    if (!has('pofu-noup') || !S || S.turn !== 'b' || !(isPofu(a) || locked(S))) return fn();
+    const saved = U.autoByPlates, lv = PASSIVE.map(k => BF.CFG.skills[k].level);
+    U.autoByPlates = false;
+    if (locked(S)) for (const k of PASSIVE) BF.CFG.skills[k].level = 99;
+    try { return fn(); } finally { U.autoByPlates = saved; PASSIVE.forEach((k, i) => { BF.CFG.skills[k].level = lv[i]; }); }
+  };
+  // 封锁一结束（轮到楚方、楚方行动数刚好到 fx.pf）：甲片攒够下一级价钱的楚子立刻晋升（不花军功、甲片用掉、回满血）
+  const promoteAfterLock = S => {
+    if (!has('pofu-noup') || S.turn !== 'b' || !S.fx.pf || S.cnt.b !== S.fx.pf) return;
+    for (const row of S.board) for (const p of row) {
+      if (!p || p.s !== 'b' || p.t === 'k' || p.lv >= BF.maxLvOf(p.t)) continue;
+      const cost = U.cost[p.t] && U.cost[p.t][p.lv - 1];
+      if (cost && (p.xp || 0) * U.killDiscount >= cost) { p.lv++; p.hp = BF.hpOf(p.t, p.lv); p.xp = 0; }
+    }
   };
   const attempt0 = BF.attempt;
   BF.attempt = (S, a) => { if (isPofu(a) && bad(S, a, null)) return null; const r = noAuto(S, a, () => attempt0(S, a)); return r && bad(S, a, r) ? null : r; };
   const pairs0 = BF.ai.pofuPairs;
   BF.ai.pofuPairs = (S, ...rest) => ((has('pofu-noup') && S.upgraded) || gated(S) ? [] : noAuto(S, { k: 'art', steps: [] }, () => pairs0(S, ...rest)).filter(x => !bad(S, x.a, x)));
-  const exp0 = BF.ai.expand;
+  const exp0 = BF.ai.expand, gen0 = BF.ai.gen, mt0 = BF.ai.moveTargets;
   BF.ai.expand = S => noAuto(S, null, () => exp0(S));
+  BF.ai.gen = (S, c) => noAuto(S, null, () => gen0(S, c));
+  BF.ai.moveTargets = (S, f, r) => noAuto(S, null, () => mt0(S, f, r));
   if (has('pofu-noup')) {
     const up0 = BF.ai.upgradeState;
     BF.ai.upgradeState = (S, at) => (locked(S) ? null : up0(S, at));
@@ -105,8 +121,12 @@ function applyPatches(BF, names) {
   const apply0 = BF.Game.prototype.apply;
   BF.Game.prototype.apply = function (e) {
     if (isPofu(e) && (bad(this.S, e, null) || bad(this.S, e, noAuto(this.S, e, () => attempt0(this.S, e))))) return null;
-    return noAuto(this.S, e, () => apply0.call(this, e));
+    const r = noAuto(this.S, e, () => apply0.call(this, e));
+    if (r) promoteAfterLock(this.S);
+    return r;
   };
+  const legal0 = BF.Game.prototype.legalFrom;
+  BF.Game.prototype.legalFrom = function (f, r) { return noAuto(this.S, null, () => legal0.call(this, f, r)); };
 }
 // 电脑先定升不升级、再看破釜沉舟：pofu-noup 下它会为了升级白白放弃一次更好的破釜。
 //   这里替楚方多想一次“这一回合不升级”（引擎在这一回合拒绝楚方升级，往后的回合照常），两次里取电脑自评更高的那一个。
