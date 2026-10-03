@@ -167,8 +167,11 @@ function applyReviveFree(BF) {
     const r = attempt0(T, a.then); if (!r || r.free) return null;
     return { ...r, kind: 'art', ev: f.ev.concat(r.ev) };
   };
-  // 召回之后的两种走法：不升级 / 马上给召回的子升一级（军功够、本回合还没升过才有）
-  const variants = f => { const U = A.upgradeState(f.T, f.ev[0].at); return U ? [[f.T, false], [U, true]] : [[f.T, false]]; };
+  // 召回之后的两种走法：不升级 / 马上给召回的子升一级（军功够、本回合还没升过才有）。
+  //   搜索内部（inner = true）只在召回的子原位会被楚方打到时才展开升级版——那正是“防止召回的棋子直接被秒”的时候；
+  //   没人打得到时“先召回、以后再升”差不多，全展开会让搜索少算一层（第二轮核查实测）。根上（expand）照样全展开
+  const threatened = (T, at_) => { for (let r = 0; r < 10; r++) for (let f = 0; f < 9; f++) { const p = T.board[r][f]; if (p && p.s === 'b' && A.moveTargets(T, f, r).some(m => m.to[0] === at_[0] && m.to[1] === at_[1])) return true; } return false; };
+  const variants = (f, inner) => { const U = A.upgradeState(f.T, f.ev[0].at); return U && (!inner || threatened(f.T, f.ev[0].at)) ? [[f.T, false], [U, true]] : [[f.T, false]]; };
   const compound = (id, up, then) => (up ? { k: 'art', id, up: true, then } : { k: 'art', id, then });
   // 搜索内部（gen）只展开电脑在根上真会召回的兵种：chat 的电脑有车在场只救车，车都没了或楚已用破釜才救炮、马，士象兵不救。
   //   每个能召回的兵种都要乘上约 40 种“后面那一步”，全展开会让汉方在攒着召回时少算一层（核查实测），
@@ -182,8 +185,8 @@ function applyReviveFree(BF) {
     const res = out.filter(it => !isRevive(it.a));
     for (const id of reviveIds(S)) {
       const f = freeRevive(S, id); if (!f) continue;
-      const t = f.ev[0].t; if (!searchable(S, t)) continue;
-      for (const [T, up] of variants(f)) for (const it of gen0(T, false)) if (it.a.k === 'mv' && it.p.id !== id) res.push({ a: compound(id, up, it.a), p: it.p, q: it.q, art: t });
+      const t = f.ev[0].t; if (!searchable(S, t) && !A.inCheck(S, 'r')) continue;   // 被将军时什么兵种都展开（只剩召回能解将时不能当成将死）
+      for (const [T, up] of variants(f, true)) for (const it of gen0(T, false)) if (it.a.k === 'mv' && it.p.id !== id) res.push({ a: compound(id, up, it.a), p: it.p, q: it.q, art: t });
     }
     return res;
   };
@@ -194,7 +197,7 @@ function applyReviveFree(BF) {
     const res = out.filter(k => !isRevive(k.a));
     for (const id of ids) {
       const f = freeRevive(S, id); if (!f) continue;
-      for (const [T, up] of variants(f)) for (const k of exp0(T)) if (k.a.k === 'mv') res.push({ a: compound(id, up, k.a), S: k.S, ev: f.ev.concat(k.ev) });
+      for (const [T, up] of variants(f, false)) for (const k of exp0(T)) if (k.a.k === 'mv') res.push({ a: compound(id, up, k.a), S: k.S, ev: f.ev.concat(k.ev) });
     }
     return res;
   };
@@ -377,10 +380,16 @@ function worker() {
         else if (e.e === 'counter') inc(R.jumaCounter[other(side)], 'hit');
       }
     };
+    // 破釜沉舟前后（用户 2026-10-03：“执汉需要利用好破釜的 debuff 进行反击”）：楚那一回合开始前 s0、破釜之后 s1、
+    //   封锁期结束（轮到楚、楚方行动数到 fx.pf）时 s2。分数 = 中性估值（+ 汉优），m* = 子力差（汉 − 楚）
+    const matDiff = S => { const m = material(S); return m.r - m.b; };
+    const pfEnd = () => { if (R.pf && R.pf.s2 == null) { R.pf.s2 = +neutral(g.S).toFixed(2); R.pf.m2 = matDiff(g.S); R.pf.endRound = g.round; } };
     while (!g.result) {
       if (g.round > job.maxRounds) { R.reason = 'cap'; break; }
       if (++guard > job.maxRounds * 6) { R.reason = 'stuck'; break; }
       const side = g.turn;
+      if (side === 'b' && R.pf && g.S.cnt.b >= g.S.fx.pf) pfEnd();
+      const pre = side === 'b' && !R.pf ? { s: +neutral(g.S).toFixed(2), m: matDiff(g.S) } : null;
       if (g.status && g.status.mustPass) { const info = g.apply({ k: 'pass' }); if (!info) throw new Error('pass 失败'); record({ k: 'pass' }, info, side); R.plies++; sample(); continue; }
       const t0 = Date.now();
       let L = R.plies < job.open ? 'open' : lvl[side];
@@ -397,9 +406,11 @@ function worker() {
         if (!info) throw new Error('非法行动 ' + JSON.stringify(a) + ' seed=' + job.seed);
         record(a, info, side);
       }
+      if (pre && seq.some(a => a.k === 'art' && a.steps)) R.pf = { round: g.round, s0: pre.s, m0: pre.m, s1: +neutral(g.S).toFixed(2), m1: matDiff(g.S), lockTo: g.S.fx.pf };
       R.plies++;
       sample();
     }
+    if (R.pf && R.pf.s2 == null) { pfEnd(); R.pf.ended = true; }   // 封锁期没过完就分了胜负（或到回合上限）
     if (g.result) { R.winner = g.result.winner; R.reason = g.result.reason; }
     // 将死时是谁在将军：将军的子有几点血、是不是贴在帅将身边（“升级后贴脸将军，一级士帅打不死”这类杀法）
     if (R.reason === 'checkmate') {
@@ -433,6 +444,8 @@ function worker() {
       for (const [k, spec] of Object.entries(m.ais)) {
         const X = AIMAP[k] = load(spec);
         if (BF.ai.version != null && X.apiVersion != null && X.apiVersion !== BF.ai.version) warns.push(`${spec.label} 按接口第 ${X.apiVersion} 版写的，当前引擎是第 ${BF.ai.version} 版`);
+        // 25eb911 之前的电脑没有“按节点数收手”：给了 --nodes 它也照样按时间算（校尉 3 层算满），对打结果和机器快慢有关、不能精确复现
+        if (parseNodes(m.nodes) && !/nodeCap|\bL\.nodes\b/.test(require('fs').readFileSync(path.resolve(__dirname, '..', spec.file), 'utf8'))) warns.push(`${spec.label} 不支持按节点数收手（--nodes 对它无效），它按时间算：结果和机器快慢有关，不能精确复现。和上一版比请用 git:25eb911 或更新的版本`);
       }
       for (const X of new Set(Object.values(AIMAP))) {
         X.LEVELS.hard.budget = m.budget;
@@ -562,6 +575,13 @@ function summarize(rs) {
   const rounds = rs.map(r => r.rounds);
   S.rounds = { mean: mean(rounds), median: quant(rounds, 0.5), p90: quant(rounds, 0.9), within60: rounds.filter(x => x <= 60).length / N };
   S.final = rs.filter(r => r.final).length / N;
+  const pfs = rs.filter(r => r.pf);
+  if (pfs.length) {
+    const avg = f => mean(pfs.map(f));
+    S.pf = { n: pfs.length, gain: avg(r => r.pf.s1 - r.pf.s0), gainM: avg(r => r.pf.m1 - r.pf.m0), back: avg(r => r.pf.s2 - r.pf.s1), backM: avg(r => r.pf.m2 - r.pf.m1),
+      half: pfs.filter(r => r.pf.s2 - r.pf.s1 >= -(r.pf.s1 - r.pf.s0) / 2).length / pfs.length, ended: pfs.filter(r => r.pf.ended).length,
+      redWin: pfs.filter(r => r.winner === 'r').length / pfs.length };
+  }
   const mates = rs.filter(r => r.mate);
   S.mate = { n: mates.length, hard: mates.filter(r => r.mate.hp >= 2).length, hardAdj: mates.filter(r => r.mate.hardAdj).length, double: mates.filter(r => r.mate.n >= 2).length };
   // 每方每种行动：用过的局占比、平均次数
@@ -631,6 +651,7 @@ function print(S, o) {
   const ur = S.ult.used, ar = S.art.used;
   L.push(`终极兵法：汉用 ${ur.r[0]} 局（平均第 ${S.ult.round.r.toFixed(1)} 回合，用了的局胜 ${ur.r[0] ? pct(ur.r[1] / ur.r[0]) : '-'}）  楚用 ${ur.b[0]} 局（第 ${S.ult.round.b.toFixed(1)} 回合，胜 ${ur.b[0] ? pct(ur.b[1] / ur.b[0]) : '-'}）  护驾破鸿门宴 ${S.rescue} 局`);
   L.push(`主帅兵法：汉召回 ${ar.r[0]} 局（第 ${S.art.round.r.toFixed(1)} 回合，胜 ${ar.r[0] ? pct(ar.r[1] / ar.r[0]) : '-'}）  楚破釜 ${ar.b[0]} 局（第 ${S.art.round.b.toFixed(1)} 回合，胜 ${ar.b[0] ? pct(ar.b[1] / ar.b[0]) : '-'}）`);
+  if (S.pf) L.push(`破釜前后（${S.pf.n} 局，分数 + 汉优）：破釜那一手汉方 ${S.pf.gain.toFixed(2)} 分（子力 ${S.pf.gainM.toFixed(2)}）；之后封锁期汉方 ${S.pf.back >= 0 ? '+' : ''}${S.pf.back.toFixed(2)} 分（子力 ${S.pf.backM >= 0 ? '+' : ''}${S.pf.backM.toFixed(2)}）；追回一半以上 ${pct(S.pf.half)}；封锁期内就分了胜负 ${S.pf.ended} 局；这些局汉胜 ${pct(S.pf.redWin)}`);
   L.push('首次升到 N 级（平均回合 / 出现的局占比）  汉 | 楚');
   for (const [k, v] of Object.entries(S.firstLv)) L.push(`  ${k} 级  第 ${v.r.toFixed(1)} 回合 ${pct(v.rn)} | 第 ${v.b.toFixed(1)} 回合 ${pct(v.bn)}`);
   L.push('局面分随回合（汉方视角，正 = 汉优）/ 军功 / 等级总和');

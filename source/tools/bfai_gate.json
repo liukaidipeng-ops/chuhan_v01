@@ -1,8 +1,8 @@
 {
-  "_说明": "技能模式电脑总闸的门槛（tools/bfai_gate.js 读）。null = 还没定，只量基准。先拿当前版本量出基准，再由用户和两边商量定数。nodes：各档按搜索节点数收手（校尉 6 万保证 3 层算满；霸王 20 万约等于普通电脑 4 秒），漏着率的裁判 = 校尉的 refFactor 倍。",
+  "_说明": "技能模式电脑总闸的门槛（tools/bfai_gate.js 读）。null = 还没定，只量基准。先拿当前版本量出基准，再由用户和两边商量定数。nodes：各档按搜索节点数收手（校尉 6 万保证 3 层算满；霸王 20 万约等于普通电脑 4 秒），漏着率的裁判 = 校尉的 refFactor 倍。match.prev = 对打默认的上一版（线上那一版；换线上版本后改这里）。",
   "nodes": { "mid": 60000, "hard": 200000 },
   "exam": { "mid": null, "hard": null, "minCategory": null },
   "quality": { "blundersPer100": null, "mateErrors": null, "dropsPer100": null, "refFactor": 5 },
-  "match": { "sprt": [-30, 10], "maxGames": 600 },
+  "match": { "prev": "git:25eb911", "sprt": [-30, 10], "maxGames": 600 },
   "humanSignoff": null
 }
