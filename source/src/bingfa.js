@@ -120,7 +120,7 @@
   const inCheckF = (S, s) => !S.final && inCheck(S.board, s);
   const jmActive = (S, p) => p && p.t === 'p' && p.jm > S.cnt[other(p.s)];
   const maxLv = t => (t === 'k' ? 1 : CFG_CUR.upgrade.maxLevel[t] || CFG_CUR.upgrade.defaultMaxLevel);
-  const atk = p => (p.t === 'k' ? 1 : ((CFG_CUR.attack[p.t] || [])[p.lv - 1] || 1));
+  const atk = p => ((CFG_CUR.attack[p.t] || [])[(p.lv || 1) - 1] || 1); // 将帅默认 1，可用 CFG.attack.k = [n] 调
   const hpOf = (t, lv, cfg = CFG_CUR) => ((cfg.hpByType[t] || cfg.hp)[lv - 1]);
   const isPassive = sk => !!(sk && CFG_CUR.skills[sk] && CFG_CUR.skills[sk].passive);
   const skLevel = sk => (CFG_CUR.skills[sk] && CFG_CUR.skills[sk].level) || CFG_CUR.skillLevel;
@@ -841,7 +841,7 @@
     const sk = t === 'k' ? null : SKILL_OF(t, s);
     const lvOf = k => (cfg.skills[k] && cfg.skills[k].level) || cfg.skillLevel;
     return {
-      hp: (cfg.hpByType[t] || cfg.hp)[lv - 1], atk: t === 'k' ? 1 : ((cfg.attack[t] || [])[lv - 1] || 1),
+      hp: (cfg.hpByType[t] || cfg.hp)[lv - 1], atk: ((cfg.attack[t] || [])[lv - 1] || 1),
       skill: sk && lv >= cfg.skillLevel ? sk : null, skills: t === 'k' ? [] : SKILLS_OF(t, s).filter(k => lv >= lvOf(k)),
       maxLv: t === 'k' ? 1 : (cfg.upgrade.maxLevel[t] || cfg.upgrade.defaultMaxLevel),
     };
