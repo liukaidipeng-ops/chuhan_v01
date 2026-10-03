@@ -21,7 +21,7 @@ def wait(fn, secs=30, step=0.5):
         except Exception: pass
         time.sleep(step)
     return False
-INIT = "localStorage.setItem('xq3d-noaudio','1'); localStorage.setItem('xq3d-norender','1'); localStorage.setItem('xq3d-server', JSON.stringify('ws://127.0.0.1:8883')); localStorage.setItem('xq3d-quality', JSON.stringify('low'));"
+INIT = "localStorage.setItem('xq3d-noaudio','1'); localStorage.setItem('xq3d-autostart','1'); localStorage.setItem('xq3d-norender','1'); localStorage.setItem('xq3d-server', JSON.stringify('ws://127.0.0.1:8883')); localStorage.setItem('xq3d-quality', JSON.stringify('low'));"
 try:
     with sync_playwright() as p:
         brs = {k: p.chromium.launch(args=args) for k in 'ABC'}

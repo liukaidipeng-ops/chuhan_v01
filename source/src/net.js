@@ -255,6 +255,7 @@ const Net = (() => {
     join(c, handlers) { start('guest', c.toUpperCase(), handlers); },
     watch(c, handlers) { start('watch', c.toUpperCase(), handlers); },
     send, sendSpec, publishRoom, clearRoom, close, kick,
+    freeSeat() { peerPid = null; peerSeen = 0; peerState = 'none'; },
     hallPub, hallClear, hallOpen, hallClose, hallList, hallTouch() { if (hallInfo) hallPub(hallInfo); }, get hallOk() { return hallClients.some(c => c.ok); },
     get connected() { return anyOk() && peerState === 'ok'; },
     get lineOk() { return anyOk(); },

@@ -5,7 +5,7 @@ const Fx = (() => {
   const TOP = Board.TOP;
   const R = (a, b) => a + Math.random() * (b - a);
   const LOW = () => Core.quality === 'low';
-  const state = { level: 'cine', gore: 3, ply: 0 };
+  const state = { level: 'cine', gore: 3, ply: 0, keep: 0 };
 
   // ---------- 粒子 ----------
   const pools = { n: [], a: [] };
@@ -386,6 +386,7 @@ const Fx = (() => {
     marks.length = 0;
     lg.clearRect(0, 0, LAY_W, LAY_H); layerTex.needsUpdate = true;
     for (const s of smokes) s.dead = true;
+    for (const b of bits) { try { Core.disposeTree(b.o); } catch (e) { } } bits.length = 0;
   }
   // 血迹颜色：新鲜的朱红到半干的暗褐，随机一些
   const BLOOD_PAL = [0x7c0e08, 0x6a0a06, 0x8e1a10, 0x5a0805, 0x741208];
@@ -484,7 +485,13 @@ const Fx = (() => {
         if (b.bleed && b.age < b.bleed && Math.random() < 0.6) spawn({ pos: b.o.position.clone(), tex: Tex.splat, color: bloodCol(), size: 0.06, size2: 0.02, life: 0.4, op: 0.9, g: 4 });
       }
       if (b.age > b.life) {
-        const k = Math.min(1, (b.age - b.life) / 0.6);
+        // 碎片留存（设置里选）：落定的碎片先留在场上，过了设定的回合数（或者场上碎片太多）才开始淡出
+        if (state.keep && b.keep && b.rest && !b.fading) {
+          const over = bits.length > (LOW() ? 110 : 320) && i < bits.length - (LOW() ? 110 : 320);
+          if (!over && state.ply - b.ply0 < state.keep * 2 && state.ply >= b.ply0) continue;
+          b.fading = true; b.life = b.age;
+        }
+        const k = Math.min(1, (b.age - b.life) / (b.fading ? 2.5 : 0.6));
         b.o.scale.setScalar(b.s * (1 - k));
         if (k >= 1) { if (b.ink) P.ink(b.o.position, 3, 0.2, 0.2, 0.6); Core.disposeTree(b.o); bits.splice(i, 1); }
       }
@@ -492,7 +499,9 @@ const Fx = (() => {
   });
   function throwObj(o, v, opts = {}) {
     if (!o.parent) scene.add(o);
-    bits.push({ o, v: v.clone(), w: opts.w || rv(10, 10, 10), age: 0, life: opts.life ?? 2.2, s: o.scale.x, floor: opts.floor, fire: opts.fire || 0, bleed: opts.bleed || 0, g: opts.g, onLand: opts.onLand || null, ink: opts.ink !== false });
+    // 带血的断肢残骸：落地处留一摊血
+    const onLand = opts.onLand || (opts.bleed ? p => Marks.blood(p, R(0.25, 0.45)) : null);
+    bits.push({ o, v: v.clone(), w: opts.w || rv(10, 10, 10), age: 0, life: opts.life ?? 2.2, s: o.scale.x, floor: opts.floor, fire: opts.fire || 0, bleed: opts.bleed || 0, g: opts.g, onLand, ink: opts.ink !== false, ply0: state.ply, keep: opts.keep !== false });
   }
   const chunkGeos = [new THREE.BoxGeometry(0.16, 0.14, 0.12), new THREE.TetrahedronGeometry(0.11), new THREE.BoxGeometry(0.22, 0.1, 0.09), new THREE.DodecahedronGeometry(0.07)];
   chunkGeos.forEach(g => { g.userData.keep = true; });
@@ -931,6 +940,7 @@ const Fx = (() => {
     get level() { return state.level; }, set level(v) { state.level = v; },
     get gore() { return state.gore; }, set gore(v) { state.gore = v; },
     get ply() { return state.ply; }, set ply(v) { state.ply = v; },
+    get keep() { return state.keep; }, set keep(v) { state.keep = +v || 0; },
     get full() { return state.level !== 'low'; }, set full(v) { state.level = v ? 'cine' : 'low'; },
     bloodCol,
   };

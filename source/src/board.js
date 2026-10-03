@@ -1464,7 +1464,7 @@ const Board = (() => {
       }
     }
     // 流动的墨带：顺着能走的方向指过去
-    if (sel && moves.length) for (const b of beltPaths(sel, moves, (f, r) => !!meshAt(f, r))) {
+    if (sel && moves.length && !moves.noBelt) for (const b of beltPaths(sel, moves, (f, r) => !!meshAt(f, r))) {
       const mesh = new THREE.Mesh(ribbonGeo(b.pts, 0.4, TOP + 0.0042), new THREE.MeshBasicMaterial({ map: flowTex, color: b.via ? HINT.beltV : HINT.belt, transparent: true, opacity: 0.5, depthWrite: false, vertexColors: true, side: THREE.DoubleSide }));
       mesh.userData.own = true; mesh.renderOrder = 3; markRoot.add(mesh); belts.push(mesh);
     }

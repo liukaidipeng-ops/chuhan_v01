@@ -95,6 +95,14 @@ const Spect = (() => {
     const u = unitOf(p); u.pose = 'laugh';
     clearTimeout(p.pT); p.pT = setTimeout(() => { if (u.pose === 'laugh') u.pose = 'idle'; }, 2800);
   }
+  // 地动山摇：观战席上的人也被震倒
+  function quake(center) {
+    for (const p of people.values()) {
+      const u = unitOf(p); if (!u || u._q) continue;
+      u._q = true; u.fallDir = Math.atan2(u.p.x - center.x, u.p.z - center.z);
+      setTimeout(() => Core.tween(0.3, k => { u.fall = k * 0.97; }, Core.ease.in).then(() => Core.sleep(1 + Math.random() * 0.6)).then(() => Core.tween(0.5, k => { u.fall = 0.97 * (1 - k); })).then(() => { u.fall = 0; u._q = false; }), 200 + Math.random() * 200);
+    }
+  }
   // 吃子时，站这一方的观众跟着欢呼（中立的看客也起哄）
   function react(side) {
     for (const p of people.values()) {
@@ -135,7 +143,7 @@ const Spect = (() => {
   });
   const randomName = () => NAMES[Math.floor(Math.random() * NAMES.length)];
   return {
-    upsert, remove, clear, say, laugh, react, randomName, MAX, SIDE_CN,
+    quake, upsert, remove, clear, say, laugh, react, randomName, MAX, SIDE_CN,
     get count() { return people.size; }, get people() { return people; },
     has: id => people.has(id), get: id => people.get(id),
   };

@@ -31,7 +31,7 @@
       pili: { cooldown: 4, splashDamage: 1, splashMinLevel: 2 },
       feiyue: { cooldown: 5 }, // 相 / 象三级主动：这一步无视塞象眼
       qishe: { level: 4, cooldown: 3, range: 2, damage: 1 }, // 汉相四级
-      jianta: { level: 4, passive: true, splashDamage: 1, splashMinLevel: 1, nonLethal: true }, // 楚象四级被动：每次落子都溅伤四周，无冷却
+      jianta: { level: 4, passive: true, splashDamage: 1, splashMinLevel: 1, nonLethal: true, ring8: true }, // 楚象四级被动：每次落子都溅伤四周，无冷却
       hujia: { cooldown: 4 },
     },
     generalArts: { xiaohe: { usesPerGame: 1 }, pofu: { usesPerGame: 1, steps: 2, mayEndInCheck: false, skillLockRounds: 3 } },
@@ -44,6 +44,7 @@
   const SKILL_CN = { juma: '拒马', chongzhen: '冲阵', taying: '踏营', pili: '霹雳', qishe: '齐射', jianta: '践踏', hujia: '护驾', shensu: '神速营', huifang: '回防', jinwei: '铁甲禁卫', feiyue: '飞越' };
   const ART_CN = { r: '召回良将', b: '破釜沉舟' }, ULT_CN = { r: '四面楚歌', b: '鸿门宴' };
   const ORTHO = [[1, 0], [-1, 0], [0, 1], [0, -1]];
+  const RING8 = [[1, 0], [-1, 0], [0, 1], [0, -1], [1, 1], [1, -1], [-1, 1], [-1, -1]];
   // 称号：兵种随等级晋升（界面显示、升级演出用）
   const RANK_CN = {
     r: { p: ['汉军兵', '汉伍长', '汉什长', '无当飞军'], r: ['汉军车', '汉轻车', '汉武刚车', '虎贲车骑'], n: ['汉军马', '汉骁骑', '郎中骑'], c: ['汉军炮', '汉抛石', '汉霹雳车'], e: ['汉军相', '汉材官', '蹶张强弩', '大黄弩士'], a: ['汉军士', '汉郎卫', '汉中涓', '参乘虎卫'], k: ['汉王刘邦'] },
@@ -73,7 +74,7 @@
     feiyue: '这一步无视塞象眼（仍不能过河）。',
     pili: '炮击一个敌子，落点四周二级以上的敌子各扣 1 点。',
     qishe: '不动身，射斜线 1～2 格内的一个敌子，扣 1 点。',
-    jianta: '每次行动后，四周的敌子各扣 1 点（踩不死，至少留 1 血）。',
+    jianta: '每次行动后，周围一圈（含斜向）的敌子各扣 1 点；一级子直接踩死，二级以上至少留 1 血。',
     hujia: '与帅（将）互换位置，可解将；鸿门宴期间可救出汉王。',
   };
   // 每枚子的开局位置（复活用）
@@ -192,11 +193,12 @@
   function splash(S, c, side, ev, how, by) {
     const minLv = CFG_CUR.skills[how].splashMinLevel, n = CFG_CUR.skills[how].splashDamage;
     ev.push({ e: 'splash', how, at: c.slice() });
-    for (const [df, dr] of ORTHO) {
+    const K = CFG_CUR.skills[how];
+    for (const [df, dr] of (K.ring8 ? RING8 : ORTHO)) {
       const f = c[0] + df, r = c[1] + dr, q = at(S, f, r);
       if (!q || q.s === side || q.t === 'k') continue;
-      // 践踏：四周敌子不论等级都挨 1 点，但踩不死（最少留 1 血）
-      if (CFG_CUR.skills[how].nonLethal) { const d = Math.min(n, q.hp - 1); if (d > 0) damage(S, f, r, d, side, ev, how, by); }
+      // 践踏：周围一圈敌子各挨 1 点；一级子直接踩死，二级以上踩不死（最少留 1 血）
+      if (K.nonLethal) { const d = q.lv <= 1 ? n : Math.min(n, q.hp - 1); if (d > 0) damage(S, f, r, d, side, ev, how, by); }
       else if (q.lv >= minLv) damage(S, f, r, n, side, ev, how, by);
     }
   }

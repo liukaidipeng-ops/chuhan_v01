@@ -1258,8 +1258,8 @@ const Squads = (() => {
         if (u.t === 'k') { if (sq.flags && sq.flags.length > 1) { scene.remove(sq.flags[0].group); sq.flags = [sq.flags[1]]; } }
         else { ns.flag = Models.makeBanner(u.s, XQ.NAMES[u.s][u.t]); ns.flag.group.scale.setScalar(0.001); scene.add(ns.flag.group); }
         // 脚下的小圈：汉红、楚黑，半透明、一呼一吸，方便看清这枚子站在哪个点上
-        ns.ring = new THREE.Mesh(ringGeo, new THREE.MeshBasicMaterial({ map: ringTex, color: u.s === 'r' ? 0xc8281a : 0x141210, transparent: true, opacity: 0, depthWrite: false, polygonOffset: true, polygonOffsetFactor: -3 }));
-        ns.ring.renderOrder = 3; scene.add(ns.ring);
+        ns.ring = new THREE.Mesh(ringGeo, new THREE.MeshBasicMaterial({ map: ringTex, color: u.s === 'r' ? 0xc8281a : 0x141210, transparent: true, opacity: 0, depthWrite: false, polygonOffset: true, polygonOffsetFactor: -14, polygonOffsetUnits: -14 }));
+        ns.ring.renderOrder = 4;   // 永远压在血迹、焦土这些地面痕迹上面 scene.add(ns.ring);
         map.set(m, ns);
       }
     }
@@ -1286,7 +1286,7 @@ const Squads = (() => {
           f.scale.setScalar(Math.max(0.001, FLAG_S * st.k)); st.flag.update(rdt);
         }
         const b = 0.5 + 0.5 * Math.sin(t * 2.2 + st.ph), rs = RING_D * (0.94 + 0.08 * b);
-        st.ring.position.set(m.position.x, TOP + 0.006, m.position.z); st.ring.scale.set(rs, 1, rs);
+        st.ring.position.set(m.position.x, TOP + 0.012, m.position.z); st.ring.scale.set(rs, 1, rs);
         st.ring.material.opacity = st.k * (m.userData.s === 'r' ? 0.42 + 0.28 * b : 0.5 + 0.3 * b);
       }
     });

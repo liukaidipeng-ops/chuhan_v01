@@ -69,45 +69,104 @@ const BFX = (() => {
     }, i * 160));
   }
   // 楚战象被动践踏：落子后跺地，四周溅伤
+  // 场边全被震倒：两边军营里的兵、观战席上的人
+  function crowdDown(c) { try { Camp.quake(c); } catch (e) { } try { Spect.quake(c); } catch (e) { } }
+  // 碎石：从震源往四周崩出去
+  const rockGeo = new THREE.DodecahedronGeometry(0.06); rockGeo.userData.keep = true;
+  function rubble(c, n = 16, r = 1, power = 1) {
+    for (let i = 0; i < (Core.quality === 'low' ? Math.ceil(n / 2) : n); i++) {
+      const a = Math.random() * 6.28, o = new THREE.Mesh(rockGeo, Core.toon(i % 3 ? 0x6b6257 : 0x8a7f70));
+      o.scale.setScalar(R(0.5, 1.7)); o.position.copy(c).add(new V3(Math.cos(a) * r * R(0.2, 0.8), 0.08, Math.sin(a) * r * R(0.2, 0.8)));
+      Fx.throwObj(o, new V3(Math.cos(a) * R(1, 3.2) * power, R(2.2, 5.5) * power, Math.sin(a) * R(1, 3.2) * power), { life: R(1.2, 2.2), ink: false });
+    }
+  }
+  // 被震飞 / 炸飞：棋子模式下棋子碎成块飞出去；模型模式下换成那队兵的模型，被掀飞、断肢落地留血
+  function blowAway(e, from, power = 1.4, burnt = false) {
+    const m = Board.pieces.get(e.id), c = Board.pos(e.at[0], e.at[1]);
+    const dir = c.clone().sub(from).setY(0); if (dir.lengthSq() < 1e-4) dir.set(R(-1, 1), 0, R(-1, 1)); dir.normalize();
+    P.blood(c.clone().setY(TOP + 0.25), 16, 0.9, dir, 1.5); P.ink(c.clone().setY(TOP + 0.2), 12, 0.5, 0.35);
+    let done = false;
+    if (Squads.Stand.on && e.t && e.t !== 'k') {
+      try {
+        const sq = Squads.make(e.t, e.s, c.clone().setY(TOP), Squads.yawOf(dir.clone().negate()), 'defend', e.lv || 1, e.lv || 0);
+        sq.setVis(1); if (sq.guard) sq.guard.setVis(1);
+        Promise.resolve(sq.die(burnt ? 'blast' : 'crush', dir, power * 1.5, c.clone().addScaledVector(dir, -0.35))).then(() => sleep(2.2)).then(() => { try { sq.dispose(); } catch (err) { } });
+        done = true;
+      } catch (err) { console.error(err); }
+    }
+    if (!done) { Fx.chunks(c.clone().setY(TOP + 0.15), dir, power * 1.7, 18, { of: m, burnt }); if (m) Fx.flyFace(m, c.clone().setY(TOP + 0.1), dir, power * 1.6, burnt); }
+    if (m) Fx.removePiece(m);
+    Sfx.B.crack(0); 
+  }
+  // 楚战象「践踏」：一跺地，周围一圈烟尘冲天、碎石乱飞；被踩死的整队掀飞，场边的人全被震倒
   async function trampleFx(ev, side) {
     const sp = ev.find(e => e.e === 'splash' && e.how === 'jianta');
     if (!sp) return;
-    const c = Board.pos(sp.at[0], sp.at[1]);
-    Sfx.unit('ele').stomp(); Cam.shake(0.3); ring(sp.at, 0x5a4a38, 2.8); P.dust(c, 16, null, 0.4); Fx.Marks.crack(c.clone().setY(TOP), 1.6);
+    const c = Board.pos(sp.at[0], sp.at[1]), G = c.clone().setY(TOP + 0.02);
+    Sfx.unit('ele').stomp(); Sfx.B.boom(0, 0.7); Sfx.B.taiko(0, 1, 0.6); Sfx.B.thud(0.05, 1);
+    Cam.shake(0.6); Fx.slowmo(0.25, 0.25);
+    ring(sp.at, 0x5a4a38, 3.4); Fx.ring(G, 5.2, 1.0, 0x8b7e68, 0.7); Fx.ring(G, 2.2, 0.5, 0x3a2f24, 0.9);
+    Fx.Marks.crack(c.clone().setY(TOP), 2.6);
+    for (let i = 0; i < 26; i++) {
+      const a = i / 26 * 6.28, rr = R(0.7, 1.5), q = c.clone().add(new V3(Math.cos(a) * rr, TOP, Math.sin(a) * rr)), out = new V3(Math.cos(a), 0, Math.sin(a));
+      setTimeout(() => { P.plume(q, out.clone().negate(), R(0.45, 0.7), 2); P.dust(q, 3, out.clone().negate(), R(0.4, 0.6)); if (i % 3 === 0) P.smoke(q.clone().setY(TOP + 0.1), 2, 0.9, 0x8b7e68); }, (rr - 0.7) * 160);
+    }
+    P.dust(c, 24, null, 0.6);
+    rubble(c.clone().setY(TOP), 22, 1.2, 1.1);
+    crowdDown(c);
     const hs = ev.filter(e => (e.e === 'hit' || e.e === 'kill') && e.how === 'jianta');
-    if (hs.length) await splashHits(hs, side); else await sleep(0.3);
+    await sleep(0.12);
+    for (const e of hs.filter(x => x.e === 'kill')) blowAway(e, c, 1.5);
+    const hits = hs.filter(x => x.e === 'hit');
+    if (hits.length) await splashHits(hits, side); else await sleep(0.35);
+    await sleep(0.3);
   }
   const notTrample = e => e.how !== 'jianta';
   // 霹雳：一开炮就齐射——目标和前后左右四格同时落弹（每格两三发），格子上有没有子都炸，留下焦土
   async function barrage(from, to, side) {
     const A = Board.pos(from[0], from[1]).setY(TOP + 0.45);
-    const cells = [[0, 0], [1, 0], [-1, 0], [0, 1], [0, -1]].map(([df, dr]) => [to[0] + df, to[1] + dr]).filter(([f, r]) => f >= 0 && f <= 8 && r >= 0 && r <= 9);
+    const nb = [[1, 0], [-1, 0], [0, 1], [0, -1]].map(([df, dr]) => [to[0] + df, to[1] + dr]).filter(([f, r]) => f >= 0 && f <= 8 && r >= 0 && r <= 9);
+    // 三轮急速齐射，每轮三发：一发砸正中，两发砸四周（三轮下来四周每格都挨到）
     const shells = [];
-    cells.forEach((at, ci) => { const big = ci === 0; for (let j = 0; j < (big ? 3 : 2); j++) shells.push({ at, big: big && j === 2, delay: j * 0.09 + R(0, 0.06) }); });
-    Sfx.B.boom(0, 0.7); Sfx.B.boom(0.06, 0.5); Sfx.B.boom(0.12, 0.6);
-    Fx.glow(A.clone().add(new V3(0, 0.3, 0)), 2, 0.35, 0.45);
-    for (let i = 0; i < 3; i++) { Fx.flash(A, 60, 0.3, 0.2); P.fire(A.clone().add(new V3(R(-0.15, 0.15), 0.1, R(-0.15, 0.15))), 10, 0.5); }
-    P.smoke(A, 14, 0.9);
+    for (let v = 0; v < 3; v++) { shells.push({ at: to, v, big: true, last: v === 2 }); for (let j = 0; j < 2; j++) shells.push({ at: nb.length ? nb[(v * 2 + j) % nb.length] : to, v }); }
     const hit = new Set();
-    const shots = shells.map(sh => sleep(sh.delay).then(async () => {
-      const tp = Board.pos(sh.at[0], sh.at[1]).add(new V3(R(-0.18, 0.18), 0, R(-0.18, 0.18))).setY(TOP + 0.05);
-      const ball = new THREE.Mesh(new THREE.SphereGeometry(0.065, 8, 6), Core.toon(0x1c1a18));
-      scene.add(ball);
-      const p0 = A.clone().add(new V3(R(-0.2, 0.2), 0, R(-0.2, 0.2))), peak = 1.4 + A.distanceTo(tp) * 0.22, T = 0.5 + A.distanceTo(tp) * 0.035;
-      await tween(T, k => {
-        ball.position.lerpVectors(p0, tp, k); ball.position.y = p0.y + (tp.y - p0.y) * k + peak * 4 * k * (1 - k);
-        Fx.spawn({ pos: ball.position.clone(), tex: Core.Tex.spark, add: true, color: 0xff8a3a, size: 0.2, size2: 0.05, life: 0.25, op: 0.9 });
-      }, ease.linear);
-      scene.remove(ball); ball.geometry.dispose();
-      const key = sh.at.join(), first = !hit.has(key); hit.add(key);
-      const big = sh.big;
-      Fx.glow(tp.clone().add(new V3(0, 0.25, 0)), big ? 3 : 1.6, big ? 0.5 : 0.35, big ? 0.45 : 0.3);
-      Fx.flash(tp, big ? 120 : 55, big ? 0.85 : 0.45, big ? 0.45 : 0); P.fire(tp.clone().add(new V3(0, 0.1, 0)), big ? 36 : 16, big ? 1 : 0.65); P.smoke(tp, big ? 12 : 5, 0.8); P.sparks(tp, big ? 22 : 9, 1.1);
-      if (first) { const c = Board.pos(sh.at[0], sh.at[1]).setY(TOP + 0.05); Fx.ring(c, 1.9, 0.7, 0x5a4a38, 0.8); Fx.Marks.scorch(c, R(1.0, 1.3)); Fx.addSmoke(c, 0.5); }
-      if (big) { Fx.ring(tp, 3.2, 0.8, 0x5a4a38, 0.8); Fx.Marks.scorch(tp, 1.4); }
-      Sfx.B.boom(0, big ? 0.9 : 0.45); Cam.shake(big ? 0.34 : 0.14);
-    }));
-    await Promise.all(shots);
+    let quaked = false;
+    const volley = v => {
+      Sfx.B.boom(0, 0.8); Sfx.B.boom(0.05, 0.6); Sfx.B.boom(0.1, 0.7); Cam.shake(0.22);
+      Fx.glow(A.clone().add(new V3(0, 0.3, 0)), 2.4, 0.3, 0.5);
+      Fx.flash(A, 70, 0.3, 0.18); for (let i = 0; i < 3; i++) P.fire(A.clone().add(new V3(R(-0.2, 0.2), 0.1, R(-0.2, 0.2))), 12, 0.55);
+      P.smoke(A, 8, 0.9);
+      return Promise.all(shells.filter(sh => sh.v === v).map((sh, i) => sleep(i * 0.05).then(async () => {
+        const tp = Board.pos(sh.at[0], sh.at[1]).add(new V3(R(-0.2, 0.2), 0, R(-0.2, 0.2))).setY(TOP + 0.05);
+        const ball = new THREE.Mesh(new THREE.SphereGeometry(0.07, 8, 6), Core.toon(0x1c1a18));
+        scene.add(ball);
+        const p0 = A.clone().add(new V3(R(-0.2, 0.2), 0, R(-0.2, 0.2))), peak = 1.2 + A.distanceTo(tp) * 0.2, T = 0.36 + A.distanceTo(tp) * 0.03;
+        const halo = Fx.glow(p0, 0.55, T + 0.05, 0.45, 0xff9a4a, 0.25);
+        await tween(T, k => {
+          ball.position.lerpVectors(p0, tp, k); ball.position.y = p0.y + (tp.y - p0.y) * k + peak * 4 * k * (1 - k);
+          if (halo) halo.sp.position.copy(ball.position);
+          Fx.spawn({ pos: ball.position.clone(), tex: Core.Tex.spark, add: true, color: 0xff8a3a, size: 0.24, size2: 0.05, life: 0.28, op: 0.9 });
+          Fx.spawn({ pos: ball.position.clone(), color: 0x3d3a37, size: 0.1, size2: 0.34, life: 0.6, op: 0.3, drag: 1 });
+        }, ease.linear);
+        if (halo) halo.life = 0;
+        scene.remove(ball); ball.geometry.dispose();
+        const key = sh.at.join(), first = !hit.has(key); hit.add(key);
+        const big = sh.big, fin = sh.last, c = Board.pos(sh.at[0], sh.at[1]).setY(TOP + 0.05);
+        // 着弹：火球、浓烟、碎石、冲击环
+        Fx.glow(tp.clone().add(new V3(0, 0.3, 0)), fin ? 5 : big ? 3.6 : 2.4, fin ? 0.6 : 0.4, fin ? 0.6 : 0.45);
+        Fx.flash(tp, fin ? 160 : big ? 110 : 70, fin ? 0.9 : 0.5, fin ? 0.5 : big ? 0.22 : 0);
+        P.fire(tp.clone().add(new V3(0, 0.12, 0)), fin ? 54 : big ? 34 : 22, fin ? 1.4 : big ? 1.05 : 0.8);
+        P.smoke(tp, fin ? 16 : 8, fin ? 1.2 : 0.9); P.sparks(tp, fin ? 34 : 14, 1.3); P.embers(tp, fin ? 16 : 6);
+        rubble(tp.clone().setY(TOP), fin ? 16 : 6, 0.5, fin ? 1.2 : 0.9);
+        Fx.ring(tp, fin ? 4.2 : big ? 3 : 2.1, 0.7, 0x5a4a38, 0.85);
+        if (first || fin) { Fx.Marks.scorch(c, fin ? 1.9 : R(1.0, 1.4)); Fx.addSmoke(c, fin ? 1 : 0.5); }
+        Sfx.B.boom(0, fin ? 1 : big ? 0.8 : 0.55); Cam.shake(fin ? 0.55 : big ? 0.32 : 0.2);
+        if (!quaked) { quaked = true; crowdDown(Board.pos(to[0], to[1])); }
+        if (fin) Fx.slowmo(0.3, 0.2);
+      })));
+    };
+    for (let v = 0; v < 3; v++) { const p = volley(v); if (v < 2) await sleep(0.26); else await p; }
+    await sleep(0.1);
   }
   // 小字提示（被动技能触发等）：在棋子上方飘一下
   function labelPop(at, text, side) {
@@ -307,9 +366,12 @@ const BFX = (() => {
       if (counter && m) { Sfx.B.stab(0, 0.4); P.blood(A.clone().setY(TOP + 0.2), 10, 0.6); shatter(at, 1); }
       const died = ev.find(e => e.e === 'kill' && e.id === P0.id);
       const tEv = ev.filter(e => T0 && e.id === T0.id && (e.e === 'hit' || e.e === 'kill'));
-      if (tEv.length) await splashHits(tEv, side);
       const sp = ev.filter(e => (e.e === 'hit' || e.e === 'kill') && e.how === 'pili' && (!T0 || e.id !== T0.id) && e.id !== P0.id);
-      if (sp.length) await splashHits(sp, side);
+      // 炸死的：棋子炸碎炸飞（模型模式下是那队兵被掀飞）；没死的照旧掉甲片
+      const all = tEv.concat(sp);
+      for (const e of all.filter(x => x.e === 'kill')) blowAway(e, B.clone().addScaledVector(A.clone().sub(B).setY(0).normalize(), 0.3), 1.6, true);
+      const hurt = all.filter(x => x.e === 'hit');
+      if (hurt.length) await splashHits(hurt, side); else await sleep(0.2);
       if (died) { await splashHits([died], side); }
       else if (info.extra.res === 'kill' && m) {
         await sleep(0.2);

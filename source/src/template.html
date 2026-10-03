@@ -297,7 +297,7 @@ body.compact #log.jq{width:214px}
 .seat .sd{display:inline-block;font-weight:bold;letter-spacing:.2em;padding:1px 8px;border-radius:3px;color:#fbe9cf;background:#8e2418}
 .seat.b .sd{background:#262322}
 .seat .who{font-size:17px;margin-top:6px}.seat small{display:block;font-size:12px;color:var(--ink3)}
-.seat.empty{border-style:dashed;opacity:.75}.seat.me{box-shadow:0 0 0 2px rgba(201,160,69,.75)}
+.seat.empty{border-style:dashed;opacity:.75}#bRoomStart.off{opacity:.45}.seat.me{box-shadow:0 0 0 2px rgba(201,160,69,.75)}
 .specs{font-size:14px;color:var(--ink2);margin:4px 0 6px}.specs b{margin-right:8px;letter-spacing:.1em}
 .specs i{font-style:normal;display:inline-block;border:1px solid rgba(184,145,74,.6);border-radius:10px;padding:0 8px;margin:2px 3px;background:rgba(255,255,255,.4)}
 #hallList{list-style:none;margin:8px 0 4px;padding:0;max-height:min(40vh,300px);overflow:auto;text-align:left}
@@ -596,7 +596,8 @@ body.compact #log{width:164px;max-height:34vh}
       <div class="specs"><b>观战席</b><span id="roomSpecs">暂时没有观众</span></div>
       <div class="chips" id="waitChips"></div>
       <p class="note" id="waitNote"><span class="spin"></span>正在连接线路…</p>
-      <div class="row hidden" id="roomStartRow"><button class="btn red solid" id="bRoomStart">立 即 开 始</button></div>
+      <div class="row hidden" id="roomHostRow"><button class="btn red solid" id="bRoomStart">开 始</button><button class="btn small" id="bRoomAI">添加人机</button><select id="roomAILv" style="font-size:15px;padding:6px 4px;border:1px solid #bba;background:rgba(255,255,255,.5);font-family:inherit"><option value="easy">新兵</option><option value="mid" selected>校尉</option><option value="hard">霸王</option></select></div>
+      <div class="row hidden" id="roomGuestRow"><button class="btn red solid" id="bRoomReady">准 备</button><button class="btn small" id="bRoomWatch">改为观战</button></div>
       <div id="qrWrap" class="hidden"><div id="qr"></div><div class="note">朋友用手机扫码即可入局</div></div>
       <div class="row" id="roomInvite"><button class="btn small solid" id="bShare">发送邀请链接</button><button class="btn small" id="bCopyCode">复制房间码</button></div>
       <div class="lineinfo" id="waitLine"></div>
@@ -622,6 +623,7 @@ body.compact #log{width:164px;max-height:34vh}
   <div class="opt"><div class="lbl">画面<small>镜头与战斗演出</small></div><div class="seg" data-s="vis"><button data-v="cine">完整电影镜头</button><button data-v="std">精简特效</button><button data-v="low">低特效</button></div></div>
   <div class="opt"><div class="lbl">棋子显示<small>用兵种模型代替棋子</small></div><div class="seg" data-s="models"><button data-v="0">棋子</button><button data-v="1">兵种模型</button></div></div>
   <div class="opt"><div class="lbl">动画速度<small>走子与战斗演出的播放速度</small></div><div class="seg" data-s="speed"><button data-v="1">1×</button><button data-v="1.5">1.5×</button><button data-v="2">2×</button><button data-v="3">3×</button></div></div>
+  <div class="opt"><div class="lbl">碎片留存<small>断肢、碎块在场上留多久</small></div><div class="seg" data-s="debris"><button data-v="0">不留</button><button data-v="3">三回合</button><button data-v="5">五回合</button><button data-v="999">永久</button></div></div>
   <div class="opt"><div class="lbl">血腥程度</div><div class="seg" data-s="gore"><button data-v="3">高</button><button data-v="2">中</button><button data-v="1">低</button><button data-v="0">关</button></div></div>
   <div class="opt"><div class="lbl">画质<small>卡顿时调低</small></div><div class="seg" data-s="quality"><button data-v="high">高</button><button data-v="mid">中</button><button data-v="low">低</button></div></div>
   </div>

@@ -7,6 +7,14 @@
   const PHRASES = ['好棋！', '快些落子，莫要拖延！', '竖子，不足与谋！', '尔等已是瓮中之鳖。', '胜败乃兵家常事。', '此局，天命在我。', '且慢，容我三思。', '再来一局，决一雌雄！'];
   // 更新说明（设置里、大厅底部点「更新」查看；最新的放最前）
   const NEWS = [
+    ['第六版', '2026 年 10 月', [
+      '房间：客方点「准备」、房主点「开始」才开局；客方可改为观战；房主可添加人机，其他人观战（人机只下象棋）',
+      '技能模式：带伤害的技能先预览结果（「殺」/「-1」），再点一次目标才发动',
+      '践踏加强：范围是象周围一圈八格，一级子直接踩死；烟尘碎石冲天，被踩死的整队掀飞，场边的人全被震倒',
+      '霹雳：三轮急速齐射、每轮三发，爆炸更猛；炸死的子炸碎炸飞',
+      '设置分成 画面 / 声音 / 对局与其他 三页；新增语音音量、碎片留存（不留 / 三回合 / 五回合 / 永久）',
+      '断肢落地留血迹；模型模式脚下的圈不再被战损痕迹盖住；手机上技能模式开局也会出规则速览',
+    ]],
     ['第五版', '2026 年 10 月', [
       '「兵法模式」改名「技能模式」；联机大厅放到主菜单第一位；房间界面能看到双方座位和观战席，对手入座后倒数开局；房间可以设密码；设置里新增语音音量',
       '多人联机并成一个入口：进去就是联机大厅，能看到公开的房间直接加入（对局中的可观战），也可以建房或输入房间码；建房时可选公开 / 私密',
@@ -51,7 +59,7 @@
   };
   const S = {
     music: store.get('music', 'zen'), vMusic: store.get('vMusic', 55), vSfx: store.get('vSfx', 90), vVoice: store.get('vVoice', 100), voice: store.get('voice', 1),
-    models: store.get('models', 0),
+    models: store.get('models', 0), debris: store.get('debris', 3),
     vis: store.get('vis', store.get('fx', 1) === 0 ? 'low' : 'cine'), gore: store.get('gore', 3), server: store.get('server', ''),
     speed: store.get('speed', 1.5), // 动画播放速度
   };
@@ -63,11 +71,11 @@
 
   function applySettings() {
     Fx.level = S.vis; Fx.gore = +S.gore; Voice.enabled = !!+S.voice;
-    Squads.Stand.set(!!+S.models);
+    Squads.Stand.set(!!+S.models); Fx.keep = +S.debris || 0;
     Core.Time.boost = +S.speed || 1.5;
     Sfx.setVol('music', S.vMusic / 100 * 0.9); Sfx.setVol('sfx', S.vSfx / 100); Sfx.setVol('voice', S.vVoice / 100);
     Net.custom = S.server || '';
-    for (const k of ['music', 'vMusic', 'vSfx', 'vVoice', 'voice', 'vis', 'gore', 'server', 'speed', 'models']) store.set(k, S[k]);
+    for (const k of ['music', 'vMusic', 'vSfx', 'vVoice', 'voice', 'vis', 'gore', 'server', 'speed', 'models', 'debris']) store.set(k, S[k]);
   }
   Net.custom = S.server || '';
   Core.Time.boost = +S.speed || 1.5;
@@ -177,7 +185,9 @@
   const stepMax = () => opts.step * 1000, totalMax = () => opts.total * 60000;
   const actor = () => (mode === 'local' ? game.turn : mySide);
   const online = () => mode === 'host' || mode === 'guest';
-  const aiSide = () => (mode === 'ai' ? other(mySide) : null);
+  // 对面是电脑：人机对战，或者联机房间里房主加了人机（客人观战）
+  const vsAI = () => mode === 'ai' || (mode === 'host' && !!(opts && opts.ai));
+  const aiSide = () => (vsAI() ? other(mySide) : null);
   const watching = () => mode === 'watch';
   let watchWaiting = false;
   // 揭棋：同屏对战时本地随机布子；联机/观战时暗子身份未知，靠双方密钥逐个揭开（见 jq.js）
@@ -274,7 +284,7 @@
       c.querySelector('.who').textContent = NAME[s];
       const img = c.querySelector('.face'); if (faces[s] && img.src !== faces[s]) img.src = faces[s];
       c.querySelector('.tag').textContent = mode === 'local' || mode === 'watch' ? (s === 'r' ? '红方' : '黑方')
-        : mode === 'ai' ? (s === mySide ? '你' : `电脑 · ${LV[opts.level] || ''}`)
+        : vsAI() ? (s === mySide ? '你' : `电脑 · ${LV[opts.level] || ''}`)
           : (s === mySide ? '你' : '对手');
     }
     updateHud();
@@ -299,13 +309,14 @@
   });
   function updateHud() {
     if (!mode) return;
+    if (game.bf) Fx.ply = (game.round - 1) * 2 + (game.turn === 'b' ? 1 : 0);
     const by = capturedBy();
     for (const s of ['r', 'b']) {
       const c = cardFor(s);
       c.classList.toggle('active', started && !game.result && game.turn === s);
-      c.classList.toggle('think', mode === 'ai' && s === aiSide() && aiThinking);
+      c.classList.toggle('think', vsAI() && s === aiSide() && aiThinking);
       c.querySelector('.caps').innerHTML = by[s].map(capChip).join('');
-      c.querySelector('.undo').textContent = opts.undo && !(mode === 'ai' && s === aiSide()) ? (opts.undo >= 99 ? '悔棋不限' : `悔 ${Math.max(0, opts.undo - undoUsed[s])}`) : '';
+      c.querySelector('.undo').textContent = opts.undo && !(vsAI() && s === aiSide()) ? (opts.undo >= 99 ? '悔棋不限' : `悔 ${Math.max(0, opts.undo - undoUsed[s])}`) : '';
       const bfm = c.querySelector('.bfm');
       bfm.classList.toggle('hidden', !game.bf);
       if (game.bf) {
@@ -337,7 +348,7 @@
     else if (!started) st = mode === 'host' && !Net.connected ? '等待对手入局…' : '开 局';
     else if (netDown()) { st = netText(); warn = true; }
     else if (mode === 'local') st = `${game.turn === 'r' ? '红方（汉）' : '黑方（楚）'}走棋`;
-    else if (mode === 'ai') st = game.turn === mySide ? '轮到你走' : `${NAME[aiSide()]}思考中…`;
+    else if (vsAI()) st = game.turn === mySide ? '轮到你走' : `${NAME[aiSide()]}思考中…`;
     else st = game.turn === mySide ? '轮到你走' : '对手思考中…';
     if (!game.result && started && game.inCheck()) { st += ' · 将军！'; warn = true; }
     if (watching()) {
@@ -534,7 +545,7 @@
     const t = performance.now(), dt = t - clock.last; clock.last = t;
     if (!started || ended || game.result || !mode) return;
     const s = game.turn;
-    const mine = mode === 'local' || mode === 'ai' || mode === 'watch' || s === mySide;
+    const mine = mode === 'local' || vsAI() || mode === 'watch' || s === mySide;
     if (pause) { if (pause.until && t > pause.until) { if (myPause()) resumeGame(); else setPause(null); } else paintPause(); return; }
     const paused = busy || Ending.running || netDown();
     if (mine && !paused) {
@@ -547,7 +558,7 @@
       if (online() && Math.floor(t / 2000) !== Math.floor((t - dt) / 2000)) Net.send({ t: 'clk', side: s, total: clock[s], step: clock.step });
     }
     // 人机：玩家久不落子，对方出言相激
-    if (mode === 'ai' && s === mySide && !paused && !pendingUndo && turnStartAt) {
+    if (vsAI() && s === mySide && !paused && !pendingUndo && turnStartAt) {
       const el = (t - turnStartAt) / 1000;
       const marks = [22, 48, 85, 130, 190, 260];
       if (slowIdx < marks.length && el > marks[slowIdx]) { aiSay('slow' + ((slowIdx % 3) + 1)); slowIdx++; }
@@ -566,7 +577,7 @@
   let aiSeq = 0, aiThinking = false;
   const lastAiLine = {};
   function aiSay(kind, force) {
-    if (mode !== 'ai') return Promise.resolve();
+    if (!vsAI()) return Promise.resolve();
     const s = aiSide(), k = s === 'b' ? 'x' : 'l';
     let id = `ai_${k}_${kind}`;
     if (kind === 'cap') {
@@ -579,7 +590,7 @@
   }
   function cancelAI() { aiSeq++; if (aiThinking) { try { AI.cancel(); } catch (e) { } } aiThinking = false; }
   function maybeAI() {
-    if (mode !== 'ai' || ended || game.result || !started || game.turn !== aiSide() || pendingUndo) return;
+    if (!vsAI() || ended || game.result || !started || game.turn !== aiSide() || pendingUndo) return;
     if (aiThinking) return;
     const id = ++aiSeq;
     aiThinking = true; updateHud();
@@ -605,9 +616,9 @@
     if (info.result && info.result.reason === 'checkmate') { bubble(mover, '绝杀！', 2600); p = Voice.play(`${mover}_mate`); }
     else if (info.check) {
       bubble(mover, '将军！', 2400); p = Voice.play(`${mover}_check`);
-      if (mode === 'ai' && mover === mySide && Math.random() < 0.55) p.then(() => { if (!ended) aiSay('checked'); });
+      if (vsAI() && mover === mySide && Math.random() < 0.55) p.then(() => { if (!ended) aiSay('checked'); });
     }
-    if (mode !== 'ai' || info.result) return;
+    if (!vsAI() || info.result) return;
     if (mover === aiSide() && info.captured && !info.check) { if ('rnc'.includes(info.captured.t) || Math.random() < 0.6) aiSay('cap'); }
     else if (mover === mySide && info.captured && !info.check && 'rnc'.includes(info.captured.t) && Math.random() < 0.6) aiSay('hurt');
   }
@@ -646,10 +657,10 @@
     Sfx.init(); applySettings();
     Sfx.Music.start(S.music); Sfx.Music.setIntensity(0.35);
     paintCards();
-    if (mode === 'ai') { try { AI.warm(); } catch (e) { } }
+    if (vsAI()) { try { AI.warm(); } catch (e) { } }
     if (intro && !game.history.length) {
       Sfx.B.gong(0, 0.9); Sfx.B.taiko(0.5, 0.8); Sfx.B.taiko(0.8, 0.8); Sfx.B.taiko(1.05, 0.9);
-      let sub = mode === 'local' ? '红方先行' : mode === 'ai' ? `人机 · ${LV[opts.level]} · ${mySide === 'r' ? '你执红（汉）先行' : '你执黑（楚）后手'}` : mode === 'watch' ? '观战' : (mySide === 'r' ? '你执红（汉）· 先行' : '你执黑（楚）· 后手');
+      let sub = mode === 'local' ? '红方先行' : vsAI() ? `人机 · ${LV[opts.level]} · ${mySide === 'r' ? '你执红（汉）先行' : '你执黑（楚）后手'}` : mode === 'watch' ? '观战' : (mySide === 'r' ? '你执红（汉）· 先行' : '你执黑（楚）· 后手');
       if (game.jq) sub = '揭棋 · ' + sub;
       if (game.bf) sub = '技能模式 · ' + sub;
       banner('楚汉相争', sub, 2700);
@@ -666,7 +677,7 @@
     if (mode !== m) return;
     if (game.jq && !game.history.length && intro) { bubble('r', '十五子尽数扣下，翻开方知是何兵马！', 2600); await Core.sleep(1.2); }
     if (game.bf && !game.history.length && intro) { bubble('b', '论兵法，你还嫩了些！', 2400); await Core.sleep(1.0); }
-    if (mode === m && game.bf && !game.entries.length && !state) showBfTip(false);
+    if (mode === m && game.bf && !game.entries.length && m !== 'watch') showBfTip(false);
     if (mode !== m) return;
     started = true; clock.last = performance.now(); clock.step = stepMax();
     turnStartAt = performance.now(); slowIdx = 0;
@@ -796,9 +807,9 @@
     if (watching()) return false;
     if (!started || ended || busy || game.result || pendingUndo || pendingJ) return false;
     if (game.jq && !jqReady()) return false;
-    if (game.bf && mode === 'ai') return false;
+    if (game.bf && vsAI()) return false;
     if (mode === 'local') return true;
-    if (mode === 'ai') return game.turn === mySide && !aiThinking;
+    if (vsAI()) return game.turn === mySide && !aiThinking;
     return Net.connected && game.turn === mySide;
   }
   function doMove(m, remote = false, clk, sent = false) {
@@ -841,7 +852,7 @@
     queueAnim(info);
     updateHud(); publish();
     // 电脑在玩家的动画播放时就开始思考
-    if (mode === 'ai' && info.mover === mySide && !info.result) maybeAI();
+    if (vsAI() && info.mover === mySide && !info.result) maybeAI();
     return true;
   }
   // 连吃：同一方连续吃子、期间对方没吃回（对方一吃回就清零）
@@ -922,7 +933,7 @@
     const t0 = performance.now();
     try { await Squads.heroDefeat(loser, center, faceYaw, g => { finaleHero = g; }); } catch (e) { console.error(e); }
     if (endSkip) return;
-    if (mode === 'ai') await aiSay(winner === aiSide() ? 'win' : 'lose');
+    if (vsAI()) await aiSay(winner === aiSide() ? 'win' : 'lose');
     if (endSkip) return;
     const el = (performance.now() - t0) / 1000;
     await Core.sleep(Math.max(1.2, tSur - el + 0.8));
@@ -956,7 +967,7 @@
     });
   }
   function requestAgain() {
-    if (mode === 'local' || mode === 'ai') { restart(); return; }
+    if (mode === 'local' || vsAI()) { restart(); return; }
     if (mode === 'host') { restart(); Net.send({ t: 'restart', state: snapshot() }); }
     else { Net.send({ t: 'again' }); toast('已请求再来一局…'); }
   }
@@ -1116,7 +1127,7 @@
     if (game.bf && canAct()) { const p = Board.pick(e.clientX, e.clientY); bfClick(p); return; }
     if (!canAct()) {
       if (started && !ended && !busy && online() && Net.connected && game.turn !== mySide) toast('还没轮到你');
-      if (started && !ended && mode === 'ai' && game.turn !== mySide) toast(`${NAME[aiSide()]}正在思考`);
+      if (started && !ended && vsAI() && game.turn !== mySide) toast(`${NAME[aiSide()]}正在思考`);
       return;
     }
     const p = Board.pick(e.clientX, e.clientY);
@@ -1178,17 +1189,53 @@
     Sfx.select();
   }
   function bfClear() { Board.clearMoves(false); sel = null; selMoves = []; }
+  // 伤害预览：把这一步先在副本上演一遍，列出会阵亡 / 掉血的子（含被波及的、被反伤的）
+  function bfHarm(a) {
+    let r; try { r = BF.attempt(game.S, a); } catch (e) { return null; }
+    if (!r) return null;
+    const hp0 = new Map(); for (const row of game.board) for (const q of row) if (q) hp0.set(q.id, q.hp);
+    const out = new Map();
+    for (const e of r.ev) {
+      if (!e.at || e.id == null) continue;
+      if (e.e === 'kill') out.set(e.id, { at: e.at.slice(), kill: true });
+      else if (e.e === 'hit' && !(out.get(e.id) || {}).kill) out.set(e.id, { at: e.at.slice(), dmg: Math.max(1, (hp0.get(e.id) || e.hp + 1) - e.hp) });
+    }
+    return { list: [...out.values()], ev: r.ev };
+  }
+  // 带伤害的技能（霹雳、齐射、冲阵、踏营 / 飞越打到子、楚象带践踏的每一步）：第一次点目标只预览结果，再点一次才发动
+  function bfNeedConfirm(a) {
+    const h = bfHarm(a); if (!h || !h.list.length) return null;
+    if (a.k === 'sk') return h;
+    if (a.k === 'mv' && h.ev.some(e => e.e === 'splash' && e.how === 'jianta') && h.ev.some(e => (e.e === 'hit' || e.e === 'kill') && e.how === 'jianta')) return h;
+    return null;
+  }
+  function bfAsk(a, from) {
+    const h = bfNeedConfirm(a);
+    if (!h) { doBF(a); return; }
+    const marks = h.list.map(x => ({ from, to: x.at, dmg: x.kill ? 0 : x.dmg })); marks.noBelt = true;
+    if (!h.list.some(x => x.at[0] === a.to[0] && x.at[1] === a.to[1])) { marks.push({ from, to: a.to }); }
+    bfMode = { kind: 'confirm', a, hint: '预览：标「殺」的会阵亡，标 -1 的掉血 · 再点一次目标发动，点别处取消' };
+    Board.showMoves(from, marks, true); Sfx.select();
+    renderBar();
+  }
   function bfClick(p) {
     if (bfMode && bfMode.kind === 'pofu') { pofuClick(p); return; }
+    if (bfMode && bfMode.kind === 'confirm') {
+      const a = bfMode.a;
+      if (p && a.to && p[0] === a.to[0] && p[1] === a.to[1]) { bfMode = null; doBF(a); return; }
+      exitBfMode(false);
+      if (sel) bfSelect(sel[0], sel[1]);
+      renderBar(); return;
+    }
     if (bfMode && bfMode.kind === 'sk') {
       const a = p && bfMode.targets.find(x => x.to && x.to[0] === p[0] && x.to[1] === p[1]);
-      if (a) { doBF(a); return; }
+      if (a) { bfAsk(a, a.at); return; }
       exitBfMode(false);
     }
     if (!p) { bfClear(); renderBar(); return; }
     const [f, r] = p;
     const mv = selMoves.find(m => m.to[0] === f && m.to[1] === r);
-    if (sel && mv) { doBF({ k: 'mv', from: sel, to: [f, r] }); return; }
+    if (sel && mv) { bfAsk({ k: 'mv', from: sel, to: [f, r] }, sel); return; }
     const pc = game.at(f, r);
     if (pc && pc.s === actor()) {
       if (sel && sel[0] === f && sel[1] === r) bfClear();
@@ -1643,7 +1690,7 @@
     if (opts.undo < 99 && undoUsed[s] >= opts.undo) return false;
     const n = undoPlies(s);
     if (game.history.length < n) return false;
-    if (mode === 'ai') return true;
+    if (vsAI()) return true;
     return online() ? Net.connected : true;
   }
   async function requestUndo() {
@@ -1654,7 +1701,7 @@
       if (ok) applyUndo(1, who); else toast('对方不同意');
       return;
     }
-    if (mode === 'ai') {
+    if (vsAI()) {
       const plies = undoPlies(mySide);
       cancelAI();
       applyUndo(plies, mySide);
@@ -1694,7 +1741,7 @@
       busy--; clock.step = stepMax(); clock.last = performance.now(); pendingUndo = null;
       Fx.ply = game.history.length;
       renderLog();
-      if (mode !== 'ai') toast(`${SIDE_CN[side]}方悔棋`);
+      if (!vsAI()) toast(`${SIDE_CN[side]}方悔棋`);
       turnStartAt = performance.now(); slowIdx = 0;
       updateHud(); publish();
       maybeAI();
@@ -1724,7 +1771,7 @@
     if (online()) { if (!Net.connected) { toast('对手不在线'); return; } Net.send({ t: 'emote', i, text }); }
     emote(side, i, text);
     $('chat').classList.add('hidden');
-    if (mode === 'ai' && Math.random() < 0.7) setTimeout(() => { if (!ended) aiSay('reply'); }, 2300);
+    if (vsAI() && Math.random() < 0.7) setTimeout(() => { if (!ended) aiSay('reply'); }, 2300);
   }
   function setupChat() {
     const W = watching();
@@ -1754,22 +1801,30 @@
           return;
         }
         if (!mode && !mode_starting) {
-          // 还没开局：对手先在房间里入座，倒数 5 秒（房主可以立即开始）
-          const begin = () => { if (mode || mode_starting) return; mode_starting = true; closeRoom(); startGame('host', hostSide, opts).then(() => { mode_starting = false; }); Net.send({ t: 'welcome', state: snapshot() }); };
-          if (room && room.host && !room.seated) { room.seated = true; toast('对手已入座'); $('bRoomStart').onclick = begin; roomCountdown(5, begin); try { Net.hallTouch(); } catch (e) { } }
-          if (room) { Net.send({ t: 'seat', hostSide, opts, cd: Math.max(0, room.cd) }); return; }
-          begin(); return;
+          // 还没开局：对手先在房间里入座；他点了「准备」、房主再点「开始」才开局
+          if (room && room.host) {
+            if (room.ai) { Net.send({ t: 'full' }); Net.freeSeat(); return; }   // 房主在和人机下：来人去观战席
+            if (!room.seated) { room.seated = true; room.ready = AUTOSTART; toast('对手已入座'); try { Net.hallTouch(); } catch (e) { } paintRoom(); }
+            roomTell();
+            if (AUTOSTART) roomBegin();
+            return;
+          }
+          return;
         }
         Net.send({ t: 'welcome', state: snapshot() });
         break;
       case 'seat':
-        // 我已入座：进房间界面，等房主开局
+        // 我已入座：进房间界面，点「准备」，等房主开局
         if (mode || Net.role !== 'guest') return;
         if (!room) {
-          room = { code: Net.code, host: false, hostSide: d.hostSide, seated: true, cd: 0 };
+          room = { code: Net.code, host: false, hostSide: d.hostSide, seated: true, ready: !!d.ready };
+          opts = d.opts || {};
           showPane('pWait'); $('roomCode').textContent = Net.code; $('waitChips').innerHTML = chipsFor(d.opts || {}, d.hostSide); $('roomLock').classList.toggle('hidden', !(d.opts && d.opts.pwh));
-          roomCountdown(d.cd || 5);
-        } else if (Math.abs((d.cd || 0) - room.cd) > 1) { room.cd = d.cd; paintRoom(); }
+        } else room.ready = !!d.ready;
+        paintRoom();
+        break;
+      case 'ready':
+        if (Net.role === 'host' && room && room.host && room.seated && !mode) { room.ready = !!d.on; paintRoom(); roomTell(); }
         break;
       case 'needpw':
         if (mode || pwAsking) return;
@@ -1865,7 +1920,9 @@
       case 'timeout': { const r = game.timeout(d.side); if (r) { toast('对手超时'); finishGame(r); } break; }
       case 'pause': onPause(d, other(mySide)); break;
       case 'emote': emote(other(mySide), d.i ?? null, typeof d.text === 'string' ? d.text.replace(/[<>]/g, '').slice(0, 24) : ''); break;
-      case 'bye': toast('对手离开了房间', 3000); break;
+      case 'bye':
+        if (room && room.host && !mode) { room.seated = false; room.ready = false; Net.freeSeat(); paintRoom(); toast('对手离开了座位'); try { Net.hallTouch(); } catch (e) { } break; }
+        toast('对手离开了房间', 3000); break;
     }
   }
   let mode_starting = false, pwAsking = false;
@@ -1905,7 +1962,7 @@
   }
   // ---------- 断线：自己掉线（线路全断）或对手掉线，双方时钟都暂停；状态栏显示已等多久 ----------
   let wasLost = false, lineDownSince = 0, lineWasUp = false;
-  const netDown = () => online() && (!Net.lineOk || Net.peerState !== 'ok');
+  const netDown = () => online() && !(opts && opts.ai) && (!Net.lineOk || Net.peerState !== 'ok');
   function netText() {
     if (!Net.lineOk) { const s = lineDownSince ? Math.floor((Date.now() - lineDownSince) / 1000) : 0; return `网络断开，正在重连${s >= 2 ? ' · ' + s + ' 秒' : '…'} · 时钟暂停`; }
     const s = lostSince ? Math.floor((Date.now() - lostSince) / 1000) : 0;
@@ -2197,6 +2254,11 @@
     startGame('ai', side, { undo: aopts.undo, total: aopts.total, step: aopts.step || 0, hints: aopts.hints, level: aopts.level, skin: aopts.skin || 0 });
   };
   $('bHall').onclick = () => showPane('pHall');
+  $('bRoomStart').onclick = roomBegin;
+  $('bRoomReady').onclick = () => { if (!room || room.host) return; room.ready = !room.ready; Net.send({ t: 'ready', on: room.ready }); paintRoom(); };
+  // 客人改当观众：让出座位，转去观战席
+  $('bRoomWatch').onclick = () => { if (!room || room.host) return; const code = room.code; closeRoom(); clearInterval(joinTimer); try { Net.send({ t: 'bye' }); } catch (e) { } showPane('pJoin'); enterWatch(code); };
+  $('bRoomAI').onclick = () => { if (!room || !room.host || room.seated) return; room.ai = room.ai ? null : ($('roomAILv').value || 'mid'); paintRoom(); try { Net.hallTouch(); } catch (e) { } };
   $('lockOn').onchange = () => { $('lockPw').classList.toggle('hidden', !$('lockOn').checked); if ($('lockOn').checked) $('lockPw').focus(); };
   $('bBackH').onclick = () => showPane('pMain');
   $('bCreate').onclick = () => { createFor = 'host'; $('createTitle').textContent = '房 间 设 置'; $('bCreateGo').textContent = '创 建'; $('optPub').classList.remove('hidden'); $('optLock').classList.remove('hidden'); showPane('pCreate'); };
@@ -2223,24 +2285,46 @@
       .map(t => `<span class="chip">${t}</span>`).join('');
   }
   // ---------- 房间：两个座位（红·汉 / 黑·楚）+ 观战席。对手入座后倒数 5 秒开局，房主也可以立即开始 ----------
-  let room = null;   // { code, host: 我是不是房主, hostSide, seated: 对手在不在, cd: 开局倒数, timer }
+  let room = null;   // { code, host: 我是不是房主, hostSide, seated: 客座有没有人, ready: 客人准备好没有, ai: 房主加的人机档位 }
+  const AUTOSTART = (() => { try { return !!localStorage.getItem('xq3d-autostart'); } catch (e) { return false; } })();   // 测试用：客人自动准备、房主自动开始
   function paintRoom() {
     if (!room) return;
     const seat = side => {
-      const hostSeat = side === room.hostSide, mine = hostSeat === room.host, taken = hostSeat || room.seated;
-      return `<div class="seat ${side}${taken ? '' : ' empty'}${mine ? ' me' : ''}"><span class="sd">${side === 'r' ? '红·汉' : '黑·楚'}</span><div class="who">${taken ? (mine ? '你' : hostSeat ? '房主' : '对手') : '空位'}</div><small>${hostSeat ? '房主' : taken ? '已入座' : '等待对手…'}${side === 'r' ? ' · 先手' : ''}</small></div>`;
+      const hostSeat = side === room.hostSide, mine = hostSeat === room.host, ai = !hostSeat && room.ai, taken = hostSeat || room.seated || ai;
+      const who = ai ? `人机 · ${LV[room.ai] || ''}` : taken ? (mine ? '你' : hostSeat ? '房主' : '对手') : '空位';
+      const st = hostSeat ? '房主' : ai ? '电脑' : !taken ? '等待对手…' : room.ready ? '<b style="color:#2f7d4f">已准备</b>' : '还没准备';
+      return `<div class="seat ${side}${taken ? '' : ' empty'}${mine ? ' me' : ''}"><span class="sd">${side === 'r' ? '红·汉' : '黑·楚'}</span><div class="who">${who}</div><small>${st}${side === 'r' ? ' · 先手' : ''}</small></div>`;
     };
     $('roomSeats').innerHTML = seat('r') + seat('b');
     const ps = [...Spect.people.values()].filter(p => !p.self);
     $('roomSpecs').innerHTML = ps.length ? ps.map(p => `<i>${String(p.name).replace(/[<>&]/g, '')}</i>`).join('') : '暂时没有观众';
-    $('roomStartRow').classList.toggle('hidden', !(room.host && room.seated));
+    const canAI = room.host && !(opts && (opts.bf || opts.jq));
+    $('roomHostRow').classList.toggle('hidden', !room.host);
+    $('roomGuestRow').classList.toggle('hidden', room.host);
     $('roomInvite').classList.toggle('hidden', !room.host);
     if (!room.host) $('qrWrap').classList.add('hidden');
-    if (room.seated) $('waitNote').innerHTML = room.cd > 0 ? `对手已入座 · <b>${room.cd}</b> 秒后开局` + (room.host ? '' : '（房主可立即开始）') : '<span class="spin"></span>正在开局…';
+    if (room.host) {
+      const ok = !!room.ai || (room.seated && room.ready);
+      $('bRoomStart').classList.toggle('off', !ok);
+      $('bRoomAI').classList.toggle('hidden', !canAI || room.seated);
+      $('bRoomAI').textContent = room.ai ? '移除人机' : '添加人机';
+      $('roomAILv').classList.toggle('hidden', !canAI || room.seated || !!room.ai);
+      if (Net.lineOk) $('waitNote').innerHTML = room.ai ? '人机已就位，点「开始」开局；其他人进来会坐到观战席' : !room.seated ? '<span class="spin"></span>等待对手入座…（也可以添加人机）' : room.ready ? '对手已准备，点「开始」开局' : '对手已入座，等他点「准备」';
+    } else {
+      $('bRoomReady').textContent = room.ready ? '取消准备' : '准 备';
+      $('bRoomReady').classList.toggle('solid', !room.ready);
+      $('waitNote').innerHTML = room.ready ? '<span class="spin"></span>已准备，等房主开始…' : '点「准备」后房主才能开始；也可以改为观战';
+    }
   }
-  function roomCountdown(secs, go) {
-    clearInterval(room.timer); room.cd = secs; paintRoom();
-    room.timer = setInterval(() => { if (!room) return; room.cd--; paintRoom(); if (room.cd <= 0) { clearInterval(room.timer); go && go(); } }, 1000);
+  function roomTell() { if (room && room.host && room.seated) Net.send({ t: 'seat', hostSide, opts, ready: room.ready }); }
+  function roomBegin() {
+    if (!room || !room.host || mode || mode_starting) return;
+    if (!(room.ai || (room.seated && room.ready))) { toast(room.seated ? '对手还没准备' : '还没有对手：等人入座，或者添加人机'); return; }
+    mode_starting = true;
+    if (room.ai) { opts = { ...opts, ai: room.ai, level: room.ai }; store.set('host', { code: room.code, opts, side: hostSide, t: Date.now() }); }
+    closeRoom();
+    startGame('host', hostSide, opts).then(() => { mode_starting = false; publish(); });
+    Net.send({ t: 'welcome', state: snapshot() });
   }
   const closeRoom = () => { if (room) { clearInterval(room.timer); room = null; } };
   function hostRoom(code, o, side, resumeState) {
@@ -2266,7 +2350,7 @@
     } else { $('qrWrap').classList.add('hidden'); $('bShare').classList.add('hidden'); }
     let announced = false;
     // 公开房间：挂到游戏大厅的名册上（对手入座后显示为“对局中”，可观战）
-    const hallBeat = () => { if (+o.pub && Net.role === 'host' && Net.code === code) Net.hallPub(() => ({ v: o.bf ? 'bf' : o.jq ? 'jq' : 'std', side: hostSide, total: o.total, step: o.step, lock: o.pwh ? 1 : 0, st: Net.peerState === 'ok' || (started && mode === 'host') ? 'play' : 'open' })); };
+    const hallBeat = () => { if (+o.pub && Net.role === 'host' && Net.code === code) Net.hallPub(() => ({ v: o.bf ? 'bf' : o.jq ? 'jq' : 'std', side: hostSide, total: o.total, step: o.step, lock: o.pwh ? 1 : 0, st: (room && room.host && (room.seated || room.ai)) || (started && mode === 'host') ? 'play' : 'open' })); };
     setTimeout(hallBeat, 0);
     Net.host(code, {
       gate: d => !o.pwh || d.ph === o.pwh,
@@ -2443,7 +2527,7 @@
     $('mSet').classList.add('hidden');
     let msg;
     if (watching()) msg = '离开观战席，回到大厅？';
-    else if (mode === 'local' || mode === 'ai') msg = '退出本局、回到大厅？本局不计胜负。';
+    else if (mode === 'local' || vsAI()) msg = '退出本局、回到大厅？本局不计胜负。';
     else msg = game.result ? '离开房间、回到大厅？' : '离开房间、回到大厅？本局不计胜负；对手会看到你已离开，用原邀请链接可以回来接着下。';
     const ok = await ask(watching() ? '离 席' : '退 出', msg, 0, watching() ? '离 开' : '退 出', '再想想');
     if (ok) leaveGame();

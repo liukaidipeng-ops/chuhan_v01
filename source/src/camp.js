@@ -311,6 +311,23 @@ const Camp = (() => {
     }
     try { Sfx.celebrate ? Sfx.celebrate(0.75 * loud, big) : Sfx.cheer(0.1, 0.55 * loud); } catch (e) { }
   }
+  // 地动山摇：两边营里站着的兵全被震倒，过一会儿爬起来（c = 震源）
+  function quake(center) {
+    for (const c of camps) {
+      if (c.state !== 'home') continue;
+      const gen = c.gen;
+      for (const tr of c.troops) for (const u of tr.units) {
+        if (u.mv || u.gone || u.dead || u._q) continue;
+        u._q = true;
+        const d = Math.hypot(u.p.x - center.x, u.p.z - center.z);
+        u.fallDir = Math.atan2(u.p.x - center.x, u.p.z - center.z) + (Math.random() - 0.5) * 0.8;
+        setTimeout(() => {
+          if (c.gen !== gen) { u._q = false; return; }
+          Core.tween(0.3, k => { u.fall = k * 0.97; }, Core.ease.in).then(() => Core.sleep(0.7 + Math.random() * 0.8)).then(() => Core.tween(0.5, k => { u.fall = 0.97 * (1 - k); })).then(() => { u.fall = 0; u._q = false; });
+        }, 60 + d * 28);
+      }
+    }
+  }
   // 多段路线：依次走过各点
   function route(c, u, pts, { speed = 2.4, pose = 'run', delay = 0, onDone } = {}) {
     const gen = c.gen;
@@ -541,5 +558,5 @@ const Camp = (() => {
       }
     }
   }
-  return { init, camps, cheer, surround, rout, reset, K, onCapture, taunt, desert, dismay, setTurn, restless, tauntBoard, get gone() { return camps.map(c => c.goneN); } };
+  return { quake, init, camps, cheer, surround, rout, reset, K, onCapture, taunt, desert, dismay, setTurn, restless, tauntBoard, get gone() { return camps.map(c => c.goneN); } };
 })();

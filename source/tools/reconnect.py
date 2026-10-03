@@ -26,7 +26,7 @@ def wait(fn, secs=30, step=0.4):
             pass
         time.sleep(step)
     return False
-INIT = "localStorage.setItem('xq3d-noaudio','1'); localStorage.setItem('xq3d-norender','1'); localStorage.setItem('xq3d-server', JSON.stringify('ws://127.0.0.1:8883')); localStorage.setItem('xq3d-quality', JSON.stringify('low'));"
+INIT = "localStorage.setItem('xq3d-noaudio','1'); localStorage.setItem('xq3d-autostart','1'); localStorage.setItem('xq3d-norender','1'); localStorage.setItem('xq3d-server', JSON.stringify('ws://127.0.0.1:8883')); localStorage.setItem('xq3d-quality', JSON.stringify('low'));"
 STATUS = "document.getElementById('statusT').textContent"
 IDLE = "window.__xq.busy===0 && window.__xq.started"
 HL = "window.__xq.game.history.length"
