@@ -5,6 +5,7 @@
 //   --games N        局数（默认 200）
 //   --level L        双方电脑档位 easy | mid | hard（默认 mid；--red / --black 可分别指定）
 //   --budget MS      霸王档每步时间上限（默认 600，原值 3800 太慢）
+//   --ai FILE        双方用哪个电脑（默认 src/bfai.js；--ai-r / --ai-b 分别指定，可让两个版本对打）
 //   --jobs N         并行进程数（默认 CPU 核数）
 //   --max-rounds N   超过这么多回合算和（默认 150）
 //   --open N         开局多样化：前 N 步（双方合计）在“差不到约 1.5 分”的着法里随机挑（默认 6；0 = 关）
@@ -43,7 +44,7 @@ const PRESETS = {
 
 // ---------- 参数 ----------
 function parseArgs(argv) {
-  const o = { games: 200, level: 'mid', red: null, black: null, budget: 600, jobs: os.cpus().length, maxRounds: 150, open: 6, seed: 1, presets: [], sets: [], json: null, quiet: false, saveUlt: false };
+  const o = { games: 200, level: 'mid', red: null, black: null, budget: 600, jobs: os.cpus().length, maxRounds: 150, open: 6, seed: 1, presets: [], sets: [], json: null, quiet: false, saveUlt: false, ai: 'src/bfai.js', aiR: null, aiB: null };
   for (let i = 0; i < argv.length; i++) {
     const k = argv[i], v = () => argv[++i];
     if (k === '--games') o.games = +v();
@@ -60,6 +61,9 @@ function parseArgs(argv) {
     else if (k === '--json') o.json = v();
     else if (k === '--quiet') o.quiet = true;
     else if (k === '--save-ult') o.saveUlt = true;
+    else if (k === '--ai') o.ai = v();
+    else if (k === '--ai-r') o.aiR = v();
+    else if (k === '--ai-b') o.aiB = v();
     else if (k === '--worker') o.worker = true;
     else throw new Error('未知参数 ' + k);
   }
@@ -85,10 +89,12 @@ const VAL = { r: 9, c: 4.5, n: 4, e: 2, a: 2, p: 1, k: 0 };
 function worker() {
   global.XQ = require(path.join(SRC, 'rules.js'));
   const BF = global.BF = require(path.join(SRC, 'bingfa.js'));
-  const AI = require(path.join(SRC, 'bfai.js'));
+  let AI = null, AIS = null;   // AIS.r / AIS.b：双方各用哪个电脑
   let ov = null;
   const inc = (o, k, n = 1) => { o[k] = (o[k] || 0) + n; };
   const other = s => (s === 'r' ? 'b' : 'r');
+  // 中立的局面分（汉方视角）：子力按血量加价 + 军功；不用任何一个电脑自己的估值，免得两个版本对打时偏向一方
+  const neutral = S => { let v = 0; for (const row of S.board) for (const p of row) if (p && p.t !== 'k') v += (p.s === 'r' ? 1 : -1) * VAL[p.t] * (1 + 0.45 * (p.hp - 1)); return v + 0.3 * (S.merit.r - S.merit.b); };
   const material = S => { const m = { r: 0, b: 0 }; for (const row of S.board) for (const p of row) if (p) m[p.s] += VAL[p.t]; return m; };
 
   async function play(job) {
@@ -105,7 +111,7 @@ function worker() {
     let lastRound = 0, guard = 0;
     const sample = () => {
       const rd = g.round;
-      if (rd !== lastRound && rd % 5 === 0) { lastRound = rd; const m = material(g.S); R.samples.push({ round: rd, score: +AI.score(g.S, 'r').toFixed(2), mat: m, merit: { ...g.merit }, lv: lvSum(g.S) }); }
+      if (rd !== lastRound && rd % 5 === 0) { lastRound = rd; const m = material(g.S); R.samples.push({ round: rd, score: +neutral(g.S).toFixed(2), mat: m, merit: { ...g.merit }, lv: lvSum(g.S) }); }
     };
     const lvSum = S => { const o = { r: 0, b: 0 }; for (const row of S.board) for (const p of row) if (p && p.t !== 'k') o[p.s] += p.lv - 1; return o; };
     const record = (a, info, side) => {
@@ -149,7 +155,7 @@ function worker() {
         const U = BF.CFG.ultimates, left = g.used.ult[side] < U[side === 'r' ? 'simian' : 'hongmen'].usesPerGame;
         if (left && g.merit[side] >= U.cost - 7) L += 'Save';
       }
-      const seq = await AI.think(BF.cloneState(g.S), L);
+      const seq = await AIS[side].think(BF.cloneState(g.S), L);
       const dt = Date.now() - t0; R.ms += dt; if (dt > R.msMax) R.msMax = dt;
       if (!seq.length) throw new Error('电脑没有给出行动');
       for (const a of seq) {
@@ -171,11 +177,16 @@ function worker() {
     if (m.init) {
       ov = m.init;
       for (const [k, v] of Object.entries(ov.set)) setPath(BF.CFG, k, v);
-      AI.LEVELS.hard.budget = m.budget;
-      // 开局多样化用：校尉的搜索深度，但在分差不大的着法里随机挑
-      AI.LEVELS.open = { ...AI.LEVELS.mid, noise: 0.9, top: 3 };
-      // 攒终极兵法：这一步不升级
-      for (const k of ['easy', 'mid', 'open']) AI.LEVELS[k + 'Save'] = { ...AI.LEVELS[k], up: -1 };
+      const load = f => require(path.resolve(__dirname, '..', f));
+      AIS = { r: load(m.aiR), b: load(m.aiB) };
+      AI = AIS.r;
+      for (const X of new Set([AIS.r, AIS.b])) {
+        X.LEVELS.hard.budget = m.budget;
+        // 开局多样化用：校尉的搜索深度，但在分差不大的着法里随机挑
+        X.LEVELS.open = { ...X.LEVELS.mid, noise: 0.9, top: 3 };
+        // 攒终极兵法：这一步不升级
+        for (const k of ['easy', 'mid', 'open']) X.LEVELS[k + 'Save'] = { ...X.LEVELS[k], up: -1 };
+      }
       process.send({ ready: true });
       return;
     }
@@ -210,7 +221,7 @@ async function run(o) {
         feed();
       });
       c.on('exit', () => { if (--alive === 0) resolve(); });
-      c.send({ init: ov, budget: o.budget });
+      c.send({ init: ov, budget: o.budget, aiR: o.aiR || o.ai, aiB: o.aiB || o.ai });
     }
   });
   if (!o.quiet && process.stderr.isTTY) process.stderr.write('\n');
@@ -219,7 +230,7 @@ async function run(o) {
   const sum = summarize(results);
   sum.errors = errors.length; sum.seconds = Math.round((Date.now() - t0) / 1000);
   sum.label = [o.presets.join('+'), ...o.sets, o.saveUlt ? 'save-ult' : ''].filter(Boolean).join(' ') || 'current';
-  sum.level = (o.red || o.level) + ' vs ' + (o.black || o.level);
+  sum.level = (o.red || o.level) + ' vs ' + (o.black || o.level) + ((o.aiR || o.aiB || o.ai !== 'src/bfai.js') ? `  [汉 ${o.aiR || o.ai} | 楚 ${o.aiB || o.ai}]` : '');
   print(sum, o);
   if (errors.length) console.log('出错的局：', errors.slice(0, 3).map(e => e.seed + ' ' + e.error.split('\n')[0]).join(' | '));
   return sum;
