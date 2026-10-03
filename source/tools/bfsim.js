@@ -12,7 +12,9 @@
 //   --seed N         起始随机种子（第 i 局用 seed + i，可复现）
 //   --preset NAME    预设配置（见下方 PRESETS；可多个，逗号分隔）：baseline（普通象棋对照）、no-pofu / no-revive / no-simian / no-hongmen
 //                    （关掉某个兵法）、no-<技能>（如 no-chongzhen，关掉某个兵种技能）、
-//                    pofu-a / pofu-b / pofu-a2pc / pofu-a16（破釜沉舟的规则变体，见 applyPatches）
+//                    pofu-a / pofu-b / pofu-a2pc / pofu-a16（破釜沉舟的规则变体，见 applyPatches）、
+//                    revive-free / pofu-a+revive-free（召回良将不占行动，见 applyReviveFree）
+//                    将帅攻击 2：--set attack.k=[2]
 //   --set PATH=JSON  覆盖单个配置项，如 --set skills.jianta.splashMinLevel=2（可多次）
 //   --save-ult       军功离终极兵法差 7 以内时不再升级、攒着放大招（霸王档本来就这样；校尉 / 新兵默认不攒）
 //   --json FILE      把每局明细写到 FILE
@@ -64,6 +66,7 @@ const PRESETS = {
 //   预设：pofu-a = noup（用户第一档）；pofu-b = noup + 1kill（用户第二档）；pofu-a2pc = noup + 2pc；pofu-a16 = noup + from16
 //   注意：封锁期不封鸿门宴（终极兵法不算技能）。
 //   这些变体定稿后应直接写进 bingfa.js 的 resolve()（界面上的破釜入口 pofuFirst / pofuSecond 才会一致），这里只供模拟。
+//   revive-free（用户想试，2026-10-03）：召回良将不占行动——召回之后这一回合还能再走一步，召回的子这一步不能动（见 applyReviveFree）
 PRESETS['pofu-noup'] = { set: {}, patches: ['pofu-noup'] };
 PRESETS['pofu-1kill'] = { set: {}, patches: ['pofu-1kill'] };
 PRESETS['pofu-2pc'] = { set: {}, patches: ['pofu-2pc'] };
@@ -71,6 +74,8 @@ PRESETS['pofu-a'] = { set: {}, patches: ['pofu-noup'] };
 PRESETS['pofu-b'] = { set: {}, patches: ['pofu-noup', 'pofu-1kill'] };
 PRESETS['pofu-a2pc'] = { set: {}, patches: ['pofu-noup', 'pofu-2pc'] };
 PRESETS['pofu-a16'] = { set: {}, patches: ['pofu-noup', 'pofu-from16'] };
+PRESETS['revive-free'] = { set: {}, patches: ['revive-free'] };
+PRESETS['pofu-a+revive-free'] = { set: {}, patches: ['pofu-noup', 'revive-free'] };
 function applyPatches(BF, names) {
   if (!names || !names.length) return;
   const has = n => names.includes(n);
@@ -127,6 +132,75 @@ function applyPatches(BF, names) {
   };
   const legal0 = BF.Game.prototype.legalFrom;
   BF.Game.prototype.legalFrom = function (f, r) { return noAuto(this.S, null, () => legal0.call(this, f, r)); };
+  if (has('revive-free')) applyReviveFree(BF);
+}
+// revive-free（用户想试的“召回不占行动”）：召回良将之后这一回合还能再走一步棋，召回的那枚子这一步不能动。
+//   做法照抄不占行动的拒马：召回后 freeUsed = true（只能再走一步棋）、jmLock = 召回的子。
+//   电脑和搜索里把“召回 + 后面那一步”当成一个组合行动 { k:'art', id, then:{k:'mv',…} }（像破釜沉舟的两步一样），
+//   这样双方的搜索都知道召回不丢先手。对局里单发 { k:'art', id } 也行：先召回（不换手），下一条必须是走子。
+//   召回之后只能走子：不能再架拒马、放技能、用终极兵法（和拒马之后一样）。只供模拟。
+function applyReviveFree(BF) {
+  const A = BF.ai, isRevive = a => a && a.k === 'art' && a.id != null && !a.steps;
+  // 召回之后（不换手）的状态；召不了返回 null。和引擎 resolve() 里的召回一样：每局次数、阵亡名单、原位要空
+  const freeRevive = (S, id) => {
+    if (S.turn !== 'r' || S.freeUsed || S.used.art.r >= BF.CFG.generalArts.xiaohe.usesPerGame) return null;
+    const i = S.dead.r.findIndex(d => d.id === id); if (i < 0) return null;
+    const d = S.dead.r[i], st = BF.START[d.id];
+    if (!st || S.board[st[1]][st[0]]) return null;
+    const T = BF.cloneState(S);
+    T.dead.r.splice(i, 1);
+    T.board[st[1]][st[0]] = { s: 'r', t: d.t, id: d.id, lv: 1, hp: BF.hpOf(d.t, 1), cd: 0, jm: 0, xp: 0, kills: 0 };
+    T.used.art.r++; T.freeUsed = true; T.jmLock = d.id;
+    return { T, ev: [{ e: 'revive', id: d.id, t: d.t, at: st.slice() }] };
+  };
+  const deadIds = S => { const seen = []; if (S.turn === 'r' && !S.freeUsed) for (const d of S.dead.r) if (!seen.includes(d.id)) seen.push(d.id); return seen; };
+  const attempt0 = BF.attempt;
+  BF.attempt = (S, a) => {
+    if (!isRevive(a) || S.turn !== 'r') return attempt0(S, a);
+    if (!a.then) return null;                                    // 单独的召回（换手）在这个变体里不存在
+    const f = freeRevive(S, a.id); if (!f || !a.then || a.then.k !== 'mv') return null;
+    const r = attempt0(f.T, a.then); if (!r || r.free) return null;
+    return { ...r, kind: 'art', ev: f.ev.concat(r.ev) };
+  };
+  const gen0 = A.gen, exp0 = A.expand;
+  A.gen = (S, caps) => {
+    const out = gen0(S, caps);
+    if (caps || S.turn !== 'r' || !out.some(it => isRevive(it.a))) return out;
+    const res = out.filter(it => !isRevive(it.a));
+    for (const id of deadIds(S)) {
+      const f = freeRevive(S, id); if (!f) continue;
+      const t = f.ev[0].t;
+      for (const it of gen0(f.T, false)) if (it.a.k === 'mv' && it.p.id !== id) res.push({ a: { k: 'art', id, then: it.a }, p: it.p, q: it.q, art: t });
+    }
+    return res;
+  };
+  A.expand = S => {
+    const out = exp0(S);
+    if (S.turn !== 'r' || !out.some(k => isRevive(k.a))) return out;
+    const res = out.filter(k => !isRevive(k.a));
+    for (const id of deadIds(S)) {
+      const f = freeRevive(S, id); if (!f) continue;
+      for (const k of exp0(f.T)) if (k.a.k === 'mv') res.push({ a: { k: 'art', id, then: k.a }, S: k.S, ev: f.ev.concat(k.ev) });
+    }
+    return res;
+  };
+  // 对局：{k:'art', id} = 召回（不换手，记一条不结束回合的行动，下一条必须走子）；{k:'art', id, then} = 召回 + 那一步一起做
+  const apply0 = BF.Game.prototype.apply;
+  BF.Game.prototype.apply = function (e) {
+    if (this.result || !isRevive(e) || this.S.turn !== 'r') return apply0.call(this, e);
+    const f = freeRevive(this.S, e.id); if (!f) return null;
+    if (e.then ? !attempt0(f.T, e.then) : !exp0(f.T).some(k => k.a.k === 'mv')) return null;   // 召回之后要有一步合法的棋可走
+    const before = this.S, n = this.entries.length;
+    this.S = f.T;
+    this.entries.push({ k: 'art', id: e.id }); this.sides.push('r'); this.ends.push(0);
+    this.status = { free: true, check: this.inCheck('r') };
+    const info = { k: 'art', free: true, side: 'r', mover: 'r', from: null, to: null, pid: e.id, cap: null, kills: [], ev: f.ev, extra: {}, e, check: false, result: null, before, after: this.S };
+    this.last = info;
+    if (!e.then) return info;
+    const r = apply0.call(this, e.then);
+    if (!r) { this.S = before; this.entries.length = this.sides.length = this.ends.length = n; return null; }   // 不会发生（上面试走过）
+    return { ...r, ev: f.ev.concat(r.ev || []), revived: e.id };
+  };
 }
 // 电脑先定升不升级、再看破釜沉舟：pofu-noup 下它会为了升级白白放弃一次更好的破釜。
 //   这里替楚方多想一次“这一回合不升级”（引擎在这一回合拒绝楚方升级，往后的回合照常），两次里取电脑自评更高的那一个。
