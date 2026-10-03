@@ -126,6 +126,8 @@
   }
   const killers = [];
   let upPly = -1;   // 在第几层考虑“对方先升级再走”（-1 = 不考虑）
+  let pfPly = -1;   // 在第几层考虑“对方（楚）用破釜沉舟连走两步”（-1 = 不考虑）
+  const pfCache = new Map();   // 每个局面的破釜沉舟组合只算一次（逐层加深时重复用）
   // 负极大值 + αβ（分数总是站在走子方看）
   function ab(S, depth, alpha, beta, ply) {
     if (++nodes > nodeCap || ((nodes & 63) === 0 && now() > deadline)) throw TIMEOUT;
@@ -164,6 +166,23 @@
         break;
       }
     }
+    // 楚军还留着破釜沉舟：把“连走两步”里最狠的几种也算作它的应对（先吃掉挡路的子再吃车、吃完就撤……）
+    if (ply === pfPly && side === 'b' && legal && alpha < beta && !S.used.art.b) {
+      let pf = pfCache.get(S);
+      if (!pf) {
+        const base = score(S, 'b');
+        pf = A.pofuPairs(S); for (const k of pf) k.q = score(k.S, 'b') - base;
+        pf = pf.filter(k => k.q >= 3 || decided(k.S, k.ev)).sort((x, y) => y.q - x.q).slice(0, 4);
+        pfCache.set(S, pf);
+      }
+      for (const k of pf) {
+        const w = decided(k.S, k.ev);
+        const v = w ? (w === side ? WIN - ply : -WIN + ply) : -ab(k.S, Math.max(0, depth - 1), -beta, -alpha, ply + 1);
+        if (v > best) best = v;
+        if (v > alpha) alpha = v;
+        if (alpha >= beta) break;
+      }
+    }
     if (!legal) {
       const r = BF.attempt(S, { k: 'pass' });
       if (!r) return -WIN + ply;                // 将死 / 困毙
@@ -191,6 +210,15 @@
     }
     return n;
   }
+  // (f, r) 上的子现在是不是正被对方捉着、一下就能打死
+  function threatened(S, at_) {
+    const p = S.board[at_[1]][at_[0]]; if (!p) return false;
+    for (let r = 0; r < 10; r++) for (let f = 0; f < 9; f++) {
+      const e = S.board[r][f]; if (!e || e.s === p.s) continue;
+      if (A.atk(e) >= p.hp && A.moveTargets(S, f, r).some(m => m.to[0] === at_[0] && m.to[1] === at_[1])) return true;
+    }
+    return false;
+  }
   // 先决定要不要升级：把“不升”和每一种升法都往下搜几步比一比——
   //   升一级多一点血、还回满血：正被捉的子升了就打不死，来犯的反而被弹回去；这种只有搜了才知道
   function pickUpgrade(S, L) {
@@ -214,10 +242,11 @@
     let rookNeed = 0;
     for (const row of S.board) for (const p of row) if (p && p.s === me && p.t === 'r' && p.lv < BF.maxLvOf('r')) { const c = A.upCost(p); if (c > S.merit[me] && (!rookNeed || c < rookNeed)) rookNeed = c; }
     const saving = rookNeed && rookNeed - S.merit[me] <= 3;
-    const bv0 = ab(S, d, -INF, INF, 0);
+    const bv0 = ab(S, d, -INF, INF, 0), chk = A.inCheck(S, me);
     let best = null, bv = bv0;
     for (const c of cand.slice(0, 6)) {
       const p = pieceAt(c), defender = (p.t === 'a' || p.t === 'e') && !S.final;
+      if (defender && !chk && bv0 > -WIN / 2 && !threatened(S, c.at)) continue;   // 守子没被捉着就不升（正被将军、或者不升就输时除外：二级士攻击 2，能砍死将军的子）
       const need = defender || (saving && p.t !== 'r') ? 1.8 : 0.05;     // 守子、或者正在给车攒军功：要“明显更好”才升
       const v = ab(c.S, d, bv0 + need - 0.01, INF, 0);
       if (v >= bv0 + need && v > bv + 0.05) { bv = v; best = c; }
@@ -230,11 +259,12 @@
     const L = tick ? { ...L0, budget: Math.min(L0.budget, 1400) } : L0;   // 在主线程里算（开不了 Worker）时少想一会儿，免得卡画面
     let S = S0, last = now();
     const breathe = async () => { if (tick && now() - last > 12) { await tick(); last = now(); } };
-    nodes = 0; qMax = L.q; hist.clear(); killers.length = 0; upPly = -1; deadline = Infinity; nodeCap = Infinity;
+    nodes = 0; qMax = L.q; hist.clear(); killers.length = 0; upPly = -1; pfPly = -1; pfCache.clear(); deadline = Infinity; nodeCap = Infinity;
     const byNodes = L.nodes > 0;   // 设了 nodes：按搜索量收手，完全不看时间（对打、考卷、漏着率用，机器快慢不影响结果）
     const up = pickUpgrade(S, L);
     if (up) { seq.push({ k: 'up', at: up.at }); S = up.S; }
     if (L.depth >= 3) upPly = 1;
+    if (me === 'r' && L.depth >= 2 && !S.used.art.b) pfPly = 1;   // 汉军：对方的破釜沉舟还在手里，每一步都提防它
     let kids = A.expand(S), pofu = [];
     // 破釜沉舟（楚）：只留“连走两步能明显赚到子”的组合（比如先挪开再吃车），交给后面的搜索去核对值不值
     if (me === 'b' && L.depth >= 2) {
@@ -321,31 +351,6 @@
       } catch (e) { if (e !== TIMEOUT) throw e; }
       deadline = Infinity; nodeCap = Infinity;
       if (bp) { pick = bp; kids = kids.concat([bp]); }
-    }
-    // 汉军防着楚军的破釜沉舟：保险（召回良将）已经用掉、对方的连击还在手里时，
-    //   先看看选中的这一步会不会被“连走两步”白吃掉一个大子；会的话，在前几名里换一步吃亏最少的
-    if (me === 'r' && L.depth >= 2 && !S.used.art.b && !pick.done) {
-      try {
-        const risk = k => {
-          if (k.risk != null) return k.risk;
-          if (!k.S.used.art.r || k.S.turn !== 'b') return (k.risk = 0);
-          const base = score(k.S, me); let worst = base;
-          for (const pp of A.pofuPairs(k.S)) { const w = decided(pp.S, pp.ev); const x = w ? (w === me ? WIN : -WIN) : score(pp.S, me); if (x < worst) worst = x; }
-          return (k.risk = base - worst);
-        };
-        if (risk(pick) >= 5) {
-          const cand = kids.filter(k => !k.done && k !== pick).slice(0, 6);
-          const d2 = Math.max(1, Math.min(depthDone, 3) - 1);
-          let bestK = pick, bestAdj = pick.v - (risk(pick) - 2) * 0.75;
-          for (const k of cand) {
-            const exact = -ab(k.S, d2, -INF, INF, 1);
-            const adj = exact - Math.max(0, risk(k) - 2) * 0.75;
-            if (adj > bestAdj) { bestAdj = adj; bestK = k; k.v = exact; }
-            await breathe();
-          }
-          pick = bestK;
-        }
-      } catch (e) { if (e !== TIMEOUT) throw e; }
     }
     // 拒马（不占行动）：走完这一步之后，哪枚能架拒马的兵会被对方打到，就先给它架上
     if (L.depth >= 2 && !pick.done && !S.freeUsed && pick.a.k !== 'pass') {
