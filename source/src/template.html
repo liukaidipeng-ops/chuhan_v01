@@ -288,6 +288,10 @@ body.compact #log.jq{width:214px}
 .tool.red{background:linear-gradient(#b43a26,#86241a);color:#fbe9cf;box-shadow:0 4px 12px rgba(120,30,10,.3),inset 0 0 0 2px rgba(255,220,170,.4),inset 0 0 0 4px #9a2c1c,inset 0 0 0 5px rgba(255,220,170,.25)}
 .tool[disabled]{opacity:.35}
 .tool.flash{animation:toolFlash 1.1s ease-in-out infinite}
+.tabs{display:flex;gap:0;justify-content:center;margin:2px 0 10px;border-bottom:1px solid rgba(184,145,74,.6)}
+.tabs button{background:none;border:none;border-bottom:3px solid transparent;padding:8px 16px;font-size:17px;letter-spacing:.12em;color:var(--ink3);margin-bottom:-1px}
+.tabs button.on{color:var(--ink);border-bottom-color:#a3241a;font-weight:bold}
+.tabp.hidden{display:none}.tabp{min-height:250px}
 .seats{display:flex;gap:12px;justify-content:center;margin:10px 0 6px}
 .seat{flex:1;max-width:190px;border:1px solid rgba(184,145,74,.7);border-radius:4px;padding:10px 8px;background:rgba(255,255,255,.4);text-align:center;line-height:1.5}
 .seat .sd{display:inline-block;font-weight:bold;letter-spacing:.2em;padding:1px 8px;border-radius:3px;color:#fbe9cf;background:#8e2418}
@@ -613,20 +617,28 @@ body.compact #log{width:164px;max-height:34vh}
 <!-- 设置 -->
 <div id="mSet" class="modal hidden"><div class="wrap"><div class="rod t"></div><div class="rod b"></div><div class="scroll">
   <h3>设 置</h3>
+  <div class="tabs" id="setTabs"><button data-t="pic" class="on">画 面</button><button data-t="snd">声 音</button><button data-t="etc">对局与其他</button></div>
+  <div class="tabp" data-t="pic">
   <div class="opt"><div class="lbl">画面<small>镜头与战斗演出</small></div><div class="seg" data-s="vis"><button data-v="cine">完整电影镜头</button><button data-v="std">精简特效</button><button data-v="low">低特效</button></div></div>
   <div class="opt"><div class="lbl">棋子显示<small>用兵种模型代替棋子</small></div><div class="seg" data-s="models"><button data-v="0">棋子</button><button data-v="1">兵种模型</button></div></div>
   <div class="opt"><div class="lbl">动画速度<small>走子与战斗演出的播放速度</small></div><div class="seg" data-s="speed"><button data-v="1">1×</button><button data-v="1.5">1.5×</button><button data-v="2">2×</button><button data-v="3">3×</button></div></div>
   <div class="opt"><div class="lbl">血腥程度</div><div class="seg" data-s="gore"><button data-v="3">高</button><button data-v="2">中</button><button data-v="1">低</button><button data-v="0">关</button></div></div>
+  <div class="opt"><div class="lbl">画质<small>卡顿时调低</small></div><div class="seg" data-s="quality"><button data-v="high">高</button><button data-v="mid">中</button><button data-v="low">低</button></div></div>
+  </div>
+  <div class="tabp hidden" data-t="snd">
   <div class="opt"><div class="lbl">背景音乐</div><div class="seg" data-s="music"><button data-v="zen">禅意</button><button data-v="war">战意</button><button data-v="off">关</button></div></div>
   <div class="opt"><div class="lbl">音乐音量</div><div class="vol"><input type="range" min="0" max="100" id="vMusic"></div></div>
   <div class="opt"><div class="lbl">音效音量</div><div class="vol"><input type="range" min="0" max="100" id="vSfx"></div></div>
   <div class="opt"><div class="lbl">语音音量</div><div class="vol"><input type="range" min="0" max="100" id="vVoice"></div></div>
   <div class="opt"><div class="lbl">配音</div><div class="seg" data-s="voice"><button data-v="1">开</button><button data-v="0">关</button></div></div>
-  <div class="opt"><div class="lbl">画质<small>卡顿时调低</small></div><div class="seg" data-s="quality"><button data-v="high">高</button><button data-v="mid">中</button><button data-v="low">低</button></div></div>
+  </div>
+  <div class="tabp hidden" data-t="etc">
   <div class="opt" id="optServer"><div class="lbl">自定义线路<small>一般不用填</small></div><input id="oServer" placeholder="wss://…/mqtt" style="flex:1;min-width:0;font-size:14px;padding:6px;border:1px solid #bba;background:rgba(255,255,255,.5)"></div>
   <div class="row hidden" id="setGame"><button class="btn small hidden" id="tDebug">调试摆子</button><button class="btn small red" id="tResign">认 输</button><button class="btn small" id="tExit">退出对局</button></div>
-  <div class="row"><button class="btn small" id="bHelp">玩法说明</button><button class="btn small solid" id="bSetClose">完 成</button></div>
-  <p class="note" style="text-align:center;margin:6px 0 0;font-size:12px;opacity:.7"><span id="verTag"></span> · <button class="link" id="bNews" style="font-size:12px">更新说明</button></p>
+  <div class="row"><button class="btn small" id="bHelp">玩法说明</button><button class="btn small" id="bNews">更新说明</button></div>
+  </div>
+  <div class="row"><button class="btn small solid" id="bSetClose">完 成</button></div>
+  <p class="note" style="text-align:center;margin:6px 0 0;font-size:12px;opacity:.7"><span id="verTag"></span></p>
 </div></div></div>
 
 <!-- 发言 -->

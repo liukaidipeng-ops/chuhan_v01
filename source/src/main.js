@@ -2421,6 +2421,8 @@
   const openSet = () => { repaintSegs($('mSet')); $('setGame').classList.toggle('hidden', !(mode && started)); $('tDebug').classList.toggle('hidden', !(mode === 'local' && started && game && game.bf)); $('tExit').textContent = watching() ? '离开观战席' : '退出对局'; $('mSet').classList.remove('hidden'); };
   $('tSet').onclick = $('bSetL').onclick = $('pzSet').onclick = openSet;
   $('bSetClose').onclick = () => $('mSet').classList.add('hidden');
+  // 设置分三页：画面 / 声音 / 对局与其他
+  $('setTabs').querySelectorAll('button').forEach(b => b.onclick = () => { $('setTabs').querySelectorAll('button').forEach(x => x.classList.toggle('on', x === b)); $('mSet').querySelectorAll('.tabp').forEach(p => p.classList.toggle('hidden', p.dataset.t !== b.dataset.t)); });
   $('bHelp').onclick = $('bHelpL').onclick = () => $('mHelp').classList.remove('hidden');
   $('bHelpClose').onclick = () => $('mHelp').classList.add('hidden');
   $('bNews').onclick = $('bNewsL').onclick = () => {
