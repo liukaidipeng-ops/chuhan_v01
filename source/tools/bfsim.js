@@ -10,11 +10,19 @@
 //   --max-rounds N   超过这么多回合算和（默认 150）
 //   --open N         开局多样化：前 N 步（双方合计）在“差不到约 1.5 分”的着法里随机挑（默认 6；0 = 关）
 //   --seed N         起始随机种子（第 i 局用 seed + i，可复现）
-//   --preset NAME    预设配置（见下方 PRESETS；可多个，逗号分隔）
+//   --preset NAME    预设配置（见下方 PRESETS；可多个，逗号分隔）：baseline（普通象棋对照）、no-pofu / no-revive / no-simian / no-hongmen
+//                    （关掉某个兵法）、no-<技能>（如 no-chongzhen，关掉某个兵种技能）
 //   --set PATH=JSON  覆盖单个配置项，如 --set skills.jianta.splashMinLevel=2（可多次）
 //   --save-ult       军功离终极兵法差 7 以内时不再升级、攒着放大招（霸王档本来就这样；校尉 / 新兵默认不攒）
 //   --json FILE      把每局明细写到 FILE
 //   --quiet          只输出汇总
+//
+// 对打（新旧电脑比强弱）：node tools/bfsim.js --match 新,旧 [--games 上限] [--sprt e0,e1] [--nodes N]
+//   每个种子下两局、双方交换先后手；电脑可以写文件路径，也可以写 git:提交号（取那一版的 src/bfai.js，配当前的规则引擎）。
+//   序贯检验（SPRT）：每下完一对就检验一次，能下结论就停。默认 e0,e1 = -30,10（Elo）：
+//     “通过”= 新版不比旧版明显弱；“不通过”= 新版明显弱了。想证明“更强”用 --sprt 0,40。
+//   --nodes N：电脑按搜索节点数收手（需要电脑支持 LEVELS.<档>.nodes；不支持时会提示）。
+//   拉旧版电脑时，引擎里没有它要用的接口会直接报错（不会悄悄少功能）；版本号对不上会提示。
 'use strict';
 const path = require('path');
 const os = require('os');
@@ -41,10 +49,12 @@ const PRESETS = {
   'no-arts': { set: { 'generalArts.xiaohe.usesPerGame': 0, 'generalArts.pofu.usesPerGame': 0 } },
   'no-e4': { set: { 'upgrade.maxLevel': { r: 4, p: 4, a: 4, e: 3 } } },
 };
+// 每个兵种技能各一个“关掉”预设：把解锁等级设成 99（永远解锁不了），如 no-chongzhen、no-jianta
+for (const sk of ['juma', 'chongzhen', 'taying', 'pili', 'feiyue', 'hujia', 'qishe', 'jianta', 'shensu', 'huifang', 'jinwei']) PRESETS['no-' + sk] = { set: { [`skills.${sk}.level`]: 99 } };
 
 // ---------- 参数 ----------
 function parseArgs(argv) {
-  const o = { games: 200, level: 'mid', red: null, black: null, budget: 600, jobs: os.cpus().length, maxRounds: 150, open: 6, seed: 1, presets: [], sets: [], json: null, quiet: false, saveUlt: false, ai: 'src/bfai.js', aiR: null, aiB: null };
+  const o = { games: 200, level: 'mid', red: null, black: null, budget: 600, jobs: os.cpus().length, maxRounds: 150, open: 6, seed: 1, presets: [], sets: [], json: null, quiet: false, saveUlt: false, ai: 'src/bfai.js', aiR: null, aiB: null, match: null, sprt: null, nodes: 0 };
   for (let i = 0; i < argv.length; i++) {
     const k = argv[i], v = () => argv[++i];
     if (k === '--games') o.games = +v();
@@ -64,6 +74,9 @@ function parseArgs(argv) {
     else if (k === '--ai') o.ai = v();
     else if (k === '--ai-r') o.aiR = v();
     else if (k === '--ai-b') o.aiB = v();
+    else if (k === '--match') o.match = v().split(',');
+    else if (k === '--sprt') o.sprt = v().split(',').map(Number);
+    else if (k === '--nodes') o.nodes = +v();
     else if (k === '--worker') o.worker = true;
     else throw new Error('未知参数 ' + k);
   }
@@ -89,7 +102,7 @@ const VAL = { r: 9, c: 4.5, n: 4, e: 2, a: 2, p: 1, k: 0 };
 function worker() {
   global.XQ = require(path.join(SRC, 'rules.js'));
   const BF = global.BF = require(path.join(SRC, 'bingfa.js'));
-  let AI = null, AIS = null;   // AIS.r / AIS.b：双方各用哪个电脑
+  let AIMAP = null;            // 名字 → 电脑模块；每局由 job.aiR / job.aiB 指定双方用哪个
   let ov = null;
   const inc = (o, k, n = 1) => { o[k] = (o[k] || 0) + n; };
   const other = s => (s === 'r' ? 'b' : 'r');
@@ -100,11 +113,12 @@ function worker() {
   async function play(job) {
     Math.random = mulberry32(job.seed * 2654435761);
     const lvl = { r: job.red, b: job.black };
+    const AIS = { r: AIMAP[job.aiR], b: AIMAP[job.aiB] };
     const g = new BF.Game();
     if (ov.noArts) g.setup(T => { T.used.art = { r: 99, b: 99 }; T.used.ult = { r: 99, b: 99 }; });
     const side2 = () => ({ r: {}, b: {} });
     const R = {
-      seed: job.seed, winner: null, reason: null, rounds: 0, plies: 0, final: false, finalRound: null,
+      seed: job.seed, flip: !!job.flip, winner: null, reason: null, rounds: 0, plies: 0, final: false, finalRound: null,
       act: side2(), up: side2(), kills: side2(), hits: side2(), meritBy: side2(), friendly: side2(),
       ultRound: {}, artRound: {}, artKind: {}, firstLv: { r: {}, b: {} }, samples: [], rescue: 0, jumaCounter: side2(), msMax: 0, ms: 0,
     };
@@ -157,6 +171,7 @@ function worker() {
       }
       const seq = await AIS[side].think(BF.cloneState(g.S), L);
       const dt = Date.now() - t0; R.ms += dt; if (dt > R.msMax) R.msMax = dt;
+      const st = AIS[side].think.last; if (st && st.nodes != null) { R.nodes = (R.nodes || 0) + st.nodes; R.nodeMoves = (R.nodeMoves || 0) + 1; }
       if (!seq.length) throw new Error('电脑没有给出行动');
       for (const a of seq) {
         const info = g.apply(a);
@@ -167,6 +182,12 @@ function worker() {
       sample();
     }
     if (g.result) { R.winner = g.result.winner; R.reason = g.result.reason; }
+    // 将死时是谁在将军：将军的子有几点血、是不是贴在帅将身边（“升级后贴脸将军，一级士帅打不死”这类杀法）
+    if (R.reason === 'checkmate') {
+      const w = R.winner, k = global.XQ.findKing(g.board, other(w));
+      const cks = global.XQ.checkers(g.board, w).map(id => { for (let r = 0; r < 10; r++) for (let f = 0; f < 9; f++) { const p = g.board[r][f]; if (p && p.id === id) return { t: p.t, hp: p.hp, lv: p.lv, adj: k ? Math.max(Math.abs(f - k[0]), Math.abs(r - k[1])) <= 1 : false }; } return null; }).filter(Boolean);
+      R.mate = { n: cks.length, hp: Math.max(0, ...cks.map(c => c.hp)), adj: cks.some(c => c.adj), hardAdj: cks.some(c => c.adj && c.hp >= 2), t: cks.map(c => c.t + c.lv).join(',') };
+    }
     R.rounds = g.round;
     R.endMerit = { ...g.merit };
     R.endMat = material(g.S);
@@ -174,22 +195,36 @@ function worker() {
   }
 
   process.on('message', async m => {
-    if (m.init) {
+    if (m.init) try {
       ov = m.init;
       for (const [k, v] of Object.entries(ov.set)) setPath(BF.CFG, k, v);
-      const load = f => require(path.resolve(__dirname, '..', f));
-      AIS = { r: load(m.aiR), b: load(m.aiB) };
-      AI = AIS.r;
-      for (const X of new Set([AIS.r, AIS.b])) {
+      const warns = [];
+      // 旧版电脑：把 BF、BF.ai 包一层再加载——它用到引擎里已经没有的接口就当场报错，不会悄悄少功能
+      const guard = (obj, name) => new Proxy(obj, { get(t, k) { if (k in t || typeof k === 'symbol' || k === 'then' || k === 'toJSON' || k === 'inspect') return k === 'ai' && name === 'BF' ? guard(t.ai, 'BF.ai') : t[k]; throw new Error(`电脑 ${cur} 用到了当前引擎里没有的接口 ${name}.${String(k)}`); } });
+      let cur = '';
+      const load = spec => {
+        const file = path.resolve(__dirname, '..', spec.file);
+        if (!spec.guard) return require(file);
+        cur = spec.label;
+        const real = global.BF; global.BF = guard(real, 'BF');
+        try { delete require.cache[file]; return require(file); } finally { global.BF = real; }
+      };
+      AIMAP = {};
+      for (const [k, spec] of Object.entries(m.ais)) {
+        const X = AIMAP[k] = load(spec);
+        if (BF.ai.version != null && X.apiVersion != null && X.apiVersion !== BF.ai.version) warns.push(`${spec.label} 按接口第 ${X.apiVersion} 版写的，当前引擎是第 ${BF.ai.version} 版`);
+      }
+      for (const X of new Set(Object.values(AIMAP))) {
         X.LEVELS.hard.budget = m.budget;
+        if (m.nodes) for (const k of Object.keys(X.LEVELS)) X.LEVELS[k].nodes = m.nodes;
         // 开局多样化用：校尉的搜索深度，但在分差不大的着法里随机挑
         X.LEVELS.open = { ...X.LEVELS.mid, noise: 0.9, top: 3 };
         // 攒终极兵法：这一步不升级
         for (const k of ['easy', 'mid', 'open']) X.LEVELS[k + 'Save'] = { ...X.LEVELS[k], up: -1 };
       }
-      process.send({ ready: true });
+      process.send({ ready: true, warns });
       return;
-    }
+    } catch (e) { process.send({ fatal: String(e && e.message || e) }); process.exit(1); }
     if (m.job) {
       try { process.send({ result: await play(m.job) }); }
       catch (e) { process.send({ error: String(e && e.stack || e), seed: m.job.seed }); }
@@ -199,12 +234,50 @@ function worker() {
 }
 
 // ---------- 主进程：分发、汇总 ----------
+// 电脑的写法：文件路径（相对 source/），或 git:提交号（取那一版的 source/src/bfai.js 到临时文件）
+function resolveAI(spec) {
+  if (spec.startsWith('guard:')) return { file: spec.slice(6), label: spec, guard: true };   // 本地文件也按旧版检查接口（自测用）
+  if (!spec.startsWith('git:')) return { file: spec, label: spec, guard: false };
+  const rev = spec.slice(4), fs = require('fs');
+  const code = require('child_process').execFileSync('git', ['show', rev + ':source/src/bfai.js'], { cwd: path.join(__dirname, '..'), encoding: 'utf8' });
+  const file = path.join(os.tmpdir(), 'bfai-' + rev.replace(/[^\w.-]/g, '_') + '.js');
+  fs.writeFileSync(file, code);
+  return { file, label: spec, guard: true };
+}
+// 对打的统计：A 方每局得分（胜 1、和 0.5、负 0）→ Elo 差、95% 区间、序贯检验的对数似然比
+const eloOf = p => -400 * Math.log10(1 / Math.min(0.999, Math.max(0.001, p)) - 1);
+function matchStats(rs, sprt) {
+  const xs = rs.map(r => (!r.winner ? 0.5 : (r.winner === (r.flip ? 'b' : 'r') ? 1 : 0)));
+  const n = xs.length, m = n ? xs.reduce((a, b) => a + b, 0) / n : 0.5, v = n ? xs.reduce((a, b) => a + b * b, 0) / n - m * m : 0.25;
+  const se = Math.sqrt(Math.max(v, 1e-6) / Math.max(n, 1));
+  const out = { n, score: m, elo: eloOf(m), lo: eloOf(m - 1.96 * se), hi: eloOf(m + 1.96 * se) };
+  if (sprt) {
+    const s0 = 1 / (1 + Math.pow(10, -sprt[0] / 400)), s1 = 1 / (1 + Math.pow(10, -sprt[1] / 400));
+    out.llr = v > 1e-9 ? (s1 - s0) * (2 * m * n - n * (s0 + s1)) / (2 * v) : 0;
+    out.bound = Math.log(0.95 / 0.05);   // α = β = 0.05
+    out.verdict = out.llr >= out.bound ? 'H1' : out.llr <= -out.bound ? 'H0' : null;
+  }
+  const by = side => { const g = rs.filter(r => (r.flip ? 'b' : 'r') === side); return { n: g.length, w: g.filter(r => r.winner === side).length, d: g.filter(r => !r.winner).length }; };
+  out.asR = by('r'); out.asB = by('b');
+  return out;
+}
+
 async function run(o) {
   const ov = overrides(o);
   const jobs = [];
-  for (let i = 0; i < o.games; i++) jobs.push({ seed: o.seed + i, red: o.red || o.level, black: o.black || o.level, maxRounds: o.maxRounds, open: o.open, saveUlt: o.saveUlt });
-  const results = [], errors = [];
-  let next = 0, done = 0;
+  let ais;
+  if (o.match) {
+    if (o.match.length !== 2) throw new Error('--match 要写成 新,旧');
+    ais = { A: resolveAI(o.match[0]), B: resolveAI(o.match[1]) };
+    if (!o.sprt) o.sprt = [-30, 10];
+    // 每个种子两局：A 执汉一局、A 执楚一局
+    for (let i = 0; i < Math.ceil(o.games / 2); i++) for (const flip of [false, true]) jobs.push({ seed: o.seed + i, flip, aiR: flip ? 'B' : 'A', aiB: flip ? 'A' : 'B', red: o.red || o.level, black: o.black || o.level, maxRounds: o.maxRounds, open: o.open, saveUlt: o.saveUlt });
+  } else {
+    ais = { R: resolveAI(o.aiR || o.ai), B: resolveAI(o.aiB || o.ai) };
+    for (let i = 0; i < o.games; i++) jobs.push({ seed: o.seed + i, aiR: 'R', aiB: 'B', red: o.red || o.level, black: o.black || o.level, maxRounds: o.maxRounds, open: o.open, saveUlt: o.saveUlt });
+  }
+  const results = [], errors = [], warned = new Set();
+  let next = 0, done = 0, stopped = null;
   const t0 = Date.now();
   await new Promise((resolve) => {
     const n = Math.max(1, Math.min(o.jobs, jobs.length));
@@ -213,21 +286,36 @@ async function run(o) {
       const c = fork(__filename, ['--worker'], { stdio: ['ignore', 'inherit', 'inherit', 'ipc'] });
       const feed = () => { if (next < jobs.length) c.send({ job: jobs[next++] }); else { c.send({ exit: true }); } };
       c.on('message', m => {
-        if (m.ready) return feed();
+        if (m.ready) { for (const w of m.warns || []) if (!warned.has(w)) { warned.add(w); console.log('⚠ ' + w); } return feed(); }
+        if (m.fatal) { if (!warned.has(m.fatal)) { warned.add(m.fatal); console.log('✗ 加载电脑失败：' + m.fatal); } next = jobs.length; return; }
         if (m.result) results.push(m.result);
         if (m.error) errors.push(m);
         done++;
+        // 序贯检验：每下完一对就看一次，能下结论就不再发新局（正在下的下完为止）
+        if (o.match && !stopped && done % 2 === 0) { const st = matchStats(results, o.sprt); if (st.verdict) { stopped = st; next = jobs.length; } }
         if (!o.quiet && process.stderr.isTTY) process.stderr.write(`\r${done}/${jobs.length}`);
-        else if (done % 25 === 0 || done === jobs.length) process.stderr.write(`进度 ${done}/${jobs.length}  ${Math.round((Date.now() - t0) / 1000)}s\n`);
+        else if (done % 25 === 0 || done === jobs.length) process.stderr.write(`进度 ${done}/${jobs.length}  ${Math.round((Date.now() - t0) / 1000)}s` + (o.match ? (st => `  新版得分 ${pct(st.score)}  Elo ${st.elo.toFixed(0)}  LLR ${st.llr.toFixed(2)}`)(matchStats(results, o.sprt)) : '') + '\n');
         feed();
       });
       c.on('exit', () => { if (--alive === 0) resolve(); });
-      c.send({ init: ov, budget: o.budget, aiR: o.aiR || o.ai, aiB: o.aiB || o.ai });
+      c.send({ init: ov, budget: o.budget, ais, nodes: o.nodes });
     }
   });
   if (!o.quiet && process.stderr.isTTY) process.stderr.write('\n');
   results.sort((a, b) => a.seed - b.seed);
   if (o.json) require('fs').writeFileSync(o.json, JSON.stringify({ args: o, overrides: ov, results, errors }, null, 1));
+  if (o.match) {
+    const st = matchStats(results, o.sprt), f = x => (x >= 0 ? '+' : '') + x.toFixed(0);
+    const nodeMoves = results.reduce((t, r) => t + (r.nodeMoves || 0), 0), nodes = results.reduce((t, r) => t + (r.nodes || 0), 0);
+    console.log(`== 对打：新 ${o.match[0]} vs 旧 ${o.match[1]} | ${o.red || o.level} 档 | ${st.n} 局（每个种子换边各一局）| ${Math.round((Date.now() - t0) / 1000)}s ==`);
+    console.log(`新版得分 ${pct(st.score)}，Elo 差 ${f(st.elo)}（95% 区间 ${f(st.lo)} ～ ${f(st.hi)}）`);
+    console.log(`  新版执汉：${st.asR.n} 局 胜 ${st.asR.w} 和 ${st.asR.d}；新版执楚：${st.asB.n} 局 胜 ${st.asB.w} 和 ${st.asB.d}`);
+    console.log(`序贯检验（Elo ${o.sprt[0]} 对 ${o.sprt[1]}）：LLR ${st.llr.toFixed(2)}（界 ±${st.bound.toFixed(2)}）→ ${st.verdict === 'H1' ? '通过（新版不比旧版明显弱' + (o.sprt[0] >= 0 ? '，而且更强' : '') + '）' : st.verdict === 'H0' ? '不通过（新版明显' + (o.sprt[0] >= 0 ? '没有更强' : '变弱') + '）' : '还没有结论（局数上限到了，加大 --games 再跑）'}`);
+    if (o.nodes) console.log(nodeMoves ? `按节点数收手：平均每步 ${Math.round(nodes / nodeMoves)} 个节点（设定 ${o.nodes}）` : '⚠ 设了 --nodes，但电脑没有报告节点数，可能还不支持按节点数收手');
+    if (errors.length) console.log(`✗ 有 ${errors.length} 局出错，这次对打的结论无效：`, errors.slice(0, 2).map(e => e.seed + ' ' + e.error.split('\n')[0]).join(' | '));
+    if (o.json) require('fs').writeFileSync(o.json, JSON.stringify({ args: o, results, errors, stats: st }, null, 1));
+    return st;
+  }
   const sum = summarize(results);
   sum.errors = errors.length; sum.seconds = Math.round((Date.now() - t0) / 1000);
   sum.label = [o.presets.join('+'), ...o.sets, o.saveUlt ? 'save-ult' : ''].filter(Boolean).join(' ') || 'current';
@@ -253,6 +341,8 @@ function summarize(rs) {
   const rounds = rs.map(r => r.rounds);
   S.rounds = { mean: mean(rounds), median: quant(rounds, 0.5), p90: quant(rounds, 0.9), within60: rounds.filter(x => x <= 60).length / N };
   S.final = rs.filter(r => r.final).length / N;
+  const mates = rs.filter(r => r.mate);
+  S.mate = { n: mates.length, hard: mates.filter(r => r.mate.hp >= 2).length, hardAdj: mates.filter(r => r.mate.hardAdj).length, double: mates.filter(r => r.mate.n >= 2).length };
   // 每方每种行动：用过的局占比、平均次数
   const keys = new Set();
   for (const r of rs) for (const s of ['r', 'b']) for (const k of Object.keys(r.act[s])) keys.add(k);
@@ -305,6 +395,7 @@ function print(S, o) {
   L.push(`胜负：汉 ${S.win.r}  楚 ${S.win.b}  和/超时 ${S.win.draw}   汉方胜率（分胜负的局）${pct(S.redShareDecisive)}  95%CI ${ci}%`);
   L.push(`结局：${Object.entries(S.reasons).sort((a, b) => b[1] - a[1]).map(([k, v]) => k + ' ' + v).join('  ')}`);
   L.push(`回合：平均 ${S.rounds.mean.toFixed(1)}  中位 ${S.rounds.median}  P90 ${S.rounds.p90}  60 回合内结束 ${pct(S.rounds.within60)}  进入决战 ${pct(S.final)}`);
+  if (S.mate && S.mate.n) L.push(`将死 ${S.mate.n} 局：将军的子有 2 血以上 ${pct(S.mate.hard / S.mate.n)}（其中贴在帅将身边 ${pct(S.mate.hardAdj / S.mate.n)}），双将 ${pct(S.mate.double / S.mate.n)}`);
   if (o.quiet) { console.log(L.join('\n')); return; }
   L.push('行动（用过的局占比 / 每局平均次数）  汉 | 楚');
   for (const [k, v] of Object.entries(S.act)) L.push(`  ${cn(k).padEnd(10)} ${pct(v.r.games).padStart(6)} ${v.r.avg.toFixed(2).padStart(6)} | ${pct(v.b.games).padStart(6)} ${v.b.avg.toFixed(2).padStart(6)}`);
