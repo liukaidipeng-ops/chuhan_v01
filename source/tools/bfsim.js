@@ -377,10 +377,16 @@ function worker() {
         else if (e.e === 'counter') inc(R.jumaCounter[other(side)], 'hit');
       }
     };
+    // 破釜沉舟前后（用户 2026-10-03：“执汉需要利用好破釜的 debuff 进行反击”）：楚那一回合开始前 s0、破釜之后 s1、
+    //   封锁期结束（轮到楚、楚方行动数到 fx.pf）时 s2。分数 = 中性估值（+ 汉优），m* = 子力差（汉 − 楚）
+    const matDiff = S => { const m = material(S); return m.r - m.b; };
+    const pfEnd = () => { if (R.pf && R.pf.s2 == null) { R.pf.s2 = +neutral(g.S).toFixed(2); R.pf.m2 = matDiff(g.S); R.pf.endRound = g.round; } };
     while (!g.result) {
       if (g.round > job.maxRounds) { R.reason = 'cap'; break; }
       if (++guard > job.maxRounds * 6) { R.reason = 'stuck'; break; }
       const side = g.turn;
+      if (side === 'b' && R.pf && g.S.cnt.b >= g.S.fx.pf) pfEnd();
+      const pre = side === 'b' && !R.pf ? { s: +neutral(g.S).toFixed(2), m: matDiff(g.S) } : null;
       if (g.status && g.status.mustPass) { const info = g.apply({ k: 'pass' }); if (!info) throw new Error('pass 失败'); record({ k: 'pass' }, info, side); R.plies++; sample(); continue; }
       const t0 = Date.now();
       let L = R.plies < job.open ? 'open' : lvl[side];
@@ -397,9 +403,11 @@ function worker() {
         if (!info) throw new Error('非法行动 ' + JSON.stringify(a) + ' seed=' + job.seed);
         record(a, info, side);
       }
+      if (pre && seq.some(a => a.k === 'art' && a.steps)) R.pf = { round: g.round, s0: pre.s, m0: pre.m, s1: +neutral(g.S).toFixed(2), m1: matDiff(g.S), lockTo: g.S.fx.pf };
       R.plies++;
       sample();
     }
+    if (R.pf && R.pf.s2 == null) { pfEnd(); R.pf.ended = true; }   // 封锁期没过完就分了胜负（或到回合上限）
     if (g.result) { R.winner = g.result.winner; R.reason = g.result.reason; }
     // 将死时是谁在将军：将军的子有几点血、是不是贴在帅将身边（“升级后贴脸将军，一级士帅打不死”这类杀法）
     if (R.reason === 'checkmate') {
@@ -564,6 +572,13 @@ function summarize(rs) {
   const rounds = rs.map(r => r.rounds);
   S.rounds = { mean: mean(rounds), median: quant(rounds, 0.5), p90: quant(rounds, 0.9), within60: rounds.filter(x => x <= 60).length / N };
   S.final = rs.filter(r => r.final).length / N;
+  const pfs = rs.filter(r => r.pf);
+  if (pfs.length) {
+    const avg = f => mean(pfs.map(f));
+    S.pf = { n: pfs.length, gain: avg(r => r.pf.s1 - r.pf.s0), gainM: avg(r => r.pf.m1 - r.pf.m0), back: avg(r => r.pf.s2 - r.pf.s1), backM: avg(r => r.pf.m2 - r.pf.m1),
+      half: pfs.filter(r => r.pf.s2 - r.pf.s1 >= -(r.pf.s1 - r.pf.s0) / 2).length / pfs.length, ended: pfs.filter(r => r.pf.ended).length,
+      redWin: pfs.filter(r => r.winner === 'r').length / pfs.length };
+  }
   const mates = rs.filter(r => r.mate);
   S.mate = { n: mates.length, hard: mates.filter(r => r.mate.hp >= 2).length, hardAdj: mates.filter(r => r.mate.hardAdj).length, double: mates.filter(r => r.mate.n >= 2).length };
   // 每方每种行动：用过的局占比、平均次数
@@ -633,6 +648,7 @@ function print(S, o) {
   const ur = S.ult.used, ar = S.art.used;
   L.push(`终极兵法：汉用 ${ur.r[0]} 局（平均第 ${S.ult.round.r.toFixed(1)} 回合，用了的局胜 ${ur.r[0] ? pct(ur.r[1] / ur.r[0]) : '-'}）  楚用 ${ur.b[0]} 局（第 ${S.ult.round.b.toFixed(1)} 回合，胜 ${ur.b[0] ? pct(ur.b[1] / ur.b[0]) : '-'}）  护驾破鸿门宴 ${S.rescue} 局`);
   L.push(`主帅兵法：汉召回 ${ar.r[0]} 局（第 ${S.art.round.r.toFixed(1)} 回合，胜 ${ar.r[0] ? pct(ar.r[1] / ar.r[0]) : '-'}）  楚破釜 ${ar.b[0]} 局（第 ${S.art.round.b.toFixed(1)} 回合，胜 ${ar.b[0] ? pct(ar.b[1] / ar.b[0]) : '-'}）`);
+  if (S.pf) L.push(`破釜前后（${S.pf.n} 局，分数 + 汉优）：破釜那一手汉方 ${S.pf.gain.toFixed(2)} 分（子力 ${S.pf.gainM.toFixed(2)}）；之后封锁期汉方 ${S.pf.back >= 0 ? '+' : ''}${S.pf.back.toFixed(2)} 分（子力 ${S.pf.backM >= 0 ? '+' : ''}${S.pf.backM.toFixed(2)}）；追回一半以上 ${pct(S.pf.half)}；封锁期内就分了胜负 ${S.pf.ended} 局；这些局汉胜 ${pct(S.pf.redWin)}`);
   L.push('首次升到 N 级（平均回合 / 出现的局占比）  汉 | 楚');
   for (const [k, v] of Object.entries(S.firstLv)) L.push(`  ${k} 级  第 ${v.r.toFixed(1)} 回合 ${pct(v.rn)} | 第 ${v.b.toFixed(1)} 回合 ${pct(v.bn)}`);
   L.push('局面分随回合（汉方视角，正 = 汉优）/ 军功 / 等级总和');
