@@ -408,6 +408,106 @@ Q.push({
   bad: [{ k: 'mv', from: [8, 3], to: [8, 4] }],
 });
 
+// ===== 八、破釜反击：楚用过破釜沉舟、兵种技能被封的那几回合（2026-10-03，用户：“执汉需要利用好破釜的debuff进行反击”） =====
+// 局面里 cnt.b < fx.pf：楚方接下来 fx.pf − cnt.b 步不能用兵种主动技能（冲阵、踏营、霹雳、飞越、护驾、拒马）；升级和被动走法不封（现行规则）。
+//   汉方要趁这几回合占平时会被这些技能惩罚的格子、把子力打回来，而不是只顾着躲。每题都过了三关（工作流出题 + 独立复核）：
+//   自检、深搜复核同意、对照（同一局面 fx.pf = 0 不封锁，标准答案会被技能反杀或不再成立）。
+//   电脑现状：9ff64a4 和 dev 都 3/3——战术上它们懂封锁（搜索里有引擎规则）；缺的是更长远的“算账、引破釜、整段窗口的反击”，这是地平线问题，考卷管不到，要靠对打和“破釜前后”统计。
+Q.push({
+  name: '31 护驾被封：马闷杀', cat: '破釜反击',
+  desc: '楚前面用破釜沉舟吃了汉一车，楚马还捉着汉车；楚方技能还封 2 回合（楚接下来两步都不能用技能）。楚将被自己的两个士和回防的马堵死，汉车在中路牵着那匹马。平时汉马来将军，三级士「护驾」和将一换位就躲开了；现在护驾用不了。楚只有 3 功，也不够把士升到四级用「铁甲禁卫」横走一格挡马腿（升级和被动走法破釜封不住）。所以别忙着救车，马跳上去（比如 (6,4)→(7,6)），楚吃车也来不及，下一步马到 (6,8) 或 (5,7) 将军就是闷杀。先救车再进攻，封锁就过了。判卷：汉走完之后，楚怎么应（含先升级），汉下一步都能将死。',
+  build: () => position([[4, 0, P('r', 'k')], [3, 0, P('r', 'a')], [5, 0, P('r', 'a')], [6, 0, P('r', 'e')], [4, 4, P('r', 'r')], [6, 4, P('r', 'n')], [0, 3, P('r', 'p')], [8, 3, P('r', 'p')],
+    [4, 9, P('b', 'k')], [3, 9, P('b', 'a')], [5, 9, P('b', 'a', 3)], [4, 8, P('b', 'n')], [2, 3, P('b', 'n')], [8, 0, P('b', 'r')], [0, 6, P('b', 'p')], [2, 6, P('b', 'p')], [8, 6, P('b', 'p')]],
+    { turn: 'r', cnt: { r: 12, b: 12 }, fx: { pf: 14 }, merit: { r: 0, b: 3 }, used: { art: { r: 1, b: 1 } } }),
+  // 汉走完之后：楚方每一种应法（含先升级、兵种技能、兵法）之后，汉都有一步杀
+  check: (seq, g0) => {
+    const g = play(g0, seq); if (!g) return false;
+    if (g.result) return g.result.winner === 'r';
+    const bases = [g.S]; for (let r = 0; r < 10; r++) for (let f = 0; f < 9; f++) { const T = BF.ai.upgradeState(g.S, [f, r]); if (T) bases.push(T); }
+    const replies = bases.flatMap(B => [...BF.ai.expand(B), ...BF.ai.pofuPairs(B)]).filter(k => k.S.turn === 'r');
+    return replies.length > 0 && replies.every(k => { const st = BF.evaluate(k.S); return st.result ? st.result.winner === 'r' : mateInOne(k.S); });
+  },
+  answer: [{ k: 'mv', from: [6, 4], to: [7, 6] }],
+  bad: [{ k: 'mv', from: [4, 4], to: [4, 3] }],
+});
+Q.push({
+  name: '32 飞越被封：车进象口抢杀', cat: '破釜反击',
+  desc: '楚前面用了破釜沉舟，楚车正捉着汉马；楚方技能还封 2 回合（楚接下来两步都不能用技能）。汉车沿 6 路冲到 (6,9) 底线将军：平时这一格有楚象守着——象眼虽被汉马塞住，三级象能「飞越」过去把车吃掉；现在飞越用不了，楚只能把士撑到 (5,9) 挡，汉车吃士再将（汉马保着车、另一匹马封住 (4,8) 和 (3,9)）就是绝杀。别忙着救马。判卷：汉走完之后，楚怎么应，汉下一步都能将死。',
+  build: () => position([[4, 0, P('r', 'k')], [3, 0, P('r', 'a')], [5, 0, P('r', 'a')], [6, 2, P('r', 'r')], [7, 8, P('r', 'n')], [2, 7, P('r', 'n')], [0, 3, P('r', 'p')],
+    [4, 9, P('b', 'k')], [4, 8, P('b', 'a')], [8, 7, P('b', 'e', 3)], [4, 6, P('b', 'p')], [8, 6, P('b', 'p')], [0, 6, P('b', 'p')], [0, 7, P('b', 'r')], [2, 4, P('b', 'n')]],
+    { turn: 'r', cnt: { r: 12, b: 12 }, fx: { pf: 14 }, used: { art: { r: 1, b: 1 } } }),
+  // 汉走完之后：楚方每一种应法（含先升级、兵种技能、兵法）之后，汉都有一步杀
+  check: (seq, g0) => {
+    const g = play(g0, seq); if (!g) return false;
+    if (g.result) return g.result.winner === 'r';
+    const bases = [g.S]; for (let r = 0; r < 10; r++) for (let f = 0; f < 9; f++) { const T = BF.ai.upgradeState(g.S, [f, r]); if (T) bases.push(T); }
+    const replies = bases.flatMap(B => [...BF.ai.expand(B), ...BF.ai.pofuPairs(B)]).filter(k => k.S.turn === 'r');
+    return replies.length > 0 && replies.every(k => { const st = BF.evaluate(k.S); return st.result ? st.result.winner === 'r' : mateInOne(k.S); });
+  },
+  answer: [{ k: 'mv', from: [6, 2], to: [6, 9] }],
+  bad: [{ k: 'mv', from: [2, 7], to: [1, 5] }],
+});
+Q.push({
+  name: '33 冲阵被封：车吃炮', cat: '破釜反击',
+  desc: '楚前面用了破釜沉舟，接下来两步不能用技能。楚马正捉着汉车。楚炮 (8,6) 看着没人保，其实平时有楚车冲阵护着：汉车一吃炮，底线的三级楚车就撞开自己的象、冲到炮位把汉车吃掉。现在冲阵被封——汉车别光逃，直接吃炮（顺便躲开了马），白赚一炮。',
+  build: () => { const R = P('r', 'r'), C = P('b', 'c'); ids.pf33 = { R: R.id, C: C.id }; return position([[4, 0, P('r', 'k')], [3, 0, P('r', 'a')], [5, 0, P('r', 'a')], [4, 3, P('r', 'p')], [0, 3, P('r', 'p')], [8, 2, R], [1, 0, P('r', 'n')],
+    [4, 9, P('b', 'k')], [3, 9, P('b', 'a')], [5, 9, P('b', 'a')], [4, 6, P('b', 'p')], [0, 6, P('b', 'p')], [8, 9, P('b', 'r', 3)], [8, 7, P('b', 'e', 2)], [8, 6, C], [6, 3, P('b', 'n')], [6, 4, P('b', 'p')]],
+    { turn: 'r', cnt: { r: 12, b: 12 }, fx: { pf: 14 }, used: { art: { r: 1, b: 1 } } }); },
+  // 楚炮没了、汉车还在，而且楚方所有合法应着（含冲阵等技能，真走一遍）都打不死汉车
+  //   （不用 killable：它只看落点上的子，看不到冲阵跳过跳板后落下去吃的那一枚）
+  check: (seq, g0) => {
+    const g = play(g0, seq); if (!g || findId(g, ids.pf33.C) || !findId(g, ids.pf33.R)) return false;
+    return !BF.ai.expand(g.S).some(k => !k.S.board.some(row => row.some(p => p && p.id === ids.pf33.R)));
+  },
+  answer: [{ k: 'mv', from: [8, 2], to: [8, 6] }],
+  bad: [{ k: 'mv', from: [8, 2], to: [8, 0] }],
+});
+const q34build = (pf, mb = 0) => () => position([[4, 0, P('r', 'k')], [3, 0, P('r', 'a')], [5, 0, P('r', 'a')], [4, 3, P('r', 'p')], [0, 3, P('r', 'p')], [8, 3, P('r', 'p')], [6, 1, P('r', 'r')], [1, 0, P('r', 'n')],
+    [4, 9, P('b', 'k')], [3, 9, P('b', 'a')], [5, 9, P('b', 'a')], [4, 6, P('b', 'p')], [0, 6, P('b', 'p')], [7, 4, P('b', 'n', 3)], [7, 5, P('b', 'p')], [5, 6, P('b', 'n')], [8, 6, P('b', 'c')]],
+    { turn: 'r', cnt: { r: 12, b: 12 }, fx: { pf }, merit: { r: 0, b: mb }, used: { art: { r: 1, b: 1 } } });
+// 汉走完之后：楚方不管怎么应（全部合法主行动，也算上“先升级再走”），汉下一步都能吃掉楚方一个车马炮，
+//   而且吃完之后楚方（同样算上升级）打不死那枚吃子的子
+const q34check = (seq, g0) => {
+    const g = play(g0, seq); if (!g || g.result || g.turn !== 'b') return false;
+    const on = (S, id) => S.board.some(row => row.some(p => p && p.id === id));
+    const withUp = S => { const out = [S]; for (let r = 0; r < 10; r++) for (let f = 0; f < 9; f++) { const p = S.board[r][f]; if (p && p.s === S.turn && p.t !== 'k') { const T = BF.ai.upgradeState(S, [f, r]); if (T) out.push(T); } } return out; };
+    const replies = withUp(g.S).flatMap(B => BF.ai.expand(B));
+    return replies.length > 0 && replies.every(k => BF.ai.gen(k.S, true).some(it => {
+      if (!it.q || !'rnc'.includes(it.q.t)) return false;
+      const r = BF.attempt(k.S, it.a); if (!r || r.free || on(r.S, it.q.id) || !on(r.S, it.p.id)) return false;
+      return !withUp(r.S).some(B => BF.ai.expand(B).some(x => !on(x.S, it.p.id)));
+    }));
+  };
+Q.push({
+  name: '34 踏营被封：车捉双', cat: '破釜反击',
+  desc: '楚前面用了破釜沉舟，接下来两步不能用技能。楚三级马扎在汉方半场 (7,4)，它跳 (6,6) 的马腿被自己的卒蹩住，可三级马平时有踏营，不管蹩腿照样踏过去，所以 (6,6) 本来是汉车的禁区。现在踏营被封：汉车直插 (6,6)，同时捉 (5,6) 的楚马和 (8,6) 的楚炮。楚没有军功升级保子，只能救一个，汉车下一步白吃另一个（楚还在封锁里，踏营吃不回来）。得马上动手：拖一步，等汉车去吃炮时封锁已经过了，楚马能踏营把车吃回来。',
+  build: q34build(14),
+  check: q34check,
+  answer: [{ k: 'mv', from: [6, 1], to: [6, 6] }],
+  bad: [{ k: 'mv', from: [6, 1], to: [5, 1] }],
+});
+Q.push({
+  name: '35 踏营被封：关门打马', cat: '破釜反击',
+  desc: '楚三级马用破釜沉舟连跳两步，踩掉了汉方底角的车，停在 (8,0)。它往外跳只有两条路：去 (6,1) 的马腿被汉马蹩着，去 (7,2) 的马腿 (8,1) 还空着。平时堵马腿没用——三级马有踏营，无视蹩腿照样跳走。可破釜之后楚三回合不能用技能：汉车走到 (8,1)，既堵死最后一条马腿、又贴着马，接下来三步连打三下（三级马 3 血），封锁结束前把它打死。一步都不能浪费：少打一下，封锁一结束马就踏营跑了。',
+  build: () => { const H = P('b', 'n', 3); ids.pf35 = H.id; return position([[4, 0, P('r', 'k')], [3, 0, P('r', 'a')], [5, 0, P('r', 'a')], [2, 0, P('r', 'e')], [6, 0, P('r', 'e')], [7, 0, P('r', 'n')], [2, 1, P('r', 'r')],
+    [0, 3, P('r', 'p')], [2, 3, P('r', 'p')], [4, 3, P('r', 'p')], [6, 3, P('r', 'p')], [8, 3, P('r', 'p')],
+    [4, 9, P('b', 'k')], [3, 9, P('b', 'a')], [5, 9, P('b', 'a')], [2, 9, P('b', 'e')], [6, 9, P('b', 'e')], [1, 9, P('b', 'n')],
+    [0, 6, P('b', 'p')], [2, 6, P('b', 'p')], [4, 6, P('b', 'p')], [6, 6, P('b', 'p')], [8, 6, P('b', 'p')], [8, 0, H]],
+    { turn: 'r', cnt: { r: 12, b: 12 }, fx: { pf: 15 }, used: { art: { r: 1, b: 1 } } }); },
+  // 汉走完之后楚马已经跑不掉：楚方不管怎么应，汉方都能接着打它、三步之内打死（汉方只试“打这匹马”的着法，够用就说明它逃不了）
+  check: (seq, g0) => {
+    const g = play(g0, seq); if (!g || g.result || g.turn !== 'b') return false;
+    const on = S => S.board.some(row => row.some(p => p && p.id === ids.pf35));
+    const doomed = (S, n) => !on(S) || (n > 0 && BF.ai.expand(S).every(k => !on(k.S) || BF.ai.gen(k.S, true).some(it => {
+      if (!it.q || it.q.id !== ids.pf35) return false;
+      const r = BF.attempt(k.S, it.a); return !!r && !r.free && doomed(r.S, n - 1);
+    })));
+    return doomed(g.S, 3);
+  },
+  answer: [{ k: 'mv', from: [2, 1], to: [8, 1] }],
+  bad: [{ k: 'mv', from: [2, 1], to: [7, 1] }],
+});
+
 // ---------- 自检：考题本身摆得对不对 ----------
 async function lint() {
   let bad = 0;
