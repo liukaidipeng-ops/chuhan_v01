@@ -1,6 +1,6 @@
 // 技能模式电脑「智商考卷」（除第 6 题外，汉方走的题都把楚方破釜沉舟设为已用，一题只考一个机制）：一组摆好的局面，专考这套棋特有的机制（血量、打不死就弹回、升级不占行动、兵法时机）
 // 用法：node tools/bfai_exam.js [电脑文件...] [--level mid] [--runs 3] [--verbose]
-//   默认同时考 src/bfai.js（游戏里现用的）和 tools/bfai_next.js（改进版）。任何版本的 bfai.js 都能拿来考。
+//   默认考 src/bfai.js（游戏里现用的）；可以一次给几个文件对比（比如 git show 出来的旧版本）。
 //   每题按不同随机种子考 --runs 次，答对的次数记分。
 'use strict';
 const path = require('path');
@@ -15,7 +15,7 @@ for (let i = 0; i < argv.length; i++) {
   else if (argv[i] === '--verbose') opt.verbose = true;
   else opt.files.push(argv[i]);
 }
-if (!opt.files.length) opt.files = ['src/bfai.js', 'tools/bfai_next.js'];
+if (!opt.files.length) opt.files = ['src/bfai.js'];
 
 function mulberry32(a) { return () => { a |= 0; a = (a + 0x6D2B79F5) | 0; let t = Math.imul(a ^ (a >>> 15), 1 | a); t = (t + Math.imul(t ^ (t >>> 7), 61 | t)) ^ t; return ((t ^ (t >>> 14)) >>> 0) / 4294967296; }; }
 let pid = 500;
