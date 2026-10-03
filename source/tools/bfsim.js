@@ -341,6 +341,7 @@ function worker() {
       seed: job.seed, flip: !!job.flip, winner: null, reason: null, rounds: 0, plies: 0, final: false, finalRound: null,
       act: side2(), up: side2(), kills: side2(), hits: side2(), meritBy: side2(), friendly: side2(),
       ultRound: {}, artRound: {}, artKind: {}, firstLv: { r: {}, b: {} }, samples: [], rescue: 0, jumaCounter: side2(), msMax: 0, ms: 0,
+      upHp: { r: { full: 0, hurt: 0, last: 0 }, b: { full: 0, hurt: 0, last: 0 } },   // 手动升级时那枚子的血量：满血 / 掉过血（其中只剩 1 血）
     };
     let lastRound = 0, guard = 0;
     const sample = () => {
@@ -402,7 +403,10 @@ function worker() {
       const st = AIS[side].think.last; if (st && st.nodes != null) { R.nodes = (R.nodes || 0) + st.nodes; R.nodeMoves = (R.nodeMoves || 0) + 1; }
       if (!seq.length) throw new Error('电脑没有给出行动');
       for (const a of seq) {
+        // 升级会回满血：掉了血再升更划算（用户问的“极限升级”）。记下升级前的血量
+        const up0 = a.k === 'up' ? g.at(a.at[0], a.at[1]) : null, hp0 = up0 && { hp: up0.hp, max: BF.hpOf(up0.t, up0.lv) };
         const info = g.apply(a);
+        if (info && hp0) { const H = R.upHp[side]; if (hp0.hp >= hp0.max) H.full++; else { H.hurt++; if (hp0.hp === 1) H.last++; } }
         if (!info) throw new Error('非法行动 ' + JSON.stringify(a) + ' seed=' + job.seed);
         record(a, info, side);
       }
@@ -575,6 +579,8 @@ function summarize(rs) {
   const rounds = rs.map(r => r.rounds);
   S.rounds = { mean: mean(rounds), median: quant(rounds, 0.5), p90: quant(rounds, 0.9), within60: rounds.filter(x => x <= 60).length / N };
   S.final = rs.filter(r => r.final).length / N;
+  const uh = s => { const t = { full: 0, hurt: 0, last: 0 }; for (const r of rs) if (r.upHp) for (const k in t) t[k] += r.upHp[s][k]; return t; };
+  S.upHp = { r: uh('r'), b: uh('b') };
   const pfs = rs.filter(r => r.pf);
   if (pfs.length) {
     const avg = f => mean(pfs.map(f));
@@ -651,6 +657,8 @@ function print(S, o) {
   const ur = S.ult.used, ar = S.art.used;
   L.push(`终极兵法：汉用 ${ur.r[0]} 局（平均第 ${S.ult.round.r.toFixed(1)} 回合，用了的局胜 ${ur.r[0] ? pct(ur.r[1] / ur.r[0]) : '-'}）  楚用 ${ur.b[0]} 局（第 ${S.ult.round.b.toFixed(1)} 回合，胜 ${ur.b[0] ? pct(ur.b[1] / ur.b[0]) : '-'}）  护驾破鸿门宴 ${S.rescue} 局`);
   L.push(`主帅兵法：汉召回 ${ar.r[0]} 局（第 ${S.art.round.r.toFixed(1)} 回合，胜 ${ar.r[0] ? pct(ar.r[1] / ar.r[0]) : '-'}）  楚破釜 ${ar.b[0]} 局（第 ${S.art.round.b.toFixed(1)} 回合，胜 ${ar.b[0] ? pct(ar.b[1] / ar.b[0]) : '-'}）`);
+  { const f = H => { const n = H.full + H.hurt; return n ? `满血 ${pct(H.full / n)}、掉过血 ${pct(H.hurt / n)}（只剩 1 血 ${pct(H.last / n)}），共 ${n} 次` : '-'; };
+    L.push(`手动升级时的血量（升级回满血，掉了血再升更划算）：汉 ${f(S.upHp.r)} | 楚 ${f(S.upHp.b)}`); }
   if (S.pf) L.push(`破釜前后（${S.pf.n} 局，分数 + 汉优）：破釜那一手汉方 ${S.pf.gain.toFixed(2)} 分（子力 ${S.pf.gainM.toFixed(2)}）；之后封锁期汉方 ${S.pf.back >= 0 ? '+' : ''}${S.pf.back.toFixed(2)} 分（子力 ${S.pf.backM >= 0 ? '+' : ''}${S.pf.backM.toFixed(2)}）；追回一半以上 ${pct(S.pf.half)}；封锁期内就分了胜负 ${S.pf.ended} 局；这些局汉胜 ${pct(S.pf.redWin)}`);
   L.push('首次升到 N 级（平均回合 / 出现的局占比）  汉 | 楚');
   for (const [k, v] of Object.entries(S.firstLv)) L.push(`  ${k} 级  第 ${v.r.toFixed(1)} 回合 ${pct(v.rn)} | 第 ${v.b.toFixed(1)} 回合 ${pct(v.bn)}`);
