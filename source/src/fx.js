@@ -592,6 +592,7 @@ const Fx = (() => {
     if (c.counter === 'die') { const cc = m.position.clone(); chunks(cc, d.clone().negate(), 0.7, 8, { of: m }); flyFace(m, cc, d.clone().negate(), 0.6, false); m.visible = false; return; }
     if (c.survive) {
       if (tgt) { P.blood(B.clone().setY(TOP + 0.2), 10, 0.6, d); P.sparks(B.clone().setY(TOP + 0.25), 8); await tween(0.2, k => { tgt.position.copy(B).addScaledVector(d, Math.sin(k * Math.PI) * 0.12); }); }
+      if (c.onImpact) await c.onImpact({});
       await tween(0.32, k => { m.position.lerpVectors(mid, A, k); m.position.y = TOP + Math.sin(k * Math.PI) * 0.2; }, ease.out);
       Sfx.place();
       return;

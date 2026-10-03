@@ -264,20 +264,18 @@ const ok = (x, msg) => { assert(x, msg); };
 }
 // 11. 践踏（四级楚战象被动，无冷却）
 {
-  const g = setup([[4, 0, K('r')], [4, 9, K('b')], [2, 9, P('b', 'e', 4)], [4, 8, P('b', 'a')], [4, 6, P('r', 'n', 2)], [3, 7, P('r', 'p')], [8, 0, P('r', 'r')]], { turn: 'b' });
+  const g = setup([[4, 0, K('r')], [4, 9, K('b')], [2, 9, P('b', 'e', 4)], [4, 8, P('b', 'a')], [4, 7, P('r', 'p')], [4, 6, P('r', 'n', 2)], [3, 7, P('r', 'p')], [8, 0, P('r', 'r')]], { turn: 'b' });
   ok(g.skillTargets(2, 9).every(a => a.sk === 'feiyue'), '践踏是被动，不出现在主动技能里');
   const i = g.apply({ k: 'mv', from: [2, 9], to: [4, 7] });
-  ok(i && g.at(4, 7).t === 'e' && g.at(4, 6).hp === 1 && !g.at(3, 7) && g.at(4, 7).kills === 1, '落子后周围一圈敌子各扣 1：二级的剩 1 血，一级的直接踩死');
-  ok(i.ev.some(e => e.e === 'splash'), '周围有敌子：触发践踏');
+  ok(i && g.at(4, 7).t === 'e' && g.at(4, 6).hp === 1 && !g.at(3, 7) && g.at(4, 7).kills === 2, '吃子后周围一圈敌子各扣 1：二级的剩 1 血，一级的直接踩死');
+  ok(i.ev.some(e => e.e === 'splash'), '吃了子：触发践踏');
   g.apply({ k: 'mv', from: [8, 0], to: [8, 1] });
-  g.apply({ k: 'mv', from: [4, 7], to: [2, 9] });
-  g.apply({ k: 'mv', from: [8, 1], to: [8, 0] });
-  g.apply({ k: 'mv', from: [2, 9], to: [4, 7] });
-  ok(!g.at(4, 6), '再次落子再踩（无冷却），残血的直接踩死');
-  g.apply({ k: 'mv', from: [8, 0], to: [8, 1] });
-  const j = g.apply({ k: 'mv', from: [4, 7], to: [2, 9] });
-  ok(j && !j.ev.some(e => e.e === 'splash'), '周围没有敌子：不踩空地');
-  const g2 = setup([[4, 0, K('r')], [4, 9, K('b')], [2, 9, P('b', 'e', 3)], [4, 6, P('r', 'n', 2)]], { turn: 'b' });
+  const j = g.apply({ k: 'mv', from: [4, 7], to: [2, 5] });
+  ok(j && !j.ev.some(e => e.e === 'splash') && g.at(4, 6) && g.at(4, 6).hp === 1, '走到空格：不触发践踏');
+  const g3 = setup([[4, 0, K('r')], [4, 9, K('b')], [2, 9, P('b', 'e', 4)], [4, 7, P('r', 'p')], [4, 6, P('r', 'n', 2, { hp: 1 })]], { turn: 'b' });
+  g3.apply({ k: 'mv', from: [2, 9], to: [4, 7] });
+  ok(!g3.at(4, 6), '残血的直接踩死');
+  const g2 = setup([[4, 0, K('r')], [4, 9, K('b')], [2, 9, P('b', 'e', 3)], [4, 7, P('r', 'p')], [4, 6, P('r', 'n', 2)]], { turn: 'b' });
   g2.apply({ k: 'mv', from: [2, 9], to: [4, 7] });
   ok(g2.at(4, 6).hp === 2, '三级战象不踩（践踏是四级技能）');
   console.log('践踏 OK');

@@ -10,9 +10,11 @@
     ['第六版', '2026 年 10 月', [
       '房间：客方点「准备」、房主点「开始」才开局；客方可改为观战；房主可添加人机，其他人观战（人机只下象棋）',
       '技能模式：带伤害的技能先预览结果（「殺」/「-1」），再点一次目标才发动',
+      '调试摆子新增两个开关：「无冷却」（技能用完不进冷却）、「自由移动」（不分回合，点哪边的子就走哪边）',
+      '调试摆子：不再每点一下整盘闪；可先选「摆放等级」，摆下去就是那一级；再点一次同一个子或点「停止摆放」即可退出摆放',
       '刘邦、项羽换新模型：刘邦红袍冕服、项羽乌金重甲黑披风持霸王戟，脸看得清',
-      '践踏：以象冲到的那一格为中心，周围一圈八格的敌子各扣 1 点，残血的直接踩死；周围没有敌子就不踩。战象会腾身跃起再砸下去',
-      '飞越、踏营有了腾空跃过的动画；烟尘碎石冲天，被踩死的整队掀飞，场边的人全被震倒',
+      '践踏：四级楚象攻击或吃掉敌子后就地高举前脚跺下，那一格周围一圈八格的敌子各扣 1 点，残血的直接踩死；没打死目标的，结算完四周才退回。走到空格不触发',
+      '飞越、踏营有了一气呵成的腾空跃过动画；士的巨盾不再闪烁',
       '霹雳：三轮急速齐射、每轮三发，爆炸更猛；炸死的子炸碎炸飞',
       '设置分成 画面 / 声音 / 对局与其他 三页；新增语音音量、碎片留存（不留 / 三回合 / 五回合 / 永久）',
       '断肢落地留血迹；模型模式脚下的圈不再被战损痕迹盖住；手机上技能模式开局也会出规则速览',
@@ -196,7 +198,7 @@
   // layout：续局时沿用原来的随机布局（本地揭棋）
   const mkGame = (o, layout) => (o && +o.bf ? new BF.Game() : o && +o.jq ? new XQ.Game({ jq: true, layout: layout || (mode === 'local' ? XQ.randomLayout() : null) }) : new XQ.Game());
   // 兵法：技能选择状态、升级记法、调试
-  let bfMode = null, bfUpNote = '', dbgOn = false, dbgPick = null, dbgSel = null;
+  let bfMode = null, bfUpNote = '', dbgOn = false, dbgPick = null, dbgSel = null, dbgLv = 1, dbgNoCd = false, dbgFree = false;
   let JK = null, JC = { cin: {}, cout: {}, used: { r: {}, b: {} } }, jqBad = 0, pendingJ = null, lastJx = null;
   const jqOn = () => game.jq && online();
   const jqReady = () => !jqOn() || !!(JK && JC.cin[other(mySide)] && JC.cout[mySide]);
@@ -644,7 +646,7 @@
     jqSetup(state);
     rebuildNotes();
     $('log').classList.toggle('jq', game.jq || !!game.bf);
-    bfMode = null; dbgOn = false; $('bfDebug').classList.add('hidden'); $('bfReport').innerHTML = ''; $('bfReport').classList.toggle('hidden', !game.bf);
+    bfMode = null; dbgOn = false; dbgNoCd = false; dbgFree = false; $('bfDebug').classList.add('hidden'); $('bfReport').innerHTML = ''; $('bfReport').classList.toggle('hidden', !game.bf);
     $('tRule').classList.toggle('hidden', !game.bf);
     setView(mode === 'local' ? 'r' : side);
     $('lobby').classList.add('hidden'); $('hud').classList.remove('hidden');
@@ -1126,7 +1128,7 @@
     if (boardHold) { boardHold = false; return; }
     if (Core.lastDragMoved > 10 || Core.Cam.cine) return;
     if (dbgOn && game.bf) { const p = Board.pick(e.clientX, e.clientY); if (p) dbgClick(p[0], p[1]); return; }
-    if (game.bf && canAct()) { const p = Board.pick(e.clientX, e.clientY); bfClick(p); return; }
+    if (game.bf && canAct()) { const p = Board.pick(e.clientX, e.clientY); dbgFreeTurn(p); bfClick(p); return; }
     if (!canAct()) {
       if (started && !ended && !busy && online() && Net.connected && game.turn !== mySide) toast('还没轮到你');
       if (started && !ended && vsAI() && game.turn !== mySide) toast(`${NAME[aiSide()]}正在思考`);
@@ -1638,15 +1640,24 @@
   const DBG_TYPES = ['k', 'a', 'e', 'n', 'r', 'c', 'p'];
   function dbgPaint() {
     $('dbgPal').innerHTML = ['r', 'b'].map(s => DBG_TYPES.map(t => `<button class="${s}${dbgPick && dbgPick.s === s && dbgPick.t === t ? ' on' : ''}" data-s="${s}" data-t="${t}">${XQ.NAMES[s][t]}</button>`).join('')).join('') + `<button data-s="" data-t="" class="${dbgPick && !dbgPick.t ? 'on' : ''}">空</button>`;
-    $('dbgPal').querySelectorAll('button').forEach(b => b.onclick = () => { dbgPick = b.dataset.t ? { s: b.dataset.s, t: b.dataset.t } : { t: '' }; dbgPaint(); });
+    // 再点一次同一个按钮（或点「停止摆放」）就退出摆放，回到“点棋盘选中棋子”
+    $('dbgPal').querySelectorAll('button').forEach(b => b.onclick = () => {
+      const same = dbgPick && (dbgPick.t || '') === b.dataset.t && (dbgPick.s || '') === b.dataset.s;
+      dbgPick = same ? null : b.dataset.t ? { s: b.dataset.s, t: b.dataset.t } : { t: '' }; dbgPaint();
+    });
+    $('dbgStop').classList.toggle('hidden', !dbgPick);
+    $('dbgTip').textContent = !dbgPick ? '点下面的子开始摆放；现在点棋盘是选中棋子。' : dbgPick.t ? `正在摆放：${SIDE_ARMY[dbgPick.s]}${XQ.NAMES[dbgPick.s][dbgPick.t]}（${dbgPick.t === 'k' ? '主帅不分等级' : '一二三四'[dbgLv - 1] + '级'}），点棋盘连续摆。` : '正在清除：点棋盘上的子把它拿掉。';
+    $('bfDebug').querySelectorAll('[data-plv]').forEach(b => b.classList.toggle('on', +b.dataset.plv === dbgLv));
     const p = dbgSel && game.at(dbgSel[0], dbgSel[1]);
     $('dbgSel').textContent = p ? `${SIDE_ARMY[p.s]}${pname(p)} · ${p.lv}级 · ${p.hp}血 · 甲${p.xp || 0} · 冷却${game.cdLeft(p)}` : '—';
+    $('dbgNoCd').textContent = '无冷却：' + (dbgNoCd ? '开' : '关'); $('dbgNoCd').classList.toggle('on', dbgNoCd);
+    $('dbgFree').textContent = '自由移动：' + (dbgFree ? '开' : '关'); $('dbgFree').classList.toggle('on', dbgFree);
     $('dbgMr').value = game.merit.r; $('dbgMb').value = game.merit.b; $('dbgRound').value = game.round;
   }
   function dbgApply(fn) {
-    game.setup(fn);
+    game.setup(fn); game.noCd = dbgNoCd;
     notes = []; bfUpNote = ''; renderLog();
-    Board.setPosition(game); Board.faceViewer(viewSide); Board.showLast(null);
+    Board.syncPosition(game); Board.faceViewer(viewSide); Board.showLast(null);
     barKey = ''; dbgPaint(); updateHud();
   }
   function dbgClick(f, r) {
@@ -1656,7 +1667,8 @@
         const ids = T.board.flat().filter(Boolean).map(x => x.id).concat(T.dead.r.map(x => x.id), T.dead.b.map(x => x.id));
         if (dbgPick.t === 'k') { for (let rr = 0; rr < 10; rr++) for (let ff = 0; ff < 9; ff++) { const q = T.board[rr][ff]; if (q && q.t === 'k' && q.s === dbgPick.s) T.board[rr][ff] = null; } }
         const old = T.board[r][f]; if (old && old.t === 'k') return;
-        T.board[r][f] = { s: dbgPick.s, t: dbgPick.t, id: Math.max(31, ...ids) + 1, lv: 1, hp: 1, cd: 0, jm: 0, xp: 0 };
+        const lv = dbgPick.t === 'k' ? 1 : Math.min(BF.levelInfo(dbgPick.t, dbgPick.s, 1).maxLv, dbgLv);
+        T.board[r][f] = { s: dbgPick.s, t: dbgPick.t, id: Math.max(31, ...ids) + 1, lv, hp: dbgPick.t === 'k' ? 1 : BF.hpOf(dbgPick.t, lv), cd: 0, jm: 0, xp: 0, kills: 0 };
       });
       dbgSel = [f, r]; dbgPaint(); return;
     }
@@ -1667,6 +1679,21 @@
   $('bfDebug').querySelectorAll('[data-lv]').forEach(b => b.onclick = () => dbgPiece(p => { const mx = BF.levelInfo(p.t, p.s, 1).maxLv; p.lv = Math.min(mx, +b.dataset.lv); p.hp = BF.hpOf(p.t, p.lv); }));
   $('bfDebug').querySelectorAll('[data-xp]').forEach(b => b.onclick = () => dbgPiece(p => { p.xp = Math.max(0, (p.xp || 0) + +b.dataset.xp); }));
   $('bfDebug').querySelectorAll('[data-hp]').forEach(b => b.onclick = () => dbgPiece(p => { p.hp = Math.max(1, Math.min(BF.hpOf(p.t, p.lv), p.hp + +b.dataset.hp)); }));
+  $('bfDebug').querySelectorAll('[data-plv]').forEach(b => b.onclick = () => { dbgLv = +b.dataset.plv; dbgPaint(); });
+  $('dbgStop').onclick = () => { dbgPick = null; dbgPaint(); };
+  const DBG_CLEAR_CD = T => { for (const p of T.board.flat()) if (p) { p.cd = 0; p.jm = 0; for (const k of Object.keys(p)) if (k.startsWith('c_')) p[k] = 0; } };
+  $('dbgNoCd').onclick = () => { dbgNoCd = !dbgNoCd; if (dbgNoCd) dbgApply(DBG_CLEAR_CD); else { game.noCd = false; dbgPaint(); } toast(dbgNoCd ? '无冷却：技能用完不进冷却' : '无冷却已关'); };
+  $('dbgFree').onclick = () => { dbgFree = !dbgFree; dbgPaint(); toast(dbgFree ? '自由移动：不分回合，点哪边的子就走哪边' : '自由移动已关'); };
+  // 自由移动：点到不该走的那一方的子（又不是当前选中子的攻击目标），就把走棋权切给它
+  function dbgFreeTurn(p) {
+    if (!dbgFree || mode !== 'local' || !game.bf || !p || bfMode) return;
+    const pc = game.at(p[0], p[1]);
+    if (!pc || pc.s === game.turn) return;
+    if (sel && selMoves.some(m => m.to[0] === p[0] && m.to[1] === p[1])) return;
+    const s = pc.s;
+    dbgApply(T => { const n = Math.min(T.cnt.r, T.cnt.b); T.turn = s; T.cnt = s === 'r' ? { r: n, b: n } : { r: n + 1, b: n }; T.upgraded = false; T.freeUsed = false; T.jmLock = null; });
+    Board.clearMoves(false); sel = null; selMoves = [];
+  }
   $('dbgCd').onclick = () => dbgApply(T => { for (const p of T.board.flat()) if (p) { p.cd = 0; p.jm = 0; for (const k of Object.keys(p)) if (k.startsWith('c_')) p[k] = 0; } });
   $('dbgMr').onchange = () => dbgApply(T => { T.merit.r = Math.max(0, Math.min(30, +$('dbgMr').value || 0)); });
   $('dbgMb').onchange = () => dbgApply(T => { T.merit.b = Math.max(0, Math.min(30, +$('dbgMb').value || 0)); });

@@ -31,7 +31,7 @@
       pili: { cooldown: 4, splashDamage: 1, splashMinLevel: 2 },
       feiyue: { cooldown: 5 }, // 相 / 象三级主动：这一步无视塞象眼
       qishe: { level: 4, cooldown: 3, range: 2, damage: 1 }, // 汉相四级
-      jianta: { level: 4, passive: true, splashDamage: 1, splashMinLevel: 1, ring8: true }, // 楚象四级被动：落点周围一圈有敌子才踩，各扣 1 点（残血的直接踩死），无冷却
+      jianta: { level: 4, passive: true, splashDamage: 1, splashMinLevel: 1, ring8: true }, // 楚象四级被动：攻击 / 吃子后踩那一格周围一圈，各扣 1 点（残血的直接踩死），走空格不踩，无冷却
       hujia: { cooldown: 4 },
     },
     generalArts: { xiaohe: { usesPerGame: 1 }, pofu: { usesPerGame: 1, steps: 2, mayEndInCheck: false, skillLockRounds: 3 } },
@@ -74,7 +74,7 @@
     feiyue: '这一步无视塞象眼（仍不能过河）。',
     pili: '炮击一个敌子，落点四周二级以上的敌子各扣 1 点。',
     qishe: '不动身，射斜线 1～2 格内的一个敌子，扣 1 点。',
-    jianta: '每次行动后，落点周围一圈（含斜向）的敌子各扣 1 点，只剩 1 血的直接踩死；周围没有敌子就不踩。',
+    jianta: '攻击或吃掉敌子后就地跺脚：那一格周围一圈（含斜向）的敌子各扣 1 点，只剩 1 血的直接踩死。走到空格不触发。',
     hujia: '与帅（将）互换位置，可解将；鸿门宴期间可救出汉王。',
   };
   // 每枚子的开局位置（复活用）
@@ -206,8 +206,8 @@
     if (side === 'b' && smActive(S)) return; // 四面楚歌期间楚军没有技能
     // 不管这一步杀没杀子，都以象冲到的那一格为中心踩一圈（强攻没拿下、退回原位，踩的也是被攻击的那格四周）
     const c = to;
-    // 周围一圈得有敌子（帅将不算）才踩，空地不踩
-    if (!RING8.some(([df, dr]) => { const q = at(S, c[0] + df, c[1] + dr); return q && q.s !== side && q.t !== 'k'; })) return;
+    // 落子处得有敌子（打伤或吃掉了它）才踩；走到空格不踩
+    if (res !== 'kill' && res !== 'hit') return;
     if (c && P.hp > 0) splash(S, c, side, ev, 'jianta', P);
   }
 
@@ -608,7 +608,13 @@
       return S.merit[p.s] >= upCost(p);
     }
     // 记录一条行动（升级或主行动）并执行；返回动画信息
+    // 调试「无冷却」：每次行动后把全盘冷却清零
     apply(e) {
+      const r = this._apply(e);
+      if (r && this.noCd) for (const row of this.S.board) for (const p of row) if (p) { p.cd = 0; for (const k of Object.keys(p)) if (k.startsWith('c_')) p[k] = 0; }
+      return r;
+    }
+    _apply(e) {
       CFG_CUR = this.cfg;
       if (this.result) return null;
       const S = this.S;

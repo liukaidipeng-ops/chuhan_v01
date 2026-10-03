@@ -591,6 +591,21 @@ const Board = (() => {
     else if (pieceSkin) for (let r = 0; r < 10; r++) for (let f = 0; f < 9; f++) { const p = game.board[r][f], m = p && pieces.get(p.id); if (m) dress(m, p); }
   }
 
+  // 只改有变化的子（调试摆子用）：没动的棋子原样留着，不整盘重建，也就不会闪
+  function syncPosition(game) {
+    lastGame = game;
+    const keep = new Set();
+    for (let r = 0; r < 10; r++) for (let f = 0; f < 9; f++) {
+      const p = game.board[r][f]; if (!p) continue;
+      keep.add(p.id);
+      let m = pieces.get(p.id);
+      if (m && (m.userData.s !== p.s || m.userData.t !== p.t || !m.parent)) { piecesRoot.remove(m); pieces.delete(p.id); m = null; }
+      if (!m) { m = makePiece(p); piecesRoot.add(m); pieces.set(p.id, m); }
+      m.position.copy(pos(f, r)); m.visible = true; m.scale.setScalar(1); m.rotation.x = 0; m.rotation.z = 0;
+    }
+    for (const [id, m] of [...pieces]) if (!keep.has(id)) { piecesRoot.remove(m); pieces.delete(id); }
+    if (game.bf) decorateAll(game);
+  }
   // ---------- 兵法：甲片（一片 = 1 点生命）、金星（每升一级一颗）、拒马木桩、鸿门宴、涣散 ----------
   const plateGeo = new THREE.BoxGeometry(0.082, 0.052, 0.012); plateGeo.userData.keep = true;
   // 甲片：乌铁鳞甲（在木、银、金、玉各种棋身上都看得清）
@@ -1610,7 +1625,7 @@ const Board = (() => {
     } catch (e) { console.warn('polishBoard', e); }
   })();
   return {
-    root, TOP, PH, HALF, X, Z, pos, setPosition, pieces, piecesRoot, makePiece, faceViewer,
+    root, TOP, PH, HALF, X, Z, pos, setPosition, syncPosition, pieces, piecesRoot, makePiece, faceViewer,
     showMoves, clearMoves, showZone, setGlow, showLast, pick, meshAt, get hovered() { return hovered; }, ringTex, glowTex, wakes, water, waterMat, decal, flatGeo, pine, deco, FONT,
     viewSide: 'r', setSkin, dress, get lastGame() { return lastGame; }, skinTune, get SK() { return SK; }, pieceWood, RZ, BZ, BX, BRIDGE_X, faceTex, backTex, setFace, makeRiver, mtTex, decorate, decorateAll, reconcile, plateGeo, plateOn,
   };

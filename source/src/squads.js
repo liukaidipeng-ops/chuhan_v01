@@ -1101,6 +1101,7 @@ const Squads = (() => {
       else Fx.shot(A.clone().lerp(B, 0.7).addScaledVector(side, 2.3).addScaledVector(d, -0.6).add(new V3(0, 0.95, 0)), A.clone().lerp(B, 0.82).add(new V3(0, 0.25, 0)), 0.6);
     }
     await att.attack(def, c);
+    if (c.onImpact) await c.onImpact({ att });   // 践踏：打完就地跺脚、结算四周，之后才撤回 / 收场
     // 兵法·攻击未下：攻方撤回原位，守方带伤留在原地；远射（齐射）攻方不动
     if (c.survive || c.ranged) {
       await sleep(0.3);
@@ -1293,6 +1294,7 @@ const Squads = (() => {
     });
     return {
       get on() { return on; },
+      sq(m) { const st = map.get(m); return st ? st.sq : null; },
       set(v) {
         v = !!v; if (v === on) return; on = v;
         if (on) reconcile();

@@ -255,6 +255,7 @@ body.compact #bfReport li{font-size:13px}
 #bfDebug .dpal button{width:30px;height:30px;border-radius:50%;border:1px solid #8a6a40;background:radial-gradient(circle at 40% 35%,#ecc990,#c9a068);font-weight:bold;font-size:15px}
 #bfDebug .dpal button.r{color:var(--red)}#bfDebug .dpal button.on{box-shadow:0 0 0 2px var(--ink)}
 #bfDebug .drow{margin:5px 0;display:flex;align-items:center;gap:4px;flex-wrap:wrap}
+#bfDebug .drow button.on{background:var(--ink);color:#f5ead0}#bfDebug .dsec button{border:1px solid var(--red);color:var(--red);background:rgba(255,255,255,.6);border-radius:3px;padding:1px 7px;font-size:12px}
 #bfDebug .drow button{border:1px solid var(--ink3);background:rgba(255,255,255,.5);border-radius:3px;padding:2px 7px;font-size:13px}
 #bfDebug input{width:52px;font-size:13px;padding:2px 4px}
 #updBar{position:fixed;left:50%;top:calc(6px + var(--safe-t));transform:translateX(-50%);z-index:90;background:#a3241a;color:#f7ead0;border:1px solid #d9b877;border-radius:16px;padding:6px 16px;font-size:13px;letter-spacing:.1em;box-shadow:0 4px 14px rgba(40,10,5,.35);cursor:pointer;font-family:inherit}
@@ -513,14 +514,16 @@ body.compact #log{width:164px;max-height:34vh}
   <ol id="bfReport" class="hidden"></ol>
   <div id="bfDebug" class="hidden">
     <div class="dh">调 试 摆 子<button class="x" id="dbgClose">×</button></div>
-    <div class="dsec">点选下面的子，再点棋盘摆放；选“空”可清除。</div>
+    <div class="drow">摆放等级 <button data-plv="1">一</button><button data-plv="2">二</button><button data-plv="3">三</button><button data-plv="4" title="不能升四级的兵种按它的最高级摆">四</button></div>
     <div class="dpal" id="dbgPal"></div>
+    <div class="dsec"><span id="dbgTip"></span> <button id="dbgStop" class="hidden">停止摆放</button></div>
     <div class="drow">已选中：<span id="dbgSel">—</span></div>
     <div class="drow">等级 <button data-lv="1">一</button><button data-lv="2">二</button><button data-lv="3">三</button><button data-lv="4" title="车、兵、士能升四级">四</button>　血 <button data-hp="-1">−</button><button data-hp="1">＋</button></div>
     <div class="drow">甲片（击杀数） <button data-xp="-1">−</button><button data-xp="1">＋</button>　<button id="dbgCd">清冷却</button></div>
     <div class="drow">军功 汉 <input id="dbgMr" type="number" min="0" max="30"> 楚 <input id="dbgMb" type="number" min="0" max="30"></div>
     <div class="drow">回合 <input id="dbgRound" type="number" min="1" max="200"> 走棋 <button data-turn="r">汉</button><button data-turn="b">楚</button></div>
     <div class="drow">兵法 <button id="dbgArts">重置已用</button> 状态 <button id="dbgFx">清除涣散/鸿门宴</button></div>
+    <div class="drow">开关 <button id="dbgNoCd">无冷却：关</button><button id="dbgFree">自由移动：关</button></div>
     <div class="drow"><button id="dbgClear">清空棋盘（留将帅）</button><button id="dbgReset">恢复开局</button></div>
   </div>
   <div id="tools">
@@ -711,7 +714,7 @@ body.compact #log{width:164px;max-height:34vh}
   · <b>甲片</b>：每击杀一个敌方单位，那枚子腰带上镶一片甲，下次升级少花 1 功（升级时用掉，最少 1 功）。误伤己方子不得军功、不镶甲。<br>
   · <b>攻击</b>：走到敌子格时，敌子血量不超过攻方攻击力就吃掉占位，否则只打掉攻击力那么多血，攻方退回原位。攻击力一般是 1，二级以上的士是 2。打不死将军的子不算解将。<br>
   · <b>兵种技能</b>（三级解锁，有冷却）：兵卒「拒马」不占行动，架完再走一步棋，反伤来犯者；车「冲阵」以直线上遇到的第一枚子为跳板（敌我皆可、帅将除外，跳板挨 1 点伤害），落到它身后一格——空格直接落下，有子且一击可杀就吃掉占位，打不死则扣它血、车退回原位；马「踏营」无视蹩马腿（只能在敌方半场用）；炮「霹雳」五格落弹溅伤四周；相/象「飞越」无视塞象眼；士「护驾」与帅将换位（鸿门宴期间护驾可把汉王救出来）。<br>
-  · <b>四级技能</b>：汉相「齐射」不动身射斜线两格；楚象「践踏」落点周围一圈有敌子就踩，各扣 1 点、残血踩死（被动）；兵卒「神速营」八个方向直线疾行 1～2 格、可越子，落点须是空格、不能攻击（冷却 5）；兵卒「回防」可后退一格（冷却 2）；士「铁甲禁卫」可在九宫内上下左右走一格（冷却 2）。<br>
+  · <b>四级技能</b>：汉相「齐射」不动身射斜线两格；楚象「践踏」攻击或吃子后就地跺脚，那一格周围一圈敌子各扣 1 点、残血踩死（被动，走空格不触发）；兵卒「神速营」八个方向直线疾行 1～2 格、可越子，落点须是空格、不能攻击（冷却 5）；兵卒「回防」可后退一格（冷却 2）；士「铁甲禁卫」可在九宫内上下左右走一格（冷却 2）。<br>
   · <b>称号</b>：每升一级换一个称号（汉军兵 → 汉伍长 → 汉什长 → 无当飞军；楚军卒 → 楚锐卒 → 楚持戟 → 江东甲士……），把鼠标停在棋子上可以看到。<br>
   · <b>被动技能</b>不用按按钮：能用时直接作为普通走法出现；同一回合里主动技能和被动技能可以一起用（例如架完拒马，再用回防后退一格）。<br>
   · 电脑上把鼠标停在按钮、兵法签或棋子上，手机上长按，可以看到说明；右侧「法」按钮是规则速览。选子后，打不死的目标头顶标「-1」「-2」，能一击杀死才标「殺」。<br>

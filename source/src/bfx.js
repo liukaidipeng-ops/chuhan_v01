@@ -99,26 +99,25 @@ const BFX = (() => {
     Sfx.B.crack(0); 
   }
   // 楚战象「践踏」：一跺地，周围一圈烟尘冲天、碎石乱飞；被踩死的整队掀飞，场边的人全被震倒
-  async function trampleFx(ev, side, id) {
+  async function trampleFx(ev, side, act = {}) {
     const sp = ev.find(e => e.e === 'splash' && e.how === 'jianta');
     if (!sp) return;
     const c = Board.pos(sp.at[0], sp.at[1]), G = c.clone().setY(TOP + 0.02);
-    // 技能动画：战象长嘶、腾身而起（没拿下退回原位的，再扑回去），重重砸在落点上
-    const m = id != null ? Board.pieces.get(id) : null;
-    let home = null;
-    if (m && m.parent) {
-      home = m.position.clone().setY(TOP);
-      const far = home.distanceTo(c.clone().setY(TOP)) > 0.3, land = far ? c.clone().setY(TOP).lerp(home, 0.28) : home.clone();
-      labelPop(sp.at, '践踏', side);
-      try { Sfx.unit('ele').trumpet(); } catch (e) { } Sfx.B.whoosh(0.1, 0.5, 0.5);
-      P.dust(home, 8, null, 0.3);
-      await tween(far ? 0.5 : 0.42, k => { m.position.lerpVectors(home, land, far ? k : 0); m.position.y = TOP + (far ? Math.sin(k * Math.PI * 0.82) * 1.5 + 0.2 * k : 1.35 * k); m.rotation.x = -0.32 * Math.sin(k * Math.PI * 0.5) * (side === 'r' ? 1 : -1); }, ease.out);
-      await sleep(0.1);
-      const top = m.position.clone();
-      await tween(0.13, k => { m.position.lerpVectors(top, land, k); m.rotation.x = -0.32 * (1 - k) * (side === 'r' ? 1 : -1); }, ease.in);
-      m.position.copy(land); m.rotation.x = 0;
-      home = far ? { from: land, to: home } : null;
-    }
+    // 技能动画：战象就在打完的那一格，长嘶、高举前脚、用力跺下（不另外再走一趟）
+    const m = act.m && act.m.parent ? act.m : null;
+    let el = act.att && act.att.m && 'rearK' in act.att.m ? act.att.m : null;      // 演出里的战象模型
+    if (!el && m && Squads.Stand.on) { const sq = Squads.Stand.sq(m); if (sq && sq.m && 'rearK' in sq.m) el = sq.m; }   // 模型模式下立在棋盘上的战象
+    labelPop(sp.at, '践踏', side);
+    try { Sfx.unit('ele').trumpet(); } catch (e) { }
+    const sg = side === 'r' ? 1 : -1, y0 = m ? m.position.y : TOP;
+    const rear = k => {
+      if (el) { el.rearK = k; el.trumpetK = k; }
+      else if (m) { m.rotation.x = -0.5 * k * sg; m.position.y = y0 + 0.4 * k; }
+    };
+    await tween(0.38, rear, ease.out);
+    await sleep(0.16);
+    await tween(0.12, k => rear(1 - k), ease.in);
+    rear(0); if (el) el.trumpetK = 0;
     Sfx.unit('ele').stomp(); Sfx.B.boom(0, 0.7); Sfx.B.taiko(0, 1, 0.6); Sfx.B.thud(0.05, 1);
     Cam.shake(0.6); Fx.slowmo(0.25, 0.25);
     ring(sp.at, 0x5a4a38, 3.4); Fx.ring(G, 5.2, 1.0, 0x8b7e68, 0.7); Fx.ring(G, 2.2, 0.5, 0x3a2f24, 0.9);
@@ -135,10 +134,18 @@ const BFX = (() => {
     for (const e of hs.filter(x => x.e === 'kill')) blowAway(e, c, 1.5);
     const hits = hs.filter(x => x.e === 'hit');
     if (hits.length) await splashHits(hits, side); else await sleep(0.35);
-    if (home && m && m.parent) { await tween(0.5, k => { m.position.lerpVectors(home.from, home.to, k); m.position.y = TOP + Math.sin(k * Math.PI) * 0.6; }, ease.inOut); m.position.copy(home.to); }
     await sleep(0.3);
   }
   const notTrample = e => e.how !== 'jianta';
+  // 带践踏的一步：打到目标的那一刻就地跺脚、结算四周，然后才（没打死的话）退回去——整个是一次行动
+  async function strikeT(board, from, to, ev, side, opts = {}) {
+    const P0 = board[from[1]][from[0]], has = ev.some(e => e.e === 'splash' && e.how === 'jianta');
+    if (!has || !P0) { await strike(board, from, to, ev.filter(notTrample), side, opts); return; }
+    let done = false;
+    const m = Board.pieces.get(P0.id);
+    await strike(board, from, to, ev.filter(notTrample), side, { ...opts, onImpact: async x => { if (done) return; done = true; await trampleFx(ev, side, { m, att: x && x.att }); } });
+    if (!done) await trampleFx(ev, side, { m });
+  }
   // 霹雳：一开炮就齐射——目标和前后左右四格同时落弹（每格两三发），格子上有没有子都炸，留下焦土
   async function barrage(from, to, side) {
     const A = Board.pos(from[0], from[1]).setY(TOP + 0.45);
@@ -227,6 +234,7 @@ const BFX = (() => {
     const info = moveInfo(P0, from, to, T0, mover, opts.mt);
     info.check = !!opts.check; info.result = opts.result || null; info.streak = opts.streak || 1; info.mateName = opts.mateName || '';
     const c = { lv: P0.lv, dlv: T0 ? T0.lv : 1 };
+    if (opts.onImpact) c.onImpact = opts.onImpact;
     if (T0) { c.survive = !!tHit && !tKill; c.killed = !!tKill; c.counter = died ? 'die' : counter ? 'hurt' : null; c.ranged = !!opts.ranged; }
     await Fx.playMove(info, { c, noCamp: opts.noCamp });
     if (tHit) shatter(to, 1);
@@ -245,8 +253,7 @@ const BFX = (() => {
           if (info.result) Fx.checkStamp(XQ.other(side), info.result.reason === 'checkmate' ? '殺' : '困', info.mateName);
           else if (info.check) Fx.checkStamp(XQ.other(side));
         } else {
-          await strike(before, info.from, info.to, ev.filter(notTrample), side, { check: info.check, result: info.result, streak: info.streak, mateName: info.mateName });
-          await trampleFx(ev, side, (before[info.from[1]][info.from[0]] || {}).id);
+          await strikeT(before, info.from, info.to, ev, side, { check: info.check, result: info.result, streak: info.streak, mateName: info.mateName });
         }
       }
       else if (info.k === 'sk') await skill(info, before);
@@ -307,12 +314,12 @@ const BFX = (() => {
   }
 
   // 飞越 / 踏营：整队腾空一跃，越过挡路的子。落点是空位就直接跃过去砸地；落点有敌子，先跃到半空再扑下去打
-  async function leap(m, at, to, before, ev, side, mt, info, onLand, power = 1) {
+  async function leap(m, at, to, before, ev, side, mt, info, onLand, power = 1, onImpact = null) {
     const A = Board.pos(at[0], at[1]), B = Board.pos(to[0], to[1]), d = B.clone().sub(A).setY(0).normalize();
     const T0 = before[to[1]][to[0]], sgn = (side === 'r' ? 1 : -1);
     shotAt(to, 3.6, 2.6, 0.5);
     P.dust(A, 12, d.clone().negate(), 0.35); Cam.shake(0.08);
-    if (!m) { await strike(before, at, to, ev, side, { mt, streak: info.streak }); return; }
+    if (!m) { await strike(before, at, to, ev, side, { mt, streak: info.streak }); if (onImpact) await onImpact(); return; }
     // 蓄势下沉
     await tween(0.16, k => { m.scale.y = 1 - 0.18 * k; }, ease.out); m.scale.y = 1;
     const trail = () => { if (Math.random() < 0.8) Fx.spawn({ pos: m.position.clone().add(new V3(R(-0.2, 0.2), 0.05, R(-0.2, 0.2))), vel: new V3(0, 0.2, 0), tex: Core.Tex.puff, color: side === 'r' ? 0xd8b070 : 0x9a9488, size: 0.3, size2: 0.7, life: 0.55, op: 0.4, drag: 2 }); };
@@ -325,13 +332,26 @@ const BFX = (() => {
       await sleep(0.3);
       return;
     }
-    // 落点有敌子：跃到挡路子的头顶，定一下，回到原位后按正常的强攻 / 吃子演出走完
-    const mid = A.clone().lerp(B, 0.5);
-    await tween(0.34, k => { m.position.lerpVectors(A, mid, k); m.position.y = TOP + Math.sin(k * Math.PI / 2) * 1.4 * power; m.rotation.x = -0.35 * k * sgn; trail(); }, ease.out);
-    Fx.slowmo(0.25, 0.16); await sleep(0.12);
-    m.position.copy(A); m.position.y = TOP; m.rotation.x = 0;
-    await strike(before, at, to, ev, side, { mt, streak: info.streak });
-    Cam.shake(0.18); ring(to, 0x5a4a38, 2.2); if (onLand) onLand();
+    // 落点有敌子：一路跃过去砸在它头上，当场结算；没打死就再跳回原位
+    const id = m.userData.id, res = info.extra && info.extra.res;
+    const counter = ev.find(e => e.e === 'counter' && e.id === id);
+    const tEv = ev.filter(e => (e.e === 'hit' || e.e === 'kill') && e.id !== id && e.at[0] === to[0] && e.at[1] === to[1]);
+    const killed = tEv.some(e => e.e === 'kill'), top = killed ? B.clone() : B.clone().addScaledVector(d, -0.3);
+    await tween(0.62, k => { m.position.lerpVectors(A, top, k); m.position.y = TOP + Math.sin(k * Math.PI) * 1.5 * power + (killed ? 0 : 0.25 * k); m.rotation.x = -0.4 * Math.cos(k * Math.PI) * sgn * Math.sin(k * Math.PI); trail(); }, ease.inOut);
+    m.rotation.x = 0;
+    Cam.shake(0.3 * power); Fx.slowmo(0.25, 0.14); ring(to, 0x5a4a38, 2.2 * power); P.dust(B, 18, null, 0.45); P.sparks(B.clone().setY(TOP + 0.25), 12, 1); Fx.Marks.crack(B.clone().setY(TOP), 1.1 * power); Sfx.B.thud(0, 0.9); Sfx.B.taiko(0, 1, 0.5);
+    if (onLand) onLand();
+    if (counter) { Sfx.B.stab(0, 0.5); P.blood(top.clone().setY(TOP + 0.2), 12, 0.7, d.clone().negate()); }
+    const died = ev.find(e => e.e === 'kill' && e.id === id);
+    if (tEv.length) await splashHits(tEv, side);
+    if (died) { await splashHits([died], side); return; }
+    if (killed) { m.position.copy(B); m.position.y = TOP; }
+    if (onImpact) await onImpact();
+    if (!killed) { await sleep(0.12); await tween(0.5, k => { m.position.lerpVectors(top, A, k); m.position.y = TOP + Math.sin(k * Math.PI) * 0.7; }, ease.inOut); }
+    m.position.copy(killed ? B : A); m.position.y = TOP;
+    if (killed) Board.showLast(at, to);
+    if (killed && typeof Camp !== 'undefined') Camp.onCapture(side, info.streak || 1);
+    await sleep(0.25);
   }
   async function skill(info, before) {
     const ev = info.ev, sk = info.extra.sk, side = info.side, at = info.from, to = info.to;
@@ -393,8 +413,7 @@ const BFX = (() => {
       const m = Board.pieces.get(P0.id), A = Board.pos(at[0], at[1]), B = Board.pos(to[0], to[1]), mid = A.clone().lerp(B, 0.5);
       Sfx.B.whoosh(0, 0.5, 0.5); if (side === 'b') { try { Sfx.unit('ele').trumpet(); } catch (e) { } }
       P.dust(A, 10, null, 0.3);
-      await leap(m, at, to, before, ev.filter(notTrample), side, 'e', info, null, 1.25);
-      await trampleFx(ev, side, P0.id);
+      await leap(m, at, to, before, ev.filter(notTrample), side, 'e', info, null, 1.25, () => trampleFx(ev, side, { m }));
     } else if (sk === 'pili') {
       // 雷霆炮击：一开炮就齐射覆盖目标和前后左右四格（炸成焦土），落弹之后才结算目标，炮最后再落位
       const T0 = before[to[1]][to[0]], m = Board.pieces.get(P0.id), A = Board.pos(at[0], at[1]), B = Board.pos(to[0], to[1]);
@@ -560,11 +579,10 @@ const BFX = (() => {
         // 棋子身上带着火冲过去（低特效档看得到棋子本身；电影档是它的兵踏着火线）
         const off = m ? Core.onFrame(() => { if (m.parent && m.visible && Math.random() < 0.8) { P.flame(m.position.clone().setY(m.position.y + 0.15), 0.3); Fx.spawn({ pos: m.position.clone().setY(m.position.y + 0.1), tex: Core.Tex.spark, add: true, color: 0xff8a3a, size: 0.5, size2: 0.1, life: 0.28, op: 0.5 }); } }) : null;
         const sp0 = Core.Time.boost; 
-        try { await strike(board, st.from, st.to, evs.filter(notTrample), side, { streak: info.streak }); } finally { if (off) off(); }
+        try { await strikeT(board, st.from, st.to, evs, side, { streak: info.streak }); } finally { if (off) off(); }
         // 落地：火浪炸开
         Cam.shake(0.3); Fx.ring(B.clone().setY(TOP + 0.02), 3.2, 0.7, 0xff6a2a, 0.9); Fx.ring(B.clone().setY(TOP + 0.03), 1.8, 0.5, 0xffd27a, 0.8);
         P.fire(B.clone().setY(TOP + 0.15), 26, 0.9); P.embers(B, 14); Fx.glow(B.clone().setY(TOP + 0.3), 3.4, 0.5, 0.5, 0xff7a2a); Fx.Marks.scorch(B.clone().setY(TOP), 0.9); Sfx.B.boom(0, 0.5); Sfx.B.taiko(0, 1, 0.7);
-        await trampleFx(evs, side, (board[st.from[1]][st.from[0]] || {}).id);
         board = simBoard(board, evs);
         await sleep(0.25);
       }
