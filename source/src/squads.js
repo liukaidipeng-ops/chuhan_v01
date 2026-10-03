@@ -295,7 +295,7 @@ const Squads = (() => {
     constructor(side, anchor, yaw, n = 0) {
       // 士：手持比人还高一点的带刺巨盾。兵法四级不再加人，三名禁卫换一身金甲、金盾
       const elite = n >= 4; if (elite) n = 3;
-      super('a', side, anchor, yaw, elite ? 'guardG' : 'guard', n ? lineUp(n, 0.34) : [[0.24, 0], [-0.24, 0]], SC * 0.65 * (n ? bigFor(n) : 1) * (elite ? 1.08 : 1));
+      super('a', side, anchor, yaw, elite ? 'guardG' : 'guard', n ? lineUp(n, 0.34) : [[0.24, 0], [-0.24, 0]], SC * 0.975 * (n ? bigFor(n) : 1) * (elite ? 1.08 : 1));
       this.elite = elite;
     }
     async attack(target, c) {

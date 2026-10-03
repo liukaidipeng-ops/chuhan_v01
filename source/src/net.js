@@ -201,8 +201,39 @@ const Net = (() => {
   // 房间信息（retain：后来者/重连者立即拿到）
   function publishRoom(state) { const s = JSON.stringify(state); for (const c of clients) c.pub(base() + '/room', s, true); }
   function clearRoom() { for (const c of clients) { if (c.ok) { const t = Mqtt.str(base() + '/room'); c.send([0x31, ...Mqtt.varint(t.length), ...t]); } } }
+  // ---------- 游戏大厅：公开房间的名册 ----------
+  // 房主每 15 秒往 hall/<房间码> 留一条（retain）；大厅订阅 hall/+ 就得到实时的房间列表。房主离开时把这一条清掉，
+  // 万一房主是直接断线的，这条 40 秒没有续上也会从列表里消失
+  const HALL = ROOT + 'hall/';
+  let hallInfo = null, hallBeat = null, hallClients = [], hallCb = null;
+  const hallMap = new Map();
+  const hallSend = text => { for (const c of clients) if (c.ok) c.pub(HALL + code, text, true); };
+  function hallPub(info) {
+    hallInfo = info;
+    const beat = () => { if (hallInfo && role === 'host') hallSend(JSON.stringify({ ...(typeof hallInfo === 'function' ? hallInfo() : hallInfo), code, t: Date.now() })); };
+    beat(); clearInterval(hallBeat); hallBeat = setInterval(beat, 15000);
+    return beat;
+  }
+  function hallClear() { clearInterval(hallBeat); hallBeat = null; if (hallInfo && code) hallSend(''); hallInfo = null; }
+  function hallList() {
+    const now = Date.now();
+    return [...hallMap.values()].filter(d => now - d._rx < 40000 && Math.abs(now - d.t) < 180000).sort((a, b) => (a.st === b.st ? b.t - a.t : a.st === 'open' ? -1 : 1));
+  }
+  function hallOpen(cb) {
+    hallClose(); hallCb = cb; hallMap.clear();
+    hallClients = brokers().map(url => new Mqtt(url, (topic, payload) => {
+      if (!topic.startsWith(HALL)) return;
+      const c = topic.slice(HALL.length);
+      if (!payload) hallMap.delete(c);
+      else { try { const d = JSON.parse(payload); if (d && d.code === c) { d._rx = Date.now(); hallMap.set(c, d); } } catch (e) { } }
+      hallCb && hallCb(hallList());
+    }, () => hallCb && hallCb(hallList())));
+    for (const cl of hallClients) { cl.sub(HALL + '+'); cl.connect(); }
+  }
+  function hallClose() { for (const c of hallClients) c.close(); hallClients = []; hallCb = null; }
   function close(silent) {
     clearInterval(hb);
+    hallClear();
     if (!silent && anyOk() && role) try { role === 'watch' ? sendSpec({ t: 'sbye' }) : send({ t: 'bye' }); } catch (e) { }
     for (const c of clients) c.close();
     clients = []; role = null;
@@ -222,6 +253,7 @@ const Net = (() => {
     join(c, handlers) { start('guest', c.toUpperCase(), handlers); },
     watch(c, handlers) { start('watch', c.toUpperCase(), handlers); },
     send, sendSpec, publishRoom, clearRoom, close, kick,
+    hallPub, hallClear, hallOpen, hallClose, hallList, hallTouch() { if (hallInfo) hallPub(hallInfo); }, get hallOk() { return hallClients.some(c => c.ok); },
     get connected() { return anyOk() && peerState === 'ok'; },
     get lineOk() { return anyOk(); },
     get peerState() { return peerState; },

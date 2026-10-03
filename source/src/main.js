@@ -8,6 +8,7 @@
   // 更新说明（设置里、大厅底部点「更新」查看；最新的放最前）
   const NEWS = [
     ['第五版', '2026 年 10 月', [
+      '多人联机并成一个入口：进去就是游戏大厅，能看到公开的房间直接加入（对局中的可观战），也可以建房或输入房间码；建房时可选公开 / 私密',
       '兵法：杀敌攒的甲片够数会自动升级（不花军功）；升到四级的子成为楚汉名将（樊哙、张良、龙且、范增……）',
       '兵法：相 / 象可升四级；三级新技能「飞越」（无视塞象眼），原来的齐射、践踏挪到四级',
       '兵法：技能说明全部精简；开局有规则速览，右侧「法」按钮随时可看；打不死的目标标 -1，能一击杀死才标「殺」',
@@ -55,7 +56,7 @@
   };
   if (![1, 1.5, 2, 3].includes(+S.speed)) S.speed = 1.5;
   if (!VIS.includes(S.vis)) S.vis = 'cine';
-  let ropts = Object.assign({ side: 'r', undo: 3, total: 15, step: 60, hints: 1, jq: 0 }, store.get('ropts', {}));
+  let ropts = Object.assign({ side: 'r', undo: 3, total: 15, step: 60, hints: 1, jq: 0, pub: 1 }, store.get('ropts', {}));
   if (!ropts.v) ropts.v = ropts.jq ? 'jq' : 'std';
   let aopts = Object.assign({ level: 'mid', side: 'r', undo: 3, total: 0, step: 0, hints: 1 }, store.get('aopts', {}));
 
@@ -1861,6 +1862,7 @@
     updateHud();
   }
   function onPeer(s) {
+    try { Net.hallTouch(); } catch (e) { }   // 大厅名册：有人入座 / 离座，马上更新“等对手 / 对局中”
     if (s === 'ok' && mode === 'guest' && started) Net.send({ t: 'syncReq' });
     if (s === 'ok' && mode === 'host' && started) Net.send({ t: 'sync', state: snapshot() });
     if (s === 'lost') lostSince = Date.now(); else lostSince = 0;
@@ -2111,8 +2113,25 @@
   }
 
   // ---------- 大厅 ----------
-  const panes = ['pMain', 'pAI', 'pCreate', 'pWait', 'pJoin'];
-  const showPane = id => { panes.forEach(p => $(p).classList.toggle('hidden', p !== id)); if (id === 'pMain') paintResume(); };
+  const panes = ['pMain', 'pAI', 'pHall', 'pCreate', 'pWait', 'pJoin'];
+  const showPane = id => { panes.forEach(p => $(p).classList.toggle('hidden', p !== id)); if (id === 'pMain') paintResume(); if (id === 'pHall') openHall(); else closeHall(); };
+  // ---------- 游戏大厅：公开房间列表（实时），点一下就加入；也可以创建房间或输入房间码 ----------
+  let hallTimer = null;
+  const HV = { std: ['象', '象棋'], jq: ['揭', '揭棋'], bf: ['兵', '兵法'] };
+  function paintHall(list) {
+    list = list || Net.hallList();
+    const L = $('hallList');
+    $('hallNote').innerHTML = !Net.hallOk ? '<span class="spin"></span>正在连接大厅…' : list.length ? `${list.filter(x => x.st === 'open').length} 个房间在等对手` : '暂时没有公开的房间——创建一个，等人来战';
+    L.innerHTML = list.slice(0, 30).map(d => {
+      const v = HV[d.v] || HV.std, open = d.st === 'open';
+      const tm = (+d.total ? `每方 ${+d.total} 分` : '不限时') + (+d.step ? ` · 每步 ${+d.step >= 60 ? (+d.step / 60) + ' 分' : +d.step + ' 秒'}` : '');
+      const code = String(d.code).replace(/[^A-Z0-9]/g, '').slice(0, 5);
+      return `<li class="${open ? 'open' : 'play'}"><span class="hv ${d.v === 'bf' ? 'bf' : d.v === 'jq' ? 'jq' : ''}">${v[0]}</span><span class="hi"><b>${v[1]}</b> · 房间 ${code}<small>${open ? `房主执${d.side === 'r' ? '红（汉）' : '黑（楚）'}，你执${d.side === 'r' ? '黑（楚）' : '红（汉）'}` : '对局中'} · ${tm}</small></span><button class="btn small ${open ? 'red solid' : ''}" data-code="${code}">${open ? '加 入' : '观 战'}</button></li>`;
+    }).join('');
+    L.querySelectorAll('button[data-code]').forEach(b => b.onclick = () => { Sfx.init(); applySettings(); closeHall(); showPane('pJoin'); $('joinCode').value = b.dataset.code; joinRoom(b.dataset.code); });
+  }
+  function openHall() { Net.hallOpen(paintHall); paintHall([]); clearInterval(hallTimer); hallTimer = setInterval(() => paintHall(), 4000); }
+  function closeHall() { clearInterval(hallTimer); hallTimer = null; try { Net.hallClose(); } catch (e) { } }
   setTimeout(() => $('lobby').classList.remove('intro'), 3800);
   try { if (sessionStorage.getItem('xq3d-back')) { sessionStorage.removeItem('xq3d-back'); $('lobby').classList.remove('intro'); } } catch (e) { }
   const VAR_NOTE = { std: '标准中国象棋', jq: '揭棋：十五子反扣，走动方知真身', bf: '兵法：升级、生命值、兵种技能与主帅兵法' };
@@ -2131,18 +2150,20 @@
     const side = aopts.side === 'x' ? (Math.random() < 0.5 ? 'r' : 'b') : aopts.side;
     startGame('ai', side, { undo: aopts.undo, total: aopts.total, step: aopts.step || 0, hints: aopts.hints, level: aopts.level, skin: aopts.skin || 0 });
   };
-  $('bCreate').onclick = () => { createFor = 'host'; $('createTitle').textContent = '房 间 设 置'; $('bCreateGo').textContent = '创 建'; showPane('pCreate'); };
-  $('bLocal').onclick = () => { createFor = 'local'; $('createTitle').textContent = '本 地 对 战'; $('bCreateGo').textContent = '开 始'; showPane('pCreate'); };
+  $('bHall').onclick = () => showPane('pHall');
+  $('bBackH').onclick = () => showPane('pMain');
+  $('bCreate').onclick = () => { createFor = 'host'; $('createTitle').textContent = '房 间 设 置'; $('bCreateGo').textContent = '创 建'; $('optPub').classList.remove('hidden'); showPane('pCreate'); };
+  $('bLocal').onclick = () => { createFor = 'local'; $('optPub').classList.add('hidden'); $('createTitle').textContent = '本 地 对 战'; $('bCreateGo').textContent = '开 始'; showPane('pCreate'); };
   $('bJoinShow').onclick = () => { showPane('pJoin'); setTimeout(() => $('joinCode').focus(), 50); };
-  $('bBack1').onclick = () => showPane('pMain');
+  $('bBack1').onclick = () => showPane(createFor === 'host' ? 'pHall' : 'pMain');
   const clearUrl = () => { try { history.replaceState(null, '', location.pathname); } catch (e) { } };
-  $('bBack3').onclick = () => { Net.close(); clearInterval(joinTimer); clearUrl(); showPane('pMain'); };
-  $('bBack2').onclick = () => { Net.clearRoom(); Net.close(); store.del('host'); clearUrl(); showPane('pMain'); };
+  $('bBack3').onclick = () => { Net.close(); clearInterval(joinTimer); clearUrl(); showPane('pHall'); };
+  $('bBack2').onclick = () => { Net.clearRoom(); Net.close(); store.del('host'); clearUrl(); showPane('pHall'); };
   const httpUrl = /^https?:$/.test(location.protocol);
   const inviteUrl = code => location.origin + location.pathname + '?room=' + code;
   $('bCreateGo').onclick = () => {
     Sfx.init(); applySettings();
-    const o = { undo: ropts.undo, total: ropts.total, step: ropts.step, hints: ropts.hints, jq: ropts.v === 'jq' ? 1 : 0, bf: ropts.v === 'bf' ? 1 : 0, skin: ropts.v === 'bf' ? 0 : ropts.skin || 0 };
+    const o = { undo: ropts.undo, total: ropts.total, step: ropts.step, hints: ropts.hints, jq: ropts.v === 'jq' ? 1 : 0, bf: ropts.v === 'bf' ? 1 : 0, skin: ropts.v === 'bf' ? 0 : ropts.skin || 0, pub: createFor === 'host' && +ropts.pub ? 1 : 0 };
     const side = ropts.side === 'x' ? (Math.random() < 0.5 ? 'r' : 'b') : ropts.side;
     if (createFor === 'local') { startGame('local', 'r', o); return; }
     hostRoom(Net.gen(), o, side);
@@ -2171,9 +2192,13 @@
       $('bShare').classList.remove('hidden');
     } else { $('qrWrap').classList.add('hidden'); $('bShare').classList.add('hidden'); }
     let announced = false;
+    // 公开房间：挂到游戏大厅的名册上（对手入座后显示为“对局中”，可观战）
+    const hallBeat = () => { if (+o.pub && Net.role === 'host' && Net.code === code) Net.hallPub(() => ({ v: o.bf ? 'bf' : o.jq ? 'jq' : 'std', side: hostSide, total: o.total, step: o.step, st: Net.peerState === 'ok' || (started && mode === 'host') ? 'play' : 'open' })); };
+    setTimeout(hallBeat, 0);
     Net.host(code, {
       line(n, total) {
         onLine(n, total);
+        if (n) hallBeat();
         if (n && !announced) {
           announced = true;
           $('waitNote').innerHTML = '<span class="spin"></span>等待对手入局…<br>' + (httpUrl ? '把邀请链接发给朋友，或让他扫码' : '把房间码告诉朋友，他在「加入房间」里输入');
