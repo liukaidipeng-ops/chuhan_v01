@@ -167,8 +167,11 @@ function applyReviveFree(BF) {
     const r = attempt0(T, a.then); if (!r || r.free) return null;
     return { ...r, kind: 'art', ev: f.ev.concat(r.ev) };
   };
-  // 召回之后的两种走法：不升级 / 马上给召回的子升一级（军功够、本回合还没升过才有）
-  const variants = f => { const U = A.upgradeState(f.T, f.ev[0].at); return U ? [[f.T, false], [U, true]] : [[f.T, false]]; };
+  // 召回之后的两种走法：不升级 / 马上给召回的子升一级（军功够、本回合还没升过才有）。
+  //   搜索内部（inner = true）只在召回的子原位会被楚方打到时才展开升级版——那正是“防止召回的棋子直接被秒”的时候；
+  //   没人打得到时“先召回、以后再升”差不多，全展开会让搜索少算一层（第二轮核查实测）。根上（expand）照样全展开
+  const threatened = (T, at_) => { for (let r = 0; r < 10; r++) for (let f = 0; f < 9; f++) { const p = T.board[r][f]; if (p && p.s === 'b' && A.moveTargets(T, f, r).some(m => m.to[0] === at_[0] && m.to[1] === at_[1])) return true; } return false; };
+  const variants = (f, inner) => { const U = A.upgradeState(f.T, f.ev[0].at); return U && (!inner || threatened(f.T, f.ev[0].at)) ? [[f.T, false], [U, true]] : [[f.T, false]]; };
   const compound = (id, up, then) => (up ? { k: 'art', id, up: true, then } : { k: 'art', id, then });
   // 搜索内部（gen）只展开电脑在根上真会召回的兵种：chat 的电脑有车在场只救车，车都没了或楚已用破釜才救炮、马，士象兵不救。
   //   每个能召回的兵种都要乘上约 40 种“后面那一步”，全展开会让汉方在攒着召回时少算一层（核查实测），
@@ -182,8 +185,8 @@ function applyReviveFree(BF) {
     const res = out.filter(it => !isRevive(it.a));
     for (const id of reviveIds(S)) {
       const f = freeRevive(S, id); if (!f) continue;
-      const t = f.ev[0].t; if (!searchable(S, t)) continue;
-      for (const [T, up] of variants(f)) for (const it of gen0(T, false)) if (it.a.k === 'mv' && it.p.id !== id) res.push({ a: compound(id, up, it.a), p: it.p, q: it.q, art: t });
+      const t = f.ev[0].t; if (!searchable(S, t) && !A.inCheck(S, 'r')) continue;   // 被将军时什么兵种都展开（只剩召回能解将时不能当成将死）
+      for (const [T, up] of variants(f, true)) for (const it of gen0(T, false)) if (it.a.k === 'mv' && it.p.id !== id) res.push({ a: compound(id, up, it.a), p: it.p, q: it.q, art: t });
     }
     return res;
   };
@@ -194,7 +197,7 @@ function applyReviveFree(BF) {
     const res = out.filter(k => !isRevive(k.a));
     for (const id of ids) {
       const f = freeRevive(S, id); if (!f) continue;
-      for (const [T, up] of variants(f)) for (const k of exp0(T)) if (k.a.k === 'mv') res.push({ a: compound(id, up, k.a), S: k.S, ev: f.ev.concat(k.ev) });
+      for (const [T, up] of variants(f, false)) for (const k of exp0(T)) if (k.a.k === 'mv') res.push({ a: compound(id, up, k.a), S: k.S, ev: f.ev.concat(k.ev) });
     }
     return res;
   };
