@@ -109,7 +109,8 @@ function worker() {
           const got = -AI.think.last.v;
           const same = JSON.stringify(seq) === JSON.stringify(bestSeq);
           const loss = same ? 0 : Math.max(0, best - got);
-          const missMate = best > WIN / 2 && got < WIN / 2, allowMate = got < -WIN / 2 && best > -WIN / 2;
+          // 走的就是复核最好的那步时不算错（两次搜索深浅不同，可能一次看到杀、一次没看到，那不是电脑的错）
+          const missMate = !same && best > WIN / 2 && got < WIN / 2, allowMate = !same && got < -WIN / 2 && best > -WIN / 2;
           // 第二裁判
           const mPlayed = matAfter(S0, seq), mBest = Math.max(matBest(S0), mPlayed == null ? -1e9 : mPlayed);
           const loss2 = mPlayed == null ? 0 : Math.max(0, Math.min(50, mBest - mPlayed));
