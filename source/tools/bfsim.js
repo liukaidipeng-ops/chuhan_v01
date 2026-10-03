@@ -10,7 +10,8 @@
 //   --max-rounds N   超过这么多回合算和（默认 150）
 //   --open N         开局多样化：前 N 步（双方合计）在“差不到约 1.5 分”的着法里随机挑（默认 6；0 = 关）
 //   --seed N         起始随机种子（第 i 局用 seed + i，可复现）
-//   --preset NAME    预设配置（见下方 PRESETS；可多个，逗号分隔）
+//   --preset NAME    预设配置（见下方 PRESETS；可多个，逗号分隔）：baseline（普通象棋对照）、no-pofu / no-revive / no-simian / no-hongmen
+//                    （关掉某个兵法）、no-<技能>（如 no-chongzhen，关掉某个兵种技能）
 //   --set PATH=JSON  覆盖单个配置项，如 --set skills.jianta.splashMinLevel=2（可多次）
 //   --save-ult       军功离终极兵法差 7 以内时不再升级、攒着放大招（霸王档本来就这样；校尉 / 新兵默认不攒）
 //   --json FILE      把每局明细写到 FILE
@@ -48,6 +49,8 @@ const PRESETS = {
   'no-arts': { set: { 'generalArts.xiaohe.usesPerGame': 0, 'generalArts.pofu.usesPerGame': 0 } },
   'no-e4': { set: { 'upgrade.maxLevel': { r: 4, p: 4, a: 4, e: 3 } } },
 };
+// 每个兵种技能各一个“关掉”预设：把解锁等级设成 99（永远解锁不了），如 no-chongzhen、no-jianta
+for (const sk of ['juma', 'chongzhen', 'taying', 'pili', 'feiyue', 'hujia', 'qishe', 'jianta', 'shensu', 'huifang', 'jinwei']) PRESETS['no-' + sk] = { set: { [`skills.${sk}.level`]: 99 } };
 
 // ---------- 参数 ----------
 function parseArgs(argv) {
