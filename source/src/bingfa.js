@@ -575,21 +575,21 @@
     T.merit[p.s] -= upCost(p); promote(T, p); p.xp = 0; T.upgraded = true;
     return T;
   }
-  // 电脑用：破釜沉舟的两步组合（第一步只取“打到敌子”的，免得组合爆炸）
+  // 电脑用：破釜沉舟的两步组合——两步里至少有一步打到敌子（先挪开再打、先打再打、打完再撤都算）
   function pofuPairs(S) {
     if (S.turn !== 'b' || S.freeUsed || S.used.art.b >= CFG_CUR.generalArts.pofu.usesPerGame || smActive(S)) return [];
     const out = [];
     for (let r = 0; r < 10; r++) for (let f = 0; f < 9; f++) {
       const p = S.board[r][f]; if (!p || p.s !== 'b') continue;
       for (const m1 of moveTargets(S, f, r)) {
-        if (!at(S, m1.to[0], m1.to[1])) continue;
+        const hit1 = !!at(S, m1.to[0], m1.to[1]);
         const T = cloneState(S), ev = [];
         strike(T, m1.from, m1.to, 'b', ev);
         if (!T.final && inCheck(T.board, 'b')) continue;
         for (let r2 = 0; r2 < 10; r2++) for (let f2 = 0; f2 < 9; f2++) {
           const q = T.board[r2][f2]; if (!q || q.s !== 'b') continue;
           for (const m2 of moveTargets(T, f2, r2)) {
-            if (!at(T, m2.to[0], m2.to[1])) continue;
+            if (!hit1 && !at(T, m2.to[0], m2.to[1])) continue;
             const a = { k: 'art', steps: [{ from: m1.from, to: m1.to }, { from: m2.from, to: m2.to }] };
             const res = attempt(S, a); if (res) out.push({ a, S: res.S, ev: res.ev });
           }

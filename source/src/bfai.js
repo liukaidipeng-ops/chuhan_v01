@@ -10,11 +10,14 @@
   const now = () => (typeof performance !== 'undefined' ? performance.now() : Date.now());
 
   // ---------- 估值 ----------
-  // 一枚子本身值多少：兵种 × 等级 × 血量
+  // 一枚子本身值多少。血量最要紧：两点血的子要打两下才死、来犯的还会被弹回去，所以每多一点血都很值钱；
+  //   反过来，被“打中没吃掉”掉一点血，也是实打实的损失（两血的车掉一血 = 丢了三分之一个子）
+  //   士、相 / 象是守家的子，多一点血用处不大（平时出不了九宫、过不了河）；到决战解禁之后才和进攻子一样算
+  const HPF = [0, 1, 1.5, 1.9, 2.2], HPF_DEF = [0, 1, 1.15, 1.28, 1.36];
   function baseVal(p) {
-    const mx = BF.hpOf(p.t, p.lv) || 1;
-    let v = VAL[p.t] * (1 + 0.36 * (p.lv - 1)) * (0.55 + 0.45 * Math.min(1, p.hp / mx));
-    if (p.lv >= 3) v += 0.9; if (p.lv >= 4) v += 0.9;        // 有技能、成名将
+    const def = (p.t === 'a' || p.t === 'e') && !p.j;
+    let v = VAL[p.t] * ((def ? HPF_DEF : HPF)[Math.min(4, Math.max(1, p.hp))] + (def ? 0.03 : 0.06) * (p.lv - 1));
+    if (p.lv >= 3) v += def ? 0.4 : 0.9; if (p.lv >= 4) v += 0.9;   // 有技能、成名将
     return v + 0.14 * Math.min(6, p.xp || 0);                // 攒着的甲片
   }
   // 局面分（站在 me 这一方看）：子力 + 位置（出子、过河、对着对方主帅的压力）+ 军功 + 兵法 + 决战
@@ -22,7 +25,7 @@
     const b = S.board, fin = !!S.final;
     let kr = null, kb = null;
     for (let r = 0; r < 10; r++) for (let f = 0; f < 9; f++) { const p = b[r][f]; if (p && p.t === 'k') { if (p.s === 'r') kr = [f, r]; else kb = [f, r]; } }
-    let v = 0;
+    let v = 0, attR = 0, attB = 0;                          // attR / attB：压到对方主帅跟前的汉 / 楚进攻子
     for (let r = 0; r < 10; r++) for (let f = 0; f < 9; f++) {
       const p = b[r][f]; if (!p) continue;
       const s = p.s, adv = s === 'r' ? r : 9 - r, ek = s === 'r' ? kb : kr;
@@ -41,16 +44,19 @@
           default: if (fin) x += adv * 0.12 + 0.05 * Math.max(0, 8 - dk);   // 决战里士象也要压上去
         }
         if (p.jm && p.jm > S.cnt[other(s)]) x += 0.25;
+        if (dk <= 4 && (p.t === 'r' || p.t === 'c' || p.t === 'n' || (p.t === 'p' && adv >= 5))) { if (s === 'r') attR++; else attB++; }
       }
       v += s === me ? x : -x;
     }
-    v += 0.2 * (S.merit[me] - S.merit[other(me)]);
+    v += 0.3 * (S.merit[me] - S.merit[other(me)]);           // 军功能换成血量和等级
     // 还没用的主帅兵法留着有价值（免得为了一个兵就把「召回良将」用掉）
-    const art = s => (S.used.art[s] ? 0 : s === 'r' ? (S.dead.r.length ? 3 : 1.2) : 2);
+    //   召回良将是汉军对付“被换掉一个大子”的保险，破釜沉舟是楚军的一次连击：都算一笔不小的本钱
+    const art = s => (S.used.art[s] ? 0 : s === 'r' ? 4 : 3);
     v += art(me) - art(other(me));
     const sm = Math.max(0, S.fx.sm - S.cnt.b), hm = Math.max(0, S.fx.hm - S.cnt.r);
-    if (sm) v += (me === 'r' ? 1 : -1) * (1.5 + sm * 2.2);
-    if (hm) v += (me === 'b' ? 1 : -1) * (1 + hm * 1.6);
+    // 终极兵法生效中：值多少看有多少进攻子已经压在对方主帅跟前（没人跟上，困住对方也白搭）
+    if (sm) v += (me === 'r' ? 1 : -1) * sm * (1.5 + 0.6 * Math.min(4, attR));
+    if (hm) v += (me === 'b' ? 1 : -1) * hm * (0.35 + 0.55 * Math.min(4, attB));
     if (fin && S.occ) v += 7 * ((S.occ[me] || 0) - (S.occ[other(me)] || 0));
     return v;
   }
@@ -118,6 +124,7 @@
     return best;
   }
   const killers = [];
+  let upPly = -1;   // 在第几层考虑“对方先升级再走”（-1 = 不考虑）
   // 负极大值 + αβ（分数总是站在走子方看）
   function ab(S, depth, alpha, beta, ply) {
     if ((++nodes & 63) === 0 && now() > deadline) throw TIMEOUT;
@@ -127,8 +134,23 @@
       else return qs(S, alpha, beta, ply, 0);
     }
     if (fewPieces(S) && stuck(S)) return -WIN + ply;
-    const list = order(A.gen(S, false), killers[ply]);
     let best = -INF, legal = 0;
+    // 对方应这一步时，也可能先花军功给某枚子升一级再走（多一点血：我方本来能吃掉的子就吃不掉了，打上去还会被弹回）
+    if (ply === upPly && !S.upgraded) {
+      const base = score(S, side), ups = [];
+      for (let r = 0; r < 10; r++) for (let f = 0; f < 9; f++) {
+        const p = S.board[r][f]; if (!p || p.s !== side || p.t === 'k') continue;
+        const T = A.upgradeState(S, [f, r]); if (T) ups.push({ S: T, g: score(T, side) - base });
+      }
+      ups.sort((x, y) => y.g - x.g);
+      for (const u of ups.slice(0, 3)) {
+        const v = ab(u.S, depth, alpha, beta, ply);
+        if (v > best) best = v;
+        if (v > alpha) alpha = v;
+        if (alpha >= beta) return best;
+      }
+    }
+    const list = order(A.gen(S, false), killers[ply]);
     for (const it of list) {
       const r = BF.attempt(S, it.a); if (!r || r.free) continue;
       legal++;
@@ -153,22 +175,51 @@
   const LEVELS = {
     easy: { depth: 1, q: 2, noise: 1.3, top: 3, up: 0.5, budget: 500 },
     mid: { depth: 3, q: 3, noise: 0.3, top: 1, up: 1, budget: 2500 },
-    hard: { depth: 7, q: 4, noise: 0.05, top: 1, up: 1, budget: 3800 },
+    hard: { depth: 7, q: 4, noise: 0.05, top: 1, up: 1, budget: 3000 },
   };
 
-  // 先决定要不要升级：挑“升完局面分涨得最多”的那一枚；想攒终极兵法时先不升
+  // 压在对方主帅跟前的进攻子数（和估值里的 attR / attB 同一个算法）
+  function pressure(S, side) {
+    let k = null, n = 0;
+    for (let r = 0; r < 10 && !k; r++) for (let f = 0; f < 9; f++) { const p = S.board[r][f]; if (p && p.t === 'k' && p.s !== side) { k = [f, r]; break; } }
+    if (!k) return 0;
+    for (let r = 0; r < 10; r++) for (let f = 0; f < 9; f++) {
+      const p = S.board[r][f]; if (!p || p.s !== side) continue;
+      const adv = side === 'r' ? r : 9 - r;
+      if (Math.abs(f - k[0]) + Math.abs(r - k[1]) <= 4 && (p.t === 'r' || p.t === 'c' || p.t === 'n' || (p.t === 'p' && adv >= 5))) n++;
+    }
+    return n;
+  }
+  // 先决定要不要升级：把“不升”和每一种升法都往下搜几步比一比——
+  //   升一级多一点血、还回满血：正被捉的子升了就打不死，来犯的反而被弹回去；这种只有搜了才知道
   function pickUpgrade(S, L) {
     if (S.upgraded || Math.random() > L.up) return null;
     const me = S.turn, U = CFG.ultimates;
+    // 攒终极兵法：只在已经有两枚以上进攻子压到对方主帅跟前时才攒，否则军功拿去升级
     const ultLeft = S.used.ult[me] < U[me === 'r' ? 'simian' : 'hongmen'].usesPerGame;
-    if (L.depth >= 4 && ultLeft && S.merit[me] >= U.cost - 7) return null;
-    const base = score(S, me);
-    let best = null;
+    if (L.depth >= 3 && ultLeft && S.merit[me] >= U.cost - 6 && pressure(S, me) >= 2) return null;
+    const base = score(S, me), cand = [];
     for (let r = 0; r < 10; r++) for (let f = 0; f < 9; f++) {
       const p = S.board[r][f]; if (!p || p.s !== me || p.t === 'k') continue;
       const T = A.upgradeState(S, [f, r]); if (!T) continue;
-      const gain = score(T, me) - base;
-      if (gain > 0.25 && (!best || gain > best.gain)) best = { at: [f, r], S: T, gain };
+      cand.push({ at: [f, r], S: T, gain: score(T, me) - base });
+    }
+    if (!cand.length) return null;
+    cand.sort((x, y) => y.gain - x.gain);
+    if (L.depth < 2) { const c = cand.find(x => S.final || !'ae'.includes(S.board[x.at[1]][x.at[0]].t)); return c && c.gain > 0.25 ? c : null; }
+    // 军功前期很紧，只能靠杀子挣：先紧着车（其次炮、马）升。车还能升、军功再攒一点就够时，
+    //   别的子先不升——除非不升就要丢子（搜下来差出一大截）；士、相 / 象平时只在保命时才升
+    const d = 2, pieceAt = c => S.board[c.at[1]][c.at[0]];
+    let rookNeed = 0;
+    for (const row of S.board) for (const p of row) if (p && p.s === me && p.t === 'r' && p.lv < BF.maxLvOf('r')) { const c = A.upCost(p); if (c > S.merit[me] && (!rookNeed || c < rookNeed)) rookNeed = c; }
+    const saving = rookNeed && rookNeed - S.merit[me] <= 3;
+    const bv0 = ab(S, d, -INF, INF, 0);
+    let best = null, bv = bv0;
+    for (const c of cand.slice(0, 6)) {
+      const p = pieceAt(c), defender = (p.t === 'a' || p.t === 'e') && !S.final;
+      const need = defender || (saving && p.t !== 'r') ? 1.8 : 0.05;     // 守子、或者正在给车攒军功：要“明显更好”才升
+      const v = ab(c.S, d, bv0 + need - 0.01, INF, 0);
+      if (v >= bv0 + need && v > bv + 0.05) { bv = v; best = c; }
     }
     return best;
   }
@@ -178,11 +229,28 @@
     const L = tick ? { ...L0, budget: Math.min(L0.budget, 1400) } : L0;   // 在主线程里算（开不了 Worker）时少想一会儿，免得卡画面
     let S = S0, last = now();
     const breathe = async () => { if (tick && now() - last > 12) { await tick(); last = now(); } };
-    nodes = 0; qMax = L.q; hist.clear(); killers.length = 0;
+    nodes = 0; qMax = L.q; hist.clear(); killers.length = 0; upPly = -1; deadline = Infinity;
     const up = pickUpgrade(S, L);
     if (up) { seq.push({ k: 'up', at: up.at }); S = up.S; }
-    let kids = A.expand(S);
-    if (me === 'b' && L.depth >= 2) { try { kids = kids.concat(A.pofuPairs(S)); } catch (e) { } }
+    if (L.depth >= 3) upPly = 1;
+    let kids = A.expand(S), pofu = [];
+    // 破釜沉舟（楚）：只留“连走两步能明显赚到子”的组合（比如先挪开再吃车），交给后面的搜索去核对值不值
+    if (me === 'b' && L.depth >= 2) {
+      try {
+        const base = score(S, me);
+        pofu = A.pofuPairs(S).map(k => { k.gain = score(k.S, me) - base; return k; }).filter(k => k.gain >= 4.5 || decided(k.S, k.ev) === me);
+        pofu.sort((x, y) => y.gain - x.gain); pofu = pofu.slice(0, 8);
+      } catch (e) { pofu = []; }
+    }
+    // 召回良将（汉）：每局只有一次，是对付“被换掉一个大子”的保险——有车在场时只肯拿来救车；
+    //   车都没了、或者楚军的破釜沉舟已经用掉，才肯救炮和马；士象兵不救。实在别无出路时不受此限
+    if (me === 'r') {
+      const tOf = id => { const d = S.dead.r.find(x => x.id === id); return d ? d.t : ''; };
+      let rook = false; for (const row of S.board) for (const p of row) if (p && p.s === 'r' && p.t === 'r') rook = true;
+      const ok = k => { const t = tOf(k.a.id); return t === 'r' || ((!rook || S.used.art.b > 0) && (t === 'c' || t === 'n')); };
+      const rest = kids.filter(k => !(k.a.k === 'art' && k.a.id != null) || ok(k));
+      if (rest.some(k => k.a.k !== 'art')) kids = rest;
+    }
     if (!kids.length) return seq;
     for (const k of kids) { const w = decided(k.S, k.ev); k.done = !!w; k.q = w ? (w === me ? WIN : -WIN) : score(k.S, me); k.v = k.q; }
     kids.sort((x, y) => y.q - x.q);
@@ -220,17 +288,56 @@
       depthDone = d;
       if (kids[0].v > WIN / 2 || kids[0].v < -WIN / 2) break; // 已经看到杀棋 / 必败，不用再深
     }
-    // 破釜沉舟每局只有一次：不比普通走法明显好就先不用
-    const plain = kids.find(k => !(k.a.k === 'art' && k.a.steps));
     const bestV = kids[0].v;
     for (const k of kids) {
       // 只在分数算准了的那几步（和最好的差不到 M）之间加一点随机；其余的分数只是上界，不能拿来比
       k.w = k.v > bestV - (L.noise * 1.6 + 0.02) * 0.95 ? k.v + (Math.random() * 2 - 1) * L.noise : k.v - 100;
-      if (k.a.k === 'art' && k.a.steps && plain && k.v < plain.v + 2.5 && k.v < WIN / 2) k.w -= 50;
     }
     const pool = kids.slice().sort((x, y) => y.w - x.w);
     let pick = pool[0];
     if (L.top > 1 && pool.length > 1 && Math.random() < 0.3) { const c = pool.slice(0, L.top).filter(k => k.w > -50); pick = c[Math.floor(Math.random() * c.length)]; }
+    // 破釜沉舟每局只有一次：留着杀车这样的大子——同样的深度下，比最好的普通走法多赚不到一个大子的量就先不用
+    //   （对方的召回良将还在手里时，杀了车也会被救回来，搜索里算得到，自然就不急着用）
+    if (pofu.length && bestV < WIN / 2) {
+      const PF_MIN = 5, need = bestV + PF_MIN, d1 = Math.max(1, depthDone) - 1;
+      let bp = null;
+      deadline = now() + Math.max(400, L.budget * 0.4);
+      try {
+        for (const k of pofu) {
+          const w = decided(k.S, k.ev);
+          k.v = w ? (w === me ? WIN : -WIN) : -ab(k.S, d1, -INF, -need + 0.01, 1);
+          if (k.v >= need && (!bp || k.v > bp.v)) bp = k;
+          await breathe();
+        }
+      } catch (e) { if (e !== TIMEOUT) throw e; }
+      deadline = Infinity;
+      if (bp) { pick = bp; kids = kids.concat([bp]); }
+    }
+    // 汉军防着楚军的破釜沉舟：保险（召回良将）已经用掉、对方的连击还在手里时，
+    //   先看看选中的这一步会不会被“连走两步”白吃掉一个大子；会的话，在前几名里换一步吃亏最少的
+    if (me === 'r' && L.depth >= 2 && !S.used.art.b && !pick.done) {
+      try {
+        const risk = k => {
+          if (k.risk != null) return k.risk;
+          if (!k.S.used.art.r || k.S.turn !== 'b') return (k.risk = 0);
+          const base = score(k.S, me); let worst = base;
+          for (const pp of A.pofuPairs(k.S)) { const w = decided(pp.S, pp.ev); const x = w ? (w === me ? WIN : -WIN) : score(pp.S, me); if (x < worst) worst = x; }
+          return (k.risk = base - worst);
+        };
+        if (risk(pick) >= 5) {
+          const cand = kids.filter(k => !k.done && k !== pick).slice(0, 6);
+          const d2 = Math.max(1, Math.min(depthDone, 3) - 1);
+          let bestK = pick, bestAdj = pick.v - (risk(pick) - 2) * 0.75;
+          for (const k of cand) {
+            const exact = -ab(k.S, d2, -INF, INF, 1);
+            const adj = exact - Math.max(0, risk(k) - 2) * 0.75;
+            if (adj > bestAdj) { bestAdj = adj; bestK = k; k.v = exact; }
+            await breathe();
+          }
+          pick = bestK;
+        }
+      } catch (e) { if (e !== TIMEOUT) throw e; }
+    }
     // 拒马（不占行动）：走完这一步之后，哪枚能架拒马的兵会被对方打到，就先给它架上
     if (L.depth >= 2 && !pick.done && !S.freeUsed && pick.a.k !== 'pass') {
       try {
