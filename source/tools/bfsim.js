@@ -63,6 +63,9 @@ const PRESETS = {
 //   pofu-1kill：破釜沉舟两步加起来最多杀死一个敌子（践踏、溅射带走的也算；打伤不算）
 //   pofu-2pc：两子合击——两步必须由两枚不同的子各走一步，同一枚子不能连走两步
 //   pofu-fromN：第 N 回合起才能破釜沉舟（如 pofu-from16）
+//   revive-fromN：第 N 回合起才能召回良将（如 revive-from16）；arts-from16 = 两个主公技都从第 16 回合起
+//              （用户 2026-10-03：“改成15回合后才能使用主公技（破釜和复活）”，确认是第 16 回合起——那时起每回合 +1 军功）
+//              pofu-a+arts-from16 = 方案 A + 两个主公技第 16 回合起
 //   预设：pofu-a = noup（用户第一档）；pofu-b = noup + 1kill（用户第二档）；pofu-a2pc = noup + 2pc；pofu-a16 = noup + from16
 //   注意：封锁期不封鸿门宴（终极兵法不算技能）。
 //   这些变体定稿后应直接写进 bingfa.js 的 resolve()（界面上的破釜入口 pofuFirst / pofuSecond 才会一致），这里只供模拟。
@@ -76,6 +79,8 @@ PRESETS['pofu-b'] = { set: {}, patches: ['pofu-noup', 'pofu-1kill'] };
 PRESETS['pofu-a2pc'] = { set: {}, patches: ['pofu-noup', 'pofu-2pc'] };
 PRESETS['pofu-a16'] = { set: {}, patches: ['pofu-noup', 'pofu-from16'] };
 PRESETS['revive-free'] = { set: {}, patches: ['revive-free'] };
+PRESETS['arts-from16'] = { set: {}, patches: ['pofu-from16', 'revive-from16'] };
+PRESETS['pofu-a+arts-from16'] = { set: {}, patches: ['pofu-noup', 'pofu-from16', 'revive-from16'] };   // 用户：方案 A 的封锁期 + 第 16 回合起每回合 +1 军功，让破釜的 debuff 最大化
 PRESETS['pofu-a+revive-free'] = { set: {}, patches: ['pofu-noup', 'revive-free'] };
 function applyPatches(BF, names) {
   if (!names || !names.length) return;
@@ -133,7 +138,34 @@ function applyPatches(BF, names) {
   };
   const legal0 = BF.Game.prototype.legalFrom;
   BF.Game.prototype.legalFrom = function (f, r) { return noAuto(this.S, null, () => legal0.call(this, f, r)); };
+  const reviveFrom = (names.map(n => /^revive-from(\d+)$/.exec(n)).find(Boolean) || [])[1];
+  if (reviveFrom) applyReviveGate(BF, +reviveFrom);
+  if (fromN) applyGateMate(BF, S => S.turn === 'b' && gated(S), a => isPofu(a));
   if (has('revive-free')) applyReviveFree(BF);
+}
+// revive-fromN：第 N 回合之前不能召回良将（电脑的候选里也去掉）。和 revive-free 一起用时 freeRevive 也看这个门
+function applyReviveGate(BF, N) {
+  const isRevive = a => a && a.k === 'art' && a.id != null && !a.steps;
+  const round = S => Math.floor((S.cnt.r + S.cnt.b) / 2) + 1;
+  const shut = S => S.turn === 'r' && round(S) < N;
+  BF.__reviveGate = S => !shut(S);
+  const attempt0 = BF.attempt, gen0 = BF.ai.gen, exp0 = BF.ai.expand, apply0 = BF.Game.prototype.apply;
+  BF.attempt = (S, a) => (isRevive(a) && shut(S) ? null : attempt0(S, a));
+  BF.ai.gen = (S, c) => { const out = gen0(S, c); return shut(S) ? out.filter(it => !isRevive(it.a)) : out; };
+  BF.ai.expand = S => { const out = exp0(S); return shut(S) ? out.filter(k => !isRevive(k.a)) : out; };
+  BF.Game.prototype.apply = function (e) { return isRevive(e) && shut(this.S) ? null : apply0.call(this, e); };
+  applyGateMate(BF, shut, isRevive);
+}
+// 主公技被门挡住时，引擎的 evaluate() 还把它算作“有路可走”：被将军、只有这个兵法能解时，按变体规则判将死
+function applyGateMate(BF, shut, isArt) {
+  const exp0 = BF.ai.expand, apply0 = BF.Game.prototype.apply;
+  BF.Game.prototype.apply = function (e) {
+    const info = apply0.call(this, e);
+    if (info && !this.result && this.status && this.status.check && !this.S.freeUsed && shut(this.S) && !exp0(this.S).some(k => !isArt(k.a) && k.a.k !== 'pass')) {
+      const lose = this.S.turn; this.result = { winner: lose === 'r' ? 'b' : 'r', loser: lose, reason: 'checkmate' }; this.status = { result: this.result }; info.result = this.result;
+    }
+    return info;
+  };
 }
 // revive-free（用户想试的“召回不占行动”）：召回良将之后这一回合还能再走一步棋，召回的那枚子这一步不能动。
 //   做法照抄不占行动的拒马：召回后 freeUsed = true（只能再走一步棋）、jmLock = 召回的子。
@@ -147,7 +179,7 @@ function applyReviveFree(BF) {
   // 召回之后（不换手）的状态；召不了返回 null。和引擎 resolve() 里的召回一样：每局次数、阵亡名单、原位要空。
   //   召回这一下本身不看将军（和不占行动的拒马一样）：被将军时“召回 + 应将的那一步”也合法
   const freeRevive = (S, id) => {
-    if (S.turn !== 'r' || S.freeUsed || !usesLeft(S)) return null;
+    if (S.turn !== 'r' || S.freeUsed || !usesLeft(S) || (BF.__reviveGate && !BF.__reviveGate(S))) return null;
     const i = S.dead.r.findIndex(d => d.id === id); if (i < 0) return null;
     const d = S.dead.r[i], st = BF.START[d.id];
     if (!st || S.board[st[1]][st[0]]) return null;
