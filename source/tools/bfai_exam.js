@@ -114,27 +114,38 @@ Q.push({
 });
 
 Q.push({
-  name: '5a 召回良将留给车',
+  name: '5a 只死了马：留着召回',
   desc: '开局汉方丢了一匹马，两个车都在（楚方破釜沉舟已用，只考召回本身）。召回良将一局只有一次，该留着等车阵亡再用，不该拿来复活一匹马。',
   build: () => fromStart({ remove: [[1, 0]], used: { art: { b: 1 } } }),
   check: seq => !seq.some(a => a.k === 'art'),
 });
 
+// 第 5b～5d 题：车阵亡后要不要马上召回，看局面（楚方破釜沉舟都设为已用，只考召回的时机）
+//   底子：双方士、将帅、几个兵（4 路、8 路有兵隔着：将帅不照面，双方右车也不对吃）；汉方左车（开局 id 0，原位 (0,0)）已阵亡、原位空着
+const deadRook = (extra, o = {}) => position([[4, 0, P('r', 'k')], [3, 0, P('r', 'a')], [5, 0, P('r', 'a')], [1, 0, P('r', 'n')], [8, 0, P('r', 'r')], [2, 3, P('r', 'p')], [4, 3, P('r', 'p')], [6, 3, P('r', 'p')], [8, 3, P('r', 'p')],
+  [4, 9, P('b', 'k')], [3, 9, P('b', 'a')], [5, 9, P('b', 'a')], [8, 9, P('b', 'r')], [2, 6, P('b', 'p')], [4, 6, P('b', 'p')], [6, 6, P('b', 'p')], [8, 6, P('b', 'p')], ...extra],
+  { dead: { r: [{ id: 0, t: 'r', s: 'r' }] }, used: { art: { b: 1 } }, ...o });
+const revives = seq => seq.some(a => a.k === 'art' && a.id === 0);
+
 Q.push({
-  name: '5b 车阵亡就召回',
-  desc: '汉方左车阵亡、原位空着（楚方破釜沉舟已用）：这时召回良将最值（白回一个车）。汉方两步之内召回就算对。',
-  multi: true,
-  build: () => fromStart({ remove: [[0, 0]], used: { art: { b: 1 } } }),
-  run: async (AI, g, level) => {
-    const log = [];
-    for (let i = 0; i < 3 && !g.result; i++) {
-      const side = g.turn, seq = await AI.think(BF.cloneState(g.S), level);
-      if (side === 'r') log.push(seq.map(a => desc(g.S, a)).join('+'));
-      if (side === 'r' && seq.some(a => a.k === 'art' && a.id === 0)) return { pass: true, note: log.join(' / ') };
-      for (const a of seq) if (!g.apply(a)) break;
-    }
-    return { pass: false, note: log.join(' / ') };
-  },
+  name: '5b 车阵亡：该马上召回',
+  desc: '局面平静，楚炮从 0 路直插下来，随时能占住汉车原位（占住就召不回来了）；车召回来正好顺着 0 路捉这门炮。该马上召回。',
+  build: () => deadRook([[0, 6, P('b', 'c')]]),
+  check: seq => revives(seq),
+});
+
+Q.push({
+  name: '5c 车阵亡：先办急事',
+  desc: '汉车阵亡、原位安全，但楚车挂在汉炮口上（白吃一车）。召回不会跑，先吃车。',
+  build: () => deadRook([[7, 2, P('r', 'c')], [7, 5, P('b', 'p')], [7, 7, P('b', 'r')]]),
+  check: seq => seq.some(a => a.k === 'mv' && a.from[0] === 7 && a.from[1] === 2 && a.to[0] === 7 && a.to[1] === 7),
+});
+
+Q.push({
+  name: '5d 车阵亡：召回就被吃',
+  desc: '楚车正对着汉车原位（0 路一路空着），车一召回来就被吃掉、汉方没子能回吃——这一次召回就白送了。先别召回。',
+  build: () => deadRook([[0, 7, P('b', 'r')]]),
+  check: seq => !revives(seq),
 });
 
 {
