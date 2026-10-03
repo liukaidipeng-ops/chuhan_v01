@@ -150,6 +150,8 @@ const Net = (() => {
     if (role === 'watch') { h.data && h.data(d, topic.endsWith('/h') ? 'h' : 'g'); return; }
     if (d._to && d._to !== myPid) return;
     if (role === 'host' && (d.t === 'join' || d.t === 'claim')) {
+      // 上了密码的房间：密码不对不给座位（原来就坐在这个位子上的人重连不再查）
+      if (h.gate && peerPid !== d._p && !h.gate(d)) { sendTo(d._p, { t: 'needpw' }); return; }
       // 座位：同一个人重连直接接纳；对手在线时来人进观众席；
       // 对手已离线 15 秒以上时，问来人要不要接替入座（claim），否则观战
       const vacant = peerState === 'lost' || Date.now() - peerSeen > 9000;

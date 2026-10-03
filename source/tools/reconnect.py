@@ -195,7 +195,7 @@ try:
         BF = "JSON.stringify([window.__xq.game.entries.length, window.__xq.game.merit, window.__xq.game.at(4,3).lv, window.__xq.game.at(1,9) && window.__xq.game.at(1,9).xp])"
         bf0 = ev(C, BF)
         goto(C, BASE)
-        check(wait(lambda: '兵法' in ev(C, "document.getElementById('resumeInfo').textContent") and ev(C, "!document.getElementById('resume').classList.contains('hidden')"), 10), '本地兵法：首页出现「回到对局」')
+        check(wait(lambda: '技能模式' in ev(C, "document.getElementById('resumeInfo').textContent") and ev(C, "!document.getElementById('resume').classList.contains('hidden')"), 10), '本地兵法：首页出现「回到对局」')
         ev(C, "document.getElementById('bResume').click()")
         check(wait(lambda: ev(C, "!!window.__xq.started && !!window.__xq.game.bf"), 30) and ev(C, BF) == bf0, '兵法恢复：步数、军功、等级、甲片一致 ' + bf0)
 

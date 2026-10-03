@@ -61,7 +61,7 @@ try:
         A.evaluate("document.querySelector('#bCreateGo').click()")
         check(wait(lambda: '·' not in A.inner_text('#roomCode'), 20), '房主拿到房间码')
         code = A.inner_text('#roomCode').strip()
-        check('兵法' in A.inner_text('#waitChips'), '等待页标签显示兵法')
+        check('技能模式' in A.inner_text('#waitChips'), '等待页标签显示技能模式')
         B, ctxB = page('B', BASE + '?room=' + code)
         if not check(wait(lambda: ev(B, "window.__xq.mode") == 'guest' and ev(A, "window.__xq.mode") == 'host', 40), '两位棋手入局'):
             print('   A mode', ev(A, "window.__xq.mode"), 'B mode', ev(B, "window.__xq.mode"), 'B note', ev(B, "document.getElementById('joinNote').innerText"))
