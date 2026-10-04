@@ -3,6 +3,7 @@
   "nodes": { "mid": 60000, "hard": 200000 },
   "exam": { "mid": null, "hard": null, "minCategory": null },
   "quality": { "blundersPer100": null, "mateErrors": null, "dropsPer100": null, "refFactor": 5 },
-  "match": { "prev": "git:25eb911", "sprt": [-30, 10], "maxGames": 600 },
-  "humanSignoff": null
+  "match": { "prev": "git:16aacba", "sprt": [-30, 10], "maxGames": 600 },
+  "humanSignoff": null,
+  "_humanSignoff说明": "2026-10-04 16aacba 按用户授权（“你来决定是否上线”）由 Code 根据测试决定部署；用户还没亲手试过，人工认可待补（填了总闸就说假话，所以保持 null）"
 }
