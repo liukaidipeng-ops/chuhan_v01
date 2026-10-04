@@ -1,0 +1,72 @@
+# 在 GitHub 的免费机器上分段跑模拟（bfsim）。用户 2026-10-04 同意“借 GitHub 的免费机器跑”。
+# 只在分支 claude/gallant-planck-rwr5az 上、推送了 source/tools/simjobs/ 下的请求文件时才跑；不碰游戏代码，也不影响网站部署。
+# 请求文件的格式见 source/tools/ci_sim.js 开头；结果由机器人提交到 source/tools/simresults/。
+name: 模拟（bfsim）
+on:
+  push:
+    branches: [claude/gallant-planck-rwr5az]
+    paths: ['source/tools/simjobs/**']
+permissions:
+  contents: write
+jobs:
+  plan:
+    runs-on: ubuntu-latest
+    outputs:
+      matrix: ${{ steps.p.outputs.matrix }}
+      any: ${{ steps.p.outputs.any }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - id: p
+        run: node source/tools/ci_sim.js plan "${{ github.event.before }}" "${{ github.sha }}" >> "$GITHUB_OUTPUT"
+  run:
+    needs: plan
+    if: needs.plan.outputs.any == 'true'
+    name: ${{ matrix.name }} 第 ${{ matrix.chunk }} 段
+    runs-on: ubuntu-latest
+    timeout-minutes: 180
+    strategy:
+      fail-fast: false
+      matrix: ${{ fromJSON(needs.plan.outputs.matrix) }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - run: node source/tools/ci_sim.js run "${{ matrix.req }}" "${{ matrix.chunk }}"
+      - uses: actions/upload-artifact@v4
+        with:
+          name: part-${{ matrix.name }}-${{ matrix.chunk }}
+          path: out/
+          retention-days: 7
+  collect:
+    needs: [plan, run]
+    if: always() && needs.plan.outputs.any == 'true'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.ref_name }}
+          fetch-depth: 0
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - uses: actions/download-artifact@v4
+        continue-on-error: true
+        with:
+          pattern: part-*
+          path: parts
+          merge-multiple: true
+      - run: node source/tools/ci_sim.js collect parts
+      - name: 把结果提交回分支
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add source/tools/simresults
+          git diff --cached --quiet && exit 0
+          git commit -q -m "模拟结果：$(ls parts | sed -E 's/-[0-9]+\.json$//' | sort -u | tr '\n' ' ')（GitHub Actions 运行 ${{ github.run_id }}）"
+          for i in 1 2 3 4 5; do git pull --rebase -q origin "${{ github.ref_name }}" && git push -q origin "HEAD:${{ github.ref_name }}" && exit 0; sleep $((i * 5)); done
+          exit 1

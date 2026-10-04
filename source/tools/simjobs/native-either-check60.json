@@ -1,0 +1,4 @@
+{ "args": "--games 60 --seed 1000 --nodes mid=60000 --ai git:98dd206 --set beishui.on=true --set beishui.twoPieces=false",
+  "env": { "BFSIM_ENGINE": "tools/variants/engine_at.js", "ENGINE_REV": "98dd206" },
+  "chunks": 4,
+  "note": "核对 GitHub 机器和本机是否逐局相同：本机 native-either 的前 60 局（种子 1000～1059）重跑一遍" }
