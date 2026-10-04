@@ -1,11 +1,13 @@
 // 规则变体引擎（只供模拟）：在某一版的 src/bingfa.js 上加两条用户 2026-10-04 提的规则，定下来后由 chat 写进 bingfa.js
-//   底版用环境变量 ENGINE_REV 指定（git 提交号，默认 98dd206 = chat 的背水一战正式版），和 engine_at.js 一样用 git show 取，不碰工作区的 src/
+//   底版用环境变量 ENGINE_REV 指定（git 提交号，默认 98dd206 = chat 的背水一战正式版），和 engine_at.js 一样用 git show 取，不碰工作区的 src/；
+//   更早、没有背水的版本（如 16aacba）也能当底版
 //   1. 反击（CFG.counter）：士被近战打中后还手（炮、霹雳、齐射算远程，士不还手；冲阵算近战，被当跳板的士也还手）；
 //      相 / 象被远程打中后还手（近战不还手）。远程 = 炮（普通的炮吃子 / 炮打也算，背水那两步里的也算）、霹雳、齐射。
 //      溅射（霹雳、践踏）不触发。帅将攻击不挨反击（和拒马一样）。还手算被动：四面楚歌期间楚方不还手。
 //      counter.a / counter.e 开关；counter.dmg = 还手伤害（数字，或 'atk' = 按守方自己的攻击力，跟着 CFG.attack 走，比如 --set attack.a=[1,2,3,3]）；
 //      counter.onDeath = 这一下被打死了也还手（false = 活下来才还手）；counter.pfSeal = 破釜封锁期也封住楚方还手（方案 A；背水一战没有封锁期，开着也不起作用）
-//      背水一战（98dd206 起）：两步里每一步都是同一个 strike()，照样会挨还手——引擎的 resolve() / attempt() 和电脑用的快写法 BF.ai.pofuPairs
+//      注意：相、象各自只站同一种颜色的格子（相的列 + 行是偶数、象是奇数），齐射只射斜线，实战里射不到象——象的远程还手只会来自炮、霹雳
+//      背水一战（98dd206 的正式版）：两步里每一步都是同一个 strike()，照样会挨还手——引擎的 resolve() / attempt() 和电脑用的快写法 BF.ai.pofuPairs
 //        结果逐项相同（test_counter.js 拿 BF.ai.pofuPairsRef 在一批局面上核对）。被还手打死的那枚子不能再走第二步（它已经不在棋盘上）。
 //        还手打死的是背水一方自己的子，是对方的击杀，不算进“两步合计最多吃 maxKills 个子”（引擎只数死掉的汉方子），也不算背水一方的战果。
 //   2. 回春（skills.huichun）：满级相 / 象的主动技能，周围一格（八个方向）的己方非帅子各回 1 血（不超过上限），
@@ -112,9 +114,11 @@ function enginePath() {
       "        if (res !== 'died' || hitLanded) splash(S, a.to, side, ev, 'pili', p);   // 变体：炮弹已经打中，炮被象还手打死，溅射照样落地");
   // 回春没有目标，不进“只要打到敌子”的静态搜索
   rep("        if (capsOnly && sk === 'hujia') continue;", "        if (capsOnly && (sk === 'hujia' || sk === 'huichun')) continue;");
-  // 回春是原地的技能：背水冻结的象也能用（98dd206 的冻结规则：冻结的子只能用原地的技能）
-  rep("      if (frozen(S, p) && sk !== 'juma' && sk !== 'qishe') return null;   // 冻结的子只能用原地的技能\n",
-      "      if (frozen(S, p) && sk !== 'juma' && sk !== 'qishe' && sk !== 'huichun') return null;   // 冻结的子只能用原地的技能（变体：回春也是）\n");
+  // 回春是原地的技能：背水冻结的象也能用（背水的冻结规则：冻结的子只能用原地的技能）。
+  //   有背水的引擎（6a38c33 起）这一处必须对上；更早的引擎（如 16aacba）没有背水、没有冻结，不用改
+  if (s.includes('const BSon = '))
+    rep("      if (frozen(S, p) && sk !== 'juma' && sk !== 'qishe') return null;   // 冻结的子只能用原地的技能\n",
+        "      if (frozen(S, p) && sk !== 'juma' && sk !== 'qishe' && sk !== 'huichun') return null;   // 冻结的子只能用原地的技能（变体：回春也是）\n");
   const file = path.join(os.tmpdir(), `bingfa_counter_${rev.replace(/[^\w.-]/g, '_')}_${process.pid}.js`);
   fs.writeFileSync(file, s);
   built = file;
