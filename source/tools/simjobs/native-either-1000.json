@@ -1,0 +1,4 @@
+{ "args": "--games 1000 --seed 1300 --nodes mid=60000 --ai git:98dd206 --set beishui.on=true --set beishui.twoPieces=false",
+  "env": { "BFSIM_ENGINE": "tools/variants/engine_at.js", "ENGINE_REV": "98dd206" },
+  "chunks": 20,
+  "note": "加样本：正式版、背水两种走法都可以，种子 1300～2299（和本机 native-either 的 1000～1299 合并成 1300 局）" }

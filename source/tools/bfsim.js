@@ -661,7 +661,7 @@ function merge(o) {
   const seen = new Set();
   for (const r of [...results, ...errors]) { if (seen.has(r.seed)) throw new Error('种子重复：' + r.seed); seen.add(r.seed); }
   const seeds = [...seen].sort((x, y) => x - y);
-  const args = { ...a0, seed: seeds[0], games: seeds.length, json: o.json || null, merged: o.merge };
+  const args = { ...a0, seed: seeds[0], games: seeds.length, json: o.json || null, merged: o.merge, quiet: false };   // 分段时的 --quiet 只是不打进度，合并后照常出完整汇总
   if (seeds[seeds.length - 1] - seeds[0] + 1 !== seeds.length) console.log(`注意：种子不连续（${seeds[0]}～${seeds[seeds.length - 1]} 共 ${seeds.length} 个）`);
   if (o.json) fs.writeFileSync(o.json, JSON.stringify({ args, overrides: parts[0].overrides, results, errors }, null, 1));
   const sum = summarize(results);

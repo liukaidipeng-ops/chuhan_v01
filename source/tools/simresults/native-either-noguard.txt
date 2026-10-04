@@ -6,4 +6,87 @@
 结局：b:checkmate 164  r:checkmate 136
 回合：平均 39.9  中位 30  P90 77  60 回合内结束 79.0%  进入决战 0.0%
 将死 300 局：将军的子有 2 血以上 93.3%（其中贴在帅将身边 77.7%），双将 8.7%
-（合并 20 份：/home/runner/work/chuhan_v01/chuhan_v01/parts/native-either-noguard-0.json、/home/runner/work/chuhan_v01/chuhan_v01/parts/native-either-noguard-1.json、/home/runner/work/chuhan_v01/chuhan_v01/parts/native-either-noguard-2.json、/home/runner/work/chuhan_v01/chuhan_v01/parts/native-either-noguard-3.json、/home/runner/work/chuhan_v01/chuhan_v01/parts/native-either-noguard-4.json、/home/runner/work/chuhan_v01/chuhan_v01/parts/native-either-noguard-5.json、/home/runner/work/chuhan_v01/chuhan_v01/parts/native-either-noguard-6.json、/home/runner/work/chuhan_v01/chuhan_v01/parts/native-either-noguard-7.json、/home/runner/work/chuhan_v01/chuhan_v01/parts/native-either-noguard-8.json、/home/runner/work/chuhan_v01/chuhan_v01/parts/native-either-noguard-9.json、/home/runner/work/chuhan_v01/chuhan_v01/parts/native-either-noguard-10.json、/home/runner/work/chuhan_v01/chuhan_v01/parts/native-either-noguard-11.json、/home/runner/work/chuhan_v01/chuhan_v01/parts/native-either-noguard-12.json、/home/runner/work/chuhan_v01/chuhan_v01/parts/native-either-noguard-13.json、/home/runner/work/chuhan_v01/chuhan_v01/parts/native-either-noguard-14.json、/home/runner/work/chuhan_v01/chuhan_v01/parts/native-either-noguard-15.json、/home/runner/work/chuhan_v01/chuhan_v01/parts/native-either-noguard-16.json、/home/runner/work/chuhan_v01/chuhan_v01/parts/native-either-noguard-17.json、/home/runner/work/chuhan_v01/chuhan_v01/parts/native-either-noguard-18.json、/home/runner/work/chuhan_v01/chuhan_v01/parts/native-either-noguard-19.json）
+行动（用过的局占比 / 每局平均次数）  汉 | 楚
+  破釜沉舟         0.0%   0.00 |  35.3%   0.35
+  召回良将        23.7%   0.24 |   0.0%   0.00
+  普通走子       100.0%  36.71 | 100.0%  35.96
+  停着           0.0%   0.00 |   0.3%   0.00
+  冲阵          37.7%   0.77 |  43.7%   0.81
+  飞越           4.0%   0.08 |   4.7%   0.06
+  护驾          30.7%   0.65 |  27.0%   0.59
+  拒马          22.7%   1.08 |  25.3%   1.55
+  霹雳          12.7%   0.20 |  14.3%   0.20
+  齐射           1.3%   0.01 |   0.0%   0.00
+  踏营           9.3%   0.21 |  10.0%   0.25
+  终极兵法         0.7%   0.01 |   1.7%   0.02
+  回防(被动)       3.0%   0.05 |   5.3%   0.06
+  铁甲禁卫(被动)     9.3%   0.15 |  12.3%   0.19
+  神速营(被动)     10.7%   0.22 |  16.0%   0.36
+升级（* = 甲片自动晋升）  汉 | 楚 （用过的局占比 / 每局平均）
+  a2     73.7%  1.24 |  68.3%  1.09
+  a2*     0.3%  0.00 |   0.0%  0.00
+  a3     42.7%  0.61 |  44.0%  0.60
+  a4     17.0%  0.22 |  21.7%  0.29
+  c2     75.3%  1.03 |  75.7%  1.01
+  c3     33.0%  0.39 |  33.3%  0.40
+  e2     49.3%  0.60 |  47.3%  0.59
+  e2*     0.0%  0.00 |   0.3%  0.00
+  e3     16.7%  0.18 |  21.3%  0.25
+  e4      5.7%  0.06 |   6.3%  0.09
+  n2     61.3%  0.82 |  61.0%  0.82
+  n3     28.0%  0.37 |  34.7%  0.43
+  p2     58.7%  1.26 |  57.7%  1.26
+  p2*     0.0%  0.00 |   0.3%  0.00
+  p3     30.3%  0.66 |  35.7%  0.72
+  p4     16.7%  0.27 |  20.3%  0.31
+  r2     89.3%  1.51 |  90.0%  1.38
+  r3     56.0%  0.86 |  63.3%  0.86
+  r4     10.0%  0.11 |  11.3%  0.11
+击杀来源（每局平均）  汉 | 楚
+  普通吃子         4.59 |   4.77
+  冲阵           0.27 |   0.36
+  霹雳           0.06 |   0.06
+  踏营           0.01 |   0.03
+  回防(被动)       0.00 |   0.01
+  铁甲禁卫(被动)     0.02 |   0.02
+造成伤害但没打死（每局平均）  汉 | 楚
+  强攻           3.05 |   3.20
+  冲阵           0.66 |   0.62
+  飞越           0.01 |   0.00
+  霹雳           0.29 |   0.24
+  齐射           0.01 |   0.00
+  踏营           0.02 |   0.02
+军功来源（每局平均）  汉 | 楚
+  击杀       13.1 |   14.9
+  哀兵        5.2 |    4.9
+  回合       24.6 |   24.5
+  将军        6.4 |    6.8
+  过河        0.6 |    0.6
+终极兵法：汉用 2 局（平均第 103.5 回合，用了的局胜 100.0%）  楚用 5 局（第 88.0 回合，胜 100.0%）  护驾破鸿门宴 0 局
+主帅兵法：汉召回 71 局（第 35.6 回合，胜 28.2%）  楚背水 106 局（第 29.4 回合，胜 40.6%）
+少子才能用的主帅兵法（汉召回）：轮到自己时满足用的条件（车马炮比对方少；第三版还要至少丢了一半）过 118 局，第一次平均第 28.8 回合；真用了 71 局（胜 28.2%）
+少子才能用的主帅兵法（楚背水）：轮到自己时满足用的条件（车马炮比对方少；第三版还要至少丢了一半）过 119 局，第一次平均第 26.4 回合；真用了 106 局（胜 40.6%）
+车马炮持续落后（自己走完还少、到下回合还少）：汉 150 局（50.0%，第一次平均第 19.8 回合、平均落后 14.2 回合；这些局汉胜 30.0%；其中用了主帅兵法 62 局、胜 30.6%） | 楚 161 局（53.7%，第一次平均第 19.1 回合、平均落后 15.4 回合；这些局楚胜 39.8%；其中用了主帅兵法 96 局、胜 38.5%）
+手动升级时的血量（升级回满血，掉了血再升更划算）：汉 满血 88.8%、掉过血 11.2%（只剩 1 血 9.7%），共 3058 次 | 楚 满血 87.2%、掉过血 12.8%（只剩 1 血 10.8%），共 3065 次
+先有二级车的一方：两边都有的 202 局里先到的胜 53.5%；只有一方有的 62 局里有的一方胜 96.8%
+背水前后（106 局，分数 + 汉优；背水没有封锁期，这里的“之后”只是汉方紧接着的一手）：背水那一手汉方 -10.97 分（子力 -6.05）；汉方随后一手 +1.34 分；这些局汉胜 59.4%
+首次升到 N 级（平均回合 / 出现的局占比）  汉 | 楚
+  2 级  第 7.4 回合 100.0% | 第 7.2 回合 99.7%
+  3 级  第 20.5 回合 71.7% | 第 19.6 回合 75.0%
+  4 级  第 50.9 回合 28.7% | 第 46.8 回合 32.7%
+局面分随回合（汉方视角，正 = 汉优）/ 军功 / 等级总和
+  R5（300 局在下）分 0.14  军功 汉 3.7 楚 3.6  等级 汉 0.2 楚 0.2
+  R10（295 局在下）分 -0.10  军功 汉 2.9 楚 2.6  等级 汉 1.0 楚 1.1
+  R15（266 局在下）分 -0.09  军功 汉 2.8 楚 2.8  等级 汉 1.8 楚 1.9
+  R20（234 局在下）分 -0.44  军功 汉 3.8 楚 3.9  等级 汉 3.6 楚 3.8
+  R30（152 局在下）分 -1.44  军功 汉 4.2 楚 4.6  等级 汉 6.9 楚 7.5
+  R40（121 局在下）分 -1.07  军功 汉 4.6 楚 5.0  等级 汉 9.6 楚 10.5
+翻盘（某回合落后 ≥ T 分的一方最后赢了）
+  R10≥2：126 局，落后方赢 45（35.7%），和 0
+  R10≥4：68 局，落后方赢 24（35.3%），和 0
+  R20≥2：197 局，落后方赢 57（28.9%），和 0
+  R20≥4：159 局，落后方赢 42（26.4%），和 0
+  R30≥2：134 局，落后方赢 34（25.4%），和 0
+  R30≥4：124 局，落后方赢 28（22.6%），和 0
+每步平均 656ms
+（20/20 或 4/4 段在 GitHub 上合并；这份汇总是 Code 用 --merge 从 native-either-noguard.json.gz 重新生成的：第一次合并时分段的 --quiet 把汇总截短了）
