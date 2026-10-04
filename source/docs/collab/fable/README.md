@@ -10,6 +10,11 @@ Fable 是 Claude Code 按需调用的“疑难杂症”专家（用户 2026-10-0
 | `NN-清单-*.md` | Code 给用户的白话“下棋变化清单”（每条配例子） |
 | `NN-测试-*.md` | 原型的测试结果（考题、对打、统计） |
 
+**chat 怎么看**：原文都在这里，chat 直接读，用 `git show origin/claude/gallant-planck-rwr5az:source/docs/collab/fable/<文件>` 或合并分支都行。
+另外 Code 会在 `code-to-chat.md` 写一段简短的“要你做什么”（哪项改动测试有效、代码在哪、注意什么）。
+Fable 的原型代码会提交到 `source/tools/variants/bfai_fable.js`，方便 chat 和 `src/bfai.js` 逐行对比、复现测试。
+Fable 统一由 Code 调用，chat 不另外调用，避免重复和结论打架。
+
 流程（用户定的，见 NOTES.md 4.1）：
 1. Code 先出四个缺口的考题、提交；
 2. Fable 交设计说明（原样存这里）；
