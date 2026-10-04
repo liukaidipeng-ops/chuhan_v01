@@ -6,6 +6,8 @@
 //     2. 去重：落到同一个局面的组合只留一个（被将军时很多组合只是同一着解将 + 另一步顺序不同），再取最好的 8 种；
 //     3. 出手门槛 PF_MIN 改用 CFG.beishui.aiMin（默认 1）：估值里留着它本来就值 3 分，再多 1 分就用。
 //   没开 beishui.on 时和 b18c278 完全一样。按节点数收手照常有效（nodeCap / L.nodes 都在 b18c278 里；bfsim 会误报“不支持”）。
+// 已知局限（2026-10-04 发现）：只看结算（finalOnly，预设 bs4）时，楚方被将军、普通着法一步都没有、只有背水能解，这一版电脑不出手，bfsim 记“出错”丢掉那一局（bs4 两组各丢约 10%）。
+//   chat 的正式版（dev 98dd206 起）已经处理；背水的模拟改用正式版（engine_at.js + git:98dd206），这个变体不再用。
 // 用法：node tools/bfsim.js --ai tools/variants/bfai_beishui2.js --preset bs2-a …
 'use strict';
 const fs = require('fs'), path = require('path'), os = require('os');

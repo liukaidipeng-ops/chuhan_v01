@@ -480,7 +480,7 @@ function worker() {
       const seq = await AIS[side].think(BF.cloneState(g.S), L);
       const dt = Date.now() - t0; R.ms += dt; if (dt > R.msMax) R.msMax = dt;
       const st = AIS[side].think.last; if (st && st.nodes != null) { R.nodes = (R.nodes || 0) + st.nodes; R.nodeMoves = (R.nodeMoves || 0) + 1; }
-      if (!seq.length) throw new Error('电脑没有给出行动');
+      if (!seq.length) { let why = ''; try { why = `（${side === 'r' ? '汉' : '楚'}方，第 ${g.round} 回合，${BF.ai.inCheck(g.S, side) ? '被将军' : '没被将军'}，普通行动 ${BF.ai.expand(g.S).length} 种，破釜 / 背水组合 ${side === 'b' && !g.S.used.art.b && BF.ai.pofuPairs ? BF.ai.pofuPairs(g.S).length : 0} 种）`; } catch (e) { why = '（' + e.message + '）'; } throw new Error('电脑没有给出行动' + why); }
       for (const a of seq) {
         // 升级会回满血：掉了血再升更划算（用户问的“极限升级”）。记下升级前的血量
         const up0 = a.k === 'up' ? g.at(a.at[0], a.at[1]) : null, hp0 = up0 && { hp: up0.hp, max: BF.hpOf(up0.t, up0.lv) };
@@ -642,7 +642,7 @@ async function run(o) {
   sum.label = [o.presets.join('+'), ...o.sets, o.saveUlt ? 'save-ult' : ''].filter(Boolean).join(' ') || 'current';
   sum.level = (o.red || o.level) + ' vs ' + (o.black || o.level) + ((o.aiR || o.aiB || o.ai !== 'src/bfai.js') ? `  [汉 ${o.aiR || o.ai} | 楚 ${o.aiB || o.ai}]` : '');
   print(sum, o);
-  if (errors.length) console.log('出错的局：', errors.slice(0, 3).map(e => e.seed + ' ' + e.error.split('\n')[0]).join(' | '));
+  if (errors.length) console.log(`✗ 出错的局 ${errors.length} 个（没算进胜负；出错的局往往不是随便哪局，结果可能有偏差）：`, errors.slice(0, 3).map(e => e.seed + ' ' + e.error.split('\n')[0]).join(' | '));
   return sum;
 }
 
@@ -734,7 +734,7 @@ function print(S, o) {
   const cn = k => CN[k] || k;
   const ci = S.redCI.map(x => (100 * x).toFixed(0)).join('–');
   L.push(`== ${S.label} | ${S.level} | ${S.n} 局 | ${S.seconds}s ==`);
-  L.push(`胜负：汉 ${S.win.r}  楚 ${S.win.b}  和/超时 ${S.win.draw}   汉方胜率（分胜负的局）${pct(S.redShareDecisive)}  95%CI ${ci}%`);
+  L.push(`胜负：汉 ${S.win.r}  楚 ${S.win.b}  和/超时 ${S.win.draw}   汉方胜率（分胜负的局）${pct(S.redShareDecisive)}  95%CI ${ci}%${S.errors ? `  ✗ 另有 ${S.errors} 局出错、没算进来，结果可能有偏差` : ''}`);
   L.push(`结局：${Object.entries(S.reasons).sort((a, b) => b[1] - a[1]).map(([k, v]) => k + ' ' + v).join('  ')}`);
   L.push(`回合：平均 ${S.rounds.mean.toFixed(1)}  中位 ${S.rounds.median}  P90 ${S.rounds.p90}  60 回合内结束 ${pct(S.rounds.within60)}  进入决战 ${pct(S.final)}`);
   if (S.mate && S.mate.n) L.push(`将死 ${S.mate.n} 局：将军的子有 2 血以上 ${pct(S.mate.hard / S.mate.n)}（其中贴在帅将身边 ${pct(S.mate.hardAdj / S.mate.n)}），双将 ${pct(S.mate.double / S.mate.n)}`);
