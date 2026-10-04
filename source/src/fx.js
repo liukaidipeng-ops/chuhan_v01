@@ -382,6 +382,7 @@ const Fx = (() => {
     if (layerDirty) { layerTex.needsUpdate = true; layerDirty = false; }
   });
   function clearMarks() {
+    clearMate();
     for (const r of marks) { scene.remove(r.m); r.m.material.dispose(); }
     marks.length = 0;
     lg.clearRect(0, 0, LAY_W, LAY_H); layerTex.needsUpdate = true;
@@ -788,10 +789,80 @@ const Fx = (() => {
     setTimeout(() => { Cam.shake(0.16); if (k) P.ink(kp.clone().setY(TOP + 0.2), 8, 0.6, 0.35, 0.8); }, T0 * 1000);
     setTimeout(() => { Cam.shake(0.34); flash(kp, 40, 0.5, 0.5); if (k) { ring(kp, 3.2, 1.1, 0xb0301f, 0.95); P.ink(kp.clone().setY(TOP + 0.2), 16, 0.8, 0.45, 0.9); } }, (T0 + 0.02 + (n - 1) * step) * 1000);
   }
+  // ---------- 绝杀的记号：被将死的帅 / 将头顶凌空画一把朱叉，叉落下来打在它身上 ----------
+  //   棋子显示：叉留在棋子面上，四个笔锋还甩到棋盘上一点；模型显示：整把叉落在它脚下的棋盘上。
+  //   画完停一拍让人看清局面，再出「绝杀」大字。
+  const strokeTex = canvasTex(256, 64, (g, w, h) => {
+    g.clearRect(0, 0, w, h);
+    // 一笔：起笔重、中段实、收笔拉出飞白
+    const top = [], bot = [], N = 40, prof = k => (k < 0.08 ? Math.pow(k / 0.08, 0.6) : k < 0.7 ? 1 : 1 - 0.7 * Math.pow((k - 0.7) / 0.3, 1.2));
+    for (let i = 0; i <= N; i++) { const k = i / N, x = 8 + k * (w - 16), hh = h * 0.34 * prof(k); top.push([x, h / 2 - hh * (1 + R(-0.1, 0.1))]); bot.push([x, h / 2 + hh * (1 + R(-0.12, 0.12))]); }
+    g.fillStyle = '#fff'; g.beginPath(); top.forEach(([x, y], i) => (i ? g.lineTo(x, y) : g.moveTo(x, y))); bot.reverse().forEach(([x, y]) => g.lineTo(x, y)); g.closePath(); g.fill();
+    g.globalCompositeOperation = 'destination-out';
+    for (let i = 0; i < 16; i++) { const y = h * R(0.2, 0.8), x0 = w * R(0.45, 0.8); g.globalAlpha = R(0.35, 0.9); g.fillRect(x0, y, w - x0, R(0.8, 2.2)); }
+    g.globalAlpha = 1; g.globalCompositeOperation = 'source-over';
+    for (let i = 0; i < 10; i++) inkBlot(g, R(4, w - 4), h / 2 + R(-h * 0.42, h * 0.42), R(1, 2.6), 1, 0.3);
+  });
+  const strokeGeo = new THREE.PlaneGeometry(1, 1).rotateX(-Math.PI / 2);
+  const MATE_RED = 0xb3261a;
+  const mateG = new THREE.Group(); scene.add(mateG);
+  let mateOnPiece = [];
+  function clearMate() {
+    for (const o of mateOnPiece) { if (o.parent) o.parent.remove(o); o.material.dispose(); }
+    mateOnPiece = [];
+    mateG.traverse(o => { if (o.material) o.material.dispose(); }); mateG.clear();
+  }
+  // 一笔叉：len 长、wd 宽，躺平，绕竖轴转 ang
+  const stroke = (len, wd, ang, y, op = 1) => {
+    const m = new THREE.Mesh(strokeGeo, new THREE.MeshBasicMaterial({ map: strokeTex, color: MATE_RED, transparent: true, opacity: op, depthWrite: false }));
+    m.scale.set(len, 1, wd); m.rotation.y = ang; m.position.y = y; m.renderOrder = 8;
+    return m;
+  };
+  async function mateMark(side) {
+    const k = [...Board.pieces.values()].find(x => x.userData.t === 'k' && x.userData.s === side);
+    if (!k) return;
+    clearMate();
+    const model = typeof Squads !== 'undefined' && Squads.Stand && Squads.Stand.on;
+    const kp = k.position.clone(), PH = Board.PH, A1 = Math.PI / 4 + R(-0.08, 0.08), A2 = -Math.PI / 4 + R(-0.08, 0.08);
+    const air = new THREE.Group(); air.position.set(kp.x, TOP + (model ? 2.3 : 1.5), kp.z); scene.add(air);
+    const L = 1.25, W = 0.3;
+    // 凌空两笔：一撇一捺，从起笔处刷出去
+    const draw = async ang => {
+      const m = stroke(L, W, ang, 0); m.material.depthTest = false; m.renderOrder = 30; air.add(m);
+      const dir = new V3(Math.cos(ang), 0, -Math.sin(ang));
+      Sfx.B.whoosh(0, 0.2, 0.5);
+      await tween(0.15, e => { const s = 0.04 + 0.96 * e; m.scale.x = L * s; m.position.copy(dir).multiplyScalar(-L * (1 - s) / 2); }, ease.out);
+    };
+    await draw(A1); await sleep(0.06); await draw(A2);
+    await tween(0.42, (e, t) => { air.position.y = TOP + (model ? 2.3 : 1.5) + Math.sin(t * Math.PI) * 0.07; air.scale.setScalar(1 + 0.05 * Math.sin(t * Math.PI)); });
+    // 落下
+    const y0 = air.position.y, y1 = model ? TOP + 0.02 : TOP + PH + 0.02;
+    await tween(0.15, e => { air.position.y = y0 + (y1 - y0) * e; air.scale.setScalar(1 - (model ? 0 : 0.42) * e); }, ease.in);
+    scene.remove(air); air.traverse(o => { if (o.material) o.material.dispose(); });
+    // 留痕
+    if (model) {
+      for (const a of [A1, A2]) { const m = stroke(L * 1.05, W * 1.05, a, TOP + 0.012, 0.92); m.position.x = kp.x; m.position.z = kp.z; mateG.add(m); }
+    } else {
+      // 棋子面上一把叉（跟着棋子走）；棋盘上只露出四个笔锋
+      for (const a of [A1, A2]) {
+        const on = stroke(L * 0.6, W * 0.66, a - k.rotation.y, PH + 0.006, 0.95); on.material.polygonOffset = true; on.material.polygonOffsetFactor = -6; on.material.polygonOffsetUnits = -6; k.add(on); mateOnPiece.push(on);   // 棋面那层贴图自带深度偏移，这把叉要比它再靠前
+        const bd = stroke(L * 1.1, W * 0.8, a, TOP + 0.006, 0.8); bd.position.x = kp.x; bd.position.z = kp.z; mateG.add(bd);
+      }
+    }
+    Cam.shake(0.2); Sfx.B.thud(0, 0.8); Sfx.B.clang(0.01, 0.35);
+    P.ink(kp.clone().setY(TOP + (model ? 0.05 : PH + 0.05)), 12, 0.7, 0.3, 0.9);
+    ring(kp, 2.3, 0.55, MATE_RED, 0.8);
+    // 停一拍，让人看清局面
+    await sleep(1.25);
+  }
   function checkStamp(sideInCheck, text, mateName) {
     if (text === '奪') { mateSplash('夺营', null); return; }   // 决战里帅将在对方九宫站满三回合
     if (text === '斬') { mateSplash(sideInCheck === 'b' ? '斩将' : '斩帅', sideInCheck); return; }   // 决战里主帅被斩
-    if (text === '殺' || text === '困') { mateSplash(text === '困' ? '困毙' : MATE_NAMED.has(mateName) ? mateName : '绝杀', sideInCheck); return; }
+    if (text === '殺' || text === '困') {
+      const splash = () => mateSplash(text === '困' ? '困毙' : MATE_NAMED.has(mateName) ? mateName : '绝杀', sideInCheck);
+      if (text === '困') { splash(); return; }
+      return mateMark(sideInCheck).catch(e => console.error(e)).then(splash);   // 绝杀：先画叉、停一拍，再出大字（调用的地方要 await）
+    }
     const el = document.getElementById('stamp');
     el.textContent = text || (sideInCheck === 'b' ? '將' : '帥');
     el.classList.remove('show'); void el.offsetWidth; el.classList.add('show');
@@ -931,7 +1002,7 @@ const Fx = (() => {
     c.m.rotation.set(0, Board.viewSide === 'b' ? Math.PI : 0, 0);
     if (Cam.cine && !info.result) { cineOff(); await Cam.home(0.8); }
     cineOff();
-    if (info.result) { checkStamp(XQ.other(info.mover), info.result.reason === 'checkmate' ? '殺' : info.result.reason === 'kingdead' ? '斬' : info.result.reason === 'occupy' ? '奪' : '困', info.mateName); }
+    if (info.result) { await checkStamp(XQ.other(info.mover), info.result.reason === 'checkmate' ? '殺' : info.result.reason === 'kingdead' ? '斬' : info.result.reason === 'occupy' ? '奪' : '困', info.mateName); }
     else if (info.check) { checkStamp(XQ.other(info.mover)); }
   }
 

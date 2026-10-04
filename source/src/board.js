@@ -1554,6 +1554,33 @@ const Board = (() => {
     const k = 0.5 + 0.5 * Math.sin(performance.now() / 1000 * 3.2);
     glowRoot.children.forEach((m, i) => { m.material.opacity = (i % 2 ? 0.35 + 0.6 * k : 0.15 + 0.45 * k); });
   });
+  // 背水一战走完不合法：把惹祸的子标红（脚下朱圈 + 红晕，一下一下闪），将军的那条线也用红带连起来。传空数组清掉
+  const badRoot = new THREE.Group(); root.add(badRoot);
+  function showBad(cells, links = []) {
+    badRoot.traverse(o => { if (o.material) o.material.dispose(); if (o.userData.own && o.geometry) o.geometry.dispose(); }); badRoot.clear();
+    for (const [f, r] of cells) {
+      const a = decal(glowTex, 0xe2331f, 2.0, X(f), Z(r), TOP + 0.0034, 0.6), b = decal(ringTex, 0xd2281a, 1.24, X(f), Z(r), TOP + 0.0072, 1);
+      a.userData.k = 'glow'; b.userData.k = 'ring'; badRoot.add(a, b);
+    }
+    for (const [A, B] of links) {
+      const a = [X(A[0]), Z(A[1])], b = [X(B[0]), Z(B[1])], n = Math.max(2, Math.ceil(Math.hypot(b[0] - a[0], b[1] - a[1]) / 0.25)), pts = [];
+      for (let i = 0; i <= n; i++) pts.push([a[0] + (b[0] - a[0]) * i / n, a[1] + (b[1] - a[1]) * i / n]);
+      const tp = trimPath(pts, 0.5, 0.5); if (tp.length < 2) continue;
+      const mesh = new THREE.Mesh(ribbonGeo(tp, 0.34, TOP + 0.0046), new THREE.MeshBasicMaterial({ map: flowTex, color: 0xd2281a, transparent: true, opacity: 0.8, depthWrite: false, vertexColors: true, side: THREE.DoubleSide }));
+      mesh.userData.own = true; mesh.userData.k = 'belt'; mesh.renderOrder = 3; badRoot.add(mesh);
+    }
+  }
+  Core.onFrame(() => {
+    if (!badRoot.children.length) return;
+    const t = performance.now() / 1000, k = 0.5 + 0.5 * Math.sin(t * 5.2);
+    flowTex.offset.x = -(t * 0.55) % 1;
+    for (const m of badRoot.children) {
+      const kind = m.userData.k;
+      if (kind === 'glow') m.material.opacity = 0.3 + 0.45 * k;
+      else if (kind === 'ring') { m.material.opacity = 0.6 + 0.4 * k; const s = 1.24 * (1 + 0.06 * k); m.scale.set(s, 1, s); }
+      else m.material.opacity = 0.55 + 0.35 * k;
+    }
+  });
   // 范围提示（四面楚歌：楚将周围 5×5）：淡朱底 + 虚线框，范围内的己方棋子套金圈；几秒后自动淡去
   let zoneG = null;
   function showZone(a, b, hits = []) {
@@ -1681,7 +1708,7 @@ const Board = (() => {
   })();
   return {
     root, TOP, PH, HALF, X, Z, pos, setPosition, syncPosition, pieces, piecesRoot, makePiece, faceViewer,
-    showMoves, clearMoves, showZone, setGlow, showLast, pick, meshAt, get hovered() { return hovered; }, ringTex, glowTex, wakes, water, waterMat, decal, flatGeo, pine, deco, FONT,
+    showMoves, clearMoves, showZone, showBad, setGlow, showLast, pick, meshAt, get hovered() { return hovered; }, ringTex, glowTex, wakes, water, waterMat, decal, flatGeo, pine, deco, FONT,
     viewSide: 'r', setSkin, dress, get lastGame() { return lastGame; }, skinTune, get SK() { return SK; }, pieceWood, RZ, BZ, BX, BRIDGE_X, faceTex, backTex, setFace, makeRiver, mtTex, decorate, decorateAll, reconcile, plateGeo, plateOn,
   };
 })();

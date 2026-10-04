@@ -1274,7 +1274,9 @@
     if (game && game.bf && mode && started && !ended && !game.result && !RP && !watching()) {
       const fx = game.fx, me = mode === 'local' ? game.turn : mySide;
       if (fx.hm > 0 && me === 'r') k = 'hm'; else if (fx.sm > 0 && me === 'b') k = 'sm';
+      if (bfMode && bfMode.bs) { k = bfMode.bad ? 'bs bad' : 'bs'; inkMask(); }   // 背水一战发动期间：四周墨绿水墨晕染；走完不合法 → 朱红
     }
+    if (!(bfMode && bfMode.bs && bfMode.bad)) Board.showBad([]);
     const v = $('veil'), cls = k ? 'on ' + k + (Core.quality === 'low' || veilLite ? ' lite' : '') : '';
     if (v.className !== cls) v.className = cls;
     // 真模糊（backdrop-filter）在弱机上很吃力：开着的头一秒量一下帧时间，掉帧就退成只有色雾
@@ -1290,9 +1292,40 @@
     }
   }
   let veilLite = false, veilProbe = false;
+  // 水墨晕染的形状：四周一圈深浅不匀的墨团（画一次，当遮罩用；颜色由样式给，墨绿 / 朱红共用这一张）
+  let inkMade = false;
+  function inkMask() {
+    if (inkMade) return; inkMade = true;
+    try {
+      const W = 480, H = 300, c = document.createElement('canvas'); c.width = W; c.height = H;
+      const g = c.getContext('2d');
+      let sd = 20261004; const rnd = () => { sd = (sd * 1664525 + 1013904223) >>> 0; return sd / 4294967296; };
+      const blob = (x, y, r, a) => { const gr = g.createRadialGradient(x, y, 0, x, y, r); gr.addColorStop(0, `rgba(0,0,0,${a})`); gr.addColorStop(0.55, `rgba(0,0,0,${a * 0.55})`); gr.addColorStop(1, 'rgba(0,0,0,0)'); g.fillStyle = gr; g.beginPath(); g.arc(x, y, r, 0, 7); g.fill(); };
+      // 底：越靠边越浓
+      const base = g.createRadialGradient(W / 2, H / 2, H * 0.3, W / 2, H / 2, W * 0.62); base.addColorStop(0, 'rgba(0,0,0,0)'); base.addColorStop(0.5, 'rgba(0,0,0,.5)'); base.addColorStop(1, 'rgba(0,0,0,.95)');
+      g.save(); g.translate(W / 2, H / 2); g.scale(1, H / W * 1.25); g.translate(-W / 2, -H / 2); g.fillStyle = base; g.fillRect(-W, -H * 2, W * 3, H * 5); g.restore();
+      // 墨团：沿四边往里渗，大小浓淡不一
+      for (let i = 0; i < 170; i++) {
+        const t = rnd(), side = Math.floor(rnd() * 4), d = Math.pow(rnd(), 1.7) * 0.2, r = 16 + rnd() * 58;
+        const x = side === 0 ? d * W : side === 1 ? (1 - d) * W : t * W, y = side === 2 ? d * H * 1.15 : side === 3 ? (1 - d * 1.15) * H : t * H;
+        blob(x, y, r, 0.22 + rnd() * 0.4);
+      }
+      // 留白：往里咬出几个缺口，边缘才不是一圈整齐的椭圆
+      g.globalCompositeOperation = 'destination-out';
+      for (let i = 0; i < 46; i++) {
+        const a = rnd() * 6.283, k = 0.52 + rnd() * 0.3, r = 14 + rnd() * 40;
+        blob(W / 2 + Math.cos(a) * W * 0.5 * k, H / 2 + Math.sin(a) * H * 0.5 * k, r, 0.2 + rnd() * 0.35);
+      }
+      g.globalCompositeOperation = 'source-over';
+      const c2 = document.createElement('canvas'); c2.width = W; c2.height = H;
+      const g2 = c2.getContext('2d'); g2.filter = 'blur(5px)'; g2.drawImage(c, 0, 0);
+      $('veil').style.setProperty('--inkm', `url(${c2.toDataURL('image/png')})`);
+    } catch (e) { console.warn('inkMask', e); }
+  }
   const pname = p => XQ.NAMES[p.s][p.t];
   function exitBfMode(repaint = true) {
     if (bfMode && bfMode.kind === 'pofu' && bfMode.m1) Board.reconcile(game);
+    if (bfMode && bfMode.bs) Board.showBad([]);
     bfMode = null;
     if (repaint) renderBar();
   }
@@ -1363,6 +1396,7 @@
   // 破釜沉舟：先选第一步，再选第二步，两步一起提交
   function pofuClick(p) {
     const M = bfMode;
+    if (M.bs) { bsClick(p); return; }
     const showFrom = (list, from) => { Board.showMoves(from, list.filter(m => m.from[0] === from[0] && m.from[1] === from[1]), true); };
     if (!p) return;
     const [f, r] = p;
@@ -1388,6 +1422,63 @@
     if (pc && pc.s === 'b' && list.some(m => m.from[0] === f && m.from[1] === r)) { M.sel = [f, r]; Sfx.select(); showFrom(list, M.sel); }
     else { M.sel = null; Board.clearMoves(false); }
   }
+  // 背水一战：发动后收不回来（没有“取消”）。能走的步都让走，两步走完再判——
+  //   合法就结算；不合法 → 四周变朱红、说明原因、惹祸的子标红，点一下屏幕棋子归位，从第一步重走
+  const BS_HINT = ['背水一战 · 第一步：选一枚子走一步（不能取消）', '背水一战 · 第二步：换一枚子再走一步'];
+  const BS_WHY = {
+    self: '两步走完，楚将正被将军', face: '两步走完，将帅照面了', give: '背水一战走完不能将着汉帅',
+    kills: () => `背水一战合计最多吃 ${BF.CFG.beishui.maxKills} 个子`, long: '同一枚子不能一直将军', other: '这两步不合规则',
+  };
+  function bsStart() {
+    Board.showBad([]); Board.clearMoves(true); sel = null; selMoves = []; selBad = [];
+    bfMode = { kind: 'pofu', bs: true, firsts: game.bsFree().list, hint: BS_HINT[0] };
+    renderBar();
+  }
+  function bsReset() { Board.reconcile(game); Sfx.place(); bsStart(); }
+  function bsShow(ev) {   // 预览：子先挪过去，被吃的先藏起来
+    for (const e of ev) {
+      if (e.e === 'move') { const m = Board.pieces.get(e.id); if (m) m.position.copy(Board.pos(e.to[0], e.to[1])); }
+      if (e.e === 'kill') { const m = Board.pieces.get(e.id); if (m) m.visible = false; }
+    }
+  }
+  function bsClick(p) {
+    const M = bfMode;
+    if (M.bad) { bsReset(); return; }
+    if (!p) return;
+    const [f, r] = p, list = M.m1 ? M.seconds : M.firsts;
+    const hit = M.sel && list.find(m => m.from[0] === M.sel[0] && m.from[1] === M.sel[1] && m.to[0] === f && m.to[1] === r);
+    if (hit && !M.m1) {
+      M.m1 = { from: hit.from, to: hit.to };
+      const pv = game.bsFree(M.m1);
+      bsShow(pv.ev); M.board = pv.S.board; M.seconds = pv.list; M.sel = null;
+      Board.clearMoves(true); Sfx.place();
+      M.hint = BS_HINT[1]; renderBar();
+      return;
+    }
+    if (hit && M.m1) {
+      const steps = [M.m1, { from: hit.from, to: hit.to }], j = game.bsJudge(steps);
+      if (j.ok) { doBF({ k: 'art', steps }); return; }
+      bsShow(j.ev); Board.clearMoves(true); M.sel = null;
+      const why = BS_WHY[j.why] || BS_WHY.other, txt = typeof why === 'function' ? why() : why;
+      M.bad = j; M.hint = '不合法：' + txt + ' · 点一下屏幕，棋子归位重走';
+      Board.showBad(j.marks, j.links);
+      const u = $('veil').querySelector('u');
+      u.querySelector('em').textContent = '不合法'; u.querySelector('strong').textContent = txt; u.querySelector('small').textContent = '点一下屏幕 · 棋子归位，重走背水一战';
+      // 大字别压住标红的子：惹祸的子在屏幕上半就把字放到下面
+      const ys = j.marks.map(c => (1 - Board.pos(c[0], c[1]).project(Core.camera).y) / 2);
+      u.classList.toggle('low', ys.length > 0 && Math.min(...ys) < 0.4 && Math.max(...ys) < 0.62);
+      try { Sfx.B.thud(0, 0.7); Sfx.B.clang(0.03, 0.3); } catch (e) { }
+      Core.Cam.shake(0.12);
+      renderBar();
+      return;
+    }
+    const pc = (M.m1 ? M.board : game.board)[r][f];
+    if (pc && pc.s === 'b' && list.some(m => m.from[0] === f && m.from[1] === r)) {
+      M.sel = [f, r]; Sfx.select();
+      Board.showMoves(M.sel, list.filter(m => m.from[0] === f && m.from[1] === r), true);
+    } else { M.sel = null; Board.clearMoves(false); }
+  }
+  $('veil').addEventListener('click', ev => { if (bfMode && bfMode.bs && bfMode.bad) { ev.stopPropagation(); bsReset(); } });
   let barKey = '', barCache = null;
   function bfAvail() {
     const key = game.entries.length + '|' + (sel ? sel.join() : '') + '|' + game.turn + '|' + (game.result ? 1 : 0);
@@ -1570,6 +1661,7 @@
   const isCompact = () => innerWidth <= 760 || innerWidth / innerHeight < 0.8;
   function renderBar() {
     const bar = $('bfBar');
+    paintVeil();
     const rsOn = game && game.bf && mode && started && !ended && !busy && !bfMode && !dbgOn && canAct();
     const rs = rsOn ? readySkills() : [];
     Board.setGlow(rs);
@@ -1584,7 +1676,8 @@
     let hint = '';
     if (bfMode) {
       hint = bfMode.hint;
-      B.push(`<button class="sk" data-a="cancel">取消<small>换一着</small></button>`);
+      if (bfMode.bs) { if (bfMode.m1 || bfMode.bad) B.push(`<button class="sk" data-a="bsRedo">重 走<small>棋子归位</small></button>`); }   // 背水一战发动后不能取消，只能把两步重走
+      else B.push(`<button class="sk" data-a="cancel">取消<small>换一着</small></button>`);
     } else {
       const a = bfAvail();
       // 按钮不可用时不用 disabled（点了没反应像坏了），改成灰色 + 点一下说明原因；所有按钮悬停 / 长按看说明
@@ -1624,7 +1717,7 @@
       if (!a.p) hint = game.freeUsed ? '已架拒马 · 请再走一步棋' : `${SIDE_ARMY[side]}行动 · 军功 ${game.merit[side]}`;
       if (isCompact() && !game.freeUsed) hint = '';
     }
-    if (!B.length) { bar.classList.add('hidden'); $('bfRow').innerHTML = ''; $('bfHint').textContent = ''; layoutHud(); return; }
+    if (!B.length && !(bfMode && bfMode.bs)) { bar.classList.add('hidden'); $('bfRow').innerHTML = ''; $('bfHint').textContent = ''; layoutHud(); return; }
     $('bfHint').textContent = hint;
     $('bfRow').innerHTML = B.join('');
     $('bfRow').querySelectorAll('button[data-a]').forEach(b => b.onclick = ev => { ev.stopPropagation(); bfButton(b.dataset.a, b); });
@@ -1641,7 +1734,8 @@
       if (a === 'ult' && game.turn === 'r' && !game.used.ult.r) simianZone();
       return;
     }
-    if (a === 'cancel') { exitBfMode(false); Board.clearMoves(false); if (sel) bfSelect(sel[0], sel[1]); renderBar(); return; }
+    if (a === 'bsRedo') { if (bfMode && bfMode.bs) bsReset(); return; }
+    if (a === 'cancel') { if (bfMode && bfMode.bs) return; exitBfMode(false); Board.clearMoves(false); if (sel) bfSelect(sel[0], sel[1]); renderBar(); return; }
     if (a === 'up' && sel) { doBF({ k: 'up', at: sel }); return; }
     if (a === 'sk' && sel) {
       const av = bfAvail(), skn = (el && el.dataset.sk) || game.skillOf(av.p), k = (av.skills || []).find(x => x.sk === skn);
@@ -1657,6 +1751,13 @@
         const opts2 = game.reviveOptions();
         const id = await pick('召 回 良 将', '复活一枚被吃的子，放回它的开局位置（一级）。', opts2.map(o => ({ v: o.id, label: XQ.NAMES.r[o.t], cls: 'r' })));
         if (id != null && canAct()) doBF({ k: 'art', id: +id });
+        return;
+      }
+      if (BF.CFG.beishui.on) {
+        // 背水一战一旦发动就收不回来：先郑重问一句
+        const B = BF.CFG.beishui;
+        const ok = await ask('背 水 一 战', `一旦发动就不能收回：这一回合必须用两枚不同的子各走一步，把背水一战走完。每局只有这一次。走完两步时楚将不能被将军、也不能将着汉帅，合计最多吃 ${B.maxKills} 个子；用过的两枚子下一回合不能动。`, 0, '发 动', '再想想');
+        if (ok && canAct() && game.turn === 'b' && !bfMode) bsStart();
         return;
       }
       bfClear();

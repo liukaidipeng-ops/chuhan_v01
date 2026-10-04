@@ -817,6 +817,8 @@
     pofuFirst() { return this.result ? [] : pofuFirst(this.S); }
     pofuSecond(m1) { return pofuSecond(this.S, m1); }
     pofuPreview(m1) { return pofuPreview(this.S, m1); }
+    bsFree(m1) { CFG_CUR = this.cfg; return bsFree(this.S, m1); }
+    bsJudge(steps) { CFG_CUR = this.cfg; return bsJudge(this.S, steps); }
     ultReady() { return !this.result && ultReady(this.S); }
     upgradeCost(p) { CFG_CUR = this.cfg; return upCost(p); }
     baseCost(p) { if (!p || p.t === 'k' || p.lv >= maxLv(p.t)) return null; return this.cfg.upgrade.cost[p.t][p.lv - 1]; }
@@ -940,6 +942,52 @@
     const T = cloneState(S), ev = [];
     strike(T, m1.from, m1.to, 'b', ev);
     return { S: T, ev };
+  }
+  // 背水一战（界面用）：不筛合不合法，把能走的步都列出来——没给 m1 是第一步；给了就是第一步走完之后、别的子的第二步
+  //   返回 { S: 第一步走完的局面, ev, list }
+  function bsFree(S, m1) {
+    const BS = BSon(), list = [];
+    let T = S, ev = [], moved = null;
+    if (m1) {
+      T = cloneState(S);
+      const p = at(T, m1.from[0], m1.from[1]), mm = p && p.s === 'b' && findMove(T, m1.from, m1.to);
+      if (!mm) return { S: T, ev, list };
+      moved = p.id;
+      const res = strike(T, m1.from, m1.to, 'b', ev);
+      if (mm.via) { setCd(T, p, mm.via); ev.push({ e: 'passive', sk: mm.via, id: p.id }); }
+      trample(T, p, m1.to, res, 'b', ev);
+    }
+    for (let r = 0; r < 10; r++) for (let f = 0; f < 9; f++) {
+      const q = T.board[r][f]; if (!q || q.s !== 'b') continue;
+      if (moved != null && BS && BS.twoPieces && q.id === moved) continue;
+      for (const m of moveTargets(T, f, r)) list.push(m);
+    }
+    return { S: T, ev, list };
+  }
+  // 背水一战（界面用）：这两步行不行；不行的话为什么、是哪几枚子造成的
+  //   行 → { ok: true }；不行 → { ok: false, why: 'self' 被将军 | 'face' 将帅照面 | 'give' 将着对方 | 'kills' 吃多了 | 'long' 长将 | 'other', marks: [[f,r]…], links: [[从, 到]…], S: 两步走完的局面, ev }
+  function bsJudge(S, steps) {
+    if (attempt(S, { k: 'art', steps })) return { ok: true };
+    const BS = BSon(), T = cloneState(S), ev = [], out = { ok: false, why: 'other', marks: [], links: [], S: T, ev };
+    for (const m of steps) {
+      const p = at(T, m.from[0], m.from[1]), mm = p && p.s === 'b' && findMove(T, m.from, m.to);
+      if (!mm) return out;
+      const res = strike(T, m.from, m.to, 'b', ev);
+      if (mm.via) { setCd(T, p, mm.via); ev.push({ e: 'passive', sk: mm.via, id: p.id }); }
+      trample(T, p, m.to, res, 'b', ev);
+    }
+    const where = id => { for (let r = 0; r < 10; r++) for (let f = 0; f < 9; f++) { const q = T.board[r][f]; if (q && q.id === id) return [f, r]; } return null; };
+    const kb = findKing(T.board, 'b'), kr = findKing(T.board, 'r');
+    const byCheck = (why, king, ids) => { out.why = why; if (king) out.marks.push(king); for (const id of ids) { const c = where(id); if (c) { out.marks.push(c); if (king) out.links.push([c, king]); } } return out; };
+    if (T.final) return out;
+    if (kb && kr && facing(T.board)) { out.why = 'face'; out.marks.push(kb, kr); out.links.push([kb, kr]); return out; }
+    if (inCheckF(T, 'b')) return byCheck('self', kb, checkers(T.board, 'r'));
+    if (inCheckF(T, 'r')) return byCheck('give', kr, checkers(T.board, 'b'));
+    const dead = ev.filter(e => e.e === 'kill' && !e.friendly && e.s === 'r');
+    if (BS && dead.length > BS.maxKills) { out.why = 'kills'; for (const e of dead) if (e.at) out.marks.push(e.at.slice()); return out; }
+    const lim = CFG_CUR.longCheckLimit, hist = S.ckHist.b;
+    if (lim && hist.length >= lim) out.why = 'long';
+    return out;
   }
   // 某兵种某一级的数值（界面说明用）
   function levelInfo(t, s, lv, cfg = CFG) {

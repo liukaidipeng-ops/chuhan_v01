@@ -211,6 +211,23 @@ input.code{font-size:30px;letter-spacing:.4em;text-align:center;width:8.5em;max-
 #veil.hm b{background:radial-gradient(ellipse 68% 64% at 50% 50%,transparent 46%,rgba(126,26,12,.3) 70%,rgba(88,12,6,.72) 100%)}
 #veil.sm b{background:radial-gradient(ellipse 68% 64% at 50% 50%,transparent 46%,rgba(44,66,90,.34) 70%,rgba(14,26,42,.76) 100%)}
 @keyframes veilBreath{50%{opacity:.62}}
+/* 背水一战：发动期间四周水墨晕染（墨绿）；两步走完不合法 → 晕染变朱红，点一下屏幕归位重走 */
+#veil.bs{transition:opacity .5s ease;box-shadow:inset 0 0 min(16vw,170px) rgba(26,104,74,.6)}
+#veil.bs b{-webkit-mask-image:var(--inkm);mask-image:var(--inkm);-webkit-mask-size:100% 100%;mask-size:100% 100%;animation-duration:4.4s;
+  background:radial-gradient(ellipse 76% 72% at 50% 50%,rgba(110,190,150,0) 26%,rgba(64,150,110,.62) 50%,rgba(20,84,60,.92) 72%,rgba(4,28,20,.98) 100%)}
+#veil.bs.bad{pointer-events:auto;cursor:pointer;box-shadow:inset 0 0 min(16vw,170px) rgba(170,34,18,.62)}
+#veil.bs.bad b{animation:veilBad 1.5s ease-in-out infinite;
+  background:radial-gradient(ellipse 76% 72% at 50% 50%,rgba(220,90,60,0) 26%,rgba(206,66,40,.62) 50%,rgba(150,24,12,.92) 72%,rgba(60,4,2,.98) 100%)}
+@keyframes veilBad{50%{opacity:.72}}
+#veil u{display:none;position:absolute;left:50%;top:13%;transform:translateX(-50%);text-decoration:none;text-align:center;white-space:nowrap}
+#veil u.low{top:auto;bottom:24%}
+#veil.bs.bad u{display:block;animation:bsMsgIn .28s cubic-bezier(.2,1.5,.4,1) both}
+#veil u em{display:block;font-style:normal;font-family:"XK",var(--font);font-size:clamp(46px,7vw,84px);line-height:1.05;letter-spacing:.16em;padding-left:.16em;color:#b3261a;text-shadow:0 2px 0 rgba(255,246,230,.9),0 0 22px rgba(255,244,226,.95),0 0 46px rgba(255,244,226,.8)}
+#veil u span{display:inline-block;margin-top:4px;font-size:15px;letter-spacing:.1em;color:#f6e9cf;background:rgba(74,12,8,.9);border:1px solid rgba(240,170,140,.55);border-radius:12px;padding:6px 18px 7px;line-height:1.5}
+#veil u strong{font-weight:normal}
+#veil u small{display:block;font-size:12.5px;letter-spacing:.12em;color:#f3cdb8;animation:veilBreath 1.6s ease-in-out infinite}
+@keyframes bsMsgIn{0%{opacity:0;transform:translateX(-50%) scale(1.5)}100%{opacity:1;transform:translateX(-50%) scale(1)}}
+body.compact #veil u span{font-size:13px;white-space:normal;max-width:84vw}
 .sk.pas{opacity:.85;filter:none;background:linear-gradient(#3a3428,#24201a)}
 @keyframes gainup{0%{opacity:0;transform:translate(-50%,-30%) scale(.6)}15%{opacity:1;transform:translate(-50%,-60%) scale(1.15)}30%{transform:translate(-50%,-70%) scale(1)}100%{opacity:0;transform:translate(-50%,-190%) scale(1)}}
 .merpop{position:fixed;z-index:30;pointer-events:none;font-size:15px;font-weight:bold;color:#8a5a12;text-shadow:0 1px 0 #fff8e6,0 0 6px rgba(255,236,190,.9);animation:merup 1.4s ease-out forwards;white-space:nowrap}
@@ -747,7 +764,7 @@ body.compact #log{width:164px;max-height:34vh}
   <div class="row"><button class="btn small" id="nameRnd">换个名号</button><button class="btn red solid" id="nameGo">入 席</button></div>
 </div></div></div>
 
-<div id="veil"><i></i><b></b></div>
+<div id="veil"><i></i><b></b><u><em></em><span><strong></strong><small></small></span></u></div>
 <div id="cdRed"></div><div id="cdBig"></div>
 <div id="stamp">將</div>
 <div id="banner"><div class="tw"><div class="t" id="bannerT"></div><span class="bseal">楚漢<br>逐鹿</span></div><div class="ln"></div><div class="s" id="bannerS"></div></div>

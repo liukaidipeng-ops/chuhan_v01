@@ -133,7 +133,7 @@ console.log('13. 电脑候选（pofuPairs 快的写法）和逐个试走（pofuP
 for (const check of ['none']) {
   cfg2({ on: true, maxLeft: 3, strictEscape: true });
   let seed = 4242; const rnd = () => { seed |= 0; seed = seed + 0x6D2B79F5 | 0; let t = Math.imul(seed ^ seed >>> 15, 1 | seed); t = t + Math.imul(t ^ t >>> 7, 61 | t) ^ t; return ((t ^ t >>> 14) >>> 0) / 4294967296; };
-  let positions = 0, pairs = 0, quiet = 0;
+  let positions = 0, pairs = 0, quiet = 0; const whys = {};
   for (let gi = 0; gi < 6; gi++) {
     const g = new BF.Game();
     // 开局先拿掉楚方两车一马一炮（剩 2 枚，比汉方少），让背水一开始就能用
@@ -152,6 +152,19 @@ for (const check of ['none']) {
           if (!k.ev.some(e => e.e === 'kill' || e.e === 'hit')) quiet++;
         }
         if (A.length) { positions++; pairs += A.length; }
+        // 界面用的两个函数（不筛合法性的列法 + 判定）和引擎对得上：判“行”的正好是 attempt 认的；引擎认的组合都在列法里
+        if (A.length) {
+          const F1 = g.bsFree().list, has = (L, m) => L.some(x => x.from[0] === m.from[0] && x.from[1] === m.from[1] && x.to[0] === m.to[0] && x.to[1] === m.to[1]);
+          for (const k of A.slice(0, 40)) assert.ok(has(F1, k.a.steps[0]) && has(g.bsFree(k.a.steps[0]).list, k.a.steps[1]), '引擎认的组合不在界面列法里：' + key(k));
+          for (let i = 0; i < F1.length; i += 3) for (const m2 of g.bsFree(F1[i]).list) {
+            const steps = [{ from: F1[i].from, to: F1[i].to }, { from: m2.from, to: m2.to }], j = g.bsJudge(steps), real = BF.attempt(S, { k: 'art', steps });
+            assert.ok(j.ok === !!real, '界面判定和引擎不一致：' + JSON.stringify(steps));
+            if (j.ok) continue;
+            whys[j.why] = (whys[j.why] || 0) + 1;
+            if (j.why === 'self' || j.why === 'give' || j.why === 'face') assert.ok(j.marks.length >= 2 && j.links.length >= 1, '将军类的不合法要标出将 / 帅和将军的子');
+            if (j.why === 'kills') assert.ok(j.marks.length >= 2, '吃多了要标出被吃的子');
+          }
+        }
       }
       const kids = BF.ai.expand(g.S).filter(k => k.a.k === 'mv' || k.a.k === 'sk');
       if (!kids.length) break;
@@ -160,6 +173,7 @@ for (const check of ['none']) {
       if (!g.apply(pick.a)) break;
     }
   }
+  ok((whys.self || 0) > 50 && (whys.other || 0) * 20 < Object.values(whys).reduce((x, y) => x + y, 0), '界面判定：不合法的原因 ' + JSON.stringify(whys));
   ok(positions >= 20 && pairs > 500, `${positions} 个局面、${pairs} 个组合逐项相同（其中不打子的防守组合 ${quiet} 个）`);
 }
 cfg2({});

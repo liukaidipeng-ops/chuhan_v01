@@ -54,6 +54,7 @@ const Camp = (() => {
     for (const [x, z] of [[1, 1], [-1, 1], [1, -1], [-1, -1]]) parts.push(P(G.cyl(0.06, 0.06, 1.6, 4), C.wood, x * 1.05, 7.3, z * 1.05));
     return parts;
   }
+  const DRUM_X = 6.5, DRUM_Z = 3.3;   // 战鼓的位置（每营左右各一面，鼓面朝棋盘）
   function drum(st) { // 战鼓
     return [
       P(G.cyl(0.9, 0.9, 1.1, 14), 0x7a2a1c, 0, 1.6, 0, Math.PI / 2, 0, 0),
@@ -119,7 +120,7 @@ const Camp = (() => {
       // 望楼
       add(place(tower(st), side * 6.3, sg * 6.6, 0));
       // 战鼓
-      add(place(drum(st), side * 5.75, sg * 3.3, Math.PI / 2));
+      add(place(drum(st), side * DRUM_X, sg * DRUM_Z, Math.PI / 2));   // 挪到护卫队列外侧（原来在 5.75，和第二排护卫穿在一起）
       // 兵器架、辎重
       add(place(rack(), side * 6.25, sg * 1.05, Math.PI / 2));
       add(place(rack(), side * 10.3, sg * 5.2, 0.3));
@@ -163,6 +164,10 @@ const Camp = (() => {
     const archers = new Models.Troop(s, 'archer', 2, K);
     archers.units.forEach((u, i) => { u.p.set((i ? 1 : -1) * 6.3, 6.4 * K, sg * 6.6); u.yaw = sg > 0 ? Math.PI : 0; });
     scene.add(archers.group);
+    // 擂鼓的士兵：站在鼓和护卫队列之间，背朝棋盘、面朝鼓面；鼓点一响（音效或配乐）就抡槌
+    const drummers = new Models.Troop(s, 'drummer', 2, K);
+    drummers.units.forEach((u, i) => { const side = i ? 1 : -1; u.p.set(side * (DRUM_X - 0.37), 0, sg * DRUM_Z); u.yaw = side > 0 ? Math.PI / 2 : -Math.PI / 2; u.pose = 'drum'; u.hand = i; });
+    scene.add(drummers.group);
     const troops = [guards, sentries, archers];
     for (const tr of troops) for (const u of tr.units) { u.home = u.p.clone(); u.homeYaw = u.yaw; u.pose = 'idle'; }
 
@@ -186,12 +191,13 @@ const Camp = (() => {
     // 中军大帐旁的两把火炬（最后两只火盆）是“轮到谁走”的信号：轮到这一方才点亮，平时熄着
     const lordFires = [4, 5];
     for (const i of lordFires) { flames[i].userData.lord = true; flames[i].userData.lit = 0; const g = new THREE.Sprite(new THREE.SpriteMaterial({ map: Tex.spark, color: 0xffb060, blending: THREE.AdditiveBlending, transparent: true, depthWrite: false, opacity: 0 })); g.position.copy(fires[i]).add(new V3(0, 0.1, 0)); scene.add(g); flames[i].userData.glow = g; }
-    const camp = { s, sg, group, guards, sentries, archers, troops, banners, flames, fires, drops: [], gen: 0, state: 'home', goneN: 0, total: guards.count + sentries.count, torch: false };
+    const camp = { s, sg, group, guards, sentries, archers, drummers, troops, banners, flames, fires, drops: [], gen: 0, state: 'home', goneN: 0, total: guards.count + sentries.count, torch: false };
     camps.push(camp);
     onFrame(dt => {
       t += dt;
       steer(camp, dt);
       for (const tr of troops) tr.update(dt);
+      drummers.update(dt);
       for (const b of banners) b.update(dt);
       for (const f of flames) {
         const k = 0.7 + 0.3 * Math.sin(t * 13 + f.userData.ph) * Math.sin(t * 7.3 + f.userData.ph * 2);
@@ -578,5 +584,31 @@ const Camp = (() => {
       }
     }
   }
-  return { frenzy, quake, init, camps, cheer, surround, rout, reset, K, onCapture, taunt, desert, dismay, setTurn, restless, tauntBoard, get gone() { return camps.map(c => c.goneN); } };
+  // ---------- 擂鼓 ----------
+  //   鼓点（音效、配乐里每一下大鼓）排进队列，到点前一小会儿让鼓手起槌，槌落鼓面正好赶上鼓响；左右手轮流
+  const beats = [];
+  let beatLast = -9;
+  function drumBeat(delay = 0, v = 0.8) {
+    if (v < 0.28) return;                                    // 太轻的鼓点（铺底的小鼓）不抡槌
+    const at = performance.now() / 1000 + delay;
+    if (beats.length && Math.abs(beats[beats.length - 1].at - at) < 0.085) return;   // 同一下（大鼓 + 垫音）只算一次
+    if (beats.length < 64) beats.push({ at, v });
+  }
+  onFrame(() => {
+    if (!beats.length) return;
+    const now = performance.now() / 1000;
+    beats.sort((a, b) => a.at - b.at);
+    while (beats.length && beats[0].at - 0.13 <= now) {
+      const b = beats.shift();
+      if (now - b.at > 0.3) continue;                        // 过期太久的不补
+      const gap = b.at - beatLast; beatLast = b.at;
+      const dur = Math.max(0.16, Math.min(0.3, gap * 0.9));  // 鼓点密就打得快
+      for (const c of camps) for (const u of c.drummers.units) {
+        u.hand = 1 - (u.hand || 0);
+        c.drummers.act(u.i, u.hand ? 'beatW' : 'beatS', dur, 0);
+      }
+    }
+  });
+  Sfx.onDrum(drumBeat);
+  return { drumBeat, frenzy, quake, init, camps, cheer, surround, rout, reset, K, onCapture, taunt, desert, dismay, setTurn, restless, tauntBoard, get gone() { return camps.map(c => c.goneN); } };
 })();
