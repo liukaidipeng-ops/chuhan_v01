@@ -19,6 +19,9 @@ rep("        pofu = pofu.map(k => { k.gain = score(k.S, me) - base; return k; })
         if (BSv) { const seen = new Set(); pofu = pofu.filter(k => { const key = (k.up ? k.up.at.join(',') : '') + '|' + k.S.board.map(row => row.map(p => (p ? p.id + ':' + p.hp + ':' + p.lv : '')).join(',')).join('/'); if (seen.has(key)) return false; seen.add(key); return true; }); }`);
 rep("      const PF_MIN = 5, need = bestV + PF_MIN,",
     "      const PF_MIN = CFG.beishui && CFG.beishui.on ? (CFG.beishui.aiMin != null ? CFG.beishui.aiMin : 1) : 5 /* 变体·背水二 */, need = bestV + PF_MIN,");
+// 对照实验（用户 2026-10-04 同意）：环境变量 BFAI_BS_NOGUARD=1 时汉方完全不提防楚方的背水（搜索里不把背水当楚方的应着）；不设时和原来一样
+rep("    if (me === 'r' && L.depth >= 2 && !S.used.art.b) pfPly = 1;",
+    "    if (me === 'r' && L.depth >= 2 && !S.used.art.b && !(typeof process !== 'undefined' && process.env && process.env.BFAI_BS_NOGUARD)) pfPly = 1;");
 const file = path.join(os.tmpdir(), `bfai_beishui2_${base}_${process.pid}.js`);
 fs.writeFileSync(file, s);
 module.exports = require(file);
