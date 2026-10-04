@@ -81,6 +81,7 @@ PRESETS['pofu-a16'] = { set: {}, patches: ['pofu-noup', 'pofu-from16'] };
 PRESETS['revive-free'] = { set: {}, patches: ['revive-free'] };
 PRESETS['arts-from16'] = { set: {}, patches: ['pofu-from16', 'revive-from16'] };
 PRESETS['pofu-a+arts-from16'] = { set: {}, patches: ['pofu-noup', 'pofu-from16', 'revive-from16'] };   // 用户：方案 A 的封锁期 + 第 16 回合起每回合 +1 军功，让破釜的 debuff 最大化
+PRESETS['pofu-a+arts-from16+revive-free'] = { set: {}, patches: ['pofu-noup', 'pofu-from16', 'revive-from16', 'revive-free'] };   // 头号候选 + 召回不占行动（召回也从第 16 回合起）
 PRESETS['pofu-a+revive-free'] = { set: {}, patches: ['pofu-noup', 'revive-free'] };
 function applyPatches(BF, names) {
   if (!names || !names.length) return;
@@ -375,6 +376,7 @@ function worker() {
       act: side2(), up: side2(), kills: side2(), hits: side2(), meritBy: side2(), friendly: side2(),
       ultRound: {}, artRound: {}, artKind: {}, firstLv: { r: {}, b: {} }, samples: [], rescue: 0, jumaCounter: side2(), msMax: 0, ms: 0,
       upHp: { r: { full: 0, hurt: 0, last: 0 }, b: { full: 0, hurt: 0, last: 0 } },   // 手动升级时那枚子的血量：满血 / 掉过血（其中只剩 1 血）
+      firstR2: {},   // 各方第一次有二级车的回合（用户：“一旦二血车先获得主动权，战场局面就几乎一边倒了”）
     };
     let lastRound = 0, guard = 0;
     const sample = () => {
@@ -384,7 +386,9 @@ function worker() {
     const lvSum = S => { const o = { r: 0, b: 0 }; for (const row of S.board) for (const p of row) if (p && p.t !== 'k') o[p.s] += p.lv - 1; return o; };
     const record = (a, info, side) => {
       const A = R.act[side];
+      const r2 = (t, lv, s) => { if (t === 'r' && lv === 2 && R.firstR2[s] == null) R.firstR2[s] = g.round; };
       if (a.k === 'up') {
+        r2(info.t, info.lv, side);
         inc(R.up[side], info.t + info.lv);
         if (R.firstLv[side][info.lv] == null) R.firstLv[side][info.lv] = g.round;
         return;
@@ -397,7 +401,7 @@ function worker() {
       else key = a.k;
       inc(A, key);
       if (a.k === 'art' && a.then) inc(A, info.extra && info.extra.via ? 'via_' + info.extra.via : 'mv');   // revive-free：召回之后那一步也记上
-      if (a.k === 'art' && a.up && info.upInfo) { inc(A, 'art_revive_up'); inc(R.up[side], info.upInfo.t + info.upInfo.lv); if (R.firstLv[side][info.upInfo.lv] == null) R.firstLv[side][info.upInfo.lv] = g.round; }
+      if (a.k === 'art' && a.up && info.upInfo) { r2(info.upInfo.t, info.upInfo.lv, side); inc(A, 'art_revive_up'); inc(R.up[side], info.upInfo.t + info.upInfo.lv); if (R.firstLv[side][info.upInfo.lv] == null) R.firstLv[side][info.upInfo.lv] = g.round; }
       const via = info.extra && info.extra.via;
       for (const e of info.ev || []) {
         if (e.e === 'kill') {
@@ -408,7 +412,7 @@ function worker() {
         } else if (e.e === 'hit') {
           inc(R.hits[side], e.how || 'attack');
         } else if (e.e === 'merit') inc(R.meritBy[e.s], e.why, e.n);
-        else if (e.e === 'autoup') { inc(R.up[e.s], e.t + e.lv + '*'); if (R.firstLv[e.s][e.lv] == null) R.firstLv[e.s][e.lv] = g.round; }
+        else if (e.e === 'autoup') { r2(e.t, e.lv, e.s); inc(R.up[e.s], e.t + e.lv + '*'); if (R.firstLv[e.s][e.lv] == null) R.firstLv[e.s][e.lv] = g.round; }
         else if (e.e === 'final' && !R.final) { R.final = true; R.finalRound = g.round; }
         else if (e.e === 'rescue') R.rescue++;
         else if (e.e === 'counter') inc(R.jumaCounter[other(side)], 'hit');
@@ -617,6 +621,11 @@ function summarize(rs) {
   S.final = rs.filter(r => r.final).length / N;
   const uh = s => { const t = { full: 0, hurt: 0, last: 0 }; for (const r of rs) if (r.upHp) for (const k in t) t[k] += r.upHp[s][k]; return t; };
   S.upHp = { r: uh('r'), b: uh('b') };
+  // 先有二级车的一方赢了多少（两边都有、且不同回合的局里比先后；只有一方有的另记）
+  { const g2 = rs.filter(r => r.firstR2 && r.winner);
+    const first = g2.filter(r => r.firstR2.r != null && r.firstR2.b != null && r.firstR2.r !== r.firstR2.b), only = g2.filter(r => (r.firstR2.r == null) !== (r.firstR2.b == null));
+    const who = r => (r.firstR2.b == null || (r.firstR2.r != null && r.firstR2.r < r.firstR2.b)) ? 'r' : 'b';
+    S.firstR2 = { n: first.length, win: first.filter(r => r.winner === who(r)).length, onlyN: only.length, onlyWin: only.filter(r => r.winner === who(r)).length }; }
   const pfs = rs.filter(r => r.pf);
   if (pfs.length) {
     const avg = f => mean(pfs.map(f));
@@ -695,6 +704,7 @@ function print(S, o) {
   L.push(`主帅兵法：汉召回 ${ar.r[0]} 局（第 ${S.art.round.r.toFixed(1)} 回合，胜 ${ar.r[0] ? pct(ar.r[1] / ar.r[0]) : '-'}）  楚破釜 ${ar.b[0]} 局（第 ${S.art.round.b.toFixed(1)} 回合，胜 ${ar.b[0] ? pct(ar.b[1] / ar.b[0]) : '-'}）`);
   { const f = H => { const n = H.full + H.hurt; return n ? `满血 ${pct(H.full / n)}、掉过血 ${pct(H.hurt / n)}（只剩 1 血 ${pct(H.last / n)}），共 ${n} 次` : '-'; };
     L.push(`手动升级时的血量（升级回满血，掉了血再升更划算）：汉 ${f(S.upHp.r)} | 楚 ${f(S.upHp.b)}`); }
+  if (S.firstR2 && (S.firstR2.n || S.firstR2.onlyN)) L.push(`先有二级车的一方：两边都有的 ${S.firstR2.n} 局里先到的胜 ${S.firstR2.n ? pct(S.firstR2.win / S.firstR2.n) : '-'}；只有一方有的 ${S.firstR2.onlyN} 局里有的一方胜 ${S.firstR2.onlyN ? pct(S.firstR2.onlyWin / S.firstR2.onlyN) : '-'}`);
   if (S.pf) L.push(`破釜前后（${S.pf.n} 局，分数 + 汉优）：破釜那一手汉方 ${S.pf.gain.toFixed(2)} 分（子力 ${S.pf.gainM.toFixed(2)}）；之后封锁期汉方 ${S.pf.back >= 0 ? '+' : ''}${S.pf.back.toFixed(2)} 分（子力 ${S.pf.backM >= 0 ? '+' : ''}${S.pf.backM.toFixed(2)}）；追回一半以上 ${pct(S.pf.half)}；封锁期内就分了胜负 ${S.pf.ended} 局；这些局汉胜 ${pct(S.pf.redWin)}`);
   L.push('首次升到 N 级（平均回合 / 出现的局占比）  汉 | 楚');
   for (const [k, v] of Object.entries(S.firstLv)) L.push(`  ${k} 级  第 ${v.r.toFixed(1)} 回合 ${pct(v.rn)} | 第 ${v.b.toFixed(1)} 回合 ${pct(v.bn)}`);
