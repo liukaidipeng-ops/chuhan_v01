@@ -14,7 +14,7 @@ function enginePath() {
   if (built) return built;
   let s = fs.readFileSync(path.join(__dirname, '..', '..', 'src', 'bingfa.js'), 'utf8');
   const rep = (a, b) => { const n = s.split(a).length - 1; if (n !== 1) throw new Error(`engine_counter：锚点出现 ${n} 次（引擎改过了？）：${a.slice(0, 80)}`); s = s.replace(a, b); };
-  rep("    longCheckLimit: 6,\n", "    longCheckLimit: 6,\n    counter: { a: false, e: false, dmg: 1, onDeath: false },   // 变体：士反击近战、象反击远程\n");
+  rep("    longCheckLimit: 6,\n", "    longCheckLimit: 6,\n    counter: { a: false, e: false, dmg: 1, onDeath: false, pfSeal: false },   // 变体：士反击近战、象反击远程；pfSeal = 破釜封锁期也封住楚方还手（方案 A：被动也封）\n");
   rep("      hujia: { cooldown: 4 },\n", "      hujia: { cooldown: 4 },\n      huichun: { level: 99, cooldown: 999, heal: 1 },   // 变体：满级相 / 象回春\n");
   rep("e: [s === 'r' ? 'qishe' : 'jianta', 'feiyue'] }", "e: [s === 'r' ? 'qishe' : 'jianta', 'feiyue', 'huichun'] }");
   rep("feiyue: '飞越' };", "feiyue: '飞越', huichun: '回春' };");
@@ -22,16 +22,21 @@ function enginePath() {
   rep("  function strike(S, from, to, side, ev, how) {\n",
 `  // 变体·反击：士挨近战、象挨远程时还手；帅将出手不挨反击（同拒马）。远程 = 炮（含破釜里的炮）、霹雳、齐射
   const rangedHit = (P, how) => P.t === 'c' || how === 'pili' || how === 'qishe';
-  const counters = (T, P, how) => { const C = CFG_CUR.counter; if (!C || !T || !P || T.s === P.s || P.t === 'k') return false; return T.t === 'a' ? !!C.a && !rangedHit(P, how) : T.t === 'e' ? !!C.e && rangedHit(P, how) : false; };
+  const counters = (S, T, P, how) => { const C = CFG_CUR.counter; if (!C || !T || !P || T.s === P.s || P.t === 'k') return false;
+    if (T.s === 'b' && (smActive(S) || (C.pfSeal && pfActive(S)))) return false;   // 还手算被动：四面楚歌期间楚军没有技能；方案 A 破釜封锁期被动也封
+    return T.t === 'a' ? !!C.a && !rangedHit(P, how) : T.t === 'e' ? !!C.e && rangedHit(P, how) : false; };
   // 还手打攻方（攻方站在 at_）；打死了返回 true
-  function hitBack(S, at_, P, T, ev) {
-    const n = CFG_CUR.counter.dmg === 'atk' ? atk(T) : CFG_CUR.counter.dmg;
-    P.hp -= n;
+  const backDmg = T => (CFG_CUR.counter.dmg === 'atk' ? atk(T) : CFG_CUR.counter.dmg);
+  function hitBack(S, at_, P, T, ev, pre) {
+    const n = backDmg(T);
+    if (!pre) P.hp -= n;   // pre：伤害已经先扣过了（被打死也还手那一路，见 strike）
     ev.push({ e: 'fanji', id: P.id, at: at_.slice(), by: T.id, n, hp: Math.max(0, P.hp) });
     if (P.hp <= 0) { kill(S, at_[0], at_[1], T.s, ev, 'fanji', T); return true; }
     return false;
   }
+  let hitLanded = false;   // 变体：上一次 strike 打中了目标之后攻方才被还手打死（霹雳的溅射照样落地）
   function strike(S, from, to, side, ev, how) {
+    hitLanded = false;
 `);
   rep(`    const A = atk(P);
     if (T.hp <= A) { kill(S, to[0], to[1], side, ev, how || 'capture', P); moveTo(S, from, to, ev); return 'kill'; }
@@ -39,15 +44,19 @@ function enginePath() {
     ev.push({ e: 'hit', id: T.id, at: to.slice(), hp: T.hp, how: how || 'attack' });
     ev.push({ e: 'repel', id: P.id, from: from.slice(), to: to.slice() });
     return 'hit';`,
-`    const A = atk(P), ctr = counters(T, P, how);
+`    const A = atk(P), ctr = counters(S, T, P, how);
     if (T.hp <= A) {
+      // 变体·被打死也还手：这一下和还手算同一次交手——先把还手的伤害扣在攻方身上、守方血清零，再结算击杀奖励
+      //   （攻方要是被还手打死，就拿不到甲片晋升回血；已死的守方也不会再晋升）
+      const back = ctr && CFG_CUR.counter.onDeath;
+      if (back) { P.hp -= backDmg(T); T.hp = 0; }
       kill(S, to[0], to[1], side, ev, how || 'capture', P);
-      if (ctr && CFG_CUR.counter.onDeath && hitBack(S, from, P, T, ev)) return 'died';   // 变体：被打死也还手，把攻方打死了就不占位
+      if (back) { hitLanded = true; if (hitBack(S, from, P, T, ev, true)) return 'died'; }
       moveTo(S, from, to, ev); return 'kill';
     }
     T.hp -= A;
     ev.push({ e: 'hit', id: T.id, at: to.slice(), hp: T.hp, how: how || 'attack' });
-    if (ctr && hitBack(S, from, P, T, ev)) return 'died';   // 变体：活下来还手
+    if (ctr) { hitLanded = true; if (hitBack(S, from, P, T, ev)) return 'died'; }   // 变体：活下来还手
     ev.push({ e: 'repel', id: P.id, from: from.slice(), to: to.slice() });
     return 'hit';`);
   // 冲阵：跳板是敌方士——冲阵算近战，士还手（还手打死了车，车就不落地了）
@@ -57,13 +66,13 @@ function enginePath() {
 `          const q0 = S.board[a.to[1]][a.to[0]];
           damage(S, a.to[0], a.to[1], CFG_CUR.skills.chongzhen.springDamage, side, ev, 'chongzhen', p);
           extra.spring = { at: a.to.slice(), killed: !S.board[a.to[1]][a.to[0]] };
-          if (counters(q0, p, 'chongzhen') && (S.board[a.to[1]][a.to[0]] === q0 || CFG_CUR.counter.onDeath) && hitBack(S, a.at, p, q0, ev)) extra.res = 'died';
+          if (counters(S, q0, p, 'chongzhen') && (S.board[a.to[1]][a.to[0]] === q0 || CFG_CUR.counter.onDeath) && hitBack(S, a.at, p, q0, ev)) extra.res = 'died';
           else extra.res = strike(S, a.at, t.land, side, ev, 'chongzhen');`);
   // 齐射：被射的是敌方象——远程，象还手
   rep(`        damage(S, a.to[0], a.to[1], CFG_CUR.skills.qishe.damage, side, ev, 'qishe', p);`,
 `        const q0 = S.board[a.to[1]][a.to[0]];
         damage(S, a.to[0], a.to[1], CFG_CUR.skills.qishe.damage, side, ev, 'qishe', p);
-        if (counters(q0, p, 'qishe') && (S.board[a.to[1]][a.to[0]] === q0 || CFG_CUR.counter.onDeath)) hitBack(S, a.at, p, q0, ev);`);
+        if (counters(S, q0, p, 'qishe') && (S.board[a.to[1]][a.to[0]] === q0 || CFG_CUR.counter.onDeath)) hitBack(S, a.at, p, q0, ev);`);
   // 回春
   rep(`        if (side === 'r' && hmActive(S)) { S.fx.hm = S.cnt.r; extra.rescue = true; ev.push({ e: 'rescue', id: p.id, at: k.slice() }); }
       } else return null;`,
@@ -81,6 +90,10 @@ function enginePath() {
         if (!n) return null;
         extra.healed = n;
       } else return null;`);
+  rep("        if (res !== 'died') splash(S, a.to, side, ev, 'pili', p);",
+      "        if (res !== 'died' || hitLanded) splash(S, a.to, side, ev, 'pili', p);   // 变体：炮弹已经打中，炮被象还手打死，溅射照样落地");
+  // 5. 回春没有目标，不进“只要打到敌子”的静态搜索
+  rep("        if (capsOnly && sk === 'hujia') continue;", "        if (capsOnly && (sk === 'hujia' || sk === 'huichun')) continue;");
   const file = path.join(os.tmpdir(), `bingfa_counter_${process.pid}.js`);
   fs.writeFileSync(file, s);
   built = file;

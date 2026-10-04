@@ -149,6 +149,8 @@ function applyPatches(BF, names) {
   if (reviveFrom) applyReviveGate(BF, +reviveFrom);
   if (fromN) applyGateMate(BF, S => S.turn === 'b' && gated(S), a => isPofu(a));
   if (has('revive-free')) applyReviveFree(BF);
+  // 反击变体（engine_counter）+ 方案 A：破釜封锁期里楚方被动也封，还手同样封住
+  if (has('pofu-noup') && BF.CFG.counter) BF.CFG.counter.pfSeal = true;
 }
 // revive-fromN：第 N 回合之前不能召回良将（电脑的候选里也去掉）。和 revive-free 一起用时 freeRevive 也看这个门
 function applyReviveGate(BF, N) {
