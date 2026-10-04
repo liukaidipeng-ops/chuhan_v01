@@ -1,59 +1,45 @@
 {
- "batch": "b4",
+ "batch": "b5",
  "list_voices": false,
  "hosts": [
   "https://api.minimax.cn"
  ],
  "jobs": [
   {
-   "id": "xiang_2a",
+   "id": "xiang_2e",
    "voice": "Chinese (Mandarin)_Humorous_Elder",
-   "text": "吾乃西楚霸王！<#0.35#>谁敢挡我！",
+   "text": "吾乃西楚霸王！<#0.12#>谁敢挡我！",
    "pitch": -3,
-   "emotion": "angry",
-   "speed": 0.92,
+   "speed": 0.9,
    "vol": 1.5,
+   "emotion": "angry",
    "modify": {
-    "intensity": -70,
+    "intensity": -80,
     "pitch": -20,
-    "timbre": -30
+    "timbre": -30,
+    "sound_effects": "spacious_echo"
    }
   },
   {
-   "id": "xiang_2b",
+   "id": "xiang_2f",
    "voice": "Chinese (Mandarin)_Humorous_Elder",
-   "text": "吾乃——西楚霸王！<#0.4#>谁敢——挡我！",
+   "text": "吾乃西楚霸王！<#0.12#>谁敢挡我！",
    "pitch": -3,
-   "emotion": "angry",
-   "speed": 0.85,
-   "vol": 1.8,
-   "modify": {
-    "intensity": -100,
-    "pitch": -30,
-    "timbre": -40
-   }
-  },
-  {
-   "id": "xiang_2c",
-   "voice": "Chinese (Mandarin)_Humorous_Elder",
-   "text": "吾乃西楚霸王！<#0.35#>谁敢挡我！",
-   "pitch": -3,
-   "emotion": "angry",
-   "speed": 0.92,
+   "speed": 0.9,
    "vol": 1.5,
-   "model": "speech-02-hd",
+   "emotion": "disgusted",
    "modify": {
-    "intensity": -70,
+    "intensity": -80,
     "pitch": -20,
-    "timbre": -30
+    "timbre": -30,
+    "sound_effects": "spacious_echo"
    }
   },
   {
-   "id": "xiang_2d",
+   "id": "xiang_2g",
    "voice": "Chinese (Mandarin)_Humorous_Elder",
-   "text": "吾乃西楚霸王！<#0.35#>谁敢挡我！",
+   "text": "吾乃西楚霸王！<#0.12#>谁敢挡我！",
    "pitch": -3,
-   "emotion": "angry",
    "speed": 0.9,
    "vol": 1.5,
    "modify": {
@@ -64,107 +50,136 @@
    }
   },
   {
-   "id": "xiang_3a",
+   "id": "xiang_2h",
    "voice": "Chinese (Mandarin)_Humorous_Elder",
-   "text": "(laughs)哈哈哈哈哈！<#0.25#>再来！",
+   "text": "吾乃西楚霸王！谁敢挡我！",
    "pitch": -3,
-   "emotion": "happy",
-   "speed": 0.95,
+   "speed": 0.9,
    "vol": 1.5,
+   "emotion": "angry",
    "modify": {
-    "intensity": -70,
+    "intensity": -80,
     "pitch": -20,
     "timbre": -30
    }
   },
   {
-   "id": "xiang_3b",
+   "id": "xiang_3d",
    "voice": "Chinese (Mandarin)_Humorous_Elder",
-   "text": "哈！哈！哈！哈！<#0.2#>再来！",
+   "text": "(laughs)哈哈哈哈哈！<#0.15#>再来！再来！",
    "pitch": -3,
-   "emotion": "angry",
-   "speed": 0.9,
+   "speed": 0.95,
+   "vol": 1.5,
+   "emotion": "happy",
+   "modify": {
+    "intensity": -80,
+    "pitch": -20,
+    "timbre": -30,
+    "sound_effects": "spacious_echo"
+   }
+  },
+  {
+   "id": "xiang_3e1",
+   "voice": "Chinese (Mandarin)_Humorous_Elder",
+   "text": "(laughs)哈哈哈哈哈！",
+   "pitch": -3,
+   "speed": 0.95,
+   "vol": 1.5,
+   "emotion": "happy",
+   "modify": {
+    "intensity": -80,
+    "pitch": -20,
+    "timbre": -30
+   }
+  },
+  {
+   "id": "xiang_3e2",
+   "voice": "Chinese (Mandarin)_Humorous_Elder",
+   "text": "再来！",
+   "pitch": -3,
+   "speed": 0.88,
    "vol": 1.8,
+   "emotion": "angry",
    "modify": {
     "intensity": -100,
-    "pitch": -30,
-    "timbre": -40
-   }
-  },
-  {
-   "id": "xiang_3c",
-   "voice": "Chinese (Mandarin)_Humorous_Elder",
-   "text": "哈哈哈哈哈！<#0.25#>再来！",
-   "pitch": -3,
-   "emotion": "happy",
-   "speed": 0.95,
-   "vol": 1.5,
-   "model": "speech-02-hd",
-   "modify": {
-    "intensity": -70,
     "pitch": -20,
     "timbre": -30
    }
   },
   {
-   "id": "liu_1a",
-   "voice": "Chinese (Mandarin)_Reliable_Executive",
-   "text": "(chuckle)托项王的福，<#0.25#>汉中的栈道，寡人已经修好了。",
-   "pitch": -2,
-   "emotion": "happy",
-   "speed": 0.95,
-   "modify": {
-    "pitch": -30,
-    "timbre": -20
-   }
-  },
-  {
-   "id": "liu_1b",
-   "voice": "Chinese (Mandarin)_Reliable_Executive",
-   "text": "托项王的福，<#0.25#>汉中的栈道，寡人已经修好了。",
-   "pitch": -2,
-   "emotion": "disgusted",
-   "speed": 0.95,
-   "modify": {
-    "pitch": -30,
-    "timbre": -20
-   }
-  },
-  {
-   "id": "liu_1c",
-   "voice": "Chinese (Mandarin)_Reliable_Executive",
-   "text": "托项王的福啊，<#0.25#>汉中的栈道，寡人，已经修好了。",
-   "pitch": -2,
+   "id": "xiang_3f",
+   "voice": "Chinese (Mandarin)_Humorous_Elder",
+   "text": "(laughs)哈哈哈哈哈！<#0.15#>再来！",
+   "pitch": -3,
    "speed": 0.92,
+   "vol": 1.5,
+   "emotion": "angry",
    "modify": {
-    "pitch": -45,
-    "timbre": -30
+    "intensity": -80,
+    "pitch": -20,
+    "timbre": -30,
+    "sound_effects": "spacious_echo"
    }
   },
   {
-   "id": "liu_2",
+   "id": "liu_1d",
+   "voice": "Chinese (Mandarin)_Reliable_Executive",
+   "text": "托项王的福，<#0.2#>汉中的栈道，寡人已经修好了。",
+   "pitch": -1,
+   "speed": 0.97,
+   "modify": {
+    "pitch": -12,
+    "timbre": -8
+   },
+   "emotion": "disgusted"
+  },
+  {
+   "id": "liu_1e",
+   "voice": "Chinese (Mandarin)_Reliable_Executive",
+   "text": "托项王的福，汉中的栈道，寡人已经修好了。",
+   "pitch": -1,
+   "speed": 1.02,
+   "modify": {
+    "pitch": -12,
+    "timbre": -8
+   },
+   "emotion": "disgusted"
+  },
+  {
+   "id": "liu_1f",
+   "voice": "Chinese (Mandarin)_Reliable_Executive",
+   "text": "托项王的福，<#0.2#>汉中的栈道，寡人已经修好了。",
+   "pitch": -1,
+   "speed": 0.97,
+   "modify": {
+    "pitch": -12,
+    "timbre": -8
+   }
+  },
+  {
+   "id": "liu_2b",
    "voice": "Chinese (Mandarin)_Reliable_Executive",
    "text": "竖子，<#0.2#>不足与谋！",
-   "pitch": -2,
-   "emotion": "angry",
+   "pitch": -1,
    "speed": 1.0,
    "modify": {
-    "pitch": -30,
-    "timbre": -20,
-    "intensity": -30
-   }
+    "pitch": -12,
+    "timbre": -8,
+    "intensity": -25
+   },
+   "emotion": "angry"
   },
   {
-   "id": "liu_3",
+   "id": "liu_3b",
    "voice": "Chinese (Mandarin)_Reliable_Executive",
    "text": "(chuckle)足下，<#0.3#>大势已去矣。",
-   "pitch": -2,
-   "emotion": "calm",
-   "speed": 0.95,
+   "pitch": -1,
+   "speed": 0.97,
    "modify": {
-    "pitch": -30,
-    "timbre": -20
-   }
+    "pitch": -12,
+    "timbre": -8
+   },
+   "emotion": "calm"
   }
  ]
 }
