@@ -1,0 +1,26 @@
+# native-either-noguard（GitHub Actions 运行 37209836576）
+# 请求：{"args":"--games 300 --seed 1000 --nodes mid=60000 --ai tools/variants/bfai_noguard.js --set beishui.on=true --set beishui.twoPieces=false","env":{"BFSIM_ENGINE":"tools/variants/engine_at.js","ENGINE_REV":"98dd206","BFAI_BS_NOGUARD":"1"},"chunks":20,"note":"对照（用户同意）：chat 正式版、背水两种走法都可以（同一枚子走两步 / 两枚子各走一步），汉方电脑不提防背水；和 native-either（本机 46.7%）比，看汉方是不是防过头"}
+# 收到 20/20 段
+
+✗ 合并失败：node:fs:440
+    return binding.readFileUtf8(path, stringToFlags(options.flag));
+                   ^
+
+Error: ENOENT: no such file or directory, open 'parts/native-either-noguard-0.json'
+    at Object.readFileSync (node:fs:440:20)
+    at /home/runner/work/chuhan_v01/chuhan_v01/source/tools/bfsim.js:655:48
+    at Array.map (<anonymous>)
+    at merge (/home/runner/work/chuhan_v01/chuhan_v01/source/tools/bfsim.js:655:25)
+    at Object.<anonymous> (/home/runner/work/chuhan_v01/chuhan_v01/source/tools/bfsim.js:805:21)
+    at Module._compile (node:internal/modules/cjs/loader:1781:14)
+    at Object..js (node:internal/modules/cjs/loader:1913:10)
+    at Module.load (node:internal/modules/cjs/loader:1505:32)
+    at Function._load (node:internal/modules/cjs/loader:1309:12)
+    at wrapModuleLoad (node:internal/modules/cjs/loader:254:19) {
+  errno: -2,
+  code: 'ENOENT',
+  syscall: 'open',
+  path: 'parts/native-either-noguard-0.json'
+}
+
+Node.js v22.23.3
