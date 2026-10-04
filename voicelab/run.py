@@ -88,4 +88,20 @@ for j in REQ.get('jobs', []):
         break
     LOG['jobs'].append(rec)
     time.sleep(0.4)
+# 4) 音乐（纯器乐）：request.json 里的 music: [{ id, prompt, model? }]
+for m in REQ.get('music', []):
+    rec = {'id': m['id'], 'music': True}
+    for model in ([m['model']] if m.get('model') else ['music-3.0', 'music-2.6', 'music-2.0', 'music-1.5']):
+        body = {'model': model, 'prompt': m['prompt'], 'is_instrumental': True, 'output_format': 'hex', 'stream': False,
+                'audio_setting': {'sample_rate': 44100, 'bitrate': 128000, 'format': 'mp3'}}
+        if m.get('lyrics'): body['lyrics'] = m['lyrics']; body['is_instrumental'] = False
+        st, r = post(H, '/v1/music_generation', body, timeout=900)
+        br = (r or {}).get('base_resp') or {}
+        audio = (r.get('data') or {}).get('audio') if isinstance(r, dict) else None
+        rec.setdefault('tried', []).append({'model': model, 'http': st, 'code': br.get('status_code'), 'msg': br.get('status_msg') or (r or {}).get('error')})
+        if st == 200 and br.get('status_code') == 0 and audio:
+            open(os.path.join(OUT, m['id'] + '.mp3'), 'wb').write(bytes.fromhex(audio))
+            rec.update(ok=True, model=model, info=r.get('extra_info')); break
+        if br.get('status_code') == 1008: break   # 余额不足：别再试别的型号
+    LOG['jobs'].append(rec)
 finish()
