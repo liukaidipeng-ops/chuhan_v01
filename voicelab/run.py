@@ -75,7 +75,7 @@ for j in REQ.get('jobs', []):
     if not vid: rec['error'] = '找不到这个音色'; LOG['jobs'].append(rec); continue
     rec['voice_id'] = vid; rec['voice_name'] = vname
     jj = dict(j, voice_id=vid)
-    for attempt in range(3):
+    for attempt in range(5):
         st, r = synth(H, jj)
         br = (r or {}).get('base_resp') or {}
         audio = (r.get('data') or {}).get('audio') if isinstance(r, dict) else None
@@ -84,10 +84,10 @@ for j in REQ.get('jobs', []):
             ei = r.get('extra_info') or {}
             rec.update(ok=True, ms=ei.get('audio_length'), chars=ei.get('usage_characters')); break
         rec.update(ok=False, http=st, code=br.get('status_code'), msg=br.get('status_msg') or (r or {}).get('error'))
-        if br.get('status_code') in (1002, 1039) or st in (0, 429, 500, 502, 503): time.sleep(4 + attempt * 6); continue
+        if br.get('status_code') in (1002, 1039) or st in (0, 429, 500, 502, 503): time.sleep(6 + attempt * 10); continue
         break
     LOG['jobs'].append(rec)
-    time.sleep(0.4)
+    time.sleep(1.0)
 # 4) 音乐（纯器乐）：request.json 里的 music: [{ id, prompt, model? }]
 for m in REQ.get('music', []):
     rec = {'id': m['id'], 'music': True}
