@@ -354,7 +354,7 @@ const Sfx = (() => {
   // 五声音阶（D 商调）
   const PENTA = [N.D3, N.E3, N.G3, N.A3, N.C4, N.D4, N.E4, N.G4, N.A4, N.C5, N.D5];
   // 战意：一首录好的古风战斗曲（music-war.mp3，和网页放在一起，选了「战意」才去取）。循环播放，首尾交叠 1.6 秒；
-  //   取不到（比如把网页存到本地单独打开）或还没取回来时，照旧用下面合成的那一套顶着
+  //   还没取回来时先不出声；确实取不到（比如把网页存到本地单独打开）才用下面合成的那一套顶着
   const WAR = { url: 'music-war.mp3?v=1', buf: null, loading: false, failed: false, gain: 0.5, xf: 1.6,
     hits: [0.36,0.8,0.59,0.6,1.95,0.7,2.14,0.6,2.47,1.0,2.74,0.8,4.15,0.7,4.34,0.5,4.71,0.8,4.94,0.5,5.16,0.5,6.28,0.7,6.55,0.5,7.33,0.7,7.52,0.5,8.97,0.7,9.28,0.6,9.94,0.5,11.0,0.8,11.37,0.6,13.06,0.8,13.25,0.5,13.46,0.5,15.22,0.8,15.62,0.5,17.23,0.7,17.44,0.6,17.64,0.5,18.04,0.5,19.31,0.8,19.54,0.6,19.95,0.5,20.39,0.6,21.23,0.5,21.43,0.6,21.63,0.7,22.27,0.5,22.79,0.5,23.51,0.6,23.69,0.5,23.89,0.5,24.17,0.5,24.48,0.5,25.34,0.5,25.59,0.7,25.89,0.5,26.1,0.5,26.32,0.5,26.57,0.5,27.66,1.0,27.84,0.5,28.17,0.5,28.63,0.5,29.0,0.6,29.75,0.8,31.83,1.0,33.84,0.6,34.21,0.6,35.03,0.5,35.31,0.5,35.6,0.6,35.99,0.8,36.29,0.6,36.53,0.5,37.2,0.5,37.67,0.5,38.0,0.7,38.22,0.5,38.44,0.6,38.78,0.5,39.68,0.5,40.02,0.5,40.3,0.7,40.56,0.5,41.25,0.6,41.89,0.5,42.23,0.7,42.47,0.6,43.05,0.5,43.41,0.5,43.6,0.5,43.82,0.5,44.12,0.5,44.31,0.7,44.53,0.5,44.83,0.5,45.26,0.5,45.66,0.6,45.85,0.6,46.39,0.7,46.66,0.5,48.41,0.6,48.59,0.5,48.77,0.5,50.48,0.7,50.86,0.5,52.56,0.8,52.76,0.5,52.94,0.5,54.64,0.6,55.01,0.5,56.73,0.7,56.91,0.5,58.88,0.8,59.11,0.5,60.89,0.7,61.07,0.5,62.95,0.9,63.17,0.6,65.0,0.7,65.28,0.5,67.08,0.7,67.33,0.6,67.97,0.5,68.48,0.5,68.93,0.5,69.16,0.7,69.42,0.6,69.74,0.6,69.92,0.5,70.46,0.5,70.82,0.5,71.06,0.6,71.31,0.7,71.61,0.5,72.21,0.5,72.68,0.5,73.3,0.8,73.56,0.6,73.85,0.5,74.17,0.5,74.49,0.5,74.97,0.5,75.19,0.5,75.47,0.8,75.75,0.6,76.12,0.5,76.46,0.5,77.45,0.7,77.82,0.6,78.35,0.5,78.59,0.5,79.33,0.6,79.53,0.8,79.94,0.5,80.2,0.6,80.88,0.5,81.61,0.6,81.82,0.6,82.05,0.5,82.31,0.5,82.51,0.5,82.74,0.5,83.71,0.9] };   // 曲子里的大鼓点 [秒, 力度, 秒, 力度…]：场边的擂鼓兵照着敲
   function loadWar() {
@@ -363,10 +363,10 @@ const Sfx = (() => {
     fetch(WAR.url).then(r => { if (!r.ok) throw new Error('http ' + r.status); return r.arrayBuffer(); })
       .then(ab => new Promise((res, rej) => { const p = ctx.decodeAudioData(ab, res, rej); if (p && p.then) p.then(res, rej); }))
       .then(buf => { WAR.buf = buf; WAR.loading = false; if (Music.on && Music.style === 'war' && !Music.track) Music.start(); })
-      .catch(e => { WAR.loading = false; WAR.failed = true; console.warn('战意曲没取到，用合成的', e); });
+      .catch(e => { WAR.loading = false; WAR.failed = true; console.warn('战意曲没取到，用合成的', e); if (Music.on && Music.style === 'war' && Music.wait) Music.start(); });
   }
   const Music = {
-    track: false, seg: null, srcs: [],
+    track: false, wait: false, seg: null, srcs: [],
     style: 'zen', on: false, next: 0, bar: 0, timer: null, bus: null, idx: 5, intensity: 0.4, motif: null,
     start(style) {
       if (!ok()) return;
@@ -375,9 +375,12 @@ const Sfx = (() => {
       if (this.style === 'off') return;
       this.on = true; this.bar = 0; this.next = now() + 0.3;
       this.bus = ctx.createGain(); this.bus.gain.setValueAtTime(0.0001, now()); this.bus.gain.exponentialRampToValueAtTime(1, now() + 3); this.bus.connect(musicBus);
-      this.track = this.style === 'war' && !!WAR.buf;
+      const war = this.style === 'war';
+      this.track = war && !!WAR.buf;
+      this.wait = war && !WAR.buf && !WAR.failed;   // 曲子还在路上：先不出声（不拿合成的那版垫着，免得两版先后接上、听着像混在一起）
       if (this.track) this.seg = this.playSeg(now() + 0.3, 0.05);
-      else { this.startPad(); if (this.style === 'war') loadWar(); }
+      else if (!this.wait) this.startPad();
+      if (this.wait) loadWar();
       this.timer = setInterval(() => this.tick(), 120);
     },
     // 放一遍录好的曲子：t0 开始，fade 秒淡入
@@ -403,7 +406,7 @@ const Sfx = (() => {
     stop(fast) {
       this.on = false; clearInterval(this.timer); this.timer = null;
       for (const src of this.srcs.splice(0)) { try { src.stop(ok() ? now() + (fast ? 0.5 : 2.6) : 0); } catch (e) { } }
-      this.seg = null; this.track = false;
+      this.seg = null; this.track = false; this.wait = false;
       if (this.bus && ok()) { const b = this.bus; b.gain.cancelScheduledValues(now()); b.gain.setValueAtTime(b.gain.value, now()); b.gain.linearRampToValueAtTime(0.0001, now() + (fast ? 0.4 : 2.5)); setTimeout(() => { try { b.disconnect(); } catch (e) { } }, 3000); }
       this.bus = null;
     },
@@ -430,6 +433,7 @@ const Sfx = (() => {
     },
     tick() {
       if (!this.on || !ok()) return;
+      if (this.wait) return;
       if (this.track) { this.trackTick(); return; }
       while (this.next < now() + 0.8) {
         const t = this.next - now();
