@@ -603,7 +603,7 @@ async function run(o) {
         // 序贯检验：每下完一对就看一次，能下结论就不再发新局（正在下的下完为止）
         if (o.match && !o.fixed && !stopped && done % 2 === 0) { const st = matchStats(results, o.sprt); if (st.verdict) { stopped = st; next = jobs.length; } }
         if (!o.quiet && process.stderr.isTTY) process.stderr.write(`\r${done}/${jobs.length}`);
-        else if (done % 25 === 0 || done === jobs.length) process.stderr.write(`进度 ${done}/${jobs.length}  ${Math.round((Date.now() - t0) / 1000)}s` + (o.match ? (st => `  新版得分 ${pct(st.score)}  Elo ${st.elo.toFixed(0)}  LLR ${st.llr.toFixed(2)}`)(matchStats(results, o.sprt)) : (w => `  汉 ${w.r} 楚 ${w.b} 和 ${results.length - w.r - w.b}` + (w.r + w.b ? `  汉胜（分胜负的局）${pct(w.r / (w.r + w.b))}` : ''))({ r: results.filter(r => r.winner === 'r').length, b: results.filter(r => r.winner === 'b').length })) + '\n');
+        else if (done % 25 === 0 || done === jobs.length) process.stderr.write(`进度 ${done}/${jobs.length}  ${Math.round((Date.now() - t0) / 1000)}s` + (o.match ? (st => `  新版得分 ${pct(st.score)}  Elo ${st.elo.toFixed(0)}  LLR ${st.llr.toFixed(2)}`)(matchStats(results, o.sprt)) : (w => `  汉 ${w.r} 楚 ${w.b} 和 ${results.length - w.r - w.b}` + (w.r + w.b ? `  汉方胜率 ${pct(w.r / (w.r + w.b))}` : ''))({ r: results.filter(r => r.winner === 'r').length, b: results.filter(r => r.winner === 'b').length })) + '\n');
         feed();
       });
       c.on('exit', () => { if (--alive === 0) resolve(); });
