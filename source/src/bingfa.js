@@ -701,6 +701,19 @@
     // 普通走子目标（含攻击）
     legalFrom(f, r) { const p = this.at(f, r); if (!p || p.s !== this.turn || this.result) return []; return moveTargets(this.S, f, r).filter(m => attempt(this.S, { k: 'mv', from: m.from, to: m.to })); }
     isLegal(m) { return this.legalFrom(m.from[0], m.from[1]).some(x => x.to[0] === m.to[0] && x.to[1] === m.to[1]); }
+    // 按走法能走、但走了自己会被将军的着法（界面提示用）；why 同 XQ：'face' 将帅照面 / 'self' 被对方的子将着
+    selfCheckFrom(f, r) {
+      CFG_CUR = this.cfg;
+      const p = this.at(f, r), S = this.S;
+      if (!p || p.s !== this.turn || this.result || S.final || (S.jmLock != null && p.id === S.jmLock)) return [];
+      const out = [];
+      for (const m of moveTargets(S, f, r)) {
+        const T = cloneState(S);
+        if (resolve(T, { k: 'mv', from: m.from, to: m.to })) continue;   // resolve 只在“走完自己被将军”时才拒绝一步符合走法的棋
+        out.push({ ...m, why: XQ.kingsFace(T.board) ? 'face' : 'self' });
+      }
+      return out;
+    }
     skillTargets(f, r, sk) { CFG_CUR = this.cfg; return this.result ? [] : skillActions(this.S, f, r, sk); }
     skillOf(p) { return p && p.t !== 'k' ? SKILL_OF(p.t, p.s) : null; }
     skillsOf(p) { return p && p.t !== 'k' ? SKILLS_OF(p.t, p.s) : []; }
