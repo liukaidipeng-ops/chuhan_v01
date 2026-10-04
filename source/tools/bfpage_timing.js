@@ -31,12 +31,16 @@ const ROOT = path.join(__dirname, '..');
 function buildPage(spec) {
   if (!fs.existsSync(path.join(ROOT, 'node_modules/three'))) throw new Error('缺 node_modules：先在 source/ 下跑 npm ci --omit=dev');
   const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'bfpage-'));
-  for (const n of ['node_modules', 'voice', 'sfx', 'fonts']) fs.symlinkSync(path.join(ROOT, n), path.join(dir, n));
+  // 页面要打包的素材目录（music 从 2026.10.05 的战意曲起才有）；git:提交号 时素材也取那个提交的，文件版用工作区的
+  const ASSETS = ['voice', 'sfx', 'fonts', 'music'];
+  fs.symlinkSync(path.join(ROOT, 'node_modules'), path.join(dir, 'node_modules'));
   if (spec.startsWith('git:')) {
-    const rev = spec.slice(4), tar = path.join(dir, 'src.tar');
-    execFileSync('git', ['archive', '-o', tar, rev, 'source/src', 'source/build.js'], { cwd: path.join(ROOT, '..') });
+    const rev = spec.slice(4), tar = path.join(dir, 'src.tar'), repo = path.join(ROOT, '..');
+    const has = n => { try { execFileSync('git', ['cat-file', '-e', `${rev}:source/${n}`], { cwd: repo, stdio: 'ignore' }); return true; } catch (e) { return false; } };
+    execFileSync('git', ['archive', '-o', tar, rev, 'source/src', 'source/build.js', ...ASSETS.filter(has).map(n => 'source/' + n)], { cwd: repo });
     execFileSync('tar', ['-xf', tar, '-C', dir, '--strip-components=1']);
   } else {
+    for (const n of ASSETS) if (fs.existsSync(path.join(ROOT, n))) fs.symlinkSync(path.join(ROOT, n), path.join(dir, n));
     const code = fs.readFileSync(path.resolve(ROOT, spec), 'utf8');
     fs.copyFileSync(path.join(ROOT, 'build.js'), path.join(dir, 'build.js'));
     fs.mkdirSync(path.join(dir, 'src'));
