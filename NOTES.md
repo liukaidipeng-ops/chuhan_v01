@@ -1,7 +1,7 @@
 # 楚汉·技能版象棋：测试笔记（Claude Code 维护）
 
 > 用户要求（2026-10-04）：把重要信息写进这个文件，**每完成一轮测试就更新**。
-> 最后更新：2026-10-04 05:40（Claude Code，分支 `claude/gallant-planck-rwr5az`）
+> 最后更新：2026-10-04 04:45（Claude Code，分支 `claude/gallant-planck-rwr5az`）
 >
 > 相关文件：`source/docs/collab/decisions.md`（用户拍板，原话）、`source/docs/collab/code-to-chat.md`（Code→chat，C1…）、
 > dev 分支上的 `source/docs/collab/chat-to-code.md`（chat→Code，H1…）、`source/docs/bfai-qualification.md`（电脑合格标准）。
