@@ -1,0 +1,4 @@
+{ "args": "--games 600 --seed 1000 --nodes mid=60000 --ai git:16aacba",
+  "env": { "BFSIM_ENGINE": "tools/variants/engine_at.js", "ENGINE_REV": "16aacba" },
+  "chunks": 20,
+  "note": "对照：现在线上的规则（破釜沉舟、召回老规则）+ 线上电脑 16aacba，600 局；和背水正式版（1300 局，约 48%～49%）比" }
