@@ -1,0 +1,88 @@
+# live-rules-16aacba（GitHub Actions 运行 37212973988）
+# 请求：{"args":"--games 600 --seed 1000 --nodes mid=60000 --ai git:16aacba","env":{"BFSIM_ENGINE":"tools/variants/engine_at.js","ENGINE_REV":"16aacba"},"chunks":20,"note":"对照：现在线上的规则（破釜沉舟、召回老规则）+ 线上电脑 16aacba，600 局；和背水正式版（1300 局，约 48%～49%）比"}
+# 收到 20/20 段
+== current | mid vs mid  [汉 git:16aacba | 楚 git:16aacba] | 600 局 | 0s ==
+胜负：汉 155  楚 444  和/超时 1   汉方胜率（分胜负的局）25.9%  95%CI 23–30%
+结局：b:checkmate 444  r:checkmate 155  -:cap 1
+回合：平均 32.9  中位 27  P90 63  60 回合内结束 88.7%  进入决战 0.0%
+将死 599 局：将军的子有 2 血以上 93.5%（其中贴在帅将身边 77.6%），双将 10.7%
+行动（用过的局占比 / 每局平均次数）  汉 | 楚
+  破釜沉舟         0.0%   0.00 |  46.7%   0.47
+  召回良将        41.0%   0.41 |   0.0%   0.00
+  普通走子       100.0%  30.16 | 100.0%  29.68
+  冲阵          22.0%   0.41 |  40.0%   0.79
+  飞越           3.7%   0.05 |   3.3%   0.04
+  护驾          29.8%   0.58 |  17.5%   0.36
+  拒马          11.7%   0.69 |  15.8%   0.79
+  霹雳           7.8%   0.11 |  10.5%   0.15
+  齐射           0.2%   0.00 |   0.0%   0.00
+  踏营           4.7%   0.10 |   7.0%   0.18
+  终极兵法         0.5%   0.01 |   2.2%   0.02
+  回防(被动)       2.2%   0.03 |   1.2%   0.02
+  铁甲禁卫(被动)    10.5%   0.17 |   5.5%   0.09
+  神速营(被动)      4.8%   0.12 |   6.0%   0.11
+升级（* = 甲片自动晋升）  汉 | 楚 （用过的局占比 / 每局平均）
+  a2     74.5%  1.17 |  54.8%  0.89
+  a3     42.8%  0.59 |  29.2%  0.40
+  a4     15.8%  0.20 |  11.3%  0.14
+  c2     69.7%  0.94 |  75.2%  0.98
+  c3     22.5%  0.27 |  30.3%  0.35
+  e2     48.3%  0.59 |  37.0%  0.44
+  e2*     0.2%  0.00 |   0.7%  0.01
+  e3     13.8%  0.15 |  11.7%  0.13
+  e4      1.5%  0.01 |   1.8%  0.02
+  n2     51.0%  0.64 |  55.3%  0.77
+  n3     14.7%  0.17 |  25.8%  0.35
+  p2     44.0%  0.82 |  53.2%  1.01
+  p2*     0.0%  0.00 |   0.2%  0.00
+  p3     17.8%  0.35 |  26.0%  0.48
+  p4      7.3%  0.12 |  10.7%  0.14
+  r2     84.3%  1.35 |  94.2%  1.56
+  r3     39.8%  0.57 |  66.3%  0.98
+  r4      4.7%  0.05 |   8.3%  0.09
+击杀来源（每局平均）  汉 | 楚
+  普通吃子         3.33 |   4.97
+  冲阵           0.14 |   0.34
+  霹雳           0.05 |   0.06
+  踏营           0.01 |   0.01
+  回防(被动)       0.00 |   0.00
+  铁甲禁卫(被动)     0.02 |   0.01
+造成伤害但没打死（每局平均）  汉 | 楚
+  强攻           2.04 |   2.17
+  冲阵           0.33 |   0.59
+  飞越           0.01 |   0.00
+  霹雳           0.13 |   0.19
+  齐射           0.00 |   0.00
+  踏营           0.01 |   0.02
+军功来源（每局平均）  汉 | 楚
+  击杀        8.4 |   15.2
+  哀兵        5.4 |    3.5
+  回合       18.1 |   18.1
+  将军        4.0 |    7.2
+  过河        0.5 |    0.4
+终极兵法：汉用 3 局（平均第 76.3 回合，用了的局胜 66.7%）  楚用 13 局（第 69.5 回合，胜 100.0%）  护驾破鸿门宴 0 局
+主帅兵法：汉召回 246 局（第 22.8 回合，胜 22.8%）  楚破釜 280 局（第 19.8 回合，胜 73.9%）
+车马炮持续落后（自己走完还少、到下回合还少）：汉 411 局（68.5%，第一次平均第 15.2 回合、平均落后 16.1 回合；这些局汉胜 18.5%；其中用了主帅兵法 188 局、胜 17.0%） | 楚 179 局（29.8%，第一次平均第 18.0 回合、平均落后 13.9 回合；这些局楚胜 54.7%；其中用了主帅兵法 94 局、胜 53.2%）
+手动升级时的血量（升级回满血，掉了血再升更划算）：汉 满血 90.8%、掉过血 9.3%（只剩 1 血 8.0%），共 4800 次 | 楚 满血 90.0%、掉过血 10.0%（只剩 1 血 8.9%），共 5234 次
+先有二级车的一方：两边都有的 373 局里先到的胜 56.3%；只有一方有的 127 局里有的一方胜 97.6%
+破釜前后（280 局，分数 + 汉优）：破釜那一手汉方 -10.57 分（子力 -6.51）；之后封锁期汉方 +0.73 分（子力 +1.47）；追回一半以上 22.9%；封锁期内就分了胜负 45 局；这些局汉胜 25.7%
+首次升到 N 级（平均回合 / 出现的局占比）  汉 | 楚
+  2 级  第 7.3 回合 100.0% | 第 6.9 回合 99.3%
+  3 级  第 21.2 回合 61.7% | 第 18.3 回合 75.0%
+  4 级  第 43.9 回合 19.2% | 第 44.6 回合 18.7%
+局面分随回合（汉方视角，正 = 汉优）/ 军功 / 等级总和
+  R5（600 局在下）分 -0.29  军功 汉 3.8 楚 3.6  等级 汉 0.2 楚 0.3
+  R10（589 局在下）分 -2.49  军功 汉 2.8 楚 3.0  等级 汉 1.0 楚 1.2
+  R15（509 局在下）分 -4.82  军功 汉 2.6 楚 3.1  等级 汉 1.9 楚 2.1
+  R20（428 局在下）分 -7.68  军功 汉 3.9 楚 4.3  等级 汉 3.5 楚 4.1
+  R30（259 局在下）分 -8.46  军功 汉 3.9 楚 4.3  等级 汉 6.8 楚 8.0
+  R40（163 局在下）分 -9.49  军功 汉 4.4 楚 4.8  等级 汉 9.2 楚 11.1
+翻盘（某回合落后 ≥ T 分的一方最后赢了）
+  R10≥2：281 局，落后方赢 73（26.0%），和 0
+  R10≥4：198 局，落后方赢 42（21.2%），和 0
+  R20≥2：378 局，落后方赢 82（21.7%），和 1
+  R20≥4：334 局，落后方赢 58（17.4%），和 1
+  R30≥2：229 局，落后方赢 48（21.0%），和 1
+  R30≥4：213 局，落后方赢 42（19.7%），和 1
+每步平均 768ms
+（合并 20 份：/home/runner/work/chuhan_v01/chuhan_v01/parts/live-rules-16aacba-0.json、/home/runner/work/chuhan_v01/chuhan_v01/parts/live-rules-16aacba-1.json、/home/runner/work/chuhan_v01/chuhan_v01/parts/live-rules-16aacba-2.json、/home/runner/work/chuhan_v01/chuhan_v01/parts/live-rules-16aacba-3.json、/home/runner/work/chuhan_v01/chuhan_v01/parts/live-rules-16aacba-4.json、/home/runner/work/chuhan_v01/chuhan_v01/parts/live-rules-16aacba-5.json、/home/runner/work/chuhan_v01/chuhan_v01/parts/live-rules-16aacba-6.json、/home/runner/work/chuhan_v01/chuhan_v01/parts/live-rules-16aacba-7.json、/home/runner/work/chuhan_v01/chuhan_v01/parts/live-rules-16aacba-8.json、/home/runner/work/chuhan_v01/chuhan_v01/parts/live-rules-16aacba-9.json、/home/runner/work/chuhan_v01/chuhan_v01/parts/live-rules-16aacba-10.json、/home/runner/work/chuhan_v01/chuhan_v01/parts/live-rules-16aacba-11.json、/home/runner/work/chuhan_v01/chuhan_v01/parts/live-rules-16aacba-12.json、/home/runner/work/chuhan_v01/chuhan_v01/parts/live-rules-16aacba-13.json、/home/runner/work/chuhan_v01/chuhan_v01/parts/live-rules-16aacba-14.json、/home/runner/work/chuhan_v01/chuhan_v01/parts/live-rules-16aacba-15.json、/home/runner/work/chuhan_v01/chuhan_v01/parts/live-rules-16aacba-16.json、/home/runner/work/chuhan_v01/chuhan_v01/parts/live-rules-16aacba-17.json、/home/runner/work/chuhan_v01/chuhan_v01/parts/live-rules-16aacba-18.json、/home/runner/work/chuhan_v01/chuhan_v01/parts/live-rules-16aacba-19.json）
