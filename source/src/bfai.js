@@ -345,7 +345,7 @@
         // 慢的设备上按时间收手会算得太浅：没搜够 minNodes 之前不因为时间到了就停（最多拖到 1.5 倍时间）
         const thin = L.minNodes > 0 && nodes - n0 < L.minNodes;
         if (d > 3 && !thin && now() - t0 > L.budget * 0.3) break;       // 剩下的时间不够再深一层了
-        deadline = d <= 3 ? Infinity : thin ? t0 + L.budget * 1.5 : soft + L.budget * 0.3;
+        deadline = d < 3 ? Infinity : d === 3 ? t0 + L.budget * 2 : thin ? t0 + L.budget * 1.5 : soft + L.budget * 0.3;   // 第 3 层也设个兜底（两倍预算）：个别局面枚举破釜组合特别慢，慢手机上别让一步拖到十秒
       }
       let alpha = -INF, n = 0, cut = false;
       const M = L.noise * 1.6 + 0.02;                          // 比当前最好的差不到 M 的着法也算出准确分数（最后要在它们之间挑）；更差的只要个上界
