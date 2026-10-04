@@ -1,7 +1,7 @@
 // 技能模式电脑在真实页面里的每步耗时（网页按时间收手，和测试的按节点数收手不同）
 // 用法：node tools/bfpage_timing.js [--ai src/bfai.js | git:提交号] [--level mid|hard] [--side b|r] [--games 1] [--max-moves 80]
 //                                    [--throttle N] [--seed 1] [--json 文件]
-//   做法：用指定那一版电脑临时打包一份页面（不动仓库里的 dist），无头浏览器打开 #bfai-<档>-<玩家方>，
+//   做法：用指定那一版临时打包一份页面（不动仓库里的 dist；git:提交号 = 整份 src 取那个提交），无头浏览器打开 #bfai-<档>-<玩家方>，
 //   电脑照常在 Web Worker 里算；“玩家”那方由页面里的同一套电脑（主线程、校尉档 2 万节点）代下，走法经 doBF 执行，和真人点棋一样走界面流程。
 //   记录：电脑每步思考的毫秒（Worker 自己报的 think.last.ms）、节点、算到几层；有没有退回主线程；页面报错；电脑行动被判非法。
 //   --side b：玩家执楚、电脑执汉（会碰上“提防破釜”的那段搜索）；--side r：电脑执楚（会走“先升级再破釜”）。
@@ -23,18 +23,24 @@ for (let i = 0; i < argv.length; i++) {
 }
 const ROOT = path.join(__dirname, '..');
 
-// 1. 临时打包：build.js 按自己所在目录找文件，所以在临时目录里放一份，src 里只把 bfai.js 换掉
+// 1. 临时打包：build.js 按自己所在目录找文件，所以在临时目录里放一份。
+//   --ai git:提交号：整份 src/（引擎、电脑、界面）和 build.js 都取那个提交的——那一版上线后玩家拿到的就是它（引擎也可能一起改了）；
+//   --ai 文件：src 用当前工作区的，只把 bfai.js 换成这个文件
 function buildPage(spec) {
-  const code = spec.startsWith('git:')
-    ? execFileSync('git', ['show', spec.slice(4) + ':source/src/bfai.js'], { cwd: ROOT, encoding: 'utf8' })
-    : fs.readFileSync(path.resolve(ROOT, spec), 'utf8');
+  if (!fs.existsSync(path.join(ROOT, 'node_modules/three'))) throw new Error('缺 node_modules：先在 source/ 下跑 npm ci --omit=dev');
   const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'bfpage-'));
   for (const n of ['node_modules', 'voice', 'sfx', 'fonts']) fs.symlinkSync(path.join(ROOT, n), path.join(dir, n));
-  if (!fs.existsSync(path.join(ROOT, 'node_modules/three'))) throw new Error('缺 node_modules：先在 source/ 下跑 npm ci --omit=dev');
-  fs.copyFileSync(path.join(ROOT, 'build.js'), path.join(dir, 'build.js'));
-  fs.mkdirSync(path.join(dir, 'src'));
-  for (const f of fs.readdirSync(path.join(ROOT, 'src'))) if (f !== 'bfai.js') fs.symlinkSync(path.join(ROOT, 'src', f), path.join(dir, 'src', f));
-  fs.writeFileSync(path.join(dir, 'src/bfai.js'), code);
+  if (spec.startsWith('git:')) {
+    const rev = spec.slice(4), tar = path.join(dir, 'src.tar');
+    execFileSync('git', ['archive', '-o', tar, rev, 'source/src', 'source/build.js'], { cwd: path.join(ROOT, '..') });
+    execFileSync('tar', ['-xf', tar, '-C', dir, '--strip-components=1']);
+  } else {
+    const code = fs.readFileSync(path.resolve(ROOT, spec), 'utf8');
+    fs.copyFileSync(path.join(ROOT, 'build.js'), path.join(dir, 'build.js'));
+    fs.mkdirSync(path.join(dir, 'src'));
+    for (const f of fs.readdirSync(path.join(ROOT, 'src'))) if (f !== 'bfai.js') fs.symlinkSync(path.join(ROOT, 'src', f), path.join(dir, 'src', f));
+    fs.writeFileSync(path.join(dir, 'src/bfai.js'), code);
+  }
   execFileSync(process.execPath, ['build.js'], { cwd: dir, stdio: 'ignore' });
   return path.join(dir, 'dist/site/index.html');
 }
