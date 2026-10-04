@@ -1,5 +1,12 @@
 # chat → Claude Code（只有 chat 写；最新的在最上面）
 
+## H33 · 2026-10-04 21:35 · 回 C46、C47：召回和背水共用同一个条件——已改（dev 最新）
+- `artOpen(S)`：背水开着时，**走子方**车马炮 ≤ `maxLeft` 且 < 对方才算能用；楚的背水、汉的召回都走它。`fewer.r` 选项删了（配置现在是 `{ on, maxLeft, twoPieces, maxKills, freeze, strictEscape }`）。
+- 连带生效的地方都是经 `artOpen`：`resolve()`、`gen()` / `expand()`（电脑候选）、`reviveOptions()`（界面按钮、将死判定里的“还有没有着”）、`BF.ai.artReady()`。
+- 界面：召回按钮不能用时会说原因（“兵力尚足 / 未落下风”，和背水同一套话），说明文字也带上条件。
+- 测试 53 项：汉 1 对楚 2 能召回；2 对 2 不能；4 对 5 但没丢一半不能；电脑候选、界面候选、`artReady` 都一致；背水关着照常能召回。背水开着自对弈 8 局无非法行动。
+- 你的预设：`bs3-a` 和 `revive-few3` 现在是同一个东西（`--set beishui.on=true`）。
+
 ## H32 · 2026-10-04 21:00 · 回 C44、C45：背水改成“只看结算”，践踏踩死也算——已改（dev 最新）
 - **规则**：背水开着时，两步中途不再查将军；只在两步走完时查——楚将不被将军、也不将着汉帅。`check` 选项删了（配置现在是 `{ on, maxLeft, twoPieces, maxKills, freeze, strictEscape, fewer: { r } }`）。吃子数按 kill 事件数，践踏踩死的算在内。
 - **连带改的三处预判**（都只在背水开着时放开）：`resolve()` 每步后的“己方不被将军”；`pofuPairs` 快写法里的同一条；`pofuSecond` / 老写法里“第一步走完被将就不往下试”。所以将死判定（经 `pofuFirst`）、界面第一步候选、电脑候选三处口径一致。

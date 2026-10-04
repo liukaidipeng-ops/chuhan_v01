@@ -39,14 +39,13 @@
     generalArts: { fromRound: 1, xiaohe: { usesPerGame: 1 }, pofu: { usesPerGame: 1, steps: 2, mayEndInCheck: false, skillLockRounds: 3 } },
     ultimates: { cost: 20, hongmen: { usesPerGame: 1, rounds: 3 }, simian: { usesPerGame: 1, rounds: 2, radius: 2, minPiecesInRadius: 3 } },
     longCheckLimit: 6,
-    // 背水一战（on = true 时代替楚方的破釜沉舟；默认关，线上还是破釜沉舟）：
-    //   轮到楚方时，楚方车马炮最多还剩 maxLeft 枚、而且比汉方的车马炮少，才能用（每局一次，次数仍看 generalArts.pofu.usesPerGame）；
+    // 背水一战（on = true 时代替楚方的破釜沉舟；默认关，线上还是破釜沉舟）。开着时两边的主帅兵法都只给弱势方用：
+    //   轮到自己时，己方车马炮最多还剩 maxLeft 枚、而且比对方的车马炮少，才能用——楚方的背水一战、汉方的召回良将都看这一条（每局一次照旧）；
     //   两枚不同的子各走一步（twoPieces），两步合计最多吃掉 maxKills 个子（践踏踩死的也算，打伤不算）；
     //   只看结算：两步走完时楚将不被将军、也不将着汉帅；过程不限（可以各挡一路解双将，第一步可以先走进被将的格子、先将一下对方）；
     //   用完没有技能封锁，但用过的两枚子在楚方之后 freeze 个回合里不能动（原地的拒马、齐射能用）——
     //   例外：楚方被将军时，冻结的子可以去吃正在将军的那枚（strictEscape：只能吃它，而且要吃死；false = 吃哪个子都行，只要解了将）
-    //   fewer.r：汉方的召回良将也要“汉方车马炮比楚方少”才能用（和 on 无关，单独的开关）
-    beishui: { on: false, maxLeft: 3, twoPieces: true, maxKills: 1, freeze: 1, strictEscape: true, fewer: { r: false } },
+    beishui: { on: false, maxLeft: 3, twoPieces: true, maxKills: 1, freeze: 1, strictEscape: true },
   };
   // 主技能（三级解锁）；SKILLS_OF 列出这一兵种全部技能（含四级的）
   const SKILL_OF = (t, s) => ({ p: 'juma', r: 'chongzhen', n: 'taying', c: 'pili', a: 'hujia', e: s === 'r' ? 'qishe' : 'jianta' })[t] || null;
@@ -119,13 +118,13 @@
   const BSon = () => (CFG_CUR.beishui && CFG_CUR.beishui.on ? CFG_CUR.beishui : null);   // 背水一战开着就返回它的配置
   // 车马炮的枚数（只数棋盘上的，不看等级血量）：[己方, 对方]
   const majors = (S, s) => { let m = 0, o = 0; for (const row of S.board) for (const p of row) if (p && (p.t === 'r' || p.t === 'n' || p.t === 'c')) { if (p.s === s) m++; else o++; } return [m, o]; };
-  // 主帅兵法（召回良将、破釜沉舟 / 背水一战）现在能不能用：从第几回合起；背水一战要楚方车马炮丢了一半且比汉方少；fewer.r 时召回也要汉方更少
+  // 主帅兵法（召回良将、破釜沉舟 / 背水一战）现在能不能用：从第几回合起；
+  //   背水一战开着时，走子方的车马炮要丢了一半（最多剩 maxLeft 枚）且比对方少——楚方的背水、汉方的召回共用这一条
   const artOpen = S => {
     if (round(S) < (CFG_CUR.generalArts.fromRound || 1)) return false;
-    const B = CFG_CUR.beishui; if (!B) return true;
-    if (S.turn === 'b' && B.on) { const [m, o] = majors(S, 'b'); return m < o && (B.maxLeft == null || m <= B.maxLeft); }
-    if (S.turn === 'r' && B.fewer && B.fewer.r) { const [m, o] = majors(S, 'r'); return m < o; }
-    return true;
+    const B = BSon(); if (!B) return true;
+    const [m, o] = majors(S, S.turn);
+    return m < o && (B.maxLeft == null || m <= B.maxLeft);
   };
   // 背水一战：用过的子在冻结期里不能动（己方行动数还没到 p.bz）
   const frozen = (S, p) => !!(p && p.bz && S.cnt[p.s] < p.bz);

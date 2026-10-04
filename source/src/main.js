@@ -1459,7 +1459,7 @@
     });
   }
   const escTip = t => String(t || '').replace(/&/g, '&amp;').replace(/"/g, '&quot;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
-  const ART_DESC = { r: '复活一枚被吃的己方子，回到它的开局位置（一级）。每局一次。',
+  const ART_DESC = { get r() { const B = BF.CFG.beishui; return '复活一枚被吃的己方子，回到它的开局位置（一级）。每局一次。' + (B.on ? `汉军车马炮${B.maxLeft != null ? `最多还剩 ${B.maxLeft} 枚、而且` : ''}比楚军少时才能用。` : ''); },
     get b() {
       const B = BF.CFG.beishui;
       if (!B.on) return '连走两步（不能用技能，第二步不能将军）。此后 3 回合楚军不能用兵种技能。每局一次。';
@@ -1528,15 +1528,19 @@
     const N = BF.ART_CN[side];
     if (game.used.art[side]) return ['已用', `${N}每局只能用一次，已经用过了`];
     if (side === 'b' && game.fx.sm > 0) return ['涣散中', `四面楚歌：楚军军心涣散，还有 ${game.fx.sm} 回合不能用兵法`];
+    const BS0 = BF.CFG.beishui;
+    if (BS0.on) {   // 背水一战开着：两边的主帅兵法都只给弱势方用
+      let m = 0, o = 0; for (const p of game.board.flat()) if (p && (p.t === 'r' || p.t === 'n' || p.t === 'c')) { if (p.s === side) m++; else o++; }
+      const me = SIDE_CN[side] + '军', op = SIDE_CN[side === 'r' ? 'b' : 'r'] + '军';
+      if (BS0.maxLeft != null && m > BS0.maxLeft) return ['兵力尚足', `${N}要到绝境才能用：${me}的车马炮最多还剩 ${BS0.maxLeft} 枚（现在 ${m} 枚）`];
+      if (m >= o) return ['未落下风', `${N}要${me}的车马炮比${op}少才能用（现在${me} ${m} 枚、${op} ${o} 枚）`];
+    }
     if (side === 'r') {
       if (!game.dead.r.length) return ['暂无阵亡', '召回良将复活己方被吃的子；现在还没有子阵亡'];
       return ['原位被占', '阵亡棋子的开局位置被占着（或复活后己方仍被将军），暂时不能复活'];
     }
     const BS = BF.CFG.beishui;
     if (BS.on) {
-      let m = 0, o = 0; for (const p of game.board.flat()) if (p && (p.t === 'r' || p.t === 'n' || p.t === 'c')) { if (p.s === 'b') m++; else o++; }
-      if (BS.maxLeft != null && m > BS.maxLeft) return ['兵力尚足', `背水一战要到绝境才能用：楚军的车马炮最多还剩 ${BS.maxLeft} 枚（现在 ${m} 枚）`];
-      if (m >= o) return ['未落下风', `背水一战要楚军的车马炮比汉军少才能用（现在楚 ${m} 枚、汉 ${o} 枚）`];
       return ['无法连走', `背水一战要两枚不同的子各走一步：两步走完时己方不被将军、也不将着对方，合计最多吃 ${BS.maxKills} 个子；现在找不到这样的两步`];
     }
     return ['无法连走', '破釜沉舟要连走两步普通走子：每步走完己方不被将军，两步走完不能将军对方；现在找不到这样的两步'];
