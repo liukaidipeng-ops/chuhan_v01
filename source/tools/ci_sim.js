@@ -46,7 +46,8 @@ if (cmd === 'plan') {
   const r = spawnSync(process.execPath, [path.join(ROOT, 'tools/bfsim.js'), ...args], { cwd: ROOT, env: { ...process.env, ...(j.env || {}) }, stdio: 'inherit' });
   process.exit(r.status == null ? 1 : r.status);
 } else if (cmd === 'collect') {
-  const dir = rest[0], by = {};
+  const dir = path.resolve(rest[0]), by = {};   // 绝对路径：bfsim 在 source/ 下运行
+  let bad = 0;
   for (const f of fs.existsSync(dir) ? fs.readdirSync(dir) : []) { const m = f.match(/^(.*)-(\d+)\.json$/); if (m) (by[m[1]] = by[m[1]] || []).push(path.join(dir, f)); }
   fs.mkdirSync(RES, { recursive: true });
   for (const [name, files] of Object.entries(by)) {
@@ -57,8 +58,10 @@ if (cmd === 'plan') {
     const head = `# ${name}（GitHub Actions${process.env.GITHUB_RUN_ID ? ' 运行 ' + process.env.GITHUB_RUN_ID : ''}）\n# 请求：${j ? JSON.stringify(j) : '（请求文件不在了）'}\n# 收到 ${files.length}/${want} 段${files.length < want ? '  ✗ 缺段，结果不完整（看那几段的日志）' : ''}\n`;
     fs.writeFileSync(path.join(RES, name + '.txt'), head + (r.stdout || '') + (r.status ? `\n✗ 合并失败：${r.stderr}` : ''));
     if (!r.status && fs.existsSync(merged)) fs.writeFileSync(path.join(RES, name + '.json.gz'), zlib.gzipSync(fs.readFileSync(merged)));
-    console.log(head + (r.stdout || '').split('\n').slice(0, 3).join('\n'));
+    console.log(head + (r.stdout || '').split('\n').slice(0, 3).join('\n') + (r.status ? '\n✗ 合并失败：' + r.stderr : ''));
+    if (r.status || files.length < want) bad++;
   }
+  if (bad) process.exit(1);   // 让这一步显示失败、不提交（修好后可以只重跑这一步）
 } else {
   console.error('用法见文件开头'); process.exit(2);
 }
