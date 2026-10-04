@@ -11,9 +11,11 @@
 ## 0. 当前状态（交接用：上下文压缩后先读这一节）
 - **线上**：main = dec8de1，规则是破釜沉舟，电脑 16aacba。线上规则 600 局汉胜 25.9%（严重偏楚）。
 - **背水一战上线中**（用户批准，C49）：chat 在 dev ce4a921 设为默认（H36）；Code 复核通过（C50：代码只改默认值 + 界面函数 + 小卒修正；网页实测通过；本机 30 局逐局相同），等 chat 部署。背水规则：车马炮最多剩 3 且比对方少；同一枚子走两步或两枚子各走一步；最多吃一子（践踏也算）；只看结算（不被将、不将对方）；用过的子下回合不能动；召回同一条件。1300 局汉胜 48.1%。
-- **攻防第二轮**（用户在拍板单上定，原话见 decisions.md）：
-  - 数值组 7 组 + r2-ks（各 1000 局，种子 1000～1999）：**17:45 全部取消**（占满了 GitHub 免费账号 20 个位置，堵住了 chat 的网站发布和配音）；工作流已改成最多同时 8 个。等 chat 那两件跑完，改一下 simjobs 里的文件重新推送就会重跑。
-  - 工作流 ws89b2zas 在写并核查：engine_counter（移植到 98dd206）、engine_planc（齐射横竖、践踏踩空格、moveCooldown）、bfai_defup（不压制升士象，三个开关全开用）。通过后跑：反击 1 点 / 按攻击力、Plan C 两种冷却（三级解锁）、A+C、A+C+车变贵；加强士象的组 + 基准再用 bfai_defup 跑一遍。
+- **攻防第二轮**（用户在拍板单上定，原话见 decisions.md）：变体都写好并独立核查过（engine_counter 移植、engine_planc、bfai_defup；默认关时和 98dd206 逐局相同）。GitHub 一次推一批、最多同时 12 个任务（给 chat 的网站发布、配音留 8 个），每组 500 局（种子 1000～1499）：
+  - 第一批（已推）：r2-base、r2-pa、r2-pb、r2-pc0、r2-pc2、r2-ks。等待脚本 br7zwa6l3。
+  - 第二批：r2-k2、r2-r15、r2-r15c、r2-e2、r2-ctr1（反击 1 点）、r2-ctratk（按攻击力）——推之前把 --games 改成 500。
+  - 第三批：r2-ac（A + C 不冷却）、r2-acr（再加车 15/15/20）、d-base、d-pa、d-pc0、d-pc2（d- = 不压制士象的电脑：--ai tools/variants/bfai_defup.js，env BFAI_DEFUP=1 BFAI_DGUARD=1 BFAI_DEFVAL=1；它在现行规则下也会改变下法，所以要和 d-base 比，不能和 r2-base 比）。
+  - 第四批：d-e2、d-ctr1、d-ctratk、d-ac、d-acr。
   - 指标：胜率、回合、车参与将死、贴脸将死、被将死一方丢几个士象、士象技能次数（bfsim 已加）。
 - **将帅秒杀**（用户选测）：r2-ks（帅将攻击 9）在 GitHub 跑；这一轮最好的方案定了以后，再和它各组合一组。
 - **工作方式**：用户说“我俩再确认一下”的事先列清楚再跑；要用户定的事放拍板单（https://claude.ai/artifact/QaxqVmNF1p2XQiAx8MygEM）；GitHub Actions 跑模拟（推 `source/tools/simjobs/*.json`，结果回到 `source/tools/simresults/`），本机只做小测试和网页耗时。
