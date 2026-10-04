@@ -1,0 +1,36 @@
+{
+ "batch": "b2",
+ "key_present": true,
+ "key_len": 126,
+ "host": "https://api.minimax.cn",
+ "probe": [
+  {
+   "host": "https://api.minimax.cn",
+   "http": 200,
+   "code": 0,
+   "msg": "success"
+  }
+ ],
+ "jobs": [
+  {
+   "id": "xiang_base",
+   "voice": "~说书",
+   "error": "找不到这个音色"
+  }
+ ],
+ "get_voice": {
+  "http": 200,
+  "base": {
+   "status_code": 0,
+   "status_msg": "success"
+  },
+  "keys": {
+   "system_voice": 303,
+   "voice_cloning": 0,
+   "voice_generation": 0,
+   "music_generation": 0,
+   "voice_slots": null,
+   "base_resp": null
+  }
+ }
+}
