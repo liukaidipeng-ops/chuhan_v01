@@ -1378,7 +1378,20 @@ const Board = (() => {
   const SEL_COL = 0x7f927c;
   // ---- 可走提示：低饱和的绿、带呼吸；落点是一团墨点（深绿墨边 + 浅绿心），从棋子到落点有一条顺着走向流动的墨带（干笔飞白）----
   //   被动技能的走法（兵法：神速营 / 回防 / 铁甲禁卫）用金色
-  const HINT = { edge: 0x2f4d3a, core: 0xc4dfbb, belt: 0x4f7c5f, edgeV: 0x6e4f12, coreV: 0xf4d892, beltV: 0xb88a2c };
+  const HINT = { edge: 0x2f4d3a, core: 0xc4dfbb, belt: 0x4f7c5f, edgeV: 0x6e4f12, coreV: 0xf4d892, beltV: 0xb88a2c, edgeB: 0x7a1a10, coreB: 0xf2a08c, beltB: 0xb0301f };
+  // 禁止符号（走了会送将的落点 / 目标头顶）：朱红圆圈加一道斜杠
+  const banTex = canvasTex(256, 256, (g, w) => {
+    g.clearRect(0, 0, w, w);
+    const c = w / 2, R = w * 0.3;
+    const gr = g.createRadialGradient(c, c, R * 0.4, c, c, w / 2);
+    gr.addColorStop(0, 'rgba(255,200,180,.35)'); gr.addColorStop(0.7, 'rgba(200,50,30,.12)'); gr.addColorStop(1, 'rgba(200,50,30,0)');
+    g.fillStyle = gr; g.fillRect(0, 0, w, w);
+    g.lineCap = 'round';
+    g.strokeStyle = 'rgba(40,10,5,.45)'; g.lineWidth = 30; g.beginPath(); g.arc(c + 3, c + 5, R, 0, 7); g.stroke();
+    g.fillStyle = 'rgba(247,234,208,.82)'; g.beginPath(); g.arc(c, c, R, 0, 7); g.fill();
+    g.strokeStyle = '#b52d1b'; g.lineWidth = 26; g.beginPath(); g.arc(c, c, R, 0, 7); g.stroke();
+    const d = R * Math.SQRT1_2; g.beginPath(); g.moveTo(c - d, c - d); g.lineTo(c + d, c + d); g.stroke();
+  });
   // 一块贴图里两笔：尾宽头尖、朝 +u 方向，一根根笔毛往笔尖收拢；滚动起来就像墨在往前走
   const flowTex = canvasTex(512, 128, (g, w, h) => {
     g.clearRect(0, 0, w, h);
@@ -1482,6 +1495,21 @@ const Board = (() => {
     for (const m of moves) {
       const [f, r] = m.to;
       const occupied = !!meshAt(f, r);
+      if (m.bad) {
+        // 走了会送将：落点 / 目标标红；目标是棋子时头顶悬一个禁止符号
+        if (occupied) {
+          const d = decal(ringTex, HINT.beltB, 1.14, X(f), Z(r), TOP + 0.006, 0.7);
+          markRoot.add(d); killRings.push(d);
+          const sp = new THREE.Sprite(new THREE.SpriteMaterial({ map: banTex, transparent: true, depthWrite: false, depthTest: false }));
+          sp.position.set(X(f), TOP + PH + 0.75, Z(r)); sp.renderOrder = 20; sp.userData.ph = Math.random() * 6; sp.userData.ban = true;
+          markRoot.add(sp); kills.push(sp);
+        } else {
+          const e = decal(dotTex, HINT.edgeB, DOT_E, X(f), Z(r), TOP + 0.005, 0.9), c = decal(dotTex, HINT.coreB, DOT_C, X(f), Z(r), TOP + 0.0056, 0.95);
+          e.rotation.y = rnd() * 6; c.rotation.y = rnd() * 6; e.userData.ph = c.userData.ph = (f * 0.7 + r * 0.4) % 1;
+          markRoot.add(e, c); moveDots.push(e, c);
+        }
+        continue;
+      }
       if (occupied) {
         if (!hints) continue;
         const d = decal(ringTex, m.dmg ? 0x8a6a2a : 0xb0301f, 1.14, X(f), Z(r), TOP + 0.006, 0.95);
@@ -1498,9 +1526,13 @@ const Board = (() => {
       }
     }
     // 流动的墨带：顺着能走的方向指过去
-    if (sel && moves.length && !moves.noBelt) for (const b of beltPaths(sel, moves, (f, r) => !!meshAt(f, r))) {
-      const mesh = new THREE.Mesh(ribbonGeo(b.pts, 0.4, TOP + 0.0042), new THREE.MeshBasicMaterial({ map: flowTex, color: b.via ? HINT.beltV : HINT.belt, transparent: true, opacity: 0.5, depthWrite: false, vertexColors: true, side: THREE.DoubleSide }));
-      mesh.userData.own = true; mesh.renderOrder = 3; markRoot.add(mesh); belts.push(mesh);
+    if (sel && moves.length && !moves.noBelt) {
+      const occ = (f, r) => !!meshAt(f, r), good = moves.filter(m => !m.bad), bad = moves.filter(m => m.bad);
+      // 送将的方向也画出来，只是标红（画在下面，能走的那一段照常盖在上面）
+      for (const [list, isBad] of [[bad, true], [good, false]]) for (const b of beltPaths(sel, list, occ)) {
+        const mesh = new THREE.Mesh(ribbonGeo(b.pts, 0.4, TOP + (isBad ? 0.0040 : 0.0042)), new THREE.MeshBasicMaterial({ map: flowTex, color: isBad ? HINT.beltB : b.via ? HINT.beltV : HINT.belt, transparent: true, opacity: 0.5, depthWrite: false, vertexColors: true, side: THREE.DoubleSide }));
+        mesh.userData.own = true; mesh.renderOrder = 3; markRoot.add(mesh); belts.push(mesh);
+      }
     }
   }
   // 兵法：本回合技能可用的子，脚下金圈呼吸闪烁
@@ -1588,6 +1620,11 @@ const Board = (() => {
       if (Math.abs(m.position.y - TOP) < 0.003) { m.position.y = TOP; m.rotation.x = m.rotation.z = 0; dropping.delete(m); }
     }
     for (const k of kills) {
+      if (k.userData.ban) {   // 禁止符号一直亮着，轻轻浮动
+        const w = 0.5 + 0.5 * Math.sin(hoverT * 3 + k.userData.ph);
+        k.material.opacity = 0.82 + 0.18 * w; k.scale.set(0.6, 0.6, 1); k.position.y = TOP + PH + 0.45 + w * 0.06;
+        continue;
+      }
       // 呼吸：淡入—停留—淡出—隐去，周而复始
       const ph = ((hoverT * 0.62 + k.userData.ph / 6.28) % 1);
       const b = ph < 0.35 ? ph / 0.35 : ph < 0.6 ? 1 : ph < 0.85 ? 1 - (ph - 0.6) / 0.25 : 0;

@@ -8,6 +8,7 @@
   // 更新说明（设置里、大厅底部点「更新」查看；最新的放最前）
   const NEWS = [
     ['第六版', '2026 年 10 月', [
+      '送将提示：走了会让自己被将军（或将帅照面）的着法，现在也标出来——方向和落点标红，目标是棋子时头顶悬一个禁止符号；点上去会告诉你「不能送将」。连点三次，自家主帅要说话了',
       '自建房间里加了人机之后，可以再点「观看人机对战」把自己的座位也交给电脑：电脑对电脑，你和进房的人一起看（象棋、技能模式都行）',
       '观战可以四处走动了：点地面或棋盘就走过去；过楚河要走桥，上棋盘要走棋盘两侧的小楼梯。站在棋盘上的观众，棋手点一下就能弹飞，被弹飞后 30 秒内不能再上棋盘',
       '新增「导出本局」（设置里、棋谱栏右上角）：把整局导成一段文本并复制，可以贴给别人复盘，或贴给 Claude 指出哪一步走错了',
@@ -1220,6 +1221,7 @@
     const [f, r] = p;
     const mv = selMoves.find(m => m.to[0] === f && m.to[1] === r);
     if (sel && mv) { doMove({ from: sel, to: [f, r] }); return; }
+    if (sel && badClick(f, r)) return;
     if (sel && game.jq) {
       const bl = game.blockedFrom(sel[0], sel[1]).find(m => m.to[0] === f && m.to[1] === r);
       if (bl) { toast(bl.why === 'check' ? '同一子不能连续将军超过六回合，请换一着' : '同一子不能连续捉同一子超过六回合，请换一着', 2600); return; }
@@ -1229,11 +1231,32 @@
       if (sel && sel[0] === f && sel[1] === r) { Board.clearMoves(false); sel = null; selMoves = []; return; }
       sel = [f, r];
       selMoves = game.legalFrom(f, r);
-      Board.showMoves(sel, bfDmg(selMoves), !!+opts.hints);
+      Board.showMoves(sel, withBad(bfDmg(selMoves), f, r), !!+opts.hints);
       Sfx.select();
-      if (!selMoves.length) toast('这枚棋子无路可走');
-    } else { Board.clearMoves(false); sel = null; selMoves = []; }
+      if (!selMoves.length) toast(selBad.length ? '这枚棋子一动就会送将' : '这枚棋子无路可走');
+    } else { Board.clearMoves(false); sel = null; selMoves = []; selBad = []; }
   });
+  // ---------- 送将提示 ----------
+  // 按走法能走、但走了自己会被将军的着法：照样标出来（标红 / 头顶禁止符号），点上去说明原因；连点三次，自家主帅出言调侃
+  let selBad = [], badN = 0, badAt = -1;
+  function withBad(list, f, r) {
+    selBad = game.selfCheckFrom ? game.selfCheckFrom(f, r) : [];
+    if (!selBad.length) return list;
+    const out = list.concat(selBad.map(m => ({ from: m.from, to: m.to, bad: true })));
+    if (list.noBelt) out.noBelt = true;
+    return out;
+  }
+  function badClick(f, r) {
+    const m = selBad.find(x => x.to[0] === f && x.to[1] === r);
+    if (!m) return false;
+    const ply = game.bf ? game.entries.length : game.history.length;
+    if (ply !== badAt) { badAt = ply; badN = 0; }
+    badN++;
+    toast(m.why === 'face' ? '不能送将：将帅不能照面' : '不能送将：这样走，自己的' + (actor() === 'r' ? '帅' : '将') + '会被吃', 2200);
+    Sfx.select();
+    if (badN > 2) bubble(actor(), '怎么？你想害老子？', 2800);
+    return true;
+  }
 
   // ---------- 兵法：选子、技能栏、兵法 ----------
   const SIDE_ARMY = { r: '汉军', b: '楚军' };
@@ -1270,10 +1293,10 @@
     sel = [f, r];
     const me = game.at(f, r);
     selMoves = game.legalFrom(f, r).map(m => { const q = game.at(m.to[0], m.to[1]); return { ...m, atk: !!(q && q.hp > game.atkOf(me)) }; });
-    Board.showMoves(sel, bfDmg(selMoves), !!+opts.hints);
+    Board.showMoves(sel, withBad(bfDmg(selMoves), f, r), !!+opts.hints);
     Sfx.select();
   }
-  function bfClear() { Board.clearMoves(false); sel = null; selMoves = []; }
+  function bfClear() { Board.clearMoves(false); sel = null; selMoves = []; selBad = []; }
   // 伤害预览：把这一步先在副本上演一遍，列出会阵亡 / 掉血的子（含被波及的、被反伤的）
   function bfHarm(a) {
     let r; try { r = BF.attempt(game.S, a); } catch (e) { return null; }
@@ -1321,6 +1344,7 @@
     const [f, r] = p;
     const mv = selMoves.find(m => m.to[0] === f && m.to[1] === r);
     if (sel && mv) { bfAsk({ k: 'mv', from: sel, to: [f, r] }, sel); return; }
+    if (sel && badClick(f, r)) return;
     const pc = game.at(f, r);
     if (pc && pc.s === actor()) {
       if (sel && sel[0] === f && sel[1] === r) bfClear();
@@ -2794,7 +2818,7 @@
     get busy() { return busy; }, get started() { return started; }, get game() { return game; }, get mode() { return mode; }, get aiThinking() { return aiThinking; },
     doMove, startGame, finishGame, Ending, Fx, Board, Core, Camp, Squads, Spect, setView, onData, Net, requestUndo, sendEmote, get clock() { return clock; }, get opts() { return opts; }, joinRoom, notation, get notes() { return notes; }, aiSay,
     doBF, bfButton, bfClick, get bfMode() { return bfMode; }, BF, BFX, specGo, specFlick, exportGame,
-    get JK() { return JK; }, get JC() { return JC; }, get pendingJ() { return pendingJ; }, get jqBad() { return jqBad; }, jqReady, capChip, XQ,
+    get badN() { return badN; }, get JK() { return JK; }, get JC() { return JC; }, get pendingJ() { return pendingJ; }, get jqBad() { return jqBad; }, jqReady, capChip, XQ,
   };
   if (location.hash === '#local') { startGame('local', 'r', { undo: 3, total: 15, step: 60, hints: 1 }, { intro: false }); return; }
   if (location.hash === '#jq') { startGame('local', 'r', { undo: 99, total: 0, step: 0, hints: 1, jq: 1 }, { intro: false }); return; }

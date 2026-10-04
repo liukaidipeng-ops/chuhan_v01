@@ -239,6 +239,13 @@
     b[tr][tf] = captured;
   }
 
+  // 将帅是不是在同一条竖线上照面（中间没有子）
+  function kingsFace(b) {
+    const k = findKing(b, 'r'), k2 = findKing(b, 'b');
+    if (!k || !k2 || k[0] !== k2[0] || b[k[1]][k[0]].w) return false;
+    for (let r = Math.min(k[1], k2[1]) + 1; r < Math.max(k[1], k2[1]); r++) if (b[r][k[0]]) return false;
+    return true;
+  }
   function legalMovesFrom(b, f, r) {
     const p = b[r][f];
     if (!p) return [];
@@ -283,6 +290,19 @@
     }
     isLegal(m) {
       return this.legalFrom(m.from[0], m.from[1]).some(x => x.to[0] === m.to[0] && x.to[1] === m.to[1]);
+    }
+    // 按走法能走、但走了自己会被将军的着法（界面提示用）。why：'face' = 走完将帅照面；'self' = 走完被对方的子将着
+    selfCheckFrom(f, r) {
+      const p = this.at(f, r);
+      if (!p || p.s !== this.turn || this.result) return [];
+      const b = this.board, out = [];
+      for (const m of pseudoMoves(b, f, r)) {
+        const cap = applyMove(b, m);
+        const bad = inCheck(b, p.s), face = bad && kingsFace(b);
+        undoMove(b, m, cap);
+        if (bad) out.push({ ...m, why: face ? 'face' : 'self' });
+      }
+      return out;
     }
     // 揭棋：因长将/长捉被禁止的着法（用于提示）
     blockedFrom(f, r) {
@@ -477,7 +497,7 @@
     }
     return '';
   }
-  const XQ = { Game, W, H, NAMES, TYPE_CN, other, inPalace, allLegalMoves, inCheck, initialBoard, JQ_SQ, JQ_STD, JQ_COUNT, randomLayout, jieqiBoard, shuffle, rand, et, pseudoMoves, findKing, inBoard, ownHalf, checkers, mateName };
+  const XQ = { Game, W, H, NAMES, TYPE_CN, other, inPalace, allLegalMoves, inCheck, kingsFace, initialBoard, JQ_SQ, JQ_STD, JQ_COUNT, randomLayout, jieqiBoard, shuffle, rand, et, pseudoMoves, findKing, inBoard, ownHalf, checkers, mateName };
   if (typeof module !== 'undefined' && module.exports) module.exports = XQ;
   global.XQ = XQ;
 })(typeof window !== 'undefined' ? window : globalThis);
