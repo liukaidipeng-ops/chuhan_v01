@@ -37,5 +37,7 @@ fs.mkdirSync(path.join(D, 'dist/site'), { recursive: true });
 fs.writeFileSync(path.join(D, 'dist', '楚汉三维象棋.html'), out);
 fs.writeFileSync(path.join(D, 'dist/site/index.html'), out);
 fs.writeFileSync(path.join(D, 'dist/site/version.json'), JSON.stringify({ v: ver }));
+// 战意曲（选了「战意」才取）：和网页放在一起
+fs.copyFileSync(path.join(D, 'music/war.mp3'), path.join(D, 'dist/site/music-war.mp3'));
 console.log('version', ver);
 console.log('built', (out.length / 1024).toFixed(0) + ' KB', 'voice:', Object.keys(C).length, 'sfx:', Object.values(S).reduce((a, b) => a + b.length, 0));
