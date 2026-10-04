@@ -15,7 +15,7 @@
   - GitHub 在跑（7 组，各 1000 局，种子 1000～1999）：r2-base、r2-k2、r2-r15、r2-r15c、r2-pa、r2-pb、r2-e2。等待脚本 bzbnsynsw。
   - 工作流 ws89b2zas 在写并核查：engine_counter（移植到 98dd206）、engine_planc（齐射横竖、践踏踩空格、moveCooldown）、bfai_defup（不压制升士象，三个开关全开用）。通过后跑：反击 1 点 / 按攻击力、Plan C 两种冷却（三级解锁）、A+C、A+C+车变贵；加强士象的组 + 基准再用 bfai_defup 跑一遍。
   - 指标：胜率、回合、车参与将死、贴脸将死、被将死一方丢几个士象、士象技能次数（bfsim 已加）。
-- **待用户点**：拍板单 ks_test（将帅秒杀贴脸的子，Code 建议测：帅将攻击设 9，单项 + 和最好方案组合）。
+- **将帅秒杀**（用户选测）：r2-ks（帅将攻击 9）在 GitHub 跑；这一轮最好的方案定了以后，再和它各组合一组。
 - **工作方式**：用户说“我俩再确认一下”的事先列清楚再跑；要用户定的事放拍板单（https://claude.ai/artifact/QaxqVmNF1p2XQiAx8MygEM）；GitHub Actions 跑模拟（推 `source/tools/simjobs/*.json`，结果回到 `source/tools/simresults/`），本机只做小测试和网页耗时。
 
 ## 1. 已确认的结论
