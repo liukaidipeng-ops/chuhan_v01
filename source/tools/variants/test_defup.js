@@ -66,10 +66,11 @@ const think = async (X, S, nodes, rnd) => {   // 按节点数收手、随机数�
   ok(/nodeCap|\bL\.nodes\b/.test(fs.readFileSync(WRAP, 'utf8')), 'bfsim 认得出它支持按节点数收手（--nodes 有效）');
   { const b = baseText.split('\n'), v = W0.text.split('\n'), bs = new Set(b);
     const changed = b.filter(l => !v.includes(l)), added = v.filter(l => !bs.has(l));
-    // 改的 7 行换成带开关的写法；加的是开头 14 行（开关、两个小工具和注释）+ baseVal 里一行 strong；不是注释的新行都用到了开关或这几个小工具
-    const code = added.filter(l => !/^\s*\/\//.test(l));
-    ok(changed.length === 7 && added.length === 7 + 14 + 1 && code.length === 13 && code.every(l => /DEFUP|DGUARD|DEFVAL|strong|swOn|guardZone|skLv|defStrong/.test(l)),
-      `生成的电脑只改了 7 行（都换成带开关的写法）、加了 15 行（开关、小工具、注释）；其余 ${b.length - 7} 行原样`); }
+    // 改的 6 行换成带开关的写法；加的是开头 14 行（开关、两个小工具和注释）+ baseVal 里一行 strong；不是注释的新行都用到了开关或这几个小工具
+    //   第 348 行（被将军时相 / 象、兵不算保命的升级）故意不改，见 bfai_defup.js 开头“这一版没改”里第 348 行那条和下面第 4 段 e
+    const code = added.filter(l => !/^\s*\/\//.test(l)), must348 = "must = thr || (chk && p.t !== 'e' && p.t !== 'p');";
+    ok(changed.length === 6 && added.length === 6 + 14 + 1 && code.length === 12 && code.every(l => /DEFUP|DGUARD|DEFVAL|strong|swOn|guardZone|skLv|defStrong/.test(l)) && v.filter(l => l.includes(must348)).length === 1,
+      `生成的电脑只改了 6 行（都换成带开关的写法）、加了 15 行（开关、小工具、注释）；其余 ${b.length - 6} 行原样（第 348 行“被将军时相 / 象不算保命的升级”也原样）`); }
 
   console.log('1. 开关全关：和底版逐项相同');
   { rules(); const rnd = mulberry32(2024), list = [];
@@ -115,6 +116,12 @@ const think = async (X, S, nodes, rnd) => {   // 按节点数收手、随机数�
     rules(); ok(d(GD, mk(P('r', 'e', 2), [4, 2])) === 0, '现行规则（象攻击 1）：没有变化');
     rules({ 'attack.r': [1, 1, 2, 2] });
     ok(Math.abs(d(GD, mk(P('r', 'r', 3), [5, 1])) - KD0) < 1e-9 && d(GD, mk(P('r', 'r', 3), [7, 1])) === 0, 'Plan A 三级车攻击 2：守在九宫里 (5,1) 算，(7,1) 不算');
+    // 第 3 行（九宫前一行）的边界：Plan A / B 三级攻击 2 的子常守在这一行
+    ok([[4, 3], [2, 3], [6, 3]].every(at => Math.abs(d(GD, mk(P('r', 'r', 3), at)) - KD0) < 1e-9) && [[4, 4], [2, 4], [1, 3], [7, 3]].every(at => d(GD, mk(P('r', 'r', 3), at)) === 0),
+      '九宫前一行（从己方底线数第 3 行）的 (4,3)、(2,3)、(6,3) 也算；再往前的 (4,4)、(2,4) 和这一行两边的 (1,3)、(7,3) 不算');
+    { // 楚方：楚将 (4,9) 被汉二级车 (4,8) 贴身将着，楚方的 Plan A 三级车摆在 at
+      const dB = at => { const g = pos([[3, 0, P('r', 'k')], [4, 9, P('b', 'k')], [4, 8, P('r', 'r', 2)], [at[0], at[1], P('b', 'r', 3)], [0, 0, P('r', 'p')]], { turn: 'b' }); return GD.score(g.S, 'b') - BASE.score(g.S, 'b'); };
+      ok([[4, 6], [2, 6], [6, 6]].every(at => Math.abs(dB(at) - KD0) < 1e-9) && [[4, 5], [6, 5]].every(at => dB(at) === 0), '楚方从楚方底线数：第 3 行的 (4,6)、(2,6)、(6,6) 算，第 4 行的 (4,5)、(6,5) 不算'); }
     rules({ 'attack.e': [1, 2, 2, 2] });
     { const g = pos([[3, 0, P('r', 'k')], [4, 9, P('b', 'k')], [4, 8, P('r', 'r', 2)], [4, 7, P('b', 'e', 2)], [0, 0, P('r', 'p')]], { turn: 'b' });
       ok(Math.abs(GD.score(g.S, 'b') - BASE.score(g.S, 'b') - KD0) < 1e-9, '楚方一样（从楚方底线数：楚象 (4,7) 在九宫里）'); }
@@ -162,7 +169,13 @@ const think = async (X, S, nodes, rnd) => {   // 按节点数收手、随机数�
     { const g = pos([[4, 9, P('b', 'k')], [3, 9, P('b', 'a')], [2, 9, P('b', 'e')], [6, 9, P('b', 'e')], [0, 9, P('b', 'r')], [3, 0, P('r', 'k')], [4, 5, P('r', 'r')], [0, 3, P('r', 'p')]], { merit: { b: 4 } });
       const b = cands(BASE, g), u = cands(UP, g);
       ok(BF.ai.inCheck(g.S, 'b') && ts(b) === 'a' && b[0].must && J(cands(OFF, g)) === J(b), '被将军、在给车攒军功：底版只列士（保命的升级），相 / 象“砍不了人”不列');
-      ok(u.filter(c => c.t === 'e').length === 2 && u.every(c => c.must), `DEFUP：象也算保命的升级（${ts(u)}，全是 must）`); }
+      ok(J(u) === J(b), 'DEFUP 一样：被将军时相 / 象照样不算保命的升级（第 348 行不改），给车攒军功时照样跳过'); }
+    // b2. 同一个局面去掉楚车（不用攒军功）：底版仍只列士；DEFUP 把两只象也列进来，但不算保命的、排在士后面
+    { const g = pos([[4, 9, P('b', 'k')], [3, 9, P('b', 'a')], [2, 9, P('b', 'e')], [6, 9, P('b', 'e')], [3, 0, P('r', 'k')], [4, 5, P('r', 'r')], [0, 3, P('r', 'p')]], { merit: { b: 4 } });
+      const b = cands(BASE, g), u = cands(UP, g);
+      ok(BF.ai.inCheck(g.S, 'b') && ts(b) === 'a' && b[0].must && J(cands(OFF, g)) === J(b), '被将军、不用攒军功：底版还是只列士');
+      ok(ts(u) === 'aee' && u[0].must && !u[1].must && !u[2].must && u[1].gain > u[0].gain,
+        `DEFUP：象也列进来，但排在保命的士后面（${u.map(c => c.t + (c.must ? '!' : '') + ' ' + c.gain).join(' / ')}：象的静态分其实比士高，要是也算保命的就排到士前面去了）`); }
     // c. 二级士象（升三级解锁技能）和一级兵：楚方 10 功
     { const g = pos([[4, 9, P('b', 'k')], [3, 9, P('b', 'a', 2)], [2, 9, P('b', 'e', 2)], [6, 9, P('b', 'e', 2)], [0, 6, P('b', 'p')], [4, 6, P('b', 'p')], [8, 6, P('b', 'p')], [3, 0, P('r', 'k')], [0, 0, P('r', 'r')]], { merit: { b: 10 } });
       const b = cands(BASE, g), u = cands(UP, g);
@@ -171,7 +184,19 @@ const think = async (X, S, nodes, rnd) => {   // 按节点数收手、随机数�
     // d. 额外名额照留：二级士象排不进前三时还给一个
     { const g = pos([[4, 9, P('b', 'k')], [2, 9, P('b', 'e', 2)], [0, 9, P('b', 'r')], [1, 9, P('b', 'n')], [7, 9, P('b', 'c')], [3, 0, P('r', 'k')], [8, 0, P('r', 'r')]], { merit: { b: 10 } });
       const u = cands(UP, g), b = cands(BASE, g);
-      ok(J(u) === J(b) && ts(u) === 'rcne' && u[3].unlock, `车马炮静态分高：DEFUP 前三也是车马炮，二级象照样拿额外名额（${ts(u)}，和底版一样）`); } }
+      ok(J(u) === J(b) && ts(u) === 'rcne' && u[3].unlock, `车马炮静态分高：DEFUP 前三也是车马炮，二级象照样拿额外名额（${ts(u)}，和底版一样）`); }
+    // e. 被将军时别把士挤掉（核查找到的）：汉帅 (4,0) 被楚二级车 (4,1) 贴脸将军；汉方 6 功，一级士 (3,0)、一级相 (2,0)、(6,0)、车 (0,0)、兵 (0,3)。
+    //    象二级攻击 2、三个开关全开时，相升二级的静态分比士升二级还高（DGUARD、DEFVAL 都给它加分，虽然它够不着 (4,1)）。
+    //    早先的版本让被将军时相 / 象也算保命的升级：前三个名额成了车、相、相，士被挤掉，“升士 + 士吃车”这一手看不见，电脑算出来被将死（-8998 分）
+    rules({ 'attack.e': [1, 2, 2, 2] });
+    { const g = pos([[4, 0, P('r', 'k')], [3, 0, P('r', 'a')], [2, 0, P('r', 'e')], [6, 0, P('r', 'e')], [0, 0, P('r', 'r')], [0, 3, P('r', 'p')],
+                     [4, 9, P('b', 'k')], [4, 1, P('b', 'r', 2)], [8, 6, P('b', 'p')], [0, 9, P('b', 'r')]], { turn: 'r', merit: { r: 6 } });
+      const b = cands(BASE, g), a = cands(ALL, g), fmt = cs => cs.map(c => c.t + (c.must ? '!' : '') + ' ' + c.gain).join(' / ');
+      ok(BF.ai.inCheck(g.S, 'r') && ts(b) === 'rap' && b[1].must && J(b[1].at) === '[3,0]', `底版：车、士是保命的升级（${fmt(b)}）`);
+      ok(ts(a) === 'rae' && a[1].must && J(a[1].at) === '[3,0]' && !a[2].must && a[2].gain > a[1].gain, `三个全开：士 (3,0) 还在候选里，相排在它后面（${fmt(a)}）`);
+      const want = J([{ k: 'up', at: [3, 0] }, { k: 'mv', from: [3, 0], to: [4, 1] }]), tb = await think(BASE, g.S, 20000), ta = await think(ALL, g.S, 20000);
+      ok(J(tb.seq) === want && J(ta.seq) === want && ta.last.v > 0, `底版、三个全开都“升士 + 士吃车”（按 20000 个节点收手：${tb.last.v.toFixed(2)} / ${ta.last.v.toFixed(2)} 分）`); }
+    rules(); }
 
   console.log('5. DEFUP：根节点（think，校尉，按 20000 个节点收手）');
   { // a. 象二级攻击 2：一级象先升二级再吃掉两血的车。底版不列这个升级（一级象、没被捉），只能空打一下；背水已经用过

@@ -1,7 +1,7 @@
 // 反击变体引擎（engine_counter.js，底版 git 98dd206 = 背水一战正式版）自测
 //   用法（在 source/ 下）：node tools/variants/test_counter.js
 //   环境变量：ENGINE_REV = 底版（默认 98dd206，和 engine_counter.js 一样；这份自测要用到背水一战和 BF.ai.pofuPairsRef，底版得是 98dd206 那样的）；
-//             CTR_FAST=1 跳过最后用 bfsim 真下棋的两段（逐局核对、两种配置试跑；这两段约 3 分钟，其余约 20 秒）；CTR_JOBS = bfsim 并行数（默认 2）
+//             CTR_FAST=1 跳过最后用 bfsim 的三段（逐局核对、两种配置试跑、配置写错时每局报错；这三段约 3 分钟，其余约 20 秒）；CTR_JOBS = bfsim 并行数（默认 2）
 //   规则层逐条核对之外，还有三段大一点的：
 //     · 背水两步里的还手：电脑用的快写法 BF.ai.pofuPairs 和逐个 attempt 的 BF.ai.pofuPairsRef 在一批局面上逐项相同（反击开着）；
 //     · 开关全关时和底版引擎逐项相同（同一批局面的 expand / gen / pofuPairs / evaluate）；
@@ -303,6 +303,22 @@ console.log('16. 开关全关：和底版引擎（' + REV + '）逐项相同（�
   }
   ok(n >= 150 && live >= 100, `${n} 个局面、${kids} 个普通行动、${pairs} 个背水组合逐项相同（同一批局面打开反击，有 ${live} 个行动 / 组合会挨还手）（${((Date.now() - t0) / 1000).toFixed(1)}s）`); }
 
+console.log('17. counter 配置写错就报错（原来攻方的血会变成 NaN、开关会悄悄打开）：每局开始（new Game）查，用到还手伤害时再查');
+{ const parse = raw => { try { return JSON.parse(raw); } catch (e) { return raw; } };   // 和 bfsim 的 --set 一样：不是合法 JSON 就原样当字符串（ci_sim 的请求按空格切参数、不认引号）
+  const why = f => { try { f(); } catch (e) { return e.message; } return ''; };
+  const bad = (c, k) => { cfg(c); return why(() => new BF.Game()).includes('counter.' + k); };
+  for (const [raw, hp] of [['1', 2], ['atk', 1], ['"atk"', 1]]) {
+    cfg({ ...ON, dmg: parse(raw) }); const { g, R } = posA(3, 3); const r = BF.attempt(g.S, mv([4, 5], [4, 1]));
+    ok(r && fj(r).length === 1 && find(r.S, R.id).p.hp === hp, `--set counter.dmg=${raw} 能用：三级士还手，三级车剩 ${hp} 血`);
+  }
+  const dmgBad = ["'atk'", 'ATK', '"1"', '1.5', '-1', 'null'];
+  ok(dmgBad.every(raw => bad({ ...ON, dmg: parse(raw) }, 'dmg')) && bad({ dmg: 'ATK' }, 'dmg'), `--set counter.dmg=${dmgBad.join(' / ')}：new Game 就报错（反击关着也报错）`);
+  ok(bad({ ...ON, onDeath: parse("'false'") }, 'onDeath') && bad({ ...ON, a: parse('"true"') }, 'a') && bad({ ...ON, e: 1 }, 'e') && bad({ ...ON, pfSeal: parse('False') }, 'pfSeal'),
+    "开关只认 true / false：--set counter.onDeath='false'（非空字符串算“真”）、a=\"true\"、e=1、pfSeal=False 都在 new Game 就报错");
+  cfg(ON); const { g } = posA(3, 3); C.dmg = "'atk'";   // 局开始以后才改坏：绕过 new Game 那一查
+  ok(why(() => BF.attempt(g.S, mv([4, 5], [4, 1]))).includes('counter.dmg') && why(() => BF.ai.expand(g.S)).includes('counter.dmg'), '开局以后才把 counter.dmg 改坏：用到还手伤害时报错（attempt、电脑的 expand 都一样），不会算出 NaN');
+  cfg(); }
+
 // ---------- bfsim 真下棋 ----------
 function bfsim(env, args) {
   const json = path.join(os.tmpdir(), `ctrtest_${process.pid}_${Date.now()}.json`);
@@ -312,22 +328,26 @@ function bfsim(env, args) {
   return o;
 }
 const JOBS = String(process.env.CTR_JOBS || 2), RULES = ['--set', 'beishui.on=true', '--set', 'beishui.twoPieces=false'];
-if (process.env.CTR_FAST) console.log('17、18. 跳过（CTR_FAST）');
+if (process.env.CTR_FAST) console.log('18～20. 跳过（CTR_FAST）');
 else {
-  console.log('17. 开关全关：bfsim 6 局和底版逐局相同（--nodes mid=20000，新规则，电脑 git:' + REV + '）');
+  console.log('18. 开关全关：bfsim 6 局和底版逐局相同（--nodes mid=20000，新规则，电脑 git:' + REV + '）');
   { const args = ['--games', '6', '--seed', '1000', '--nodes', 'mid=20000', '--ai', 'git:' + REV, '--jobs', JOBS, ...RULES], t0 = Date.now();
     const base = bfsim({ BFSIM_ENGINE: 'tools/variants/engine_at.js', ENGINE_REV: REV }, args), vari = bfsim({ BFSIM_ENGINE: 'tools/variants/engine_counter.js', ENGINE_REV: REV }, args);
     const sig = r => JSON.stringify([r.winner, r.reason, r.rounds, r.plies, r.act, r.kills, r.up]);
     const mV = new Map(vari.results.map(r => [r.seed, r]));
     ok(base.results.length === 6 && vari.results.length === 6 && !base.errors.length && !vari.errors.length, '两边各下完 6 局、没有出错');
     ok(base.results.every(r => mV.has(r.seed) && sig(mV.get(r.seed)) === sig(r)), `逐局相同（种子 1000～1005：${base.results.map(r => (r.winner || '-') + r.rounds).join(' ')}）（${((Date.now() - t0) / 1000).toFixed(0)}s）`); }
-  console.log('18. 要跑的两种配置都能下完（各 2 局；第二种同时加 --set attack.a=[1,2,3,3]）');
+  console.log('19. 要跑的两种配置都能下完（各 2 局；第二种同时加 --set attack.a=[1,2,3,3]）');
   for (const [name, sets] of [['还手 1 点、活下来才还手', ['counter.dmg=1']], ['按攻击力还手 + 士攻击 1/2/3/3', ['counter.dmg="atk"', 'attack.a=[1,2,3,3]']]]) {
     const args = ['--games', '2', '--seed', '2000', '--nodes', 'mid=20000', '--ai', 'git:' + REV, '--jobs', JOBS, ...RULES, '--set', 'counter.a=true', '--set', 'counter.e=true', '--set', 'counter.onDeath=false', ...sets.flatMap(s => ['--set', s])];
     const t0 = Date.now(), o = bfsim({ BFSIM_ENGINE: 'tools/variants/engine_counter.js', ENGINE_REV: REV }, args);
     const fjN = o.results.reduce((t, r) => t + ((r.jumaCounter.r.fanji || 0) + (r.jumaCounter.b.fanji || 0)), 0);
     ok(o.results.length === 2 && !o.errors.length && o.results.every(r => r.reason), `${name}：2 局下完、没有出错（${o.results.map(r => (r.winner || '-') + ':' + r.reason).join(' ')}；还手 ${fjN} 次）（${((Date.now() - t0) / 1000).toFixed(0)}s）`);
   }
+  console.log('20. 配置写错时 bfsim 每局一开始就报错、一局也不算（不会悄悄下完；ci_sim 的请求里写成 counter.dmg=\'atk\' 就是这样）');
+  { const args = ['--games', '2', '--seed', '2000', '--nodes', 'mid=20000', '--ai', 'git:' + REV, '--jobs', JOBS, ...RULES, '--set', 'counter.a=true', '--set', 'counter.e=true', '--set', "counter.dmg='atk'"];
+    const o = bfsim({ BFSIM_ENGINE: 'tools/variants/engine_counter.js', ENGINE_REV: REV }, args);
+    ok(!o.results.length && o.errors.length === 2 && o.errors.every(e => e.error.includes('counter.dmg')), `--set counter.dmg='atk'：0 局下完、2 局报错（${o.errors.length ? o.errors[0].error.split('\n')[0] : ''}）`); }
 }
 cfg();
 console.log('通过', pass, '项');

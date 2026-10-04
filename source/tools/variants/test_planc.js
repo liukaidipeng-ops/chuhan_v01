@@ -3,6 +3,7 @@
 //   环境变量：ENGINE_REV = 底版（默认 98dd206，和 engine_planc.js 一样）；PLANC_FAST=1 跳过最后用 bfsim 真下棋的两段；PLANC_JOBS = bfsim 并行数（默认 2）
 //   逐条核对规则之外，还有几段大一点的：
 //     · 齐射：随机摆子，三种方向下结算（resolve）、界面（skillTargets）、电脑（expand / gen / gen 只要打到的）列出的目标都和照规则写的模型一样；
+//       默认斜线时还和底版逐项比（含目标的先后顺序：电脑按这个顺序排候选）；
 //     · 背水两步里的践踏：电脑的快写法 BF.ai.pofuPairs 和逐个 attempt 的 BF.ai.pofuPairsRef 在一批随机局面上逐项相同（onMove 开着，冷却 0 / 2）；
 //     · 开关全关时和底版引擎逐项相同（同一批局面的 expand / gen / evaluate / pofuPairs / 界面的背水候选）；
 //     · 开关全关时 bfsim 6 局和底版逐局相同；全部开关 + 数值组合各下 2 局不出错。
@@ -100,15 +101,26 @@ console.log('1. 齐射：横竖（ortho）、斜线（diag，默认）、都行�
     C.skills.qishe.dirs = d; const v = views(g, [4, 2]);
     ok(same(v.rs, want) && agree(v), `两套摆法放在一起，${d}：${show(v.rs)}`);
   } }
-{ cfg({ ...L3 }); const rnd = mulberry(20261004), SPOTS = [[2, 0], [6, 0], [0, 2], [4, 2], [8, 2], [2, 4], [6, 4]]; let n = 0, tg = 0;
+// 默认（diag）时目标的先后顺序也得和底版一样：电脑（expand / gen）按这个顺序排候选，顺序一变，开关全关的三级解锁对局就和底版不同了
+//   （上面几段只比目标集合；第 7 段的随机局面里碰不到“轮汉方走、相能射两个以上”，第 8 段 bfsim 齐射是底版四级解锁，基本用不上）
+const sameAsBase = (g, f, r) => { const S = g.S, gB = new BASE.Game(); gB.S = S;
+  return J(g.skillTargets(f, r, 'qishe')) === J(gB.skillTargets(f, r, 'qishe')) && J(BF.ai.expand(S)) === J(BASE.ai.expand(S)) && J(BF.ai.gen(S, false)) === J(BASE.ai.gen(S, false)) && J(BF.ai.gen(S, true)) === J(BASE.ai.gen(S, true)); };
+{ cfg({ ...L3 });   // 相 (4,2) 四条斜线上各一个敌子，远近不一：(6,4) 隔一格、(5,1) 贴身、(3,3) 贴身、(2,0) 隔一格
+  const g = pos([...QB(), [4, 2, P('r', 'e', 3)], [6, 4, P('b', 'a')], [5, 1, P('b', 'a')], [3, 3, P('b', 'a')], [2, 0, P('b', 'a')]], { turn: 'r' });
+  const order = E => E.ai.expand(g.S).filter(k => k.a.k === 'sk' && (k.a.sk || 'qishe') === 'qishe').map(k => sq(k.a.to[0], k.a.to[1])).join(' ');
+  ok(order(BF) === '6,4 5,1 3,3 2,0' && order(BASE) === order(BF) && sameAsBase(g, 4, 2), `diag（默认）：四个目标的先后顺序和底版一样（${order(BF)}），界面、expand、gen 逐项相同`); }
+{ cfg({ ...L3 }); const rnd = mulberry(20261004), SPOTS = [[2, 0], [6, 0], [0, 2], [4, 2], [8, 2], [2, 4], [6, 4]]; let n = 0, tg = 0, multi = 0;
   // 随机摆子：相放在各个相位上（含棋盘边上），四周随机撒双方的子（楚方只放士象，免得将军干扰）；三种方向下五种列法都和规则模型一样
+  //   diag（默认）再和底版逐项比（含目标的先后顺序）
   for (let i = 0; i < 70; i++) {
     const [ef, er] = SPOTS[i % SPOTS.length], taken = new Set([sq(ef, er), sq(3, 0), sq(5, 9), sq(0, 3)]), pcs = [...QB(), [ef, er, P('r', 'e', 3)]];
     for (let k = 0; k < 16; k++) { const f = Math.floor(rnd() * 9), r = Math.floor(rnd() * 6); if (taken.has(sq(f, r))) continue; taken.add(sq(f, r)); const s = rnd() < 0.7 ? 'b' : 'r'; pcs.push([f, r, P(s, s === 'b' ? (rnd() < 0.5 ? 'a' : 'e') : ['p', 'a', 'e'][Math.floor(rnd() * 3)], 1 + Math.floor(rnd() * 3))]); }
     const g = pos(pcs, { turn: 'r' });
-    for (const d of ['diag', 'ortho', 'both']) { C.skills.qishe.dirs = d; const v = views(g, [ef, er]); assert.ok(same(v.rs, model(g.S, ef, er, d)) && agree(v), `随机局面 ${i} ${d}：${show(v.rs)} / 模型 ${show(model(g.S, ef, er, d))} / 界面 ${show(v.ui)} / expand ${show(v.ex)} / gen ${show(v.gn)}`); n++; tg += v.rs.size; }
+    for (const d of ['diag', 'ortho', 'both']) { C.skills.qishe.dirs = d; const v = views(g, [ef, er]); assert.ok(same(v.rs, model(g.S, ef, er, d)) && agree(v), `随机局面 ${i} ${d}：${show(v.rs)} / 模型 ${show(model(g.S, ef, er, d))} / 界面 ${show(v.ui)} / expand ${show(v.ex)} / gen ${show(v.gn)}`); n++; tg += v.rs.size;
+      if (d === 'diag') { assert.ok(sameAsBase(g, ef, er), `随机局面 ${i} diag：界面 / expand / gen 和底版不同（目标的先后顺序？）`); if (v.rs.size >= 2) multi++; } }
   }
-  ok(n === 210 && tg > 200, `随机摆子 70 个局面 × 三种方向：结算、界面、电脑（expand / gen / gen 只要打到的）列出的目标都和规则模型一样（共 ${tg} 个目标）`); }
+  ok(n === 210 && tg > 200, `随机摆子 70 个局面 × 三种方向：结算、界面、电脑（expand / gen / gen 只要打到的）列出的目标都和规则模型一样（共 ${tg} 个目标）`);
+  ok(multi >= 10, `diag（默认）：这 70 个局面的界面、expand、gen 都和底版逐项相同，含目标的先后顺序（${multi} 个局面能射两个以上）`); }
 { cfg({ ...L3, ...COMBO, 'skills.qishe.dirs': 'ortho' });
   const g = pos([...QB(), [4, 2, P('r', 'e', 3)], [4, 4, P('b', 'a', 2)]], { turn: 'r' });
   const i = g.apply({ k: 'sk', at: [4, 2], to: [4, 4] });
@@ -207,6 +219,26 @@ console.log('3. 踩空格的冷却（moveCooldown = 2：每 2 回合最多踩一
   ok(!!r5 && stomps(r5.ev) === 1 && hpIn(r5.S, p.Y.id) === 2 && r5.S.board[9][2].cd === 14, '再下一回合（第 12 次行动）：A 冷却好了，走到空格又踩（Y 扣 1 点），记 14');
   const r6 = BF.attempt(g.S, mv([8, 7], [6, 9]));
   ok(!!r6 && !r6.ev.some(e => e.e === 'splash') && hpIn(r6.S, p.T.id) === 3, '同一回合 B（上一回合刚踩过）走到空格：不踩'); }
+// 走到空格、周围没有踩得到的敌子（践踏打得着的：敌方、非帅将、够 splashMinLevel）：不算踩——不出事件，也不占踩空格的冷却，下一回合照样能踩
+//   （冷却 0 时占不占都看不出来，所以这里用冷却 2；电脑的静态搜索 gen 只要打到的也不算它）
+{ cfg({ ...L3, 'skills.jianta.onMove': true, 'skills.jianta.moveCooldown': 2 });
+  // 象 E (4,7)→(2,5)：落点周围一圈只有己方的卒 (1,6)、(3,4)；汉士 (0,4)、(2,3) 隔一格在圈外；三血汉士 Q (5,6) 挨着 (4,7)，E 下一回合走回去踩得到它
+  const E = P('b', 'e', 3), Q = P('r', 'a', 3), m = mv([4, 7], [2, 5]);
+  const g = pos([KG('r', 3, 0), KG('b', 4, 9), [0, 3, P('r', 'p')], [4, 7, E], [1, 6, P('b', 'p')], [3, 4, P('b', 'p')], [0, 4, P('r', 'a')], [2, 3, P('r', 'a')], [5, 6, Q]]);
+  const inCaps = BF.ai.gen(g.S, true).some(it => J(it.a) === J(m)), i = g.apply(m);
+  ok(!!i && !i.ev.some(e => e.e === 'splash') && g.at(2, 5).cd === 0 && !inCaps, '冷却 2：象走到空格，周围只有己方的子、汉士都在圈外——不算踩（不出事件）、不占冷却（cd 还是 0），电脑的静态搜索里也没有这一步');
+  ok(!!g.apply(mv([3, 0], [3, 1])) && g.cdLeft(g.at(2, 5), 'jianta') === 0, '汉走一步；界面上 E 的践踏不显示冷却');
+  const r = BF.attempt(g.S, mv([2, 5], [4, 7]));
+  ok(!!r && stomps(r.ev) === 1 && hpIn(r.S, Q.id) === 2 && r.S.board[7][4].cd === 13, '下一回合（第 11 次行动）E 走回 (4,7)：照踩（Q 扣 1 点），这一下才记冷却（第 13 次行动才能再踩空格）');
+  // splashMinLevel = 2：落点旁边只有一级汉兵 = 踩不到，不踩、不占冷却；换成二级兵就踩（扣 1 点、记冷却）
+  cfg({ ...L3, 'skills.jianta.onMove': true, 'skills.jianta.moveCooldown': 2, 'skills.jianta.splashMinLevel': 2 });
+  const lv = [1, 2].map(n => { const X = P('r', 'p', n), gL = pos([KG('r', 3, 0), KG('b', 4, 9), [0, 3, P('r', 'p')], [4, 7, P('b', 'e', 3)], [1, 5, X]]);
+    const c = BF.ai.gen(gL.S, true).some(it => J(it.a) === J(m)), iL = gL.apply(m); return { c, n: iL ? stomps(iL.ev) : -1, hp: hpOfId(gL, X.id), cd: iL ? gL.at(2, 5).cd : -1 }; });
+  ok(J(lv) === J([{ c: false, n: 0, hp: 1, cd: 0 }, { c: true, n: 1, hp: 1, cd: 12 }]), 'splashMinLevel = 2：旁边只有一级汉兵——不踩、不占冷却、不进静态搜索；换成二级兵就踩（剩 1 血）、记冷却、进静态搜索'); }
+{ cfg({ ...L3, 'skills.jianta.onMove': true, 'skills.jianta.moveCooldown': 2 });   // 决战：落点旁边只有汉帅（践踏不打帅将）——也不算踩
+  const g = pos([KG('r', 2, 4), KG('b', 4, 9), [4, 7, P('b', 'e', 3)], [8, 0, P('r', 'a')]]), K = g.at(2, 4), hp0 = K.hp, m = mv([4, 7], [2, 5]);
+  const inCaps = BF.ai.gen(g.S, true).some(it => J(it.a) === J(m)), fin = g.final, i = g.apply(m);
+  ok(fin && !!i && !i.ev.some(e => e.e === 'splash') && hpOfId(g, K.id) === hp0 && g.at(2, 5).cd === 0 && !inCaps, `决战、冷却 2：落点旁边只有汉帅——不算踩（不出事件、帅不掉血（${hp0} 血）、不占冷却），电脑的静态搜索里也没有这一步`); }
 { cfg({ ...L3, 'skills.jianta.onMove': true, 'skills.jianta.moveCooldown': 0 });
   const { g, p } = CL(); g.apply(mv([2, 9], [0, 7])); g.apply(mv([3, 0], [3, 1]));
   const rI = BF.attempt(g.S, mv([0, 7], [2, 9]));

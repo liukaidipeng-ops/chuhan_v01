@@ -1,0 +1,3 @@
+{ "args": "--games 500 --seed 1000 --nodes mid=60000 --ai git:98dd206 --set beishui.on=true --set beishui.twoPieces=false --set skills.qishe.dirs=ortho --set skills.jianta.onMove=true --set skills.qishe.level=3 --set skills.jianta.level=3 --set skills.jianta.moveCooldown=0",
+  "env": { "BFSIM_ENGINE": "tools/variants/engine_planc.js", "ENGINE_REV": "98dd206" }, "chunks": 20,
+  "note": "Plan C（用户定）：相的齐射改横竖 1～2 格、象踩空格也践踏（不加冷却），两个技能三级就有" }

@@ -1,3 +1,3 @@
-{ "args": "--games 1000 --seed 1000 --nodes mid=60000 --ai git:98dd206 --set beishui.on=true --set beishui.twoPieces=false --set attack.k=[9]",
+{ "args": "--games 500 --seed 1000 --nodes mid=60000 --ai git:98dd206 --set beishui.on=true --set beishui.twoPieces=false --set attack.k=[9]",
   "env": { "BFSIM_ENGINE": "tools/variants/engine_at.js", "ENGINE_REV": "98dd206" }, "chunks": 20,
   "note": "用户提的“将帅秒杀贴脸的子”（拍板单 ks_test 选 a）：帅将攻击 9，吃贴身的子不管几血都一下吃掉；被保护的子照样吃不了。单项一组，组合等这一轮结果出来再定" }

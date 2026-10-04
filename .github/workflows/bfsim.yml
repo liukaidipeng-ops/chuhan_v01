@@ -28,7 +28,7 @@ jobs:
     timeout-minutes: 180
     strategy:
       fail-fast: false
-      max-parallel: 8   # 免费账号同时只能跑 20 个任务：模拟最多占 8 个，给网站发布、配音留位置（2026-10-04 曾把它们堵了半小时）
+      max-parallel: 12   # 免费账号同时只能跑 20 个任务：模拟最多占 12 个，给网站发布、配音留 8 个（2026-10-04 曾把它们堵了半小时）；一次只推一批
       matrix: ${{ fromJSON(needs.plan.outputs.matrix) }}
     steps:
       - uses: actions/checkout@v4

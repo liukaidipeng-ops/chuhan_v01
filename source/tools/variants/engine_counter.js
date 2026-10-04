@@ -4,8 +4,10 @@
 //   1. 反击（CFG.counter）：士被近战打中后还手（炮、霹雳、齐射算远程，士不还手；冲阵算近战，被当跳板的士也还手）；
 //      相 / 象被远程打中后还手（近战不还手）。远程 = 炮（普通的炮吃子 / 炮打也算，背水那两步里的也算）、霹雳、齐射。
 //      溅射（霹雳、践踏）不触发。帅将攻击不挨反击（和拒马一样）。还手算被动：四面楚歌期间楚方不还手。
-//      counter.a / counter.e 开关；counter.dmg = 还手伤害（数字，或 'atk' = 按守方自己的攻击力，跟着 CFG.attack 走，比如 --set attack.a=[1,2,3,3]）；
+//      counter.a / counter.e 开关；counter.dmg = 还手伤害（非负整数，或 'atk' = 按守方自己的攻击力，跟着 CFG.attack 走，比如 --set attack.a=[1,2,3,3]）；
 //      counter.onDeath = 这一下被打死了也还手（false = 活下来才还手）；counter.pfSeal = 破釜封锁期也封住楚方还手（方案 A；背水一战没有封锁期，开着也不起作用）
+//      counter 配置写错了每局一开始就报错（ctrCheck），不会悄悄算错：dmg 只认非负整数和 'atk'（--set counter.dmg=atk 或 counter.dmg="atk"；
+//        写成 'atk'（带单引号）、ATK、"1"、1.5 都报错——不报错的话攻方的血会变成 NaN），四个开关只认 true / false（'false' 这样的字符串算“真”）
 //      注意：相、象各自只站同一种颜色的格子（相的列 + 行是偶数、象是奇数），齐射只射斜线，实战里射不到象——象的远程还手只会来自炮、霹雳
 //      背水一战（98dd206 的正式版）：两步里每一步都是同一个 strike()，照样会挨还手——引擎的 resolve() / attempt() 和电脑用的快写法 BF.ai.pofuPairs
 //        结果逐项相同（test_counter.js 拿 BF.ai.pofuPairsRef 在一批局面上核对）。被还手打死的那枚子不能再走第二步（它已经不在棋盘上）。
@@ -40,8 +42,18 @@ function enginePath() {
   const counters = (S, T, P, how) => { const C = CFG_CUR.counter; if (!C || !T || !P || T.s === P.s || P.t === 'k') return false;
     if (T.s === 'b' && (smActive(S) || (C.pfSeal && pfActive(S)))) return false;   // 还手算被动：四面楚歌期间楚军没有技能；方案 A 破釜封锁期被动也封
     return T.t === 'a' ? !!C.a && !rangedHit(P, how) : T.t === 'e' ? !!C.e && rangedHit(P, how) : false; };
+  // counter 配置写错了就报错，不将错就错。bfsim 的 --set 值不是合法 JSON 就原样当字符串（ci_sim 的请求还按空格切参数、不认引号），比如
+  //   --set counter.dmg='atk'（单引号留在字符串里）、ATK → 攻方的血变成 NaN：再也死不了，电脑的估值（按血查表）也成了 NaN；小数伤害一样（血不是整数，查不到表）
+  //   --set counter.onDeath='false' → 非空字符串算“真”，等于悄悄打开
+  //   每局开始（new Game）查一遍：在电脑出手之前，电脑里吞异常的 try（背水组合、拒马）挡不住；用到还手伤害时（backDmg）再查一遍
+  //   （这段代码在 engine_counter.js 的模板字符串里：报错文字只用双引号字符串拼，不用反引号）
+  const ctrDmg = C => { if (C.dmg === 'atk' || (Number.isInteger(C.dmg) && C.dmg >= 0)) return C.dmg;
+    throw new Error("engine_counter：counter.dmg 只能是非负整数或 'atk'，现在是 " + JSON.stringify(C.dmg) + "（写 --set counter.dmg=atk，别加单引号）"); };
+  const ctrCheck = C => { for (const k of ['a', 'e', 'onDeath', 'pfSeal']) if (C[k] !== undefined && typeof C[k] !== 'boolean') throw new Error("engine_counter：counter." + k + " 只能是 true / false，现在是 " + JSON.stringify(C[k]));
+    ctrDmg(C); };
+  // 还手伤害：数字就打这么多，'atk' 就按守方自己的攻击力
+  const backDmg = T => { const d = ctrDmg(CFG_CUR.counter); return d === 'atk' ? atk(T) : d; };
   // 还手打攻方（攻方站在 at_）；打死了返回 true
-  const backDmg = T => (CFG_CUR.counter.dmg === 'atk' ? atk(T) : CFG_CUR.counter.dmg);
   function hitBack(S, at_, P, T, ev, pre) {
     const n = backDmg(T);
     if (!pre) P.hp -= n;   // pre：伤害已经先扣过了（被打死也还手那一路，见 strike）
@@ -112,6 +124,9 @@ function enginePath() {
       } else return null;`);
   rep("        if (res !== 'died') splash(S, a.to, side, ev, 'pili', p);",
       "        if (res !== 'died' || hitLanded) splash(S, a.to, side, ev, 'pili', p);   // 变体：炮弹已经打中，炮被象还手打死，溅射照样落地");
+  // 每局开始先查 counter 配置（见 ctrCheck）；别的配置（没有 counter 的）不查
+  rep("    constructor(cfg) { this.cfg = cfg || CFG; CFG_CUR = this.cfg; this.reset(); }\n",
+      "    constructor(cfg) { this.cfg = cfg || CFG; CFG_CUR = this.cfg; if (this.cfg.counter) ctrCheck(this.cfg.counter); this.reset(); }   // 变体：每局开始先查 counter 配置\n");
   // 回春没有目标，不进“只要打到敌子”的静态搜索
   rep("        if (capsOnly && sk === 'hujia') continue;", "        if (capsOnly && (sk === 'hujia' || sk === 'huichun')) continue;");
   // 回春是原地的技能：背水冻结的象也能用（背水的冻结规则：冻结的子只能用原地的技能）。
