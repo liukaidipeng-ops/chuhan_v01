@@ -73,21 +73,24 @@ function enginePath() {
     ev.push({ e: 'repel', id: P.id, from: from.slice(), to: to.slice() });
     return 'hit';`);
   // 冲阵：跳板是敌方士——冲阵算近战，士还手（还手打死了车，车就不落地了）
-  //   被打死也还手时，这里和齐射都是先结算击杀、再还手（strike 里是先扣攻方）：差别只在攻方能不能先靠甲片晋升回血，
-  //   可冲阵的车 3 升 4 要 20 片甲、齐射的相已是满级，碰不到
+  //   被打死也还手时和 strike 一样算同一次交手：这一下打得死跳板，就先扣车的血、再结算击杀（车被还手打死就拿不到甲片晋升回血）
   rep(`          damage(S, a.to[0], a.to[1], CFG_CUR.skills.chongzhen.springDamage, side, ev, 'chongzhen', p);
           extra.spring = { at: a.to.slice(), killed: !S.board[a.to[1]][a.to[0]] };
           extra.res = strike(S, a.at, t.land, side, ev, 'chongzhen');`,
-`          const q0 = S.board[a.to[1]][a.to[0]];
-          damage(S, a.to[0], a.to[1], CFG_CUR.skills.chongzhen.springDamage, side, ev, 'chongzhen', p);
+`          const q0 = S.board[a.to[1]][a.to[0]], sd = CFG_CUR.skills.chongzhen.springDamage;
+          const ctr = counters(S, q0, p, 'chongzhen'), pre = ctr && CFG_CUR.counter.onDeath && q0.hp <= sd;
+          if (pre) p.hp -= backDmg(q0);
+          damage(S, a.to[0], a.to[1], sd, side, ev, 'chongzhen', p);
           extra.spring = { at: a.to.slice(), killed: !S.board[a.to[1]][a.to[0]] };
-          if (counters(S, q0, p, 'chongzhen') && (S.board[a.to[1]][a.to[0]] === q0 || CFG_CUR.counter.onDeath) && hitBack(S, a.at, p, q0, ev)) extra.res = 'died';
+          if (ctr && (S.board[a.to[1]][a.to[0]] === q0 || CFG_CUR.counter.onDeath) && hitBack(S, a.at, p, q0, ev, pre)) extra.res = 'died';
           else extra.res = strike(S, a.at, t.land, side, ev, 'chongzhen');`);
-  // 齐射：被射的是敌方象——远程，象还手
+  // 齐射：被射的是敌方象——远程，象还手（被打死也还手时同上：射得死象，就先扣相的血、再结算击杀）
   rep(`        damage(S, a.to[0], a.to[1], CFG_CUR.skills.qishe.damage, side, ev, 'qishe', p);`,
-`        const q0 = S.board[a.to[1]][a.to[0]];
-        damage(S, a.to[0], a.to[1], CFG_CUR.skills.qishe.damage, side, ev, 'qishe', p);
-        if (counters(S, q0, p, 'qishe') && (S.board[a.to[1]][a.to[0]] === q0 || CFG_CUR.counter.onDeath)) hitBack(S, a.at, p, q0, ev);`);
+`        const q0 = S.board[a.to[1]][a.to[0]], qd = CFG_CUR.skills.qishe.damage;
+        const ctr = counters(S, q0, p, 'qishe'), pre = ctr && CFG_CUR.counter.onDeath && q0.hp <= qd;
+        if (pre) p.hp -= backDmg(q0);
+        damage(S, a.to[0], a.to[1], qd, side, ev, 'qishe', p);
+        if (ctr && (S.board[a.to[1]][a.to[0]] === q0 || CFG_CUR.counter.onDeath)) hitBack(S, a.at, p, q0, ev, pre);`);
   // 回春
   rep(`        if (side === 'r' && hmActive(S)) { S.fx.hm = S.cnt.r; extra.rescue = true; ev.push({ e: 'rescue', id: p.id, at: k.slice() }); }
       } else return null;`,
@@ -110,8 +113,8 @@ function enginePath() {
   // 回春没有目标，不进“只要打到敌子”的静态搜索
   rep("        if (capsOnly && sk === 'hujia') continue;", "        if (capsOnly && (sk === 'hujia' || sk === 'huichun')) continue;");
   // 回春是原地的技能：背水冻结的象也能用（98dd206 的冻结规则：冻结的子只能用原地的技能）
-  rep("      if (frozen(S, p) && sk !== 'juma' && sk !== 'qishe') return null;",
-      "      if (frozen(S, p) && sk !== 'juma' && sk !== 'qishe' && sk !== 'huichun') return null;   // 变体：回春也是原地的技能");
+  rep("      if (frozen(S, p) && sk !== 'juma' && sk !== 'qishe') return null;   // 冻结的子只能用原地的技能\n",
+      "      if (frozen(S, p) && sk !== 'juma' && sk !== 'qishe' && sk !== 'huichun') return null;   // 冻结的子只能用原地的技能（变体：回春也是）\n");
   const file = path.join(os.tmpdir(), `bingfa_counter_${rev.replace(/[^\w.-]/g, '_')}_${process.pid}.js`);
   fs.writeFileSync(file, s);
   built = file;
