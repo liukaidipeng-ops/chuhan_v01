@@ -1463,7 +1463,7 @@
     get b() {
       const B = BF.CFG.beishui;
       if (!B.on) return '连走两步（不能用技能，第二步不能将军）。此后 3 回合楚军不能用兵种技能。每局一次。';
-      return `绝境里的反扑：楚军车马炮${B.maxLeft != null ? `最多还剩 ${B.maxLeft} 枚、而且` : ''}比汉军少时才能用。两枚不同的子各走一步，合计最多吃 ${B.maxKills} 个子${B.check === 'none' ? '，不能将军' : ''}；用过的两枚子下一回合不能动（被将军时可以去吃掉将军的那枚）。每局一次。`;
+      return `绝境里的反扑：楚军车马炮${B.maxLeft != null ? `最多还剩 ${B.maxLeft} 枚、而且` : ''}比汉军少时才能用。两枚不同的子各走一步，合计最多吃 ${B.maxKills} 个子；只看两步走完：己方不被将军、也不将着对方就行（中途不限，可以各挡一路解双将）。用过的两枚子下一回合不能动（被将军时可以去吃掉将军的那枚）。每局一次。`;
     } };
   const ULT_DESC = { r: `${BF.CFG.ultimates.cost} 军功，楚将两格内须有 ${BF.CFG.ultimates.simian.minPiecesInRadius} 枚汉子。${BF.CFG.ultimates.simian.rounds} 回合内楚军除将外不能移动，只能吃掉将军的子，也不算将军。`, b: `${BF.CFG.ultimates.cost} 军功。汉帅 ${BF.CFG.ultimates.hongmen.rounds} 回合不能动；汉士「护驾」可破。` };
   const artTip = s => `<b>主帅兵法 · ${BF.ART_CN[s]}</b><br>${ART_DESC[s]}`;
@@ -1537,7 +1537,7 @@
       let m = 0, o = 0; for (const p of game.board.flat()) if (p && (p.t === 'r' || p.t === 'n' || p.t === 'c')) { if (p.s === 'b') m++; else o++; }
       if (BS.maxLeft != null && m > BS.maxLeft) return ['兵力尚足', `背水一战要到绝境才能用：楚军的车马炮最多还剩 ${BS.maxLeft} 枚（现在 ${m} 枚）`];
       if (m >= o) return ['未落下风', `背水一战要楚军的车马炮比汉军少才能用（现在楚 ${m} 枚、汉 ${o} 枚）`];
-      return ['无法连走', '背水一战要两枚不同的子各走一步：每步走完己方不被将军' + (BS.check === 'none' ? '、也不能将军对方' : '') + `，两步合计最多吃 ${BS.maxKills} 个子；现在找不到这样的两步`];
+      return ['无法连走', `背水一战要两枚不同的子各走一步：两步走完时己方不被将军、也不将着对方，合计最多吃 ${BS.maxKills} 个子；现在找不到这样的两步`];
     }
     return ['无法连走', '破釜沉舟要连走两步普通走子：每步走完己方不被将军，两步走完不能将军对方；现在找不到这样的两步'];
   }
@@ -1656,7 +1656,7 @@
         return;
       }
       bfClear();
-      bfMode = { kind: 'pofu', firsts: game.pofuFirst(), hint: BF.CFG.beishui.on ? '背水一战 · 第一步：选一枚子走一步（两枚不同的子各走一步，最多吃一个子）' : '破釜沉舟 · 第一步：选子走一步（两步走完不能将军）' };
+      bfMode = { kind: 'pofu', firsts: game.pofuFirst(), hint: BF.CFG.beishui.on ? '背水一战 · 第一步：选一枚子走一步（两枚不同的子各走一步，最多吃一个子；走完两步不被将、也不将对方）' : '破釜沉舟 · 第一步：选子走一步（两步走完不能将军）' };
       renderBar(); return;
     }
     if (a === 'ult') {
@@ -2835,7 +2835,7 @@
   const q = new URLSearchParams(location.search);
   const urlRoom = (q.get('room') || '').toUpperCase();
   const hostRec = store.get('host', null);
-  if (/[?&]beishui=1/.test(location.search)) { BF.CFG.beishui.on = true; if (/[?&]check=allow/.test(location.search)) BF.CFG.beishui.check = 'allow'; }
+  if (/[?&]beishui=1/.test(location.search)) BF.CFG.beishui.on = true;   // 试验开关：网址带 ?beishui=1 时用背水一战代替破釜沉舟（只在这台机器上生效）
   window.__xq = {
     get busy() { return busy; }, get started() { return started; }, get game() { return game; }, get mode() { return mode; }, get aiThinking() { return aiThinking; },
     doMove, startGame, finishGame, Ending, Fx, Board, Core, Camp, Squads, Spect, setView, onData, Net, requestUndo, sendEmote, get clock() { return clock; }, get opts() { return opts; }, joinRoom, notation, get notes() { return notes; }, aiSay,

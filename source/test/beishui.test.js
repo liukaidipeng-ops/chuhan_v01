@@ -8,7 +8,7 @@ let pid = 600; const P = (s, t, lv = 1, x = {}) => ({ s, t, id: pid++, lv, hp: B
 const pos = (pieces, o = {}) => { const g = new BF.Game(); g.setup(T => { for (const row of T.board) row.fill(null); for (const [f, r, p] of pieces) T.board[r][f] = p; T.turn = o.turn || 'b'; T.merit = { r: 0, b: 0, ...(o.merit || {}) }; T.used = { art: { r: 0, b: 0, ...(o.art || {}) }, ult: { r: 0, b: 0 } }; T.cnt = { r: 10, b: 10 }; if (o.dead) T.dead = o.dead; }); return g; };
 const B = BF.CFG.beishui;
 // 每组测试前把配置拨回：on 关、不限“丢一半”（maxLeft: null）、宽松解将（strictEscape: false），再按需要改
-const cfg = (x) => { const { fewer, ...rest } = x; Object.assign(B, { on: false, maxLeft: null, twoPieces: true, maxKills: 1, check: 'none', freeze: 1, strictEscape: false }, rest); B.fewer = { r: !!(fewer && fewer.r) }; };
+const cfg = (x) => { const { fewer, ...rest } = x; Object.assign(B, { on: false, maxLeft: null, twoPieces: true, maxKills: 1, freeze: 1, strictEscape: false }, rest); B.fewer = { r: !!(fewer && fewer.r) }; };
 const art = (s1, s2) => ({ k: 'art', steps: [{ from: s1[0], to: s1[1] }, { from: s2[0], to: s2[1] }] });
 const find = (g, id) => { for (let r = 0; r < 10; r++) for (let f = 0; f < 9; f++) { const p = g.at(f, r); if (p && p.id === id) return { p, at: [f, r] }; } return null; };
 const KR = () => P('r', 'k'), KB = () => P('b', 'k');
@@ -35,11 +35,33 @@ console.log('2. 两枚不同的子；最多吃一个子');
   ok(!!BF.attempt(g.S, art([[0, 9], [0, 5]], [[6, 7], [7, 5]])), '车吃兵 + 马走空格：合法');
   ok(BF.ai.pofuPairs(g.S).every(k => { const a = k.a.steps; return !(a[1].from[0] === a[0].to[0] && a[1].from[1] === a[0].to[1]); }), '电脑候选里没有同一枚子连走'); }
 
-console.log('3. 将军：A 不许、B 可以');
-{ const mk = () => pos([[3, 0, KR()], [5, 9, KB()], [0, 9, P('b', 'r')], [8, 6, P('b', 'p')], [0, 0, P('r', 'r')], [8, 0, P('r', 'r')]]);
-  cfg({ on: true, fewer: { b: true }, check: 'none' }); ok(!BF.attempt(mk().S, art([[0, 9], [3, 9]], [[8, 6], [8, 5]])), 'A：车平到帅所在的线将军 → 不合法');
-  ok(!BF.attempt(mk().S, art([[8, 6], [8, 5]], [[0, 9], [3, 9]])), 'A：第二步将军也不合法');
-  cfg({ on: true, fewer: { b: true }, check: 'allow' }); ok(!!BF.attempt(mk().S, art([[0, 9], [3, 9]], [[8, 6], [8, 5]])), 'B：可以将军'); }
+console.log('3. 只看结算：两步走完时楚将不被将、也不将着汉帅；过程不限');
+{ cfg({ on: true });
+  const mk = () => pos([[3, 0, KR()], [5, 9, KB()], [0, 9, P('b', 'r')], [8, 6, P('b', 'p')], [0, 0, P('r', 'r')], [8, 0, P('r', 'r')]]);
+  ok(!BF.attempt(mk().S, art([[8, 6], [8, 5]], [[0, 9], [3, 9]])), '第二步将军、走完还将着对方：不合法');
+  ok(!BF.attempt(mk().S, art([[0, 9], [3, 9]], [[8, 6], [8, 5]])), '第一步将军、第二步没挡上：不合法');
+  const chk = () => pos([[3, 0, KR()], [5, 9, KB()], [0, 0, P('r', 'r')], [8, 0, P('r', 'r')], [6, 0, P('r', 'n')], [0, 5, P('b', 'r')], [1, 4, P('b', 'n')]]);
+  ok(!!BF.attempt(chk().S, art([[0, 5], [3, 5]], [[1, 4], [3, 3]])), '第一步将了对方、第二步自己挡上：合法');
+  ok(!BF.attempt(chk().S, art([[1, 4], [2, 6]], [[0, 5], [3, 5]])), '走完将着对方：不合法');
+  const dbl = () => pos([[3, 0, KR()], [4, 9, KB()], [0, 9, P('r', 'r')], [4, 4, P('r', 'r')], [6, 0, P('r', 'n')], [2, 7, P('b', 'r')], [6, 6, P('b', 'c')]]);
+  ok(BF.ai.inCheck(dbl().S, 'b'), '楚将被两路车双将');
+  ok(!!BF.attempt(dbl().S, art([[2, 7], [2, 9]], [[6, 6], [4, 6]])), '两枚子各挡一路解双将：合法');
+  ok(BF.ai.pofuPairs(dbl().S).some(k => JSON.stringify(k.a) === JSON.stringify(art([[2, 7], [2, 9]], [[6, 6], [4, 6]]))), '电脑候选里有这一手');
+  ok(!BF.evaluate(dbl().S).result, '有这一手，就不判将死');
+  ok(dbl().pofuFirst().some(m => m.from[0] === 2 && m.from[1] === 7 && m.to[0] === 2 && m.to[1] === 9), '界面第一步候选里有“先挡一路”（走完第一步还被将着）');
+  // 将先走进被将的格子，第二步再挡上
+  const kin = () => pos([[3, 0, KR()], [4, 9, KB()], [5, 3, P('r', 'r')], [8, 0, P('r', 'r')], [6, 0, P('r', 'n')], [0, 8, P('b', 'r')]]);
+  ok(!BF.attempt(kin().S, { k: 'mv', from: [4, 9], to: [5, 9] }), '平时：将不能走进车口');
+  ok(!!BF.attempt(kin().S, art([[4, 9], [5, 9]], [[0, 8], [5, 8]])), '背水：将先走进车口、车再挡上：合法');
+  ok(!BF.attempt(kin().S, art([[4, 9], [5, 9]], [[0, 8], [0, 7]])), '背水：将走进车口、第二步没挡：不合法'); }
+console.log('3b. 最多死一个汉子：践踏踩死的也算');
+{ cfg({ on: true });
+  const E = P('b', 'e', 4), N = P('b', 'n');
+  // 四级楚象（践踏）吃掉 (4,7) 的兵，周围一圈的一血汉兵也被踩死 → 两个子
+  const g = pos([[3, 0, KR()], [5, 9, KB()], [2, 9, E], [7, 9, N], [4, 7, P('r', 'p')], [5, 6, P('r', 'p')], [0, 0, P('r', 'r')], [8, 0, P('r', 'r')]]);
+  const r1 = BF.attempt(g.S, { k: 'mv', from: [2, 9], to: [4, 7] });
+  ok(r1 && r1.ev.filter(e => e.e === 'kill' && e.s === 'r').length === 2, '前提：象吃兵 + 践踏踩死旁边的兵（单走这一步死两个）');
+  ok(!BF.attempt(g.S, art([[2, 9], [4, 7]], [[7, 9], [6, 7]])), '背水里这样走：死了两个子，不合法'); }
 
 console.log('4. 冻结一回合；被将军时可以吃子解将；没有技能封锁');
 { cfg({ on: true, fewer: { b: true } });
@@ -104,9 +126,9 @@ console.log('12. 至少丢了一半车马炮（maxLeft = 3）');
   const g3 = pos([...base, [1, 9, P('b', 'n')], [7, 9, P('b', 'n')]]); ok(!!BF.attempt(g3.S, art([[0, 9], [0, 5]], [[8, 6], [8, 5]])), '楚剩 3 枚、汉 5 枚：能用');
   const g4 = pos([...base, [1, 9, P('b', 'n')], [7, 9, P('b', 'n')], [1, 7, P('b', 'c')]]); ok(!BF.attempt(g4.S, art([[0, 9], [0, 5]], [[8, 6], [8, 5]])), '楚剩 4 枚（比汉少，但没丢一半）：不能用');
   B.maxLeft = null; ok(!!BF.attempt(g4.S, art([[0, 9], [0, 5]], [[8, 6], [8, 5]])), '不设 maxLeft：照第一版能用'); }
-console.log('13. 电脑候选（pofuPairs 快的写法）和逐个试走（pofuPairsRef）逐项相同——背水开着，两种将军规则都核对');
-for (const check of ['none', 'allow']) {
-  cfg2({ on: true, maxLeft: 3, strictEscape: true, check });
+console.log('13. 电脑候选（pofuPairs 快的写法）和逐个试走（pofuPairsRef）逐项相同——背水开着');
+for (const check of ['none']) {
+  cfg2({ on: true, maxLeft: 3, strictEscape: true });
   let seed = 4242; const rnd = () => { seed |= 0; seed = seed + 0x6D2B79F5 | 0; let t = Math.imul(seed ^ seed >>> 15, 1 | seed); t = t + Math.imul(t ^ t >>> 7, 61 | t) ^ t; return ((t ^ t >>> 14) >>> 0) / 4294967296; };
   let positions = 0, pairs = 0, quiet = 0;
   for (let gi = 0; gi < 6; gi++) {
@@ -122,7 +144,7 @@ for (const check of ['none', 'allow']) {
         for (const k of A) {
           const st = k.a.steps, p1 = S.board[st[0].from[1]][st[0].from[0]];
           assert.ok(k.ev.filter(e => e.e === 'kill' && !e.friendly && e.s === 'r').length <= 1, '背水组合吃了不止一个子');
-          if (check === 'none') assert.ok(!BF.ai.inCheck(k.S, 'r'), '不许将军的版本里出现了将军的组合');
+          assert.ok(!BF.ai.inCheck(k.S, 'r') && !BF.ai.inCheck(k.S, 'b'), '走完之后有一方被将着');
           assert.ok(k.S.board.flat().filter(q => q && q.s === 'b' && q.bz).length === 2 || k.ev.some(e => e.e === 'kill' && e.s === 'b'), '应该正好冻结两枚子');
           if (!k.ev.some(e => e.e === 'kill' || e.e === 'hit')) quiet++;
         }
@@ -135,8 +157,8 @@ for (const check of ['none', 'allow']) {
       if (!g.apply(pick.a)) break;
     }
   }
-  ok(positions >= 20 && pairs > 500, `check=${check}：${positions} 个局面、${pairs} 个组合逐项相同（其中不打子的防守组合 ${quiet} 个）`);
+  ok(positions >= 20 && pairs > 500, `${positions} 个局面、${pairs} 个组合逐项相同（其中不打子的防守组合 ${quiet} 个）`);
 }
 cfg2({});
-Object.assign(B, { on: false, maxLeft: 3, twoPieces: true, maxKills: 1, check: 'none', freeze: 1, strictEscape: true }); B.fewer = { r: false };
+Object.assign(B, { on: false, maxLeft: 3, twoPieces: true, maxKills: 1, freeze: 1, strictEscape: true }); B.fewer = { r: false };
 console.log('BEISHUI OK', pass, '项');

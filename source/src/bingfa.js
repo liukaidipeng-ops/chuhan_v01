@@ -41,11 +41,12 @@
     longCheckLimit: 6,
     // 背水一战（on = true 时代替楚方的破釜沉舟；默认关，线上还是破釜沉舟）：
     //   轮到楚方时，楚方车马炮最多还剩 maxLeft 枚、而且比汉方的车马炮少，才能用（每局一次，次数仍看 generalArts.pofu.usesPerGame）；
-    //   两枚不同的子各走一步（twoPieces），两步合计最多吃掉 maxKills 个子（打伤不算）；check: 'none' = 哪一步都不能将军，'allow' = 可以；
+    //   两枚不同的子各走一步（twoPieces），两步合计最多吃掉 maxKills 个子（践踏踩死的也算，打伤不算）；
+    //   只看结算：两步走完时楚将不被将军、也不将着汉帅；过程不限（可以各挡一路解双将，第一步可以先走进被将的格子、先将一下对方）；
     //   用完没有技能封锁，但用过的两枚子在楚方之后 freeze 个回合里不能动（原地的拒马、齐射能用）——
     //   例外：楚方被将军时，冻结的子可以去吃正在将军的那枚（strictEscape：只能吃它，而且要吃死；false = 吃哪个子都行，只要解了将）
     //   fewer.r：汉方的召回良将也要“汉方车马炮比楚方少”才能用（和 on 无关，单独的开关）
-    beishui: { on: false, maxLeft: 3, twoPieces: true, maxKills: 1, check: 'none', freeze: 1, strictEscape: true, fewer: { r: false } },
+    beishui: { on: false, maxLeft: 3, twoPieces: true, maxKills: 1, freeze: 1, strictEscape: true, fewer: { r: false } },
   };
   // 主技能（三级解锁）；SKILLS_OF 列出这一兵种全部技能（含四级的）
   const SKILL_OF = (t, s) => ({ p: 'juma', r: 'chongzhen', n: 'taying', c: 'pili', a: 'hujia', e: s === 'r' ? 'qishe' : 'jianta' })[t] || null;
@@ -323,7 +324,7 @@
   // 破釜沉舟 / 背水一战两步走完之后的收尾（resolve 和 pofuPairs 共用）：合不合规矩、封锁 / 冻结
   function bsFinish(S, BS, ids, ev, ev00) {
     if (BS && ev.slice(ev00).filter(e => e.e === 'kill' && !e.friendly && e.s === 'r').length > BS.maxKills) return false;   // 最多吃掉几个子
-    if (!(BS ? BS.check === 'allow' : CFG_CUR.generalArts.pofu.mayEndInCheck) && inCheckF(S, 'r')) return false;
+    if ((BS || !CFG_CUR.generalArts.pofu.mayEndInCheck) && inCheckF(S, 'r')) return false;   // 走完不能将着对方（背水一战一律不许）
     S.fx.pf = S.cnt.b + 1 + (BS ? 0 : CFG_CUR.generalArts.pofu.skillLockRounds);   // 背水一战没有技能封锁
     if (BS) for (const row of S.board) for (const q of row) if (q && q.s === 'b' && ids.includes(q.id)) q.bz = S.cnt.b + 1 + BS.freeze;   // 用过的两枚子冻结
     return true;
@@ -427,8 +428,7 @@
           if (mm.via) { setCd(S, p, mm.via); ev.push({ e: 'passive', sk: mm.via, id: p.id }); }
           trample(S, p, m.to, res, side, ev);
           extra.steps.push({ from: m.from, to: m.to, res, ev0: n0, ev1: ev.length });
-          if (inCheckF(S, side)) return null;
-          if (BS && BS.check === 'none' && inCheckF(S, 'r')) return null;   // 背水一战（不许将军的版本）：哪一步都不能将军
+          if (!BS && inCheckF(S, side)) return null;   // 破釜沉舟：每一步走完己方都不能被将军；背水一战只看两步走完之后
         }
         if (!bsFinish(S, BS, ids, ev, ev00)) return null;
       }
@@ -622,13 +622,13 @@
     // 结果和“每个组合都 attempt 一遍”完全一样（test/bingfa.test.js 里逐个核对），只是省掉了重复劳动：
     //   第一步只结算一次，第二步从第一步结算完的局面接着走；每一步照 resolve() 里破釜沉舟那一段原样结算
     const out = [], side = 'b', lim = CFG_CUR.longCheckLimit, hist = S.ckHist[side];
-    const BS = BSon(), noChk = BS && BS.check === 'none', bsDef = !!BS && inCheckF(S, 'b');   // 背水一战：楚方被将军时，不打子的两步（防守）也列出来
+    const BS = BSon(), bsDef = !!BS && inCheckF(S, 'b');   // 背水一战：楚方被将军时，不打子的两步（防守）也列出来
     const step = (T, m, ev) => {
       const p = T.board[m.from[1]][m.from[0]];
       const res = strike(T, m.from, m.to, side, ev);
       if (m.via) { setCd(T, p, m.via); ev.push({ e: 'passive', sk: m.via, id: p.id }); }
       trample(T, p, m.to, res, side, ev);
-      return !inCheckF(T, side) && !(noChk && inCheckF(T, 'r'));
+      return !!BS || !inCheckF(T, side);   // 背水一战中途不查将军，只看两步走完
     };
     for (let r = 0; r < 10; r++) for (let f = 0; f < 9; f++) {
       const p = S.board[r][f]; if (!p || p.s !== 'b') continue;
@@ -673,7 +673,7 @@
         const t1 = at(S, m1.to[0], m1.to[1]), hit1 = !!t1;
         const T = cloneState(S), ev = [];
         strike(T, m1.from, m1.to, 'b', ev);
-        if (!T.final && inCheck(T.board, 'b')) continue;
+        if (!T.final && inCheck(T.board, 'b') && !BSon()) continue;
         for (let r2 = 0; r2 < 10; r2++) for (let f2 = 0; f2 < 9; f2++) {
           const q = T.board[r2][f2]; if (!q || q.s !== 'b') continue;
           if (!mine1 && q.id !== only) continue;
@@ -709,7 +709,7 @@
     const T = cloneState(S), ev = [];
     if (!at(T, m1.from[0], m1.from[1])) return [];
     strike(T, m1.from, m1.to, 'b', ev);
-    if (!T.final && inCheck(T.board, 'b')) return [];
+    if (!T.final && inCheck(T.board, 'b') && !BSon()) return [];   // 背水一战：第一步走完被将也行，只看两步走完
     const out = [];
     for (let r = 0; r < 10; r++) for (let f = 0; f < 9; f++) {
       const p = T.board[r][f]; if (!p || p.s !== 'b') continue;
