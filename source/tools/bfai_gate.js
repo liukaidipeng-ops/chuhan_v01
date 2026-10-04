@@ -3,7 +3,7 @@
 //   --seed N：对打用的起始种子（默认 1，换一个种子复跑可以看结论稳不稳）；--match-games N：对打最多几局（默认读 bfai_gate.json 的 match.maxGames）
 //   闸门（门槛写在 tools/bfai_gate.json，null = 还没定、只量基准）：
 //     1. 考题自检：考卷本身摆得对（--lint，几秒钟）
-//     2. 不退步：和上一版对打，换边、序贯检验——**能不能上线由它决定，所以排在考卷前面**（2026-10-03 chat 的建议：
+//     2. 不退步（校尉档）：和上一版对打，换边、序贯检验——**能不能上线由它决定，所以排在考卷前面**（2026-10-03 chat 的建议：
 //        “考卷全对 ≠ 更强”，cf47f5e 考卷满分、对打却输给旧版）。上一版默认读 bfai_gate.json 的 match.prev（线上那一版），
 //        --prev 可以改，--no-match 跳过；--match-json FILE 把每局明细存下来（升级次数、兵法使用等，方便事后对比）
 //     3. 考卷：校尉档、霸王档的总分和每一类的分（考的是“懂不懂机制”，不能代替对打）
@@ -51,12 +51,15 @@ const gate = (name, value, limit, ok, note = '') => rows.push({ name, value, lim
   const lint = await run(['tools/bfai_exam.js', '--lint'], '考题自检');
   gate('考题自检', lint.code === 0 ? '通过' : '有问题', '必须通过', lint.code === 0);
 
-  // 2. 不退步（对打，决定能不能上线）
+  // 2. 不退步（校尉档；对打，决定能不能上线）
   if (opt.prev) {
     const sprt = (conf.match && conf.match.sprt) || [-30, 10];
     const r = await run(['tools/bfsim.js', '--match', `${opt.ai},${opt.prev}`, '--games', String(opt.matchGames || (conf.match && conf.match.maxGames) || 600), ...(opt.seed != null ? ['--seed', String(opt.seed)] : []), '--sprt', sprt.join(','), '--jobs', String(opt.jobs), ...nodes, ...(opt.matchJson ? ['--json', opt.matchJson] : [])], '不退步');
     const verdict = /→ (通过|不通过|还没有结论)/.exec(r.out), elo = /Elo 差 (\S+)（95% 区间 (\S+) ～ (\S+)）/.exec(r.out);
-    gate(`对上一版（${opt.prev}）`, elo ? `Elo ${elo[1]}（${elo[2]}～${elo[3]}）` : '出错', `序贯检验 ${sprt.join(' 对 ')} 通过`, !!verdict && verdict[1] === '通过', verdict ? verdict[1] : '');
+    // “通过”只说明不比上一版明显弱，不等于更强（Fable 审查 M3）；“还没有结论”记作待定，仍算不合格（审查 S7）；种子打印出来，每个候选最好换一批新种子（审查 S5）
+    const v = verdict ? verdict[1] : '', seed = opt.seed != null ? opt.seed : 1;
+    const note = (v === '通过' ? '通过（不比上一版明显弱，不等于更强）' : v === '还没有结论' ? '待定（局数上限到了）：区间上限 < 0 按不通过，否则加局数再跑' : v) + `；种子 ${seed}` + (opt.seed == null ? '（默认，建议用 --seed 换一批新种子）' : '');
+    gate(`对上一版（${opt.prev}，校尉档）`, elo ? `Elo ${elo[1]}（${elo[2]}～${elo[3]}）` : '出错', `序贯检验 ${sprt.join(' 对 ')} 通过`, v === '通过', note);
   }
 
   // 3. 考卷（校尉、霸王）
