@@ -1,0 +1,7 @@
+{
+  "batch": "b1",
+  "list_voices": true,
+  "jobs": [
+    { "id": "xiang_base", "voice": "~说书", "text": "(snorts)愚蠢！<#0.4#>庶子不可教也！", "emotion": "angry", "speed": 1.11, "pitch": -3, "vol": 1 }
+  ]
+}
