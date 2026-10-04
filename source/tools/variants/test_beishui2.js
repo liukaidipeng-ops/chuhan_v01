@@ -119,5 +119,16 @@ console.log('12. 第三版：至少丢了一半车马炮（maxLeft.b = 3）');
   const g3 = pos([...base, [1, 9, P('b', 'n')], [7, 9, P('b', 'n')]]); ok(!!BF.attempt(g3.S, art([[0, 9], [0, 5]], [[8, 6], [8, 5]])), '楚剩 3 枚、汉 5 枚：能用');
   const g4 = pos([...base, [1, 9, P('b', 'n')], [7, 9, P('b', 'n')], [1, 7, P('b', 'c')]]); ok(!BF.attempt(g4.S, art([[0, 9], [0, 5]], [[8, 6], [8, 5]])), '楚剩 4 枚（比汉少，但没丢一半）：不能用');
   B.maxLeft = { r: null, b: null }; ok(!!BF.attempt(g4.S, art([[0, 9], [0, 5]], [[8, 6], [8, 5]])), '不设 maxLeft：照第一版能用'); }
+console.log('13. 第四版：只看结算（finalOnly，用户定）');
+{ const dbl = () => pos([[3, 0, KR()], [4, 9, KB()], [0, 9, P('r', 'r')], [4, 4, P('r', 'r')], [6, 0, P('r', 'n')], [2, 7, P('b', 'r')], [6, 6, P('b', 'c')]]);
+  cfg2({ on: true, fewer: { b: true }, maxLeft: { r: null, b: 3 } }); B.maxLeft = { r: null, b: 3 };
+  ok(!BF.attempt(dbl().S, art([[2, 7], [2, 9]], [[6, 6], [4, 6]])), '双将、两枚子各挡一路：按每步都要解将的老规矩不行');
+  B.finalOnly = true; ok(!!BF.attempt(dbl().S, art([[2, 7], [2, 9]], [[6, 6], [4, 6]])), '只看结算：各挡一路解双将，行');
+  ok(BF.ai.pofuPairs(dbl().S).length > 0, '电脑候选里也有这种组合');
+  ok(!BF.evaluate(dbl().S).result, '有这一手，就不判将死');
+  const chk = () => pos([[3, 0, KR()], [5, 9, KB()], [0, 0, P('r', 'r')], [8, 0, P('r', 'r')], [6, 0, P('r', 'n')], [0, 5, P('b', 'r')], [1, 4, P('b', 'n')]]);
+  ok(!!BF.attempt(chk().S, art([[0, 5], [3, 5]], [[1, 4], [3, 3]])), '第一步将了对方、第二步自己挡上，结算时不将军：行');
+  ok(!BF.attempt(chk().S, art([[1, 4], [2, 6]], [[0, 5], [3, 5]])), '结算时将着对方：不行（A）');
+  B.finalOnly = false; ok(!BF.attempt(chk().S, art([[0, 5], [3, 5]], [[1, 4], [3, 3]])), '关掉 finalOnly：第一步将军就不行'); B.maxLeft = { r: null, b: null }; }
 cfg2({});
 console.log('通过', pass, '项');
