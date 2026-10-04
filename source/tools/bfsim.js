@@ -655,7 +655,7 @@ function merge(o) {
   const parts = o.merge.map(f => JSON.parse(fs.readFileSync(f, 'utf8')));
   const a0 = parts[0].args;
   if (a0.match) throw new Error('--merge 暂不支持对打（--match）的结果');
-  const same = a => JSON.stringify({ ...a, games: 0, seed: 0, json: null, jobs: 0, quiet: false });
+  const same = a => JSON.stringify({ ...a, games: 0, seed: 0, json: null, jobs: 0, quiet: false, merged: null });   // merged：已经合并过的那份记着来源
   for (const [i, p] of parts.entries()) if (same(p.args) !== same(a0)) throw new Error(`第 ${i + 1} 份的参数和第 1 份不一样（只许种子、局数、并行数不同）`);
   const results = parts.flatMap(p => p.results).sort((x, y) => x.seed - y.seed), errors = parts.flatMap(p => p.errors || []);
   const seen = new Set();
