@@ -1,7 +1,7 @@
 # 楚汉·技能版象棋：测试笔记（Claude Code 维护）
 
 > 用户要求（2026-10-04）：把重要信息写进这个文件，**每完成一轮测试就更新**。
-> 最后更新：2026-10-04 04:45（Claude Code，分支 `claude/gallant-planck-rwr5az`）
+> 最后更新：2026-10-04 05:40（Claude Code，分支 `claude/gallant-planck-rwr5az`）
 >
 > 相关文件：`source/docs/collab/decisions.md`（用户拍板，原话）、`source/docs/collab/code-to-chat.md`（Code→chat，C1…）、
 > dev 分支上的 `source/docs/collab/chat-to-code.md`（chat→Code，H1…）、`source/docs/bfai-qualification.md`（电脑合格标准）。
@@ -82,7 +82,8 @@
 - 必须改 3 条（网页变慢、修完复测、措辞），建议改 23 条，顺序清单在 fable-notes §6。
 
 ### 1.5 考卷
-- `source/tools/bfai_exam.js` 共 35 题 + 实战题，分类：血量、技能、军功、兵法、终极、决战、贴脸、**破釜反击（31～35，2026-10-04 新增）**、实战。
+- `source/tools/bfai_exam.js` 共 41 题 + 实战题，分类：血量、技能、军功、兵法、终极、决战、贴脸、**破釜反击（31～35）**、**战略（36～41，2026-10-04 新增，电脑的四个缺口）**、实战。
+- **战略类基准（校尉 6 万节点、每题 3 次）**：b18c278 **0/18**；线上 25eb911 **9/18**（36 吃炮不怕破釜、39 升象践踏、40 升士禁卫斩车全对）。b18c278 在“该升士象时升士象”上比线上版退步（升级候选只留前三名，把守子挤掉了）。第 36、41 题不提防破釜的电脑也能答对，要和第 24 题一起看。
 - 新题都过了三关：自检（`--lint`）、深搜复核（`--verify`）、对照（去掉封锁，标准答案不成立）。
 
 ---
