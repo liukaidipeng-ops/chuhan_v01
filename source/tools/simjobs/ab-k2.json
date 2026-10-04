@@ -1,0 +1,3 @@
+{ "args": "--games 1000 --seed 1000 --nodes mid=60000 --ai git:98dd206 --set beishui.on=true --set beishui.twoPieces=false --set attack.k=[2]",
+  "env": { "BFSIM_ENGINE": "tools/variants/engine_at.js", "ENGINE_REV": "98dd206" }, "chunks": 20,
+  "note": "用户要求重测：将帅攻击 2（新规则 = 背水两种都可以 + 新电脑 98dd206）；对照 native-either-1300 的种子 1000～1999" }

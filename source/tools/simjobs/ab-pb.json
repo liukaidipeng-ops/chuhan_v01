@@ -1,0 +1,3 @@
+{ "args": "--games 1000 --seed 1000 --nodes mid=60000 --ai git:98dd206 --set beishui.on=true --set beishui.twoPieces=false --set attack.p=[1,2,2,3] --set hpByType.p=[1,2,3,4]",
+  "env": { "BFSIM_ENGINE": "tools/variants/engine_at.js", "ENGINE_REV": "98dd206" }, "chunks": 20,
+  "note": "Plan B（用户）：兵攻击按等级 1/2/2/3，血按等级 1/2/3/4（四级兵 4 血）" }
