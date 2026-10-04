@@ -23,6 +23,7 @@
 // 对打（新旧电脑比强弱）：node tools/bfsim.js --match 新,旧 [--games 上限] [--sprt e0,e1] [--nodes N]
 //   每个种子下两局、双方交换先后手；电脑可以写文件路径，也可以写 git:提交号（取那一版的 src/bfai.js，配当前的规则引擎）。
 //   序贯检验（SPRT）：每下完一对就检验一次，能下结论就停。默认 e0,e1 = -30,10（Elo）：
+//     --fixed：不提前停，局数下满（换种子复查、量误差用；结论仍按最后的 LLR 报）
 //     “通过”= 新版不比旧版明显弱；“不通过”= 新版明显弱了。想证明“更强”用 --sprt 0,40。
 //   --nodes N 或 mid=60000,hard=200000：电脑按搜索节点数收手（LEVELS.<档>.nodes），结果和机器快慢无关。
 //   拉旧版电脑时，引擎里没有它要用的接口会直接报错（不会悄悄少功能）；版本号对不上会提示。
@@ -338,6 +339,7 @@ function parseArgs(argv) {
     else if (k === '--ai-b') o.aiB = v();
     else if (k === '--match') o.match = v().split(',');
     else if (k === '--sprt') o.sprt = v().split(',').map(Number);
+    else if (k === '--fixed') o.fixed = true;
     else if (k === '--nodes') o.nodes = v();
     else if (k === '--worker') o.worker = true;
     else throw new Error('未知参数 ' + k);
@@ -579,7 +581,7 @@ async function run(o) {
         if (m.error) errors.push(m);
         done++;
         // 序贯检验：每下完一对就看一次，能下结论就不再发新局（正在下的下完为止）
-        if (o.match && !stopped && done % 2 === 0) { const st = matchStats(results, o.sprt); if (st.verdict) { stopped = st; next = jobs.length; } }
+        if (o.match && !o.fixed && !stopped && done % 2 === 0) { const st = matchStats(results, o.sprt); if (st.verdict) { stopped = st; next = jobs.length; } }
         if (!o.quiet && process.stderr.isTTY) process.stderr.write(`\r${done}/${jobs.length}`);
         else if (done % 25 === 0 || done === jobs.length) process.stderr.write(`进度 ${done}/${jobs.length}  ${Math.round((Date.now() - t0) / 1000)}s` + (o.match ? (st => `  新版得分 ${pct(st.score)}  Elo ${st.elo.toFixed(0)}  LLR ${st.llr.toFixed(2)}`)(matchStats(results, o.sprt)) : '') + '\n');
         feed();
