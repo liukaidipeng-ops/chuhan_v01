@@ -1,15 +1,117 @@
 {
-  "batch": "b2",
-  "list_voices": true,
-  "jobs": [
-    {
-      "id": "xiang_base",
-      "voice": "~说书",
-      "text": "(snorts)愚蠢！<#0.4#>庶子不可教也！",
-      "emotion": "angry",
-      "speed": 1.11,
-      "pitch": -3,
-      "vol": 1
-    }
-  ]
+ "batch": "b3",
+ "list_voices": false,
+ "hosts": [
+  "https://api.minimax.cn"
+ ],
+ "jobs": [
+  {
+   "id": "xiang_1",
+   "text": "(snorts)愚蠢！<#0.4#>庶子不可教也！",
+   "emotion": "angry",
+   "voice": "Chinese (Mandarin)_Humorous_Elder",
+   "speed": 1.11,
+   "pitch": -3,
+   "vol": 1
+  },
+  {
+   "id": "xiang_2",
+   "text": "吾乃西楚霸王！谁敢挡我！",
+   "emotion": "angry",
+   "voice": "Chinese (Mandarin)_Humorous_Elder",
+   "speed": 1.11,
+   "pitch": -3,
+   "vol": 1
+  },
+  {
+   "id": "xiang_3",
+   "text": "哈哈哈哈！再来！",
+   "emotion": "happy",
+   "voice": "Chinese (Mandarin)_Humorous_Elder",
+   "speed": 1.11,
+   "pitch": -3,
+   "vol": 1
+  },
+  {
+   "id": "xiang_4",
+   "text": "此天之亡我，<#0.3#>非战之罪也！",
+   "emotion": "sad",
+   "voice": "Chinese (Mandarin)_Humorous_Elder",
+   "speed": 1.11,
+   "pitch": -3,
+   "vol": 1
+  },
+  {
+   "id": "liu_exec_a",
+   "voice": "Chinese (Mandarin)_Reliable_Executive",
+   "text": "托项王的福，汉中的栈道，寡人已经修好了。",
+   "emotion": "calm",
+   "speed": 1.0,
+   "pitch": -1,
+   "vol": 1
+  },
+  {
+   "id": "liu_exec_b",
+   "voice": "Chinese (Mandarin)_Reliable_Executive",
+   "text": "(chuckle)足下，<#0.3#>大势已去矣。",
+   "emotion": "calm",
+   "speed": 1.0,
+   "pitch": -1,
+   "vol": 1
+  },
+  {
+   "id": "liu_gent_a",
+   "voice": "Chinese (Mandarin)_Gentleman",
+   "text": "托项王的福，汉中的栈道，寡人已经修好了。",
+   "emotion": "calm",
+   "speed": 1.0,
+   "pitch": -1,
+   "vol": 1
+  },
+  {
+   "id": "liu_gent_b",
+   "voice": "Chinese (Mandarin)_Gentleman",
+   "text": "(chuckle)足下，<#0.3#>大势已去矣。",
+   "emotion": "calm",
+   "speed": 1.0,
+   "pitch": -1,
+   "vol": 1
+  },
+  {
+   "id": "liu_anch_a",
+   "voice": "Chinese (Mandarin)_Male_Announcer",
+   "text": "托项王的福，汉中的栈道，寡人已经修好了。",
+   "emotion": "calm",
+   "speed": 1.0,
+   "pitch": -1,
+   "vol": 1
+  },
+  {
+   "id": "liu_anch_b",
+   "voice": "Chinese (Mandarin)_Male_Announcer",
+   "text": "(chuckle)足下，<#0.3#>大势已去矣。",
+   "emotion": "calm",
+   "speed": 1.0,
+   "pitch": -1,
+   "vol": 1
+  },
+  {
+   "id": "liu_elite_a",
+   "voice": "male-qn-jingying-jingpin",
+   "text": "托项王的福，汉中的栈道，寡人已经修好了。",
+   "emotion": "calm",
+   "speed": 1.0,
+   "pitch": -1,
+   "vol": 1
+  },
+  {
+   "id": "liu_elite_b",
+   "voice": "male-qn-jingying-jingpin",
+   "text": "(chuckle)足下，<#0.3#>大势已去矣。",
+   "emotion": "calm",
+   "speed": 1.0,
+   "pitch": -1,
+   "vol": 1
+  }
+ ]
 }
