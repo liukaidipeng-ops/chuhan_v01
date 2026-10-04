@@ -1,0 +1,3 @@
+{ "args": "--games 1000 --seed 1000 --nodes mid=60000 --ai git:98dd206 --set beishui.on=true --set beishui.twoPieces=false ",
+  "env": { "BFSIM_ENGINE": "tools/variants/engine_at.js", "ENGINE_REV": "98dd206" }, "chunks": 20,
+  "note": "第二轮基准：背水两种都可以 + 正式版电脑（重跑一遍，补上“丢了几个士象”指标；种子固定，胜负和之前相同）" }

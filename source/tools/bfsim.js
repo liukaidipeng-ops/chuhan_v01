@@ -505,6 +505,8 @@ function worker() {
     }
     R.rounds = g.round;
     R.endMerit = { ...g.merit };
+    // 攻防指标（用户 2026-10-04：进攻方要先拆掉士象、再将军）：终局时双方还剩几个士象（开局各 4 个）
+    { const d = { r: 0, b: 0 }; for (const row of g.board) for (const p of row) if (p && (p.t === 'a' || p.t === 'e')) d[p.s]++; R.endDef = d; }
     R.endMat = material(g.S);
     return R;
   }
@@ -712,6 +714,22 @@ function summarize(rs) {
       redWin: pfs.filter(r => r.winner === 'r').length / pfs.length };
   }
   const mates = rs.filter(r => r.mate);
+  // 攻防指标：车参与的将死、贴脸将死、被将死的一方终局丢了几个士象、士象技能用了多少（两方合计、每局平均）
+  if (mates.length) {
+    const tl = r => String(r.mate.t || '').split(',');
+    const md = mates.filter(r => r.endDef), lost = md.map(r => 4 - r.endDef[r.winner === 'r' ? 'b' : 'r']);
+    const per = f => rs.reduce((t, r) => t + f(r, 'r') + f(r, 'b'), 0) / N;
+    const A_ = (r, s, k) => (r.act && r.act[s] && r.act[s][k]) || 0, K_ = (r, s, k) => (r.kills && r.kills[s] && r.kills[s][k]) || 0, H_ = (r, s, k) => (r.hits && r.hits[s] && r.hits[s][k]) || 0;
+    S.atkdef = {
+      rook: mates.filter(r => tl(r).some(t => t[0] === 'r')).length / mates.length,
+      rook3: mates.filter(r => tl(r).some(t => t[0] === 'r' && +t.slice(1) >= 3)).length / mates.length,
+      adj: mates.filter(r => r.mate.adj).length / mates.length,
+      n: md.length, defLost: md.length ? mean(lost) : null, dist: [0, 1, 2, 3, 4].map(k => lost.filter(x => x === k).length),
+      sk: { hujia: per((r, s) => A_(r, s, 'sk_hujia')), jinwei: per((r, s) => A_(r, s, 'via_jinwei')), feiyue: per((r, s) => A_(r, s, 'sk_feiyue')),
+            qishe: per((r, s) => A_(r, s, 'sk_qishe')), jianta: per((r, s) => K_(r, s, 'jianta') + H_(r, s, 'jianta')),
+            fanji: per((r, s) => (r.jumaCounter && r.jumaCounter[s] && r.jumaCounter[s].fanji) || 0) },
+    };
+  }
   S.mate = { n: mates.length, hard: mates.filter(r => r.mate.hp >= 2).length, hardAdj: mates.filter(r => r.mate.hardAdj).length, double: mates.filter(r => r.mate.n >= 2).length };
   // 每方每种行动：用过的局占比、平均次数
   const keys = new Set();
@@ -766,6 +784,9 @@ function print(S, o) {
   L.push(`结局：${Object.entries(S.reasons).sort((a, b) => b[1] - a[1]).map(([k, v]) => k + ' ' + v).join('  ')}`);
   L.push(`回合：平均 ${S.rounds.mean.toFixed(1)}  中位 ${S.rounds.median}  P90 ${S.rounds.p90}  60 回合内结束 ${pct(S.rounds.within60)}  进入决战 ${pct(S.final)}`);
   if (S.mate && S.mate.n) L.push(`将死 ${S.mate.n} 局：将军的子有 2 血以上 ${pct(S.mate.hard / S.mate.n)}（其中贴在帅将身边 ${pct(S.mate.hardAdj / S.mate.n)}），双将 ${pct(S.mate.double / S.mate.n)}`);
+  if (S.atkdef) { const D = S.atkdef, k = D.sk;
+    L.push(`攻防指标：车参与的将死 ${pct(D.rook)}（三级以上的车 ${pct(D.rook3)}）；贴脸将死 ${pct(D.adj)}；被将死的一方开局 4 个士象，终局平均丢 ${D.defLost == null ? '-' : D.defLost.toFixed(2)} 个（丢 0/1/2/3/4 个的局：${D.dist.join('/')}）`);
+    L.push(`士象技能（两方合计，每局平均次数）：护驾 ${k.hujia.toFixed(2)}，铁甲禁卫 ${k.jinwei.toFixed(2)}，飞越 ${k.feiyue.toFixed(2)}，齐射 ${k.qishe.toFixed(2)}，践踏打中 ${k.jianta.toFixed(2)}，反击 ${k.fanji.toFixed(2)}`); }
   if (o.quiet) { console.log(L.join('\n')); return; }
   L.push('行动（用过的局占比 / 每局平均次数）  汉 | 楚');
   for (const [k, v] of Object.entries(S.act)) L.push(`  ${cn(k).padEnd(10)} ${pct(v.r.games).padStart(6)} ${v.r.avg.toFixed(2).padStart(6)} | ${pct(v.b.games).padStart(6)} ${v.b.avg.toFixed(2).padStart(6)}`);
