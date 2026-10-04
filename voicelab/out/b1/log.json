@@ -1,0 +1,27 @@
+{
+ "batch": "b1",
+ "key_present": true,
+ "key_len": 126,
+ "host": null,
+ "probe": [
+  {
+   "host": "https://api.minimax.cn",
+   "http": 200,
+   "code": 1008,
+   "msg": "insufficient balance"
+  },
+  {
+   "host": "https://api.minimaxi.com",
+   "http": 200,
+   "code": 1008,
+   "msg": "insufficient balance"
+  },
+  {
+   "host": "https://api.minimax.io",
+   "http": 200,
+   "code": 2049,
+   "msg": "invalid api key"
+  }
+ ],
+ "jobs": []
+}
