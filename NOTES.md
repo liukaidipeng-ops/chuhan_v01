@@ -1,7 +1,7 @@
 # 楚汉·技能版象棋：测试笔记（Claude Code 维护）
 
 > 用户要求（2026-10-04）：把重要信息写进这个文件，**每完成一轮测试就更新**。
-> 最后更新：2026-10-04 05:22（Claude Code，分支 `claude/gallant-planck-rwr5az`）
+> 最后更新：2026-10-04 09:00（Claude Code，分支 `claude/gallant-planck-rwr5az`）
 >
 > 相关文件：`source/docs/collab/decisions.md`（用户拍板，原话）、`source/docs/collab/code-to-chat.md`（Code→chat，C1…）、
 > dev 分支上的 `source/docs/collab/chat-to-code.md`（chat→Code，H1…）、`source/docs/bfai-qualification.md`（电脑合格标准）。
@@ -44,6 +44,9 @@
 **最后要用最强的电脑定数**，见 3.1 的收敛判据。
 
 ### 1.1b 背水一战（用户 2026-10-04 新规则，只在模拟；规则原话见 decisions.md）
+- **最新（用户更正）**：至少丢了一半车马炮、且车马炮比对方少才能用；轮到自己时满足就行；将可以当背水的子。模拟第三版 `bs3-a / bs3-b / revive-few3`（2026-10-04 08:58 开跑）。第二版（持续落后、将不能用）作废。
+- **破釜沉舟基本放弃**（用户）：测试重心全部转到背水一战。
+- 08:54 容器重启，所有在跑的模拟中断（只剩中途进度：b18 去掉破釜 200/300 汉胜 53.0%；背水第一版 175/300 汉胜 53.7%；车 15/15/20 50/300 34%）。霸王档深度对照（破釜候选）作废。
 - 变体：`tools/variants/engine_beishui.js`（第一版，按字面）/ `engine_beishui2.js`（第二版）；电脑 `bfai_beishui.js` / `bfai_beishui2.js`（都基于 b18c278）。自测 32 / 44 项；全关时和原引擎、原电脑同种子逐局一致。
 - **独立核查（三路 + 裁判，没有要重跑的 bug）**：
   - 第一版电脑几乎不用背水（10 局 0～2 次）：真正卡住的是“比最好的普通着法多赚 5 分才用”，加上估值里留着本身记 3 分。所以 bs-a 测的是“有门槛、几乎没人用”，接近“去掉破釜”。
