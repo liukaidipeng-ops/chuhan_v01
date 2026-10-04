@@ -6,6 +6,7 @@
 //   CFG.beishui.strictEscape：冻结的子被将军时只能“吃掉正在将军的那枚子”（而且要吃死），
 //                        第一版是“任何吃子只要解了将都行”，比用户同意的“除非是吃掉正在将军的子”宽。
 //   CFG.beishui.maxLeft.b / .r：己方车马炮最多还剩几枚才能用（用户 2026-10-04：“至少需要失去一半主要进攻棋子（车马炮）加上进攻棋子比对方少才能触发”→ 6 枚丢一半 = 最多剩 3）。
+//   CFG.beishui.finalOnly：只看两步走完时（自己的将不被将军；A 版还要不将对方），中间过程不受限制（可以各挡一路解双将、第一步走进被将的格子）。
 //   CFG.beishui.aiMin：给电脑变体 bfai_beishui2.js 用的门槛（背水要比最好的普通着法多赚几分才用；原版破釜是 5）。
 // 用法：预设 bs2-a / bs2-b / revive-few2（tools/bfsim.js），电脑配 tools/variants/bfai_beishui2.js
 'use strict';
@@ -17,7 +18,7 @@ function enginePath() {
   let s = fs.readFileSync(v1.enginePath(), 'utf8');
   const rep = (a, b) => { const n = s.split(a).length - 1; if (n !== 1) throw new Error(`engine_beishui2：锚点出现 ${n} 次（第一版或引擎改过了？）：${a.slice(0, 80)}`); s = s.replace(a, b); };
   rep("    beishui: { on: false, fewer: { r: false, b: false }, twoPieces: true, maxKills: 1, check: 'none', freeze: 1 },",
-      "    beishui: { on: false, fewer: { r: false, b: false }, twoPieces: true, maxKills: 1, check: 'none', freeze: 1, persist: false, noKing: false, strictEscape: false, aiMin: 1, maxLeft: { r: null, b: null } },");
+      "    beishui: { on: false, fewer: { r: false, b: false }, twoPieces: true, maxKills: 1, check: 'none', freeze: 1, persist: false, noKing: false, strictEscape: false, aiMin: 1, maxLeft: { r: null, b: null }, finalOnly: false },");
   // 1. 少子要持续：settle 时记下“走完这一手，自己的车马炮是不是比对方少”，存在 S.fx（cloneState 会复制）
   rep("if (p.s === s) m++; else o++; } return m < o; };",
       "if (p.s === s) m++; else o++; } const ML = CFG_CUR.beishui.maxLeft && CFG_CUR.beishui.maxLeft[s]; return m < o && (ML == null || m <= ML) && (!CFG_CUR.beishui.persist || !!(S.fx && S.fx['fw' + s])); };");
@@ -37,6 +38,13 @@ function enginePath() {
       "      const fz = frozen(S, p); if (fz) { const q = at(S, a.to[0], a.to[1]); if (!(inCheckF(S, side) && q && q.s !== side && (!CFG_CUR.beishui.strictEscape || checkers(S.board, other(side)).includes(q.id)))) return null; }   // 变体·背水（二：只能吃将军的子）");
   rep("      extra.res = strike(S, a.from, a.to, side, ev);",
       "      extra.res = strike(S, a.from, a.to, side, ev);\n      if (fz && CFG_CUR.beishui.strictEscape && extra.res !== 'kill') return null;   // 变体·背水二：要吃死");
+  // 4. 只看结算（finalOnly，用户 2026-10-04：“背水在使用期间，甚至可以走被将的格子，只要背水结算时，不被将，也不将对方就行。过程不受限制。”）
+  rep("          if (inCheckF(S, side)) return null;\n          if (BS && BS.check === 'none' && inCheckF(S, 'r')) return null;   // 变体·背水 A：哪一步都不能将军",
+      "          if (!(BS && BS.finalOnly) && inCheckF(S, side)) return null;\n          if (BS && !BS.finalOnly && BS.check === 'none' && inCheckF(S, 'r')) return null;   // 变体·背水 A：哪一步都不能将军（finalOnly 时只看结算）");
+  rep("        if (!T.final && inCheck(T.board, 'b')) continue;",
+      "        if (!T.final && inCheck(T.board, 'b') && !(BS && BS.finalOnly)) continue;   // 变体·背水：finalOnly 时第一步走完被将也行");
+  rep("    if (!T.final && inCheck(T.board, 'b')) return [];",
+      "    if (!T.final && inCheck(T.board, 'b') && !(CFG_CUR.beishui && CFG_CUR.beishui.on && CFG_CUR.beishui.finalOnly)) return [];   // 变体·背水：同上");
   const file = path.join(os.tmpdir(), `bingfa_beishui2_${process.pid}.js`);
   fs.writeFileSync(file, s);
   built = file;
