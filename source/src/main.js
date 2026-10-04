@@ -454,7 +454,7 @@
       if (compact) { bar.style.bottom = (H - m.top + 8) + 'px'; bar.style.left = '12px'; bar.style.right = '12px'; bar.style.transform = 'none'; }
       else { const tr = $('tools').getBoundingClientRect(); bar.style.left = 'auto'; bar.style.transform = 'none'; bar.style.right = (W - tr.left + 12) + 'px'; bar.style.bottom = (H - tr.bottom) + 'px'; }
       const br = bar.getBoundingClientRect();
-      $('bubMe').style.bottom = (H - Math.min(m.top, br.top) + 10) + 'px';
+      if (compact) $('bubMe').style.bottom = (H - Math.min(m.top, br.top) + 10) + 'px';   // 只有手机上技能栏才叠在卡片上方；电脑上它在右侧，气泡不用让
     }
     // 技能未用提示：手机上贴在卡片（或技能栏）上方，电脑上在屏幕下方正中
     const sh = $('skHint');
