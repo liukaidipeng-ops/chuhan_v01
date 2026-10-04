@@ -1,0 +1,3 @@
+{ "args": "--games 500 --seed 1000 --nodes mid=60000 --ai git:98dd206 --set beishui.on=true --set beishui.twoPieces=false --set counter.a=true --set counter.e=true --set counter.onDeath=false --set counter.dmg=1",
+  "env": { "BFSIM_ENGINE": "tools/variants/engine_counter.js", "ENGINE_REV": "98dd206" }, "chunks": 20,
+  "note": "士象反击（用户定）：士挨近战、象挨远程时还手 1 点，活下来才还手" }
