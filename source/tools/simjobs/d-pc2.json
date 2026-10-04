@@ -1,0 +1,3 @@
+{ "args": "--games 500 --seed 1000 --nodes mid=60000 --set beishui.on=true --set beishui.twoPieces=false --ai tools/variants/bfai_defup.js --set skills.qishe.dirs=ortho --set skills.jianta.onMove=true --set skills.qishe.level=3 --set skills.jianta.level=3 --set skills.jianta.moveCooldown=2",
+  "env": { "BFSIM_ENGINE": "tools/variants/engine_planc.js", "ENGINE_REV": "98dd206", "BFAI_DEFUP": "1", "BFAI_DGUARD": "1", "BFAI_DEFVAL": "1" }, "chunks": 20,
+  "note": "不压制升士象的电脑：Plan C 踩空格每 2 回合一次" }
