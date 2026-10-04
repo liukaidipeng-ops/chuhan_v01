@@ -82,6 +82,12 @@ PRESETS['revive-free'] = { set: {}, patches: ['revive-free'] };
 PRESETS['arts-from16'] = { set: {}, patches: ['pofu-from16', 'revive-from16'] };
 PRESETS['pofu-a+arts-from16'] = { set: {}, patches: ['pofu-noup', 'pofu-from16', 'revive-from16'] };   // 用户：方案 A 的封锁期 + 第 16 回合起每回合 +1 军功，让破釜的 debuff 最大化
 PRESETS['pofu-a+arts-from16+revive-free'] = { set: {}, patches: ['pofu-noup', 'pofu-from16', 'revive-from16', 'revive-free'] };   // 头号候选 + 召回不占行动（召回也从第 16 回合起）
+// 士反击近战、象反击远程、满级象回春（用户 2026-10-04；只供模拟，见 tools/variants/engine_counter.js）。还手伤害 1 点
+const CTR = 'tools/variants/engine_counter.js';
+PRESETS['ctr-survive'] = { engine: CTR, set: { 'counter.a': true, 'counter.e': true, 'counter.dmg': 1, 'counter.onDeath': false } };   // 活下来才还手（用户倾向）
+PRESETS['ctr-death'] = { engine: CTR, set: { 'counter.a': true, 'counter.e': true, 'counter.dmg': 1, 'counter.onDeath': true } };     // 被打死也还手
+PRESETS['ctr-atk'] = { engine: CTR, set: { 'counter.a': true, 'counter.e': true, 'counter.dmg': 'atk', 'counter.onDeath': false } };  // 还手按自己的攻击力（二级以上士打 2）
+PRESETS['huichun'] = { engine: CTR, set: { 'skills.huichun.level': 4 } };   // 满级相 / 象回春
 PRESETS['pofu-a+revive-free'] = { set: {}, patches: ['pofu-noup', 'revive-free'] };
 function applyPatches(BF, names) {
   if (!names || !names.length) return;
@@ -143,6 +149,8 @@ function applyPatches(BF, names) {
   if (reviveFrom) applyReviveGate(BF, +reviveFrom);
   if (fromN) applyGateMate(BF, S => S.turn === 'b' && gated(S), a => isPofu(a));
   if (has('revive-free')) applyReviveFree(BF);
+  // 反击变体（engine_counter）+ 方案 A：破釜封锁期里楚方被动也封，还手同样封住
+  if (has('pofu-noup') && BF.CFG.counter) BF.CFG.counter.pfSeal = true;
 }
 // revive-fromN：第 N 回合之前不能召回良将（电脑的候选里也去掉）。和 revive-free 一起用时 freeRevive 也看这个门
 function applyReviveGate(BF, N) {
@@ -344,7 +352,8 @@ function setPath(obj, p, val) {
 // 把预设和 --set 合成一份覆盖表
 function overrides(o) {
   const set = {}; let noArts = false; const patches = [];
-  for (const n of o.presets) { const P = PRESETS[n]; if (!P) throw new Error('没有这个预设 ' + n + '（可选：' + Object.keys(PRESETS).join(' ') + '）'); Object.assign(set, P.set); if (P.noArts) noArts = true; for (const x of P.patches || []) if (!patches.includes(x)) patches.push(x); }
+  for (const n of o.presets) { const P = PRESETS[n]; if (!P) throw new Error('没有这个预设 ' + n + '（可选：' + Object.keys(PRESETS).join(' ') + '）'); Object.assign(set, P.set); if (P.noArts) noArts = true; for (const x of P.patches || []) if (!patches.includes(x)) patches.push(x);
+    if (P.engine) { if (process.env.BFSIM_ENGINE && process.env.BFSIM_ENGINE !== P.engine) throw new Error(`预设 ${n} 要用引擎 ${P.engine}，可环境变量 BFSIM_ENGINE 已经是 ${process.env.BFSIM_ENGINE}`); process.env.BFSIM_ENGINE = P.engine; } }
   for (const s of o.sets) { const i = s.indexOf('='); if (i < 0) throw new Error('--set 要写成 PATH=JSON'); const raw = s.slice(i + 1); let v; try { v = JSON.parse(raw); } catch (e) { v = raw; } set[s.slice(0, i)] = v; }
   return { set, noArts, patches };
 }
@@ -355,7 +364,8 @@ const VAL = { r: 9, c: 4.5, n: 4, e: 2, a: 2, p: 1, k: 0 };
 
 function worker() {
   global.XQ = require(path.join(SRC, 'rules.js'));
-  const BF = global.BF = require(path.join(SRC, 'bingfa.js'));
+  // 规则变体引擎（tools/variants/*.js，导出 enginePath()）：环境变量 BFSIM_ENGINE 指定；预设里写了 engine 的会由主进程自动设好
+  const BF = global.BF = require(process.env.BFSIM_ENGINE ? require(path.resolve(__dirname, '..', process.env.BFSIM_ENGINE)).enginePath() : path.join(SRC, 'bingfa.js'));
   let AIMAP = null;            // 名字 → 电脑模块；每局由 job.aiR / job.aiB 指定双方用哪个
   let ov = null;
   const inc = (o, k, n = 1) => { o[k] = (o[k] || 0) + n; };
@@ -416,6 +426,8 @@ function worker() {
         else if (e.e === 'final' && !R.final) { R.final = true; R.finalRound = g.round; }
         else if (e.e === 'rescue') R.rescue++;
         else if (e.e === 'counter') inc(R.jumaCounter[other(side)], 'hit');
+        else if (e.e === 'fanji') inc(R.jumaCounter[other(side)], 'fanji');   // 变体：士 / 象还手（记在还手的一方）
+        else if (e.e === 'heal') inc(R.jumaCounter[side], 'heal');
       }
     };
     // 破釜沉舟前后（用户 2026-10-03：“执汉需要利用好破釜的 debuff 进行反击”）：楚那一回合开始前 s0、破釜之后 s1、
@@ -626,6 +638,8 @@ function summarize(rs) {
     const first = g2.filter(r => r.firstR2.r != null && r.firstR2.b != null && r.firstR2.r !== r.firstR2.b), only = g2.filter(r => (r.firstR2.r == null) !== (r.firstR2.b == null));
     const who = r => (r.firstR2.b == null || (r.firstR2.r != null && r.firstR2.r < r.firstR2.b)) ? 'r' : 'b';
     S.firstR2 = { n: first.length, win: first.filter(r => r.winner === who(r)).length, onlyN: only.length, onlyWin: only.filter(r => r.winner === who(r)).length }; }
+  const jc = (s, k) => rs.reduce((t, r) => t + ((r.jumaCounter && r.jumaCounter[s] && r.jumaCounter[s][k]) || 0), 0);
+  S.counter = { fanji: { r: jc('r', 'fanji'), b: jc('b', 'fanji') }, heal: { r: jc('r', 'heal'), b: jc('b', 'heal') }, juma: { r: jc('r', 'hit'), b: jc('b', 'hit') } };
   const pfs = rs.filter(r => r.pf);
   if (pfs.length) {
     const avg = f => mean(pfs.map(f));
@@ -675,7 +689,7 @@ function summarize(rs) {
 
 const CN = {
   mv: '普通走子', pass: '停着', ult: '终极兵法', art_revive: '召回良将', art_revive_up: '召回后马上升级', art_pofu: '破釜沉舟',
-  sk_juma: '拒马', sk_chongzhen: '冲阵', sk_taying: '踏营', sk_pili: '霹雳', sk_qishe: '齐射', sk_hujia: '护驾', sk_feiyue: '飞越',
+  sk_juma: '拒马', sk_huichun: '回春', fanji: '反击', sk_chongzhen: '冲阵', sk_taying: '踏营', sk_pili: '霹雳', sk_qishe: '齐射', sk_hujia: '护驾', sk_feiyue: '飞越',
   via_shensu: '神速营(被动)', via_huifang: '回防(被动)', via_jinwei: '铁甲禁卫(被动)',
   capture: '普通吃子', chongzhen: '冲阵', taying: '踏营', pili: '霹雳', qishe: '齐射', jianta: '践踏', juma: '拒马反伤', feiyue: '飞越', attack: '强攻',
 };
@@ -704,6 +718,7 @@ function print(S, o) {
   L.push(`主帅兵法：汉召回 ${ar.r[0]} 局（第 ${S.art.round.r.toFixed(1)} 回合，胜 ${ar.r[0] ? pct(ar.r[1] / ar.r[0]) : '-'}）  楚破釜 ${ar.b[0]} 局（第 ${S.art.round.b.toFixed(1)} 回合，胜 ${ar.b[0] ? pct(ar.b[1] / ar.b[0]) : '-'}）`);
   { const f = H => { const n = H.full + H.hurt; return n ? `满血 ${pct(H.full / n)}、掉过血 ${pct(H.hurt / n)}（只剩 1 血 ${pct(H.last / n)}），共 ${n} 次` : '-'; };
     L.push(`手动升级时的血量（升级回满血，掉了血再升更划算）：汉 ${f(S.upHp.r)} | 楚 ${f(S.upHp.b)}`); }
+  if (S.counter && (S.counter.fanji.r + S.counter.fanji.b + S.counter.heal.r + S.counter.heal.b)) L.push(`反击 / 回春（每局平均）：士象还手 汉 ${(S.counter.fanji.r / S.n).toFixed(2)} | 楚 ${(S.counter.fanji.b / S.n).toFixed(2)}；回春回血 汉 ${(S.counter.heal.r / S.n).toFixed(2)} | 楚 ${(S.counter.heal.b / S.n).toFixed(2)}；拒马反伤 汉 ${(S.counter.juma.r / S.n).toFixed(2)} | 楚 ${(S.counter.juma.b / S.n).toFixed(2)}`);
   if (S.firstR2 && (S.firstR2.n || S.firstR2.onlyN)) L.push(`先有二级车的一方：两边都有的 ${S.firstR2.n} 局里先到的胜 ${S.firstR2.n ? pct(S.firstR2.win / S.firstR2.n) : '-'}；只有一方有的 ${S.firstR2.onlyN} 局里有的一方胜 ${S.firstR2.onlyN ? pct(S.firstR2.onlyWin / S.firstR2.onlyN) : '-'}`);
   if (S.pf) L.push(`破釜前后（${S.pf.n} 局，分数 + 汉优）：破釜那一手汉方 ${S.pf.gain.toFixed(2)} 分（子力 ${S.pf.gainM.toFixed(2)}）；之后封锁期汉方 ${S.pf.back >= 0 ? '+' : ''}${S.pf.back.toFixed(2)} 分（子力 ${S.pf.backM >= 0 ? '+' : ''}${S.pf.backM.toFixed(2)}）；追回一半以上 ${pct(S.pf.half)}；封锁期内就分了胜负 ${S.pf.ended} 局；这些局汉胜 ${pct(S.pf.redWin)}`);
   L.push('首次升到 N 级（平均回合 / 出现的局占比）  汉 | 楚');
