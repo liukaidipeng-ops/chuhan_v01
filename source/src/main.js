@@ -1255,10 +1255,10 @@
     badN++;
     toast(m.why === 'face' ? '不能送将：将帅不能照面' : '不能送将：这样走，自己的' + (actor() === 'r' ? '帅' : '将') + '会被吃', 2200);
     Sfx.select();
-    if (badN >= 6) { bubble(actor(), '愚蠢，庶子不可教也！', 3600); badN = 0; }          // 点到第六次：终极抱怨，然后从头数
+    if (badN >= 6) { bubble(actor(), '愚蠢，庶子不可教也！', 3800); Voice.play(`${actor()}_bad6`); badN = 0; }          // 点到第六次：终极抱怨，然后从头数
     else if (badN > 2) {
       let i; do { i = Math.floor(Math.random() * BAD_SAY.length); } while (i === badSay);   // 第三次起调侃，不连着说同一句
-      badSay = i; bubble(actor(), BAD_SAY[i], 2800);
+      badSay = i; bubble(actor(), BAD_SAY[i], 3200); Voice.play(`${actor()}_bad${i}`);
     }
     return true;
   }
