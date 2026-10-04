@@ -360,6 +360,7 @@ function parseArgs(argv) {
     else if (k === '--fixed') o.fixed = true;
     else if (k === '--nodes') o.nodes = v();
     else if (k === '--worker') o.worker = true;
+    else if (k === '--merge') o.merge = v().split(',').filter(Boolean);
     else throw new Error('未知参数 ' + k);
   }
   return o;
@@ -646,6 +647,33 @@ async function run(o) {
   return sum;
 }
 
+// 合并几份 --json 结果重新出汇总：同一组分几段 / 几台机器跑（种子不重叠、其余参数一样），例如
+//   node tools/bfsim.js --merge a.json,b.json [--json 合并.json]
+//   每局用自己的种子、按节点数收手，所以分开跑再合并和一次跑完逐局相同（按时间收手的不保证）
+function merge(o) {
+  const fs = require('fs');
+  const parts = o.merge.map(f => JSON.parse(fs.readFileSync(f, 'utf8')));
+  const a0 = parts[0].args;
+  if (a0.match) throw new Error('--merge 暂不支持对打（--match）的结果');
+  const same = a => JSON.stringify({ ...a, games: 0, seed: 0, json: null, jobs: 0, quiet: false });
+  for (const [i, p] of parts.entries()) if (same(p.args) !== same(a0)) throw new Error(`第 ${i + 1} 份的参数和第 1 份不一样（只许种子、局数、并行数不同）`);
+  const results = parts.flatMap(p => p.results).sort((x, y) => x.seed - y.seed), errors = parts.flatMap(p => p.errors || []);
+  const seen = new Set();
+  for (const r of [...results, ...errors]) { if (seen.has(r.seed)) throw new Error('种子重复：' + r.seed); seen.add(r.seed); }
+  const seeds = [...seen].sort((x, y) => x - y);
+  const args = { ...a0, seed: seeds[0], games: seeds.length, json: o.json || null, merged: o.merge };
+  if (seeds[seeds.length - 1] - seeds[0] + 1 !== seeds.length) console.log(`注意：种子不连续（${seeds[0]}～${seeds[seeds.length - 1]} 共 ${seeds.length} 个）`);
+  if (o.json) fs.writeFileSync(o.json, JSON.stringify({ args, overrides: parts[0].overrides, results, errors }, null, 1));
+  const sum = summarize(results);
+  sum.errors = errors.length; sum.seconds = 0;
+  sum.label = [a0.presets.join('+'), ...a0.sets, a0.saveUlt ? 'save-ult' : ''].filter(Boolean).join(' ') || 'current';
+  sum.level = (a0.red || a0.level) + ' vs ' + (a0.black || a0.level) + ((a0.aiR || a0.aiB || a0.ai !== 'src/bfai.js') ? `  [汉 ${a0.aiR || a0.ai} | 楚 ${a0.aiB || a0.ai}]` : '');
+  print(sum, args);
+  if (errors.length) console.log(`✗ 出错的局 ${errors.length} 个（没算进胜负；出错的局往往不是随便哪局，结果可能有偏差）：`, errors.slice(0, 3).map(e => e.seed + ' ' + e.error.split('\n')[0]).join(' | '));
+  console.log(`（合并 ${parts.length} 份：${o.merge.join('、')}）`);
+  return sum;
+}
+
 function wilson(k, n) { if (!n) return [0, 0]; const z = 1.96, p = k / n, d = 1 + z * z / n, c = p + z * z / (2 * n), m = z * Math.sqrt(p * (1 - p) / n + z * z / (4 * n * n)); return [(c - m) / d, (c + m) / d]; }
 const pct = x => (100 * x).toFixed(1) + '%';
 const mean = a => (a.length ? a.reduce((x, y) => x + y, 0) / a.length : 0);
@@ -774,6 +802,7 @@ function print(S, o) {
 if (require.main === module) {
   const o = parseArgs(process.argv.slice(2));
   if (o.worker) worker();
+  else if (o.merge) merge(o);
   else run(o).catch(e => { console.error(e); process.exit(1); });
 }
 module.exports = { PRESETS, summarize, applyPatches, wrapThinkForNoUp };
