@@ -406,7 +406,7 @@ function worker() {
       act: side2(), up: side2(), kills: side2(), hits: side2(), meritBy: side2(), friendly: side2(),
       ultRound: {}, artRound: {}, artKind: {}, firstLv: { r: {}, b: {} }, samples: [], rescue: 0, jumaCounter: side2(), msMax: 0, ms: 0,
       upHp: { r: { full: 0, hurt: 0, last: 0 }, b: { full: 0, hurt: 0, last: 0 } },   // 手动升级时那枚子的血量：满血 / 掉过血（其中只剩 1 血）
-      avail: {},     // 背水变体：主帅兵法“少子才能用”的条件第一次满足的回合（只在开了 beishui.fewer 的那一方记）
+      avail: {},     // 背水：主帅兵法“少子才能用”的条件第一次满足的回合（变体引擎只在开了 beishui.fewer 的那一方记；正式版两边都记，用引擎的 artReady）
       fewEnd: {}, sus: {}, susN: { r: 0, b: 0 },   // 车马炮“持续落后”：自己走完还比对方少、到下回合轮到自己时还少（第一次的回合、持续了几回合）
       bs: !!(BF.CFG.beishui && BF.CFG.beishui.on),   // 背水一战变体（统计里“破釜”改叫“背水”）
       firstR2: {},   // 各方第一次有二级车的回合（用户：“一旦二血车先获得主动权，战场局面就几乎一边倒了”）
@@ -466,7 +466,7 @@ function worker() {
         const c = { r: 0, b: 0 }; for (const row of g.S.board) for (const p of row) if (p && (p.t === 'r' || p.t === 'n' || p.t === 'c')) c[p.s]++;
         const ML = BF.CFG.beishui.maxLeft && BF.CFG.beishui.maxLeft[side];
         if (c[side] < c[side === 'r' ? 'b' : 'r'] && (ML == null || c[side] <= ML)) R.avail[side] = g.round;
-      }
+      } else if (BF.CFG.beishui && BF.CFG.beishui.on && !BF.CFG.beishui.fewer && BF.ai.artReady && R.avail[side] == null && !g.S.used.art[side] && (side === 'b' || g.S.dead.r.length) && BF.ai.artReady(g.S)) R.avail[side] = g.round;   // chat 的正式版（dev 98dd206 起）：背水、召回共用引擎的条件
       { const c = atkCount(g.S), o = side === 'r' ? 'b' : 'r'; if (R.fewEnd[side] && c[side] < c[o]) { if (R.sus[side] == null) R.sus[side] = g.round; R.susN[side]++; } }
       if (side === 'b' && R.pf && g.S.cnt.b >= g.S.fx.pf) pfEnd();
       const pre = side === 'b' && !R.pf ? { s: +neutral(g.S).toFixed(2), m: matDiff(g.S) } : null;
