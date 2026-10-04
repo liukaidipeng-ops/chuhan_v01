@@ -577,20 +577,71 @@
     return T;
   }
   // 电脑用：破釜沉舟的两步组合——两步里至少有一步打到敌子（先挪开再打、先打再打、打完再撤都算）
-  function pofuPairs(S) {
+  // only（可选）：只列“有一步是这枚子（按 id）走的”组合——电脑用来只补算刚升了级的那枚子带来的新组合
+  // keep（可选）：keep(m1, 第一步打到的子 | null, m2, 第二步打到的子 | null) 返回 false 的组合不去试走（电脑用来先筛掉明显没油水的，省时间）
+  function pofuPairs(S, only, keep) {
+    if (S.turn !== 'b' || S.freeUsed || !artOpen(S) || S.used.art.b >= CFG_CUR.generalArts.pofu.usesPerGame || smActive(S)) return [];
+    // 结果和“每个组合都 attempt 一遍”完全一样（test/bingfa.test.js 里逐个核对），只是省掉了重复劳动：
+    //   第一步只结算一次，第二步从第一步结算完的局面接着走；每一步照 resolve() 里破釜沉舟那一段原样结算
+    const out = [], side = 'b', P = CFG_CUR.generalArts.pofu, lim = CFG_CUR.longCheckLimit, hist = S.ckHist[side];
+    const step = (T, m, ev) => {
+      const p = T.board[m.from[1]][m.from[0]];
+      const res = strike(T, m.from, m.to, side, ev);
+      if (m.via) { setCd(T, p, m.via); ev.push({ e: 'passive', sk: m.via, id: p.id }); }
+      trample(T, p, m.to, res, side, ev);
+      return !inCheckF(T, side);
+    };
+    for (let r = 0; r < 10; r++) for (let f = 0; f < 9; f++) {
+      const p = S.board[r][f]; if (!p || p.s !== 'b') continue;
+      const mine1 = only == null || p.id === only;
+      for (const m1 of moveTargets(S, f, r)) {
+        const t1 = at(S, m1.to[0], m1.to[1]), hit1 = !!t1;
+        const T = cloneState(S), ev1 = [];
+        if (!step(T, m1, ev1)) continue;
+        for (let r2 = 0; r2 < 10; r2++) for (let f2 = 0; f2 < 9; f2++) {
+          const q = T.board[r2][f2]; if (!q || q.s !== 'b') continue;
+          if (!mine1 && q.id !== only) continue;
+          for (const m2 of moveTargets(T, f2, r2)) {
+            const t2 = at(T, m2.to[0], m2.to[1]);
+            if (!hit1 && !t2) continue;
+            if (keep && !keep(m1, t1, m2, t2)) continue;
+            const U = cloneState(T), ev = ev1.slice();
+            if (!step(U, m2, ev)) continue;
+            if (!P.mayEndInCheck && inCheckF(U, 'r')) continue;
+            U.fx.pf = U.cnt.b + 1 + P.skillLockRounds;
+            U.used.art[side]++;
+            if (inCheckS(U, side)) continue;
+            if (lim && hist.length >= lim) {     // 长将（和 attempt() 里一样）
+              const ck = smActive(U) ? [] : checkers(U.board, side), last = hist.slice(-lim);
+              if (ck.some(id => last.every(h => h.includes(id)))) continue;
+            }
+            settle(U, side, ev);
+            out.push({ a: { k: 'art', steps: [{ from: m1.from, to: m1.to }, { from: m2.from, to: m2.to }] }, S: U, ev });
+          }
+        }
+      }
+    }
+    return out;
+  }
+  // 老写法（每个组合都 attempt 一遍），留着给测试核对上面那份
+  function pofuPairsRef(S, only, keep) {
     if (S.turn !== 'b' || S.freeUsed || !artOpen(S) || S.used.art.b >= CFG_CUR.generalArts.pofu.usesPerGame || smActive(S)) return [];
     const out = [];
     for (let r = 0; r < 10; r++) for (let f = 0; f < 9; f++) {
       const p = S.board[r][f]; if (!p || p.s !== 'b') continue;
+      const mine1 = only == null || p.id === only;
       for (const m1 of moveTargets(S, f, r)) {
-        const hit1 = !!at(S, m1.to[0], m1.to[1]);
+        const t1 = at(S, m1.to[0], m1.to[1]), hit1 = !!t1;
         const T = cloneState(S), ev = [];
         strike(T, m1.from, m1.to, 'b', ev);
         if (!T.final && inCheck(T.board, 'b')) continue;
         for (let r2 = 0; r2 < 10; r2++) for (let f2 = 0; f2 < 9; f2++) {
           const q = T.board[r2][f2]; if (!q || q.s !== 'b') continue;
+          if (!mine1 && q.id !== only) continue;
           for (const m2 of moveTargets(T, f2, r2)) {
-            if (!hit1 && !at(T, m2.to[0], m2.to[1])) continue;
+            const t2 = at(T, m2.to[0], m2.to[1]);
+            if (!hit1 && !t2) continue;
+            if (keep && !keep(m1, t1, m2, t2)) continue;
             const a = { k: 'art', steps: [{ from: m1.from, to: m1.to }, { from: m2.from, to: m2.to }] };
             const res = attempt(S, a); if (res) out.push({ a, S: res.S, ev: res.ev });
           }
@@ -863,7 +914,7 @@
   const BF = { Game, CFG, view, pofuPreview, SKILL_OF, SKILLS_OF, SKILL_CN, SKILL_DESC, ART_CN, ULT_CN, RANK_CN, HERO_CN, heroName, rankName, START, newState, cloneState, attempt, evaluate, levelInfo, maxLvOf: t => maxLv(t),
     // 电脑用（调用前会把配置指到默认值）
     // version：接口每加一个函数就 +1；只增不改，已有函数的参数和返回值不动
-    ai: { version: 1, gen: (S, c) => { CFG_CUR = CFG; return gen(S, c); }, atk: p => { CFG_CUR = CFG; return atk(p); }, expand: S => { CFG_CUR = CFG; return expand(S); }, upgradeState: (S, a) => { CFG_CUR = CFG; return upgradeState(S, a); }, jumaState: (S, a) => { CFG_CUR = CFG; return jumaState(S, a); }, pofuPairs: S => { CFG_CUR = CFG; return pofuPairs(S); }, inCheck: (S, s) => inCheckS(S, s), upCost: p => { CFG_CUR = CFG; return upCost(p); }, moveTargets: (S, f, r) => { CFG_CUR = CFG; return moveTargets(S, f, r); } }, hpOf: (t, lv) => hpOf(t, lv, CFG) };
+    ai: { version: 1, gen: (S, c) => { CFG_CUR = CFG; return gen(S, c); }, atk: p => { CFG_CUR = CFG; return atk(p); }, expand: S => { CFG_CUR = CFG; return expand(S); }, upgradeState: (S, a) => { CFG_CUR = CFG; return upgradeState(S, a); }, jumaState: (S, a) => { CFG_CUR = CFG; return jumaState(S, a); }, pofuPairs: (S, only, keep) => { CFG_CUR = CFG; return pofuPairs(S, only, keep); }, pofuPairsRef: (S, only, keep) => { CFG_CUR = CFG; return pofuPairsRef(S, only, keep); }, inCheck: (S, s) => inCheckS(S, s), upCost: p => { CFG_CUR = CFG; return upCost(p); }, moveTargets: (S, f, r) => { CFG_CUR = CFG; return moveTargets(S, f, r); } }, hpOf: (t, lv) => hpOf(t, lv, CFG) };
   if (typeof module !== 'undefined' && module.exports) module.exports = BF;
   global.BF = BF;
 })(typeof window !== 'undefined' ? window : globalThis);
