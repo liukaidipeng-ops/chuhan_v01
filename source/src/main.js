@@ -1239,6 +1239,7 @@
   // ---------- 送将提示 ----------
   // 按走法能走、但走了自己会被将军的着法：照样标出来（标红 / 头顶禁止符号），点上去说明原因；连点三次，自家主帅出言调侃
   let selBad = [], badN = 0, badAt = -1;
+  const BAD_SAY = ['怎么？你想害老子？', '莫要害老子！', '你想作甚！']; let badSay = -1;
   function withBad(list, f, r) {
     selBad = game.selfCheckFrom ? game.selfCheckFrom(f, r) : [];
     if (!selBad.length) return list;
@@ -1254,7 +1255,11 @@
     badN++;
     toast(m.why === 'face' ? '不能送将：将帅不能照面' : '不能送将：这样走，自己的' + (actor() === 'r' ? '帅' : '将') + '会被吃', 2200);
     Sfx.select();
-    if (badN > 2) bubble(actor(), '怎么？你想害老子？', 2800);
+    if (badN >= 6) { bubble(actor(), '愚蠢，庶子不可教也！', 3600); badN = 0; }          // 点到第六次：终极抱怨，然后从头数
+    else if (badN > 2) {
+      let i; do { i = Math.floor(Math.random() * BAD_SAY.length); } while (i === badSay);   // 第三次起调侃，不连着说同一句
+      badSay = i; bubble(actor(), BAD_SAY[i], 2800);
+    }
     return true;
   }
 
