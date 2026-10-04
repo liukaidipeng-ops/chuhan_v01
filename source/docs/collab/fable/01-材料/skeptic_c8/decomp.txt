@@ -1,0 +1,52 @@
+局面数 40
+11/6 r old:n35/N28594/579ms full:n35/N29139/876ms noup:n35/N29139/856ms nopf:n35/N29075/806ms noup_nopf:n35/N29075/813ms cx0:n35/N24049/887ms
+11/9 b old:n37/N40293/959ms full:n37/N37945/947ms noup:n37/N37945/935ms nopf:n37/N37945/914ms noup_nopf:n37/N37945/970ms cx0:n37/N30115/761ms
+11/12 r old:n37/N16900/429ms full:n74/N47829/2340ms noup:n37/N15187/767ms nopf:n74/N14797/349ms noup_nopf:n37/N15491/412ms cx0:n74/N47083/2344ms
+11/15 b old:n39/N16205/523ms full:n39/N15006/530ms noup:n39/N15006/518ms nopf:n39/N15006/525ms noup_nopf:n39/N15006/529ms cx0:n39/N13101/472ms
+11/18 r old:n24/N16924/559ms full:n96/N32761/1262ms noup:n24/N16128/691ms nopf:n96/N32761/1198ms noup_nopf:n24/N16128/662ms cx0:n96/N25392/793ms
+11/21 b old:n30/N4380/82ms full:n120/N15051/384ms noup:n30/N4659/137ms nopf:n120/N15051/376ms noup_nopf:n30/N4659/149ms cx0:n120/N10087/172ms
+11/24 r old:n2/N3798/86ms full:n2/N3744/74ms noup:n2/N3744/84ms nopf:n2/N3744/104ms noup_nopf:n2/N3744/99ms cx0:n2/N3929/154ms
+11/27 b old:n33/N9559/205ms full:n33/N5124/115ms noup:n33/N5124/153ms nopf:n33/N5124/92ms noup_nopf:n33/N5124/143ms cx0:n33/N6897/180ms
+11/30 r old:n1/N1429/46ms full:n4/N6896/138ms noup:n1/N2858/58ms nopf:n4/N6896/136ms noup_nopf:n1/N2858/53ms cx0:n4/N2980/65ms
+11/33 b old:n40/N7452/137ms full:n40/N8593/158ms noup:n40/N8593/177ms nopf:n40/N8593/214ms noup_nopf:n40/N8593/182ms cx0:n40/N5914/113ms
+11/36 r old:n2/N2024/46ms full:n8/N3912/99ms noup:n2/N2461/64ms nopf:n8/N3912/99ms noup_nopf:n2/N2461/63ms cx0:n8/N3535/73ms
+11/39 b old:n38/N14059/324ms full:n152/N37833/686ms noup:n38/N11543/253ms nopf:n152/N37833/685ms noup_nopf:n38/N11543/234ms cx0:n152/N31958/518ms
+11/42 r old:n2/N3494/77ms full:n2/N4756/94ms noup:n2/N4756/99ms nopf:n2/N4756/96ms noup_nopf:n2/N4756/97ms cx0:n2/N1942/43ms
+11/45 b old:n39/N10969/213ms full:n156/N37012/685ms noup:n39/N10446/218ms nopf:n156/N37012/669ms noup_nopf:n39/N10446/220ms cx0:n156/N31068/592ms
+11/48 r old:n1/N2209/47ms full:n4/N3844/71ms noup:n1/N2463/52ms nopf:n4/N3844/65ms noup_nopf:n1/N2463/46ms cx0:n4/N3364/62ms
+11/51 b old:n45/N13430/257ms full:n180/N32871/677ms noup:n45/N11517/253ms nopf:n180/N32871/666ms noup_nopf:n45/N11517/252ms cx0:n180/N30068/572ms
+11/54 r old:n18/N3006/67ms full:n72/N11775/225ms noup:n18/N2981/57ms nopf:n72/N11775/236ms noup_nopf:n18/N2981/59ms cx0:n72/N9947/249ms
+11/57 b old:n48/N9510/160ms full:n192/N33959/688ms noup:n48/N8767/166ms nopf:n192/N33959/680ms noup_nopf:n48/N8767/209ms cx0:n192/N26383/535ms
+11/60 r old:n1/N2749/74ms full:n4/N11205/257ms noup:n1/N3289/83ms nopf:n4/N11205/272ms noup_nopf:n1/N3289/79ms cx0:n4/N2571/81ms
+11/63 b old:n49/N7755/167ms full:n49/N1391/89ms noup:n49/N1391/122ms nopf:n49/N1391/116ms noup_nopf:n49/N1391/137ms cx0:n49/N7672/297ms
+12/6 r old:n34/N24171/617ms full:n34/N21644/783ms noup:n34/N21644/751ms nopf:n34/N22897/576ms noup_nopf:n34/N22897/686ms cx0:n34/N21522/883ms
+12/9 b old:n42/N10240/313ms full:n84/N15822/388ms noup:n42/N8386/207ms nopf:n84/N15822/302ms noup_nopf:n42/N8386/225ms cx0:n84/N15798/346ms
+12/12 r old:n37/N8856/237ms full:n148/N16389/497ms noup:n37/N27207/1290ms nopf:n148/N17571/398ms noup_nopf:n37/N5427/155ms cx0:n148/N15857/395ms
+12/15 b old:n35/N15277/479ms full:n140/N17722/494ms noup:n35/N14567/529ms nopf:n140/N17722/416ms noup_nopf:n35/N14567/385ms cx0:n140/N17722/362ms
+12/18 r old:n33/N10868/285ms full:n66/N17746/465ms noup:n33/N8713/209ms nopf:n66/N17746/530ms noup_nopf:n33/N8713/227ms cx0:n66/N11006/283ms
+12/21 b old:n43/N9401/174ms full:n43/N9417/174ms noup:n43/N9417/200ms nopf:n43/N9417/172ms noup_nopf:n43/N9417/169ms cx0:n43/N9417/182ms
+12/24 r old:n28/N7751/170ms full:n56/N8511/165ms noup:n28/N4212/78ms nopf:n56/N8511/157ms noup_nopf:n28/N4212/88ms cx0:n56/N7946/154ms
+12/27 b old:n38/N13071/312ms full:n38/N13379/321ms noup:n38/N13379/361ms nopf:n38/N13379/351ms noup_nopf:n38/N13379/334ms cx0:n38/N12109/303ms
+12/30 r old:n41/N13103/328ms full:n123/N37004/881ms noup:n41/N11269/266ms nopf:n123/N37004/917ms noup_nopf:n41/N11269/362ms cx0:n123/N36867/997ms
+12/33 b old:n30/N11126/238ms full:n90/N13129/273ms noup:n30/N9954/242ms nopf:n90/N13129/266ms noup_nopf:n30/N9954/231ms cx0:n90/N12161/236ms
+12/36 r old:n1/N2014/48ms full:n1/N2772/66ms noup:n1/N2772/67ms nopf:n1/N2772/79ms noup_nopf:n1/N2772/67ms cx0:n1/N1988/50ms
+12/39 b old:n24/N5265/117ms full:n96/N28191/830ms noup:n24/N9120/292ms nopf:n96/N28191/845ms noup_nopf:n24/N9120/229ms cx0:n96/N18113/461ms
+12/42 r old:n1/N2482/72ms full:n4/N4760/118ms noup:n1/N2206/53ms nopf:n4/N4760/141ms noup_nopf:n1/N2206/53ms cx0:n4/N3746/106ms
+12/45 b old:n39/N12554/326ms full:n156/N29538/650ms noup:n39/N8337/202ms nopf:n156/N29538/667ms noup_nopf:n39/N8337/193ms cx0:n156/N24932/516ms
+12/48 r old:n2/N2778/61ms full:n2/N5132/114ms noup:n2/N5132/110ms nopf:n2/N5132/114ms noup_nopf:n2/N5132/116ms cx0:n2/N2856/68ms
+12/51 b old:n36/N10141/216ms full:n144/N34900/732ms noup:n36/N14059/344ms nopf:n144/N34900/827ms noup_nopf:n36/N14059/336ms cx0:n144/N24019/554ms
+12/54 r old:n48/N31156/780ms full:n48/N26296/587ms noup:n48/N26296/618ms nopf:n48/N26296/622ms noup_nopf:n48/N26296/604ms cx0:n48/N22689/575ms
+12/57 b old:n37/N10946/224ms full:n148/N24255/498ms noup:n37/N7408/147ms nopf:n148/N24255/514ms noup_nopf:n37/N7408/174ms cx0:n148/N22323/422ms
+12/60 r old:n47/N12273/312ms full:n47/N33191/899ms noup:n47/N33191/886ms nopf:n47/N33191/867ms noup_nopf:n47/N33191/880ms cx0:n47/N13269/322ms
+12/63 b old:n50/N2761/72ms full:n200/N684/23ms noup:n50/N171/6ms nopf:n200/N684/24ms noup_nopf:n50/N171/6ms cx0:n200/N684/24ms
+
+== 合计（40 局面）==
+old        平均节点 10774  平均CPU 260 ms
+full       平均节点 18528  平均CPU 484 ms
+noup       平均节点 10886  平均CPU 315 ms
+nopf       平均节点 17762  平均CPU 427 ms
+noup_nopf  平均节点 10379  平均CPU 273 ms
+cx0        平均节点 15327  平均CPU 405 ms
+
+有升级候选进根的局面 25/40；根着法数 full/noup 比值：2.00,4.00,4.00,4.00,4.00,4.00,4.00,4.00,4.00,4.00,4.00,4.00,2.00,4.00,4.00,2.00,2.00,3.00,3.00,4.00,4.00,4.00,4.00,4.00,4.00
+全部局面根着法数平均比值 2.63
