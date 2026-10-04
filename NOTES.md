@@ -1,12 +1,22 @@
 # 楚汉·技能版象棋：测试笔记（Claude Code 维护）
 
 > 用户要求（2026-10-04）：把重要信息写进这个文件，**每完成一轮测试就更新**。
-> 最后更新：2026-10-04 09:00（Claude Code，分支 `claude/gallant-planck-rwr5az`）
+> 最后更新：2026-10-04 17:10（Claude Code，分支 `claude/gallant-planck-rwr5az`）
 >
 > 相关文件：`source/docs/collab/decisions.md`（用户拍板，原话）、`source/docs/collab/code-to-chat.md`（Code→chat，C1…）、
 > dev 分支上的 `source/docs/collab/chat-to-code.md`（chat→Code，H1…）、`source/docs/bfai-qualification.md`（电脑合格标准）。
 
 ---
+
+## 0. 当前状态（交接用：上下文压缩后先读这一节）
+- **线上**：main = dec8de1，规则是破釜沉舟，电脑 16aacba。线上规则 600 局汉胜 25.9%（严重偏楚）。
+- **背水一战上线中**（用户批准，C49）：等 chat 把 `beishui.on=true`、`twoPieces=false` 设为默认 → 发提交号 → Code 在 GitHub 跑 300 局（应和 native-either 逐局相同）+ 网页实测 → chat 部署。背水规则：车马炮最多剩 3 且比对方少；同一枚子走两步或两枚子各走一步；最多吃一子（践踏也算）；只看结算（不被将、不将对方）；用过的子下回合不能动；召回同一条件。1300 局汉胜 48.1%。
+- **攻防第二轮**（用户在拍板单上定，原话见 decisions.md）：
+  - GitHub 在跑（7 组，各 1000 局，种子 1000～1999）：r2-base、r2-k2、r2-r15、r2-r15c、r2-pa、r2-pb、r2-e2。等待脚本 bzbnsynsw。
+  - 工作流 ws89b2zas 在写并核查：engine_counter（移植到 98dd206）、engine_planc（齐射横竖、践踏踩空格、moveCooldown）、bfai_defup（不压制升士象，三个开关全开用）。通过后跑：反击 1 点 / 按攻击力、Plan C 两种冷却（三级解锁）、A+C、A+C+车变贵；加强士象的组 + 基准再用 bfai_defup 跑一遍。
+  - 指标：胜率、回合、车参与将死、贴脸将死、被将死一方丢几个士象、士象技能次数（bfsim 已加）。
+- **待用户点**：拍板单 ks_test（将帅秒杀贴脸的子，Code 建议测：帅将攻击设 9，单项 + 和最好方案组合）。
+- **工作方式**：用户说“我俩再确认一下”的事先列清楚再跑；要用户定的事放拍板单（https://claude.ai/artifact/QaxqVmNF1p2XQiAx8MygEM）；GitHub Actions 跑模拟（推 `source/tools/simjobs/*.json`，结果回到 `source/tools/simresults/`），本机只做小测试和网页耗时。
 
 ## 1. 已确认的结论
 
