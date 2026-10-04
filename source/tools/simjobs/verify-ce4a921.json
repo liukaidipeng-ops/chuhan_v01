@@ -1,0 +1,4 @@
+{ "args": "--games 300 --seed 1000 --nodes mid=60000 --ai git:ce4a921",
+  "env": { "BFSIM_ENGINE": "tools/variants/engine_at.js", "ENGINE_REV": "ce4a921" },
+  "chunks": 20,
+  "note": "复核 chat 的上线版本（dev ce4a921，背水默认打开、两种走法都可以）：不带任何 --set，应和本机 native-either（98dd206 + beishui.on + twoPieces=false）种子 1000～1299 逐局相同" }
