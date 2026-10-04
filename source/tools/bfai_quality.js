@@ -7,19 +7,21 @@
 // 所以另有“第二裁判”：只看子力和血量（不看位置分、不看军功），只算吃子交换（含“先升级再吃”），
 //   看这一步之后的子力净得失比最好的着法少多少；≥ 3（约一个马）记“白丢子”。它和电脑的估值毫无关系。
 //   --nodes N（或 mid=60000）/ --ref-nodes M：考生 / 裁判按搜索节点数收手（裁判应是考生的 5 倍以上）
+//   --ref-ai 文件 或 git:提交号：指定裁判用哪一版电脑（默认 = 考生自己）。比两版电脑的漏着率时，两版要用同一个裁判，数才可比。
+//   --ai 也可以写 git:提交号（取那一版的 src/bfai.js）。
 'use strict';
 const path = require('path');
 const os = require('os');
 const { fork } = require('child_process');
 
 const argv = process.argv.slice(2);
-const opt = { ai: 'src/bfai.js', level: 'mid', games: 20, budget: 1500, jobs: os.cpus().length, seed: 1, out: null, open: 6, maxPlies: 160, worker: false, nodes: 0, refNodes: 0 };
+const opt = { ai: 'src/bfai.js', level: 'mid', games: 20, budget: 1500, jobs: os.cpus().length, seed: 1, out: null, open: 6, maxPlies: 160, worker: false, nodes: 0, refNodes: 0, refAi: null };
 for (let i = 0; i < argv.length; i++) {
   const k = argv[i], v = () => argv[++i];
   if (k === '--ai') opt.ai = v(); else if (k === '--level') opt.level = v(); else if (k === '--games') opt.games = +v();
   else if (k === '--budget') opt.budget = +v(); else if (k === '--jobs') opt.jobs = +v(); else if (k === '--seed') opt.seed = +v();
   else if (k === '--out') opt.out = v(); else if (k === '--open') opt.open = +v(); else if (k === '--max-plies') opt.maxPlies = +v();
-  else if (k === '--nodes') opt.nodes = v(); else if (k === '--ref-nodes') opt.refNodes = +v();
+  else if (k === '--nodes') opt.nodes = v(); else if (k === '--ref-nodes') opt.refNodes = +v(); else if (k === '--ref-ai') opt.refAi = v();
   else if (k === '--worker') opt.worker = true; else throw new Error('未知参数 ' + k);
 }
 function mulberry32(a) { return () => { a |= 0; a = (a + 0x6D2B79F5) | 0; let t = Math.imul(a ^ (a >>> 15), 1 | a); t = (t + Math.imul(t ^ (t >>> 7), 61 | t)) ^ t; return ((t ^ (t >>> 14)) >>> 0) / 4294967296; }; }
@@ -45,7 +47,7 @@ function drawBoard(S) {
 function worker() {
   global.XQ = require('../src/rules.js');
   const BF = global.BF = require('../src/bingfa.js');
-  let AI = null;
+  let AI = null, REF = null;   // REF = 裁判（默认就是考生自己）
   const N = { r: '车', n: '马', e: '相', a: '士', k: '帅', c: '炮', p: '兵' };
   const desc = (S, a) => {
     if (a.k === 'up') { const p = S.board[a.at[1]][a.at[0]]; return `升${p ? N[p.t] : '?'}${a.at}`; }
@@ -100,13 +102,13 @@ function worker() {
       const seq = await AI.think(BF.cloneState(S0), lvl);
       if (plies >= job.open) {
         // 复核：走之前最好能拿几分；走完之后对方最好能拿几分
-        const ref = await AI.think(BF.cloneState(S0), 'ref');
-        const best = AI.think.last.v, bestSeq = ref;
+        const ref = await REF.think(BF.cloneState(S0), 'ref');
+        const best = REF.think.last.v, bestSeq = ref;
         const T = new BF.Game(); T.setup(X => Object.assign(X, BF.cloneState(S0)));
         let ok = true; for (const a of seq) if (!T.apply(a)) { ok = false; break; }
         if (ok && !T.result && T.turn !== side) {
-          await AI.think(BF.cloneState(T.S), 'ref');
-          const got = -AI.think.last.v;
+          await REF.think(BF.cloneState(T.S), 'ref');
+          const got = -REF.think.last.v;
           const same = JSON.stringify(seq) === JSON.stringify(bestSeq);
           const loss = same ? 0 : Math.max(0, best - got);
           // 走的就是复核最好的那步时不算错（两次搜索深浅不同，可能一次看到杀、一次没看到，那不是电脑的错）
@@ -126,10 +128,12 @@ function worker() {
   process.on('message', async m => {
     if (m.init) {
       AI = require(path.resolve(__dirname, '..', m.ai));
+      REF = m.refAi ? require(path.resolve(__dirname, '..', m.refAi)) : AI;   // 同一个文件 = 同一份电脑
       AI.LEVELS.open = { ...AI.LEVELS.mid, noise: 0.9, top: 3 };
-      AI.LEVELS.ref = { ...AI.LEVELS.hard, noise: 0, top: 1, budget: m.budget };
+      REF.LEVELS.ref = { ...REF.LEVELS.hard, noise: 0, top: 1, budget: m.budget };
       applyNodes(AI.LEVELS, parseNodes(m.nodes), { open: 'mid' });
-      if (m.refNodes) AI.LEVELS.ref.nodes = m.refNodes;
+      if (REF !== AI) applyNodes(REF.LEVELS, parseNodes(m.nodes));
+      if (m.refNodes) REF.LEVELS.ref.nodes = m.refNodes;
       process.send({ ready: true }); return;
     }
     if (m.job) { try { process.send({ result: await game(m.job) }); } catch (e) { process.send({ error: String(e && e.stack || e) }); } }
@@ -137,7 +141,19 @@ function worker() {
   });
 }
 
+// git:提交号 → 取那一版的 src/bfai.js 存成临时文件（和 bfsim 的写法一样）
+function resolveAI(spec) {
+  if (!spec || !spec.startsWith('git:')) return spec;
+  const rev = spec.slice(4);
+  const code = require('child_process').execFileSync('git', ['show', rev + ':source/src/bfai.js'], { cwd: path.join(__dirname, '..'), encoding: 'utf8' });
+  const file = path.join(os.tmpdir(), 'bfai-' + rev.replace(/[^\w.-]/g, '_') + '.js');
+  require('fs').writeFileSync(file, code);
+  return file;
+}
+
 async function main() {
+  opt.aiFile = resolveAI(opt.ai); opt.refFile = opt.refAi ? resolveAI(opt.refAi) : null;
+  if (opt.refFile && path.resolve(__dirname, '..', opt.refFile) === path.resolve(__dirname, '..', opt.aiFile)) opt.refFile = null;
   const jobs = []; for (let i = 0; i < opt.games; i++) jobs.push({ seed: opt.seed + i, level: opt.level, open: opt.open, maxPlies: opt.maxPlies });
   const results = [], errors = []; let next = 0;
   const t0 = Date.now();
@@ -148,7 +164,7 @@ async function main() {
       const feed = () => { if (next < jobs.length) c.send({ job: jobs[next++] }); else c.send({ exit: true }); };
       c.on('message', m => { if (m.ready) return feed(); if (m.result) results.push(m.result); if (m.error) errors.push(m.error); if (process.stderr.isTTY) process.stderr.write(`\r${results.length + errors.length}/${jobs.length}`); feed(); });
       c.on('exit', () => { if (--alive === 0) resolve(); });
-      c.send({ init: true, ai: opt.ai, budget: opt.budget, nodes: opt.nodes, refNodes: opt.refNodes });
+      c.send({ init: true, ai: opt.aiFile, refAi: opt.refFile, budget: opt.budget, nodes: opt.nodes, refNodes: opt.refNodes });
     }
   });
   const all = results.flatMap(r => r.moves);
@@ -156,7 +172,7 @@ async function main() {
   const mis = all.filter(m => m.loss >= 2).length, blunder = all.filter(m => m.loss >= 4).length;
   const missMate = all.filter(m => m.missMate).length, allowMate = all.filter(m => m.allowMate).length;
   const avg = all.reduce((t, m) => t + m.loss, 0) / n;
-  console.log(`== 漏着率：${opt.ai} ${opt.level} 档自对弈 ${results.length} 局、复核 ${all.length} 步（霸王档每步 ${opt.budget}ms）| ${Math.round((Date.now() - t0) / 1000)}s ==`);
+  console.log(`== 漏着率：${opt.ai} ${opt.level} 档自对弈 ${results.length} 局、复核 ${all.length} 步（裁判：${opt.refFile ? opt.refAi : '考生自己'}的霸王档，${opt.refNodes ? '每步 ' + opt.refNodes + ' 节点' : '每步 ' + opt.budget + 'ms'}）| ${Math.round((Date.now() - t0) / 1000)}s ==`);
   console.log(`平均每步损失 ${avg.toFixed(2)} 分；每 100 步：失误（≥2 分）${(100 * mis / n).toFixed(1)}，漏着（≥4 分）${(100 * blunder / n).toFixed(1)}；看到杀没走 ${missMate} 次，走了送杀 ${allowMate} 次`);
   for (const s of ['r', 'b']) { const a = all.filter(m => m.side === s); console.log(`  ${s === 'r' ? '汉' : '楚'}方：${a.length} 步，漏着 ${a.filter(m => m.loss >= 4).length}，平均损失 ${(a.reduce((t, m) => t + m.loss, 0) / (a.length || 1)).toFixed(2)}`); }
   const drop = all.filter(m => m.loss2 >= 3).length, both = all.filter(m => m.loss2 >= 3 && m.loss >= 4).length;
