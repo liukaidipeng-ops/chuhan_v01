@@ -39,13 +39,13 @@
     generalArts: { fromRound: 1, xiaohe: { usesPerGame: 1 }, pofu: { usesPerGame: 1, steps: 2, mayEndInCheck: false, skillLockRounds: 3 } },
     ultimates: { cost: 20, hongmen: { usesPerGame: 1, rounds: 3 }, simian: { usesPerGame: 1, rounds: 2, radius: 2, minPiecesInRadius: 3 } },
     longCheckLimit: 6,
-    // 背水一战（on = true 时代替楚方的破釜沉舟；默认关，线上还是破釜沉舟）。开着时两边的主帅兵法都只给弱势方用：
+    // 背水一战（on = true 时代替楚方的破釜沉舟；2026-10-05 起默认开，on = false 回到破釜沉舟）。开着时两边的主帅兵法都只给弱势方用：
     //   轮到自己时，己方车马炮最多还剩 maxLeft 枚、而且比对方的车马炮少，才能用——楚方的背水一战、汉方的召回良将都看这一条（每局一次照旧）；
-    //   两枚不同的子各走一步（twoPieces），两步合计最多吃掉 maxKills 个子（践踏踩死的也算，打伤不算）；
+    //   连走两步：同一枚子走两步，或两枚子各走一步（twoPieces = true 时必须是两枚不同的子）；两步合计最多吃掉 maxKills 个子（践踏踩死的也算，打伤不算）；
     //   只看结算：两步走完时楚将不被将军、也不将着汉帅；过程不限（可以各挡一路解双将，第一步可以先走进被将的格子、先将一下对方）；
-    //   用完没有技能封锁，但用过的两枚子在楚方之后 freeze 个回合里不能动（原地的拒马、齐射能用）——
+    //   用完没有技能封锁，但用过的子（一枚或两枚）在楚方之后 freeze 个回合里不能动（原地的拒马、齐射能用）——
     //   例外：楚方被将军时，冻结的子可以去吃正在将军的那枚（strictEscape：只能吃它，而且要吃死；false = 吃哪个子都行，只要解了将）
-    beishui: { on: false, maxLeft: 3, twoPieces: true, maxKills: 1, freeze: 1, strictEscape: true },
+    beishui: { on: true, maxLeft: 3, twoPieces: false, maxKills: 1, freeze: 1, strictEscape: true },
   };
   // 主技能（三级解锁）；SKILLS_OF 列出这一兵种全部技能（含四级的）
   const SKILL_OF = (t, s) => ({ p: 'juma', r: 'chongzhen', n: 'taying', c: 'pili', a: 'hujia', e: s === 'r' ? 'qishe' : 'jianta' })[t] || null;

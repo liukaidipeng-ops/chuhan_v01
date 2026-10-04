@@ -220,7 +220,8 @@ input.code{font-size:30px;letter-spacing:.4em;text-align:center;width:8.5em;max-
   background:radial-gradient(ellipse 76% 72% at 50% 50%,rgba(220,90,60,0) 26%,rgba(206,66,40,.62) 50%,rgba(150,24,12,.92) 72%,rgba(60,4,2,.98) 100%)}
 @keyframes veilBad{50%{opacity:.72}}
 #veil u{display:none;position:absolute;left:50%;top:13%;transform:translateX(-50%);text-decoration:none;text-align:center;white-space:nowrap}
-#veil u.low{top:auto;bottom:24%}
+#veil u.mid{top:38%}
+#veil u.low{top:auto;bottom:22%}
 #veil.bs.bad u{display:block;animation:bsMsgIn .28s cubic-bezier(.2,1.5,.4,1) both}
 #veil u em{display:block;font-style:normal;font-family:"XK",var(--font);font-size:clamp(46px,7vw,84px);line-height:1.05;letter-spacing:.16em;padding-left:.16em;color:#b3261a;text-shadow:0 2px 0 rgba(255,246,230,.9),0 0 22px rgba(255,244,226,.95),0 0 46px rgba(255,244,226,.8)}
 #veil u span{display:inline-block;margin-top:4px;font-size:15px;letter-spacing:.1em;color:#f6e9cf;background:rgba(74,12,8,.9);border:1px solid rgba(240,170,140,.55);border-radius:12px;padding:6px 18px 7px;line-height:1.5}
@@ -743,7 +744,7 @@ body.compact #log{width:164px;max-height:34vh}
   · <b>被动技能</b>不用按按钮：能用时直接作为普通走法出现；同一回合里主动技能和被动技能可以一起用（例如架完拒马，再用回防后退一格）。<br>
   · 电脑上把鼠标停在按钮、兵法签或棋子上，手机上长按，可以看到说明；右侧「法」按钮是规则速览。选子后，打不死的目标头顶标「-1」「-2」，能一击杀死才标「殺」。<br>
   · <b>决战</b>：棋盘上双方的车、马、兵、炮都死光后，屏幕会提示进入决战——象、士、帅将都可以过河进攻（象仍走田、士仍走斜一格，只是不受河界九宫限制）；帅将按过河兵走（前、左、右各一格，不能后退），各有 3 点生命；没有将军——可以对脸、可以送将，帅将被打到 0 血就输；士的「铁甲禁卫」出了九宫也能用；<b>夺营</b>——帅将走进对方九宫后，对方再走三步还没把它打死（它自己也没走出九宫），就算获胜。<br>
-  · <b>主帅兵法</b>（每局一次）：刘邦「召回良将」复活一子；项羽「破釜沉舟」连走两步（不能以将军收尾），之后三回合不用技能。<br>
+  · <b>主帅兵法</b>（每局一次，只给落了下风的一方用）：己方车马炮最多还剩 3 枚、而且比对方少时才能用。刘邦「召回良将」复活一子；项羽「背水一战」连走两步——同一枚子走两步，或两枚子各走一步，合计最多吃一个子；只看两步走完：楚将不被将军、也不将着汉帅就行。发动后不能取消；用过的子下一回合不能动（被将军时可以去吃掉将军的那枚）。<br>
   · <b>终极兵法</b>（20 军功，每局一次）：楚「鸿门宴」——汉帅三回合不能动，但汉士可用「护驾」闯帐救驾、当场破解；汉「四面楚歌」——楚将 2 格内有 3 枚汉子时可发动，两回合内楚军只有将能照常走，其余的子不能移动、不能用技能，只能吃掉正在将军的那枚子，而且楚军这期间的威胁不算将军（汉方可借此解将）；楚军没被将军时也可以点「停着」不走。<br>
   · 同一子连续将军不得超过六回合。
   </div>

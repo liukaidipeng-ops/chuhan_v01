@@ -8,6 +8,8 @@
   // 更新说明（设置里、大厅底部点「更新」查看；最新的放最前）
   const NEWS = [
     ['第六版', '2026 年 10 月', [
+      '技能模式的主帅兵法改了，只给落了下风的一方用——己方车马炮最多还剩 3 枚、而且比对方少时才能用。项羽的「破釜沉舟」换成「背水一战」：连走两步（一枚子走两步，或两枚子各走一步），合计最多吃一个子；只看两步走完——楚将不被将军、也不将着汉帅就行；发动后不能取消，用过的子下一回合不能动，不再封技能。刘邦的「召回良将」也要落了下风才能用。改规则之前开的局接着下，还按原来的规则',
+      '背水一战发动期间，屏幕四周泛起墨色晕染；两步走完不合规矩，四周变红、写明原因并标出是哪枚子的问题，点一下屏幕棋子归位重走',
       '绝杀多了一笔：被将死的将帅头顶先凌空画一把朱红的叉，叉落下来——棋子模式留在棋子面上，模型模式落在棋盘上——停一停让人看清局面，再出绝杀大字',
       '场边的战鼓挪到了营帐旁（原来和卫兵穿在一起），每面鼓配了一名擂鼓兵：鼓声一响就跟着一槌一槌地敲',
       '技能模式的电脑换了一版：懂得「升了级、砍不死的子贴到主帅身边」是最要命的杀法——进攻会往上贴，防守会提前把士升二级；被将军时会把连杀一路算到底；军功不再浪费在救兵上；汉方会提防对面的破釜沉舟。代价是想得久一点：校尉平均一步多半秒左右，霸王基本不变',
@@ -221,6 +223,7 @@
   // layout：续局时沿用原来的随机布局（本地揭棋）
   const mkGame = (o, layout) => (o && +o.bf ? new BF.Game() : o && +o.jq ? new XQ.Game({ jq: true, layout: layout || (mode === 'local' ? XQ.randomLayout() : null) }) : new XQ.Game());
   // 兵法：技能选择状态、升级记法、调试
+  const BS_NEW = /[?&]beishui=0/.test(location.search) ? 0 : 1;
   let bfMode = null, bfUpNote = '', dbgOn = false, dbgPick = null, dbgSel = null, dbgLv = 1, dbgNoCd = false, dbgFree = false;
   let JK = null, JC = { cin: {}, cout: {}, used: { r: {}, b: {} } }, jqBad = 0, pendingJ = null, lastJx = null;
   const jqOn = () => game.jq && online();
@@ -715,6 +718,9 @@
   async function startGame(m, side, o, { state = null, intro = true } = {}) {
     cancelAI(); closeRoom();
     mode = m; mySide = side; opts = { ...o }; ended = false; started = false; lobbySpin = false;
+    // 技能模式的楚方主帅兵法用哪一套，记在这一局的选项里（bs = 1 背水一战）：新开的局用背水一战；
+    //   没有这个记号的（改规则之前开的局接着下、房主还是旧版本、旧的复盘）照旧用破釜沉舟——联机双方、观众、接着下的局都看同一个记号，不会一边一套
+    if (+opts.bf) { if (opts.bs == null && !state && (m === 'local' || m === 'ai' || m === 'host')) opts.bs = BS_NEW; BF.CFG.beishui.on = !!+opts.bs; }
     if ((m === 'local' || m === 'ai') && !state) store.del('resume');
     resumeKey = '';
     game = mkGame(opts, state && state.layout); undoUsed = { r: 0, b: 0 }; pendingUndo = null; pauseUsed = { r: 0, b: 0 }; setPause(null);
@@ -1415,7 +1421,7 @@
       }
       M.board = pv.S.board; M.sel = null;
       Board.clearMoves(true); Sfx.place();
-      M.hint = BF.CFG.beishui.on ? '背水一战 · 第二步：换一枚子再走一步' : '破釜沉舟 · 第二步：选子再走一步'; renderBar();
+      M.hint = BF.CFG.beishui.on ? BS_HINT[1] : '破釜沉舟 · 第二步：选子再走一步'; renderBar();
       return;
     }
     if (hit && M.m1) { doBF({ k: 'art', steps: [M.m1, { from: hit.from, to: hit.to }] }); return; }
@@ -1426,7 +1432,8 @@
   }
   // 背水一战：发动后收不回来（没有“取消”）。能走的步都让走，两步走完再判——
   //   合法就结算；不合法 → 四周变朱红、说明原因、惹祸的子标红，点一下屏幕棋子归位，从第一步重走
-  const BS_HINT = ['背水一战 · 第一步：选一枚子走一步（不能取消）', '背水一战 · 第二步：换一枚子再走一步'];
+  const bsHow = () => (BF.CFG.beishui.twoPieces ? '两枚不同的子各走一步' : '一枚子连走两步，或两枚子各走一步');
+  const BS_HINT = { get 0() { return '背水一战 · 第一步：选一枚子走一步（不能取消）'; }, get 1() { return '背水一战 · 第二步：' + (BF.CFG.beishui.twoPieces ? '换一枚子再走一步' : '再走一步（这枚子、另一枚子都行）'); } };
   const BS_WHY = {
     self: '两步走完，楚将正被将军', face: '两步走完，将帅照面了', give: '背水一战走完不能将着汉帅',
     kills: () => `背水一战合计最多吃 ${BF.CFG.beishui.maxKills} 个子`, long: '同一枚子不能一直将军', other: '这两步不合规则',
@@ -1468,7 +1475,8 @@
       u.querySelector('em').textContent = '不合法'; u.querySelector('strong').textContent = txt; u.querySelector('small').textContent = '点一下屏幕 · 棋子归位，重走背水一战';
       // 大字别压住标红的子：惹祸的子在屏幕上半就把字放到下面
       const ys = j.marks.map(c => (1 - Board.pos(c[0], c[1]).project(Core.camera).y) / 2);
-      u.classList.toggle('low', ys.length > 0 && Math.min(...ys) < 0.4 && Math.max(...ys) < 0.62);
+      const free = (a, b) => !ys.some(y => y > a && y < b), band = free(0.08, 0.36) ? '' : free(0.36, 0.6) ? 'mid' : free(0.6, 0.84) ? 'low' : '';
+      u.classList.toggle('mid', band === 'mid'); u.classList.toggle('low', band === 'low');
       try { Sfx.B.thud(0, 0.7); Sfx.B.clang(0.03, 0.3); } catch (e) { }
       Core.Cam.shake(0.12);
       renderBar();
@@ -1556,7 +1564,7 @@
     get b() {
       const B = BF.CFG.beishui;
       if (!B.on) return '连走两步（不能用技能，第二步不能将军）。此后 3 回合楚军不能用兵种技能。每局一次。';
-      return `绝境里的反扑：楚军车马炮${B.maxLeft != null ? `最多还剩 ${B.maxLeft} 枚、而且` : ''}比汉军少时才能用。两枚不同的子各走一步，合计最多吃 ${B.maxKills} 个子；只看两步走完：己方不被将军、也不将着对方就行（中途不限，可以各挡一路解双将）。用过的两枚子下一回合不能动（被将军时可以去吃掉将军的那枚）。每局一次。`;
+      return `绝境里的反扑：楚军车马炮${B.maxLeft != null ? `最多还剩 ${B.maxLeft} 枚、而且` : ''}比汉军少时才能用。${bsHow()}，合计最多吃 ${B.maxKills} 个子；只看两步走完：己方不被将军、也不将着对方就行（中途不限，可以各挡一路解双将）。发动后不能取消；用过的子下一回合不能动（被将军时可以去吃掉将军的那枚）。每局一次。`;
     } };
   const ULT_DESC = { r: `${BF.CFG.ultimates.cost} 军功，楚将两格内须有 ${BF.CFG.ultimates.simian.minPiecesInRadius} 枚汉子。${BF.CFG.ultimates.simian.rounds} 回合内楚军除将外不能移动，只能吃掉将军的子，也不算将军。`, b: `${BF.CFG.ultimates.cost} 军功。汉帅 ${BF.CFG.ultimates.hongmen.rounds} 回合不能动；汉士「护驾」可破。` };
   const artTip = s => `<b>主帅兵法 · ${BF.ART_CN[s]}</b><br>${ART_DESC[s]}`;
@@ -1634,7 +1642,7 @@
     }
     const BS = BF.CFG.beishui;
     if (BS.on) {
-      return ['无法连走', `背水一战要两枚不同的子各走一步：两步走完时己方不被将军、也不将着对方，合计最多吃 ${BS.maxKills} 个子；现在找不到这样的两步`];
+      return ['无法连走', `背水一战要连走两步（${bsHow()}）：两步走完时己方不被将军、也不将着对方，合计最多吃 ${BS.maxKills} 个子；现在找不到这样的两步`];
     }
     return ['无法连走', '破釜沉舟要连走两步普通走子：每步走完己方不被将军，两步走完不能将军对方；现在找不到这样的两步'];
   }
@@ -1758,12 +1766,12 @@
       if (BF.CFG.beishui.on) {
         // 背水一战一旦发动就收不回来：先郑重问一句
         const B = BF.CFG.beishui;
-        const ok = await ask('背 水 一 战', `一旦发动就不能收回：这一回合必须用两枚不同的子各走一步，把背水一战走完。每局只有这一次。走完两步时楚将不能被将军、也不能将着汉帅，合计最多吃 ${B.maxKills} 个子；用过的两枚子下一回合不能动。`, 0, '发 动', '再想想');
+        const ok = await ask('背 水 一 战', `一旦发动就不能收回：这一回合必须把背水一战的两步走完（${bsHow()}）。每局只有这一次。走完两步时楚将不能被将军、也不能将着汉帅，合计最多吃 ${B.maxKills} 个子；用过的子下一回合不能动。`, 0, '发 动', '再想想');
         if (ok && canAct() && game.turn === 'b' && !bfMode) bsStart();
         return;
       }
       bfClear();
-      bfMode = { kind: 'pofu', firsts: game.pofuFirst(), hint: BF.CFG.beishui.on ? '背水一战 · 第一步：选一枚子走一步（两枚不同的子各走一步，最多吃一个子；走完两步不被将、也不将对方）' : '破釜沉舟 · 第一步：选子走一步（两步走完不能将军）' };
+      bfMode = { kind: 'pofu', firsts: game.pofuFirst(), hint: '破釜沉舟 · 第一步：选子走一步（两步走完不能将军）' };
       renderBar(); return;
     }
     if (a === 'ult') {
@@ -2942,7 +2950,7 @@
   const q = new URLSearchParams(location.search);
   const urlRoom = (q.get('room') || '').toUpperCase();
   const hostRec = store.get('host', null);
-  if (/[?&]beishui=1/.test(location.search)) BF.CFG.beishui.on = true;   // 试验开关：网址带 ?beishui=1 时用背水一战代替破釜沉舟（只在这台机器上生效）
+  // （主帅兵法用哪一套由每一局的 opts.bs 决定，见 startGame；网址带 ?beishui=0 时，这台机器新开的局回到破釜沉舟）
   window.__xq = {
     get busy() { return busy; }, get started() { return started; }, get game() { return game; }, get mode() { return mode; }, get aiThinking() { return aiThinking; },
     doMove, startGame, finishGame, Ending, Fx, Board, Core, Camp, Squads, Spect, setView, onData, Net, requestUndo, sendEmote, get clock() { return clock; }, get opts() { return opts; }, joinRoom, notation, get notes() { return notes; }, aiSay,

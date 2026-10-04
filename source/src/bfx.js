@@ -549,9 +549,9 @@ const BFX = (() => {
       await sleep(0.3);
     } else {
       // 破釜沉舟：沉舟的火映红河面，楚军踏火连进两步
-      if (BF.CFG.beishui.on) title('背水一战', '两枚子各进一步 · 用过的子下回合不能动', 2600); else title('破釜沉舟', '楚军连进两步 · 此后三回合不用技能', 2600);
+      if (BF.CFG.beishui.on) title('背水一战', '连进两步 · 用过的子下回合不能动', 2600); else title('破釜沉舟', '楚军连进两步 · 此后三回合不用技能', 2600);
       Sfx.B.gong(0, 0.9); Sfx.B.woodbreak(0.3, 0.7); Sfx.B.boom(0.4, 0.5); Sfx.B.taiko(0.1, 0.9); Sfx.B.taiko(0.45, 1);
-      const vp = say('bf_art_b');
+      const vp = say(BF.CFG.beishui.on ? 'bf_art_b2' : 'bf_art_b');
       const k = [...Board.pieces.values()].find(m => m.userData.t === 'k' && m.userData.s === 'b');
       if (k && big) { document.body.classList.add('cine'); const hd = Cam.homeDir(); Cam.to(k.position.clone().addScaledVector(hd, -3).add(new V3(0, 2.2, 0)), k.position.clone().add(new V3(0, 0.4, 0)), 0.9); }
       if (k) {

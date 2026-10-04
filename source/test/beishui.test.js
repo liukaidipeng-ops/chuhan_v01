@@ -7,6 +7,8 @@ let pass = 0; const ok = (c, m) => { assert.ok(c, m); pass++; console.log('  ✓
 let pid = 600; const P = (s, t, lv = 1, x = {}) => ({ s, t, id: pid++, lv, hp: BF.hpOf(t, lv), cd: 0, jm: 0, xp: 0, kills: 0, ...x });
 const pos = (pieces, o = {}) => { const g = new BF.Game(); g.setup(T => { for (const row of T.board) row.fill(null); for (const [f, r, p] of pieces) T.board[r][f] = p; T.turn = o.turn || 'b'; T.merit = { r: 0, b: 0, ...(o.merit || {}) }; T.used = { art: { r: 0, b: 0, ...(o.art || {}) }, ult: { r: 0, b: 0 } }; T.cnt = { r: 10, b: 10 }; if (o.dead) T.dead = o.dead; }); return g; };
 const B = BF.CFG.beishui;
+const DEF = { on: true, maxLeft: 3, twoPieces: false, maxKills: 1, freeze: 1, strictEscape: true };   // 正式默认（2026-10-05 起背水一战代替破釜沉舟；一枚子走两步、两枚子各走一步都行）
+const DEF_AT_LOAD = JSON.stringify(B);
 // 每组测试前把配置拨回：on 关、不限“丢一半”（maxLeft: null）、宽松解将（strictEscape: false），再按需要改
 const cfg = (x) => { Object.assign(B, { on: false, maxLeft: null, twoPieces: true, maxKills: 1, freeze: 1, strictEscape: false }, x); };
 const art = (s1, s2) => ({ k: 'art', steps: [{ from: s1[0], to: s1[1] }, { from: s2[0], to: s2[1] }] });
@@ -176,6 +178,25 @@ for (const check of ['none']) {
   ok((whys.self || 0) > 50 && (whys.other || 0) * 20 < Object.values(whys).reduce((x, y) => x + y, 0), '界面判定：不合法的原因 ' + JSON.stringify(whys));
   ok(positions >= 20 && pairs > 500, `${positions} 个局面、${pairs} 个组合逐项相同（其中不打子的防守组合 ${quiet} 个）`);
 }
+console.log('14. 正式默认：背水一战开着，一枚子走两步、两枚子各走一步都行');
+{ ok(DEF_AT_LOAD === JSON.stringify(DEF), '引擎的默认配置就是正式规则：' + DEF_AT_LOAD);
+  Object.assign(B, DEF);
+  const mk = () => pos([[3, 0, KR()], [5, 9, KB()], [0, 9, P('b', 'r')], [8, 6, P('b', 'p')], [0, 5, P('r', 'p')], [0, 3, P('r', 'p')], [0, 0, P('r', 'r')], [8, 0, P('r', 'r')]]);
+  const g = mk(), hitRun = art([[0, 9], [0, 5]], [[0, 5], [0, 8]]), twoKills = art([[0, 9], [0, 5]], [[0, 5], [0, 3]]), two = art([[0, 9], [0, 5]], [[8, 6], [8, 5]]);
+  ok(!!BF.attempt(g.S, hitRun), '同一辆车吃一个兵再撤回来：合法');
+  ok(!BF.attempt(g.S, twoKills), '同一辆车连吃两个兵：不合法（最多吃一个）');
+  ok(!!BF.attempt(g.S, two), '两枚不同的子各走一步：照样合法');
+  const key = a => JSON.stringify(a.steps), pairs = BF.ai.pofuPairs(g.S).map(k => key(k.a));
+  ok(pairs.includes(key(hitRun)) && pairs.includes(key(two)) && !pairs.includes(key(twoKills)), '电脑候选里有“吃完就撤”和“两枚子各一步”，没有“连吃两个”');
+  const f2 = g.bsFree({ from: [0, 9], to: [0, 5] }).list;
+  ok(f2.some(m => m.from[0] === 0 && m.from[1] === 5), '界面第二步：刚走过的那辆车还能再点');
+  ok(g.bsJudge(hitRun.steps).ok && g.bsJudge(twoKills.steps).why === 'kills', '界面判定：吃完就撤合法；连吃两个说“吃多了”');
+  B.twoPieces = true; ok(!g.bsFree({ from: [0, 9], to: [0, 5] }).list.some(m => m.from[0] === 0 && m.from[1] === 5) && !BF.attempt(g.S, hitRun), 'twoPieces 打开：同一枚子不能走两步'); B.twoPieces = false;
+  ok(!!g.apply(hitRun), '走：车吃兵再撤回');
+  const frozen = g.S.board.flat().filter(q => q && q.s === 'b' && q.bz);
+  ok(frozen.length === 1 && frozen[0].t === 'r', '只用了一枚子，就只冻那一枚');
+  ok(!!g.apply({ k: 'mv', from: [8, 0], to: [8, 1] }), '汉方走一步');
+  ok(!BF.attempt(g.S, { k: 'mv', from: [0, 8], to: [0, 7] }) && !!BF.attempt(g.S, { k: 'mv', from: [8, 6], to: [8, 5] }), '下一回合：用过的车不能动，别的子照常'); }
 cfg2({});
-Object.assign(B, { on: false, maxLeft: 3, twoPieces: true, maxKills: 1, freeze: 1, strictEscape: true });
+Object.assign(B, DEF);
 console.log('BEISHUI OK', pass, '项');

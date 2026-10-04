@@ -22,7 +22,7 @@
   const PFK = ENV.BFAI_PFK != null ? +ENV.BFAI_PFK : 1;   // 破釜组合枚举前先筛掉只碰到一个兵的（1 开 0 关）
   const PFG = ENV.BFAI_PFG != null ? +ENV.BFAI_PFG : 0;   // 提防破釜沉舟：每一层只细算排在前几位的走法（0 = 全都细算）
   const UPK = ENV.BFAI_UPK != null ? +ENV.BFAI_UPK : 4;   // “先升级再走”的走法：第 2 层起每种升法只留几步接着算（0 = 全算）
-  // 背水一战（CFG.beishui.on，默认关）：开着就返回它的配置。BSMIN：楚方用背水要比最好的普通走法多赚几分（破釜沉舟是 5；背水是翻盘 / 救急用的，门槛低）
+  // 背水一战（CFG.beishui.on，默认开）：开着就返回它的配置。BSMIN：楚方用背水要比最好的普通走法多赚几分（破釜沉舟是 5；背水是翻盘 / 救急用的，门槛低）
   const bsOn = () => (CFG.beishui && CFG.beishui.on ? CFG.beishui : null);
   const BSMIN = ENV.BFAI_BSMIN != null ? +ENV.BFAI_BSMIN : 1;
   const BSV = ENV.BFAI_BSV != null ? +ENV.BFAI_BSV : 3;   // 背水一战还没用时在估值里值几分（和破釜沉舟一样先记 3）
@@ -390,7 +390,8 @@
       kids.push(k);
     }
     // 破釜沉舟（楚）：只留“连走两步能明显赚到子”的组合（比如先挪开再吃车），交给后面的搜索去核对值不值
-    if (me === 'b' && L.depth >= 2) {
+    //   小卒（只看一层）平时不用主帅兵法；但背水一战开着、正被将军、普通走法又解不了将时，只有背水能救，也得会用
+    if (me === 'b' && (L.depth >= 2 || (bsOn() && chk0 && !kids.length))) {
       try {
         const base = score(S, me);
         pofu = A.pofuPairs(S);
@@ -492,7 +493,7 @@
     for (const k of kids) { if (!k.up || fin0) continue; const t = S0.board[k.up.at[1]][k.up.at[0]].t; if ((t === 'a' || t === 'e') && k.v < plainBest + 0.4) k.w = k.v - 100; }
     const pool = kids.slice().sort((x, y) => y.w - x.w);
     let pick = pool[0];
-    if (L.top > 1 && pool.length > 1 && Math.random() < 0.3) { const c = pool.slice(0, L.top).filter(k => k.w > -50); pick = c[Math.floor(Math.random() * c.length)]; }
+    if (L.top > 1 && pool.length > 1 && Math.random() < 0.3) { const c = pool.slice(0, L.top).filter(k => k.w > -50), i = Math.floor(Math.random() * c.length); if (c.length) pick = c[i]; }   // 前几名全是输棋（一个都不剩）时就用第一名，别挑出个空的
     // 破釜沉舟每局只有一次：留着杀车这样的大子——同样的深度下，比最好的普通走法多赚不到一个大子的量就先不用
     //   （对方的召回良将还在手里时，杀了车也会被救回来，搜索里算得到，自然就不急着用）
     if (pofu.length && bestV < WIN / 2) {

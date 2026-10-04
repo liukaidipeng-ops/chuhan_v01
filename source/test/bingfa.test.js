@@ -190,8 +190,10 @@ const ok = (x, msg) => { assert(x, msg); };
   assert(i4 && i4.ev.some(e => e.e === 'occupy' && e.n === 3) && g4.result && g4.result.reason === 'occupy' && g4.result.winner === 'r', '满三回合：夺营获胜 ' + JSON.stringify(g4.result));
   console.log('决战 OK');
 }
-// ---------- 破釜沉舟组合：快的写法（第一步只结算一次）要和老写法（每个组合都 attempt 一遍）逐项相同 ----------
-{
+// ---------- 破釜沉舟 / 背水一战组合：快的写法（第一步只结算一次）要和老写法（每个组合都 attempt 一遍）逐项相同 ----------
+// 两套规则各核对一遍：先关掉背水（破釜沉舟），再用默认（背水一战）
+for (const bsOn of [false, true]) {
+  BF.CFG.beishui.on = bsOn;
   let seed = 20261004; const rnd = () => { seed |= 0; seed = seed + 0x6D2B79F5 | 0; let t = Math.imul(seed ^ seed >>> 15, 1 | seed); t = t + Math.imul(t ^ t >>> 7, 61 | t) ^ t; return ((t ^ t >>> 14) >>> 0) / 4294967296; };
   let positions = 0, pairs = 0;
   for (let gi = 0; gi < 8; gi++) {
@@ -218,7 +220,8 @@ const ok = (x, msg) => { assert(x, msg); };
       if (!g.apply(pick.a)) break;
     }
   }
-  assert(positions >= 20 && pairs > 1000, `破釜组合核对的局面太少：${positions} 个局面 ${pairs} 个组合`);
-  console.log('破釜组合 OK', positions, '个局面', pairs, '个组合');
+  assert(positions >= 20 && pairs > 1000, `组合核对的局面太少：${positions} 个局面 ${pairs} 个组合`);
+  console.log(bsOn ? '背水组合 OK' : '破釜组合 OK', positions, '个局面', pairs, '个组合');
 }
+BF.CFG.beishui.on = true;
 console.log('BINGFA ALL OK');
