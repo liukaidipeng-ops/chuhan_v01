@@ -99,6 +99,11 @@ PRESETS['revive-few'] = { engine: BSE, set: { 'beishui.fewer.r': true } };
 const BSE2 = 'tools/variants/engine_beishui2.js', BS2 = { 'beishui.on': true, 'beishui.fewer.b': true, 'beishui.persist': true, 'beishui.noKing': true, 'beishui.strictEscape': true };
 PRESETS['bs2-a'] = { engine: BSE2, set: { ...BS2, 'beishui.check': 'none' } };
 PRESETS['bs2-b'] = { engine: BSE2, set: { ...BS2, 'beishui.check': 'allow' } };
+// 背水一战第三版（用户 2026-10-04 定：至少丢了一半车马炮、且车马炮比对方少才能用；轮到自己时满足就行；将可以当背水的子）。冻结的子只能吃死将军的那枚（用户同意的默认）
+const BS3 = { 'beishui.on': true, 'beishui.fewer.b': true, 'beishui.maxLeft.b': 3, 'beishui.strictEscape': true };
+PRESETS['bs3-a'] = { engine: BSE2, set: { ...BS3, 'beishui.check': 'none' } };
+PRESETS['bs3-b'] = { engine: BSE2, set: { ...BS3, 'beishui.check': 'allow' } };
+PRESETS['revive-few3'] = { engine: BSE2, set: { 'beishui.fewer.r': true } };   // 汉方召回也要车马炮比楚少（用户：“可能也需要进攻棋子少于对方才能使用”）
 PRESETS['revive-few2'] = { engine: BSE2, set: { 'beishui.fewer.r': true } };   // 汉方召回也要车马炮比楚少（和 bs2-a / bs2-b 用逗号连着写；persist 对汉方同样生效）   // 汉方召回也要车马炮比楚少才能用（和 bs-a / bs-b 用逗号连着写）
 function applyPatches(BF, names) {
   if (!names || !names.length) return;
@@ -456,7 +461,8 @@ function worker() {
       const side = g.turn;
       if (BF.CFG.beishui && BF.CFG.beishui.fewer && BF.CFG.beishui.fewer[side] && R.avail[side] == null && !g.S.used.art[side] && (side === 'b' || g.S.dead.r.length)) {
         const c = { r: 0, b: 0 }; for (const row of g.S.board) for (const p of row) if (p && (p.t === 'r' || p.t === 'n' || p.t === 'c')) c[p.s]++;
-        if (c[side] < c[side === 'r' ? 'b' : 'r']) R.avail[side] = g.round;
+        const ML = BF.CFG.beishui.maxLeft && BF.CFG.beishui.maxLeft[side];
+        if (c[side] < c[side === 'r' ? 'b' : 'r'] && (ML == null || c[side] <= ML)) R.avail[side] = g.round;
       }
       { const c = atkCount(g.S), o = side === 'r' ? 'b' : 'r'; if (R.fewEnd[side] && c[side] < c[o]) { if (R.sus[side] == null) R.sus[side] = g.round; R.susN[side]++; } }
       if (side === 'b' && R.pf && g.S.cnt.b >= g.S.fx.pf) pfEnd();
@@ -743,7 +749,7 @@ function print(S, o) {
   const ur = S.ult.used, ar = S.art.used;
   L.push(`终极兵法：汉用 ${ur.r[0]} 局（平均第 ${S.ult.round.r.toFixed(1)} 回合，用了的局胜 ${ur.r[0] ? pct(ur.r[1] / ur.r[0]) : '-'}）  楚用 ${ur.b[0]} 局（第 ${S.ult.round.b.toFixed(1)} 回合，胜 ${ur.b[0] ? pct(ur.b[1] / ur.b[0]) : '-'}）  护驾破鸿门宴 ${S.rescue} 局`);
   L.push(`主帅兵法：汉召回 ${ar.r[0]} 局（第 ${S.art.round.r.toFixed(1)} 回合，胜 ${ar.r[0] ? pct(ar.r[1] / ar.r[0]) : '-'}）  楚${S.bs ? '背水' : '破釜'} ${ar.b[0]} 局（第 ${S.art.round.b.toFixed(1)} 回合，胜 ${ar.b[0] ? pct(ar.b[1] / ar.b[0]) : '-'}）`);
-  for (const s of ['r', 'b']) { const A = S.avail && S.avail[s]; if (A) L.push(`少子才能用的主帅兵法（${s === 'r' ? '汉召回' : '楚背水'}）：轮到自己时车马炮比对方少（多半只是兑子吃回之前那一下）过 ${A.n} 局，第一次平均第 ${A.round.toFixed(1)} 回合；真用了 ${A.used} 局（胜 ${A.used ? pct(A.usedWin / A.used) : '-'}）`); }
+  for (const s of ['r', 'b']) { const A = S.avail && S.avail[s]; if (A) L.push(`少子才能用的主帅兵法（${s === 'r' ? '汉召回' : '楚背水'}）：轮到自己时满足用的条件（车马炮比对方少；第三版还要至少丢了一半）过 ${A.n} 局，第一次平均第 ${A.round.toFixed(1)} 回合；真用了 ${A.used} 局（胜 ${A.used ? pct(A.usedWin / A.used) : '-'}）`); }
   if (S.sus && (S.sus.r || S.sus.b)) L.push('车马炮持续落后（自己走完还少、到下回合还少）：' + ['r', 'b'].map(s => { const A = S.sus[s]; return `${s === 'r' ? '汉' : '楚'} ${A ? `${A.n} 局（${pct(A.n / S.n)}，第一次平均第 ${A.round.toFixed(1)} 回合、平均落后 ${A.turns.toFixed(1)} 回合；这些局${s === 'r' ? '汉' : '楚'}胜 ${pct(A.win / A.n)}；其中用了主帅兵法 ${A.used} 局、胜 ${A.used ? pct(A.usedWin / A.used) : '-'}）` : '0 局'}`; }).join(' | '));
   { const f = H => { const n = H.full + H.hurt; return n ? `满血 ${pct(H.full / n)}、掉过血 ${pct(H.hurt / n)}（只剩 1 血 ${pct(H.last / n)}），共 ${n} 次` : '-'; };
     L.push(`手动升级时的血量（升级回满血，掉了血再升更划算）：汉 ${f(S.upHp.r)} | 楚 ${f(S.upHp.b)}`); }

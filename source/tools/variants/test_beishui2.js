@@ -113,5 +113,11 @@ console.log('11. 第二版：冻结的子只能吃掉将军的那枚（strictEsc
   ok(!BF.attempt(g.S, { k: 'mv', from: [4, 7], to: [0, 7] }), '冻结的车去吃别的兵（炮架没了、将也解了）：不合法');
   ok(!!BF.attempt(g.S, { k: 'mv', from: [4, 7], to: [4, 4] }), '冻结的车吃掉将军的炮：合法');
   cfg2({ on: true, fewer: { b: true } }); ok(!!BF.attempt(mk().S, { k: 'mv', from: [4, 7], to: [0, 7] }), '关掉 strictEscape：照第一版吃别的兵也行'); }
+console.log('12. 第三版：至少丢了一半车马炮（maxLeft.b = 3）');
+{ cfg2({ on: true, fewer: { b: true } }); B.maxLeft = { r: null, b: 3 };
+  const base = [[3, 0, KR()], [5, 9, KB()], [0, 9, P('b', 'r')], [8, 6, P('b', 'p')], [0, 5, P('r', 'p')], [0, 0, P('r', 'r')], [8, 0, P('r', 'r')], [1, 0, P('r', 'n')], [7, 0, P('r', 'n')], [1, 2, P('r', 'c')]];
+  const g3 = pos([...base, [1, 9, P('b', 'n')], [7, 9, P('b', 'n')]]); ok(!!BF.attempt(g3.S, art([[0, 9], [0, 5]], [[8, 6], [8, 5]])), '楚剩 3 枚、汉 5 枚：能用');
+  const g4 = pos([...base, [1, 9, P('b', 'n')], [7, 9, P('b', 'n')], [1, 7, P('b', 'c')]]); ok(!BF.attempt(g4.S, art([[0, 9], [0, 5]], [[8, 6], [8, 5]])), '楚剩 4 枚（比汉少，但没丢一半）：不能用');
+  B.maxLeft = { r: null, b: null }; ok(!!BF.attempt(g4.S, art([[0, 9], [0, 5]], [[8, 6], [8, 5]])), '不设 maxLeft：照第一版能用'); }
 cfg2({});
 console.log('通过', pass, '项');
