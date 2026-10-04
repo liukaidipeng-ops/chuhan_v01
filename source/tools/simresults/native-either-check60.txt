@@ -1,0 +1,9 @@
+# native-either-check60（GitHub Actions 运行 37209836576）
+# 请求：{"args":"--games 60 --seed 1000 --nodes mid=60000 --ai git:98dd206 --set beishui.on=true --set beishui.twoPieces=false","env":{"BFSIM_ENGINE":"tools/variants/engine_at.js","ENGINE_REV":"98dd206"},"chunks":4,"note":"核对 GitHub 机器和本机是否逐局相同：本机 native-either 的前 60 局（种子 1000～1059）重跑一遍"}
+# 收到 4/4 段
+== beishui.on=true beishui.twoPieces=false | mid vs mid  [汉 git:98dd206 | 楚 git:98dd206] | 60 局 | 0s ==
+胜负：汉 29  楚 31  和/超时 0   汉方胜率（分胜负的局）48.3%  95%CI 36–61%
+结局：b:checkmate 31  r:checkmate 29
+回合：平均 39.7  中位 36  P90 68  60 回合内结束 80.0%  进入决战 0.0%
+将死 60 局：将军的子有 2 血以上 93.3%（其中贴在帅将身边 83.3%），双将 6.7%
+（合并 4 份：/home/runner/work/chuhan_v01/chuhan_v01/parts/native-either-check60-0.json、/home/runner/work/chuhan_v01/chuhan_v01/parts/native-either-check60-1.json、/home/runner/work/chuhan_v01/chuhan_v01/parts/native-either-check60-2.json、/home/runner/work/chuhan_v01/chuhan_v01/parts/native-either-check60-3.json）
