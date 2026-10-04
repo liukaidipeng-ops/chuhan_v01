@@ -1,5 +1,6 @@
 // 技能模式电脑「总闸」：一条命令跑完所有闸门，给出 合格 / 不合格 / 只测基准
-// 用法：node tools/bfai_gate.js [--ai src/bfai.js] [--prev git:提交号] [--no-match] [--match-json FILE] [--quick] [--games 16] [--jobs 4]
+// 用法：node tools/bfai_gate.js [--ai src/bfai.js] [--prev git:提交号] [--no-match] [--match-json FILE] [--match-games N] [--seed N] [--quick] [--games 16] [--jobs 4]
+//   --seed N：对打用的起始种子（默认 1，换一个种子复跑可以看结论稳不稳）；--match-games N：对打最多几局（默认读 bfai_gate.json 的 match.maxGames）
 //   闸门（门槛写在 tools/bfai_gate.json，null = 还没定、只量基准）：
 //     1. 考题自检：考卷本身摆得对（--lint，几秒钟）
 //     2. 不退步：和上一版对打，换边、序贯检验——**能不能上线由它决定，所以排在考卷前面**（2026-10-03 chat 的建议：
@@ -15,11 +16,12 @@ const fs = require('fs');
 const { spawn } = require('child_process');
 
 const argv = process.argv.slice(2);
-const opt = { ai: 'src/bfai.js', prev: undefined, quick: false, games: 16, jobs: require('os').cpus().length, matchJson: null };
+const opt = { ai: 'src/bfai.js', prev: undefined, quick: false, games: 16, jobs: require('os').cpus().length, matchJson: null, seed: null, matchGames: null };
 for (let i = 0; i < argv.length; i++) {
   const k = argv[i], v = () => argv[++i];
   if (k === '--ai') opt.ai = v(); else if (k === '--prev') opt.prev = v(); else if (k === '--no-match') opt.prev = null; else if (k === '--quick') opt.quick = true;
   else if (k === '--match-json') opt.matchJson = v();
+  else if (k === '--seed') opt.seed = +v(); else if (k === '--match-games') opt.matchGames = +v();
   else if (k === '--games') opt.games = +v(); else if (k === '--jobs') opt.jobs = +v(); else throw new Error('未知参数 ' + k);
 }
 const ROOT = path.join(__dirname, '..');
@@ -52,7 +54,7 @@ const gate = (name, value, limit, ok, note = '') => rows.push({ name, value, lim
   // 2. 不退步（对打，决定能不能上线）
   if (opt.prev) {
     const sprt = (conf.match && conf.match.sprt) || [-30, 10];
-    const r = await run(['tools/bfsim.js', '--match', `${opt.ai},${opt.prev}`, '--games', String((conf.match && conf.match.maxGames) || 600), '--sprt', sprt.join(','), '--jobs', String(opt.jobs), ...nodes, ...(opt.matchJson ? ['--json', opt.matchJson] : [])], '不退步');
+    const r = await run(['tools/bfsim.js', '--match', `${opt.ai},${opt.prev}`, '--games', String(opt.matchGames || (conf.match && conf.match.maxGames) || 600), ...(opt.seed != null ? ['--seed', String(opt.seed)] : []), '--sprt', sprt.join(','), '--jobs', String(opt.jobs), ...nodes, ...(opt.matchJson ? ['--json', opt.matchJson] : [])], '不退步');
     const verdict = /→ (通过|不通过|还没有结论)/.exec(r.out), elo = /Elo 差 (\S+)（95% 区间 (\S+) ～ (\S+)）/.exec(r.out);
     gate(`对上一版（${opt.prev}）`, elo ? `Elo ${elo[1]}（${elo[2]}～${elo[3]}）` : '出错', `序贯检验 ${sprt.join(' 对 ')} 通过`, !!verdict && verdict[1] === '通过', verdict ? verdict[1] : '');
   }
