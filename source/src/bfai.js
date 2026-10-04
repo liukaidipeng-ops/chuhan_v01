@@ -154,6 +154,7 @@
   let upPly = -1;   // 在第几层考虑“对方先升级再走”（-1 = 不考虑）
   let pfPly = -1;   // 在第几层考虑“对方（楚）用破釜沉舟连走两步”（-1 = 不考虑）
   const pfCache = new Map();   // 每个局面的破釜沉舟组合只算一次（逐层加深时重复用）
+  const upCache = new Map();   // “对方先升级再走”的那几个局面，同样每个局面只生成一次
   // 负极大值 + αβ（分数总是站在走子方看）
   function ab(S, depth, alpha, beta, ply, ext = 0) {
     if (++nodes > nodeCap || ((nodes & 63) === 0 && now() > deadline)) throw TIMEOUT;
@@ -169,13 +170,17 @@
     let best = -INF, legal = 0;
     // 对方应这一步时，也可能先花军功给某枚子升一级再走（多一点血：我方本来能吃掉的子就吃不掉了，打上去还会被弹回）
     if (ply === upPly && !S.upgraded) {
-      const base = score(S, side), ups = [];
-      for (let r = 0; r < 10; r++) for (let f = 0; f < 9; f++) {
-        const p = S.board[r][f]; if (!p || p.s !== side || p.t === 'k') continue;
-        const T = A.upgradeState(S, [f, r]); if (T) ups.push({ S: T, g: score(T, side) - base });
+      let ups = upCache.get(S);
+      if (!ups) {
+        const base = score(S, side); ups = [];
+        for (let r = 0; r < 10; r++) for (let f = 0; f < 9; f++) {
+          const p = S.board[r][f]; if (!p || p.s !== side || p.t === 'k') continue;
+          const T = A.upgradeState(S, [f, r]); if (T) ups.push({ S: T, g: score(T, side) - base });
+        }
+        ups.sort((x, y) => y.g - x.g); ups = ups.slice(0, 3);
+        upCache.set(S, ups);   // 逐层加深时每一层都用同一批对象：下面破釜组合的缓存（按对象记）才接得上，不用每层重算
       }
-      ups.sort((x, y) => y.g - x.g);
-      for (const u of ups.slice(0, 3)) {
+      for (const u of ups) {
         const v = ab(u.S, depth - extd, alpha, beta, ply, ext - extd);
         if (v > best) best = v;
         if (v > alpha) alpha = v;
@@ -203,6 +208,7 @@
         pf = A.pofuPairs(S); for (const k of pf) k.q = score(k.S, 'b') - base;
         pf = pf.filter(k => k.q >= 3 || decided(k.S, k.ev)).sort((x, y) => y.q - x.q).slice(0, 4);
         pfCache.set(S, pf);
+        if (now() > deadline) throw TIMEOUT;   // 枚举破釜组合不计节点、可能很慢：算完看一眼表
       }
       for (const k of pf) {
         const w = decided(k.S, k.ev);
@@ -224,7 +230,7 @@
   const LEVELS = {
     easy: { depth: 1, q: 2, noise: 1.3, top: 3, up: 0.5, budget: 500 },
     mid: { depth: 3, q: 3, noise: 0.3, top: 1, up: 1, budget: 2500 },
-    hard: { depth: 7, q: 4, noise: 0.05, top: 1, up: 1, budget: 3000, minNodes: 60000 },
+    hard: { depth: 7, q: 4, noise: 0.05, top: 1, up: 1, budget: 3000, minNodes: 20000 },
   };
 
   // 压在对方主帅跟前的进攻子数（和估值里的 attR / attB 同一个算法）
@@ -289,7 +295,7 @@
     let L = tick ? { ...L0, budget: Math.min(L0.budget, 1400) } : L0;   // 在主线程里算（开不了 Worker）时少想一会儿，免得卡画面
     let S = S0, last = now();
     const breathe = async () => { if (tick && now() - last > 12) { await tick(); last = now(); } };
-    nodes = 0; qMax = L.q; hist.clear(); killers.length = 0; upPly = -1; pfPly = -1; pfCache.clear(); deadline = Infinity; nodeCap = Infinity;
+    nodes = 0; qMax = L.q; hist.clear(); killers.length = 0; upPly = -1; pfPly = -1; pfCache.clear(); upCache.clear(); deadline = Infinity; nodeCap = Infinity;
     const fin0 = !!S0.final;
     if (PFD && me === 'r' && L.depth >= 3 && S0.cnt.b < (S0.fx.pf || 0)) L = { ...L, depth: L.depth + PFD };   // 楚方技能被封的反击窗口：多算一层
     const byNodes = L.nodes > 0;   // 设了 nodes：按搜索量收手，完全不看时间（对打、考卷、漏着率用，机器快慢不影响结果）
@@ -336,10 +342,10 @@
         if (d > 2 && nodes - n0 > L.nodes * 0.5) break;
         nodeCap = d <= 2 ? Infinity : n0 + L.nodes;
       } else {
-        // 慢的设备上按时间收手会算得太浅：没搜够 minNodes 之前不因为时间到了就停（最多拖到三倍时间）
+        // 慢的设备上按时间收手会算得太浅：没搜够 minNodes 之前不因为时间到了就停（最多拖到 1.5 倍时间）
         const thin = L.minNodes > 0 && nodes - n0 < L.minNodes;
         if (d > 3 && !thin && now() - t0 > L.budget * 0.3) break;       // 剩下的时间不够再深一层了
-        deadline = d <= 3 ? Infinity : thin ? t0 + L.budget * 3 : soft + L.budget * 0.3;
+        deadline = d <= 3 ? Infinity : thin ? t0 + L.budget * 1.5 : soft + L.budget * 0.3;
       }
       let alpha = -INF, n = 0, cut = false;
       const M = L.noise * 1.6 + 0.02;                          // 比当前最好的差不到 M 的着法也算出准确分数（最后要在它们之间挑）；更差的只要个上界
@@ -349,7 +355,7 @@
           if (k.nv > alpha) alpha = k.nv;
           n++;
           await breathe();
-          if (!byNodes && d > 3 && now() > soft && !(L.minNodes > 0 && nodes - n0 < L.minNodes)) { cut = true; break; }
+          if (!byNodes && d > 3 && now() > soft && (!(L.minNodes > 0 && nodes - n0 < L.minNodes) || now() > t0 + L.budget * 1.5)) { cut = true; break; }
         }
       } catch (e) { if (e !== TIMEOUT) throw e; cut = true; }
       deadline = Infinity; nodeCap = Infinity;
