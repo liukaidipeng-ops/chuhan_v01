@@ -1,0 +1,76 @@
+{
+ "batch": "b6",
+ "key_present": true,
+ "key_len": 126,
+ "host": "https://api.minimax.cn",
+ "probe": [
+  {
+   "host": "https://api.minimax.cn",
+   "http": 200,
+   "code": 0,
+   "msg": "success"
+  }
+ ],
+ "jobs": [
+  {
+   "id": "war_a",
+   "music": true,
+   "tried": [
+    {
+     "model": "music-3.0",
+     "http": 410,
+     "code": 2153,
+     "msg": "This Music API is no longer available to new users. Existing paying customers can continue to use the service. For new access, please try MiniMax Audio (https://www.minimax.io/audio) or the open-source model at https://huggingface.co/MiniMaxAI/MiniMax-Music3"
+    },
+    {
+     "model": "music-2.6",
+     "http": 410,
+     "code": 2153,
+     "msg": "This Music API is no longer available to new users. Existing paying customers can continue to use the service. For new access, please try MiniMax Audio (https://www.minimax.io/audio) or the open-source model at https://huggingface.co/MiniMaxAI/MiniMax-Music3"
+    },
+    {
+     "model": "music-2.0",
+     "http": 410,
+     "code": 2153,
+     "msg": "This Music API is no longer available to new users. Existing paying customers can continue to use the service. For new access, please try MiniMax Audio (https://www.minimax.io/audio) or the open-source model at https://huggingface.co/MiniMaxAI/MiniMax-Music3"
+    },
+    {
+     "model": "music-1.5",
+     "http": 410,
+     "code": 2153,
+     "msg": "This Music API is no longer available to new users. Existing paying customers can continue to use the service. For new access, please try MiniMax Audio (https://www.minimax.io/audio) or the open-source model at https://huggingface.co/MiniMaxAI/MiniMax-Music3"
+    }
+   ]
+  },
+  {
+   "id": "war_b",
+   "music": true,
+   "tried": [
+    {
+     "model": "music-3.0",
+     "http": 410,
+     "code": 2153,
+     "msg": "This Music API is no longer available to new users. Existing paying customers can continue to use the service. For new access, please try MiniMax Audio (https://www.minimax.io/audio) or the open-source model at https://huggingface.co/MiniMaxAI/MiniMax-Music3"
+    },
+    {
+     "model": "music-2.6",
+     "http": 410,
+     "code": 2153,
+     "msg": "This Music API is no longer available to new users. Existing paying customers can continue to use the service. For new access, please try MiniMax Audio (https://www.minimax.io/audio) or the open-source model at https://huggingface.co/MiniMaxAI/MiniMax-Music3"
+    },
+    {
+     "model": "music-2.0",
+     "http": 410,
+     "code": 2153,
+     "msg": "This Music API is no longer available to new users. Existing paying customers can continue to use the service. For new access, please try MiniMax Audio (https://www.minimax.io/audio) or the open-source model at https://huggingface.co/MiniMaxAI/MiniMax-Music3"
+    },
+    {
+     "model": "music-1.5",
+     "http": 410,
+     "code": 2153,
+     "msg": "This Music API is no longer available to new users. Existing paying customers can continue to use the service. For new access, please try MiniMax Audio (https://www.minimax.io/audio) or the open-source model at https://huggingface.co/MiniMaxAI/MiniMax-Music3"
+    }
+   ]
+  }
+ ]
+}
