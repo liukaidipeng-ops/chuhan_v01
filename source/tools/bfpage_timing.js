@@ -1,12 +1,13 @@
 // 技能模式电脑在真实页面里的每步耗时（网页按时间收手，和测试的按节点数收手不同）
 // 用法：node tools/bfpage_timing.js [--ai src/bfai.js | git:提交号] [--level mid|hard] [--side b|r] [--games 1] [--max-moves 80]
-//                                    [--throttle N] [--seed 1] [--json 文件] [--query beishui=1]
+//                                    [--throttle N] [--seed 1] [--json 文件] [--query beishui=1] [--cfg beishui.twoPieces=false]
 //   做法：用指定那一版临时打包一份页面（不动仓库里的 dist；git:提交号 = 整份 src 取那个提交），无头浏览器打开 #bfai-<档>-<玩家方>，
 //   电脑照常在 Web Worker 里算；“玩家”那方由页面里的同一套电脑（主线程、校尉档 2 万节点）代下，走法经 doBF 执行，和真人点棋一样走界面流程。
 //   记录：电脑每步思考的毫秒（Worker 自己报的 think.last.ms）、节点、算到几层；有没有退回主线程；页面报错；电脑行动被判非法。
 //   --side b：玩家执楚、电脑执汉（会碰上“提防破釜”的那段搜索）；--side r：电脑执楚（会走“先升级再破釜”）。
 //   --throttle N：用浏览器的 CPU 降速模拟慢手机（只保证主线程降速；Worker 是否降速取决于浏览器版本，结果里会注明）。
 //   --query：网址 ? 后面的参数（例如 beishui=1 打开背水一战，chat 正式版 dev 98dd206 起支持）。
+//   --cfg 路径=JSON：页面打开后改 BF.CFG（可多次；页面每次让电脑思考都会把 beishui 配置传给 Worker）。
 //   注意：机器忙的时候墙钟偏慢，同时看 nodes / depth。
 'use strict';
 const path = require('path');
@@ -15,12 +16,12 @@ const fs = require('fs');
 const { execFileSync } = require('child_process');
 
 const argv = process.argv.slice(2);
-const opt = { ai: 'src/bfai.js', level: 'mid', side: 'b', games: 1, maxMoves: 80, throttle: 1, seed: 1, json: null, query: '' };
+const opt = { ai: 'src/bfai.js', level: 'mid', side: 'b', games: 1, maxMoves: 80, throttle: 1, seed: 1, json: null, query: '', cfg: [] };
 for (let i = 0; i < argv.length; i++) {
   const k = argv[i], v = () => argv[++i];
   if (k === '--ai') opt.ai = v(); else if (k === '--level') opt.level = v(); else if (k === '--side') opt.side = v();
   else if (k === '--games') opt.games = +v(); else if (k === '--max-moves') opt.maxMoves = +v(); else if (k === '--throttle') opt.throttle = +v();
-  else if (k === '--seed') opt.seed = +v(); else if (k === '--json') opt.json = v(); else if (k === '--query') opt.query = v(); else throw new Error('未知参数 ' + k);
+  else if (k === '--seed') opt.seed = +v(); else if (k === '--json') opt.json = v(); else if (k === '--query') opt.query = v(); else if (k === '--cfg') opt.cfg.push(v()); else throw new Error('未知参数 ' + k);
 }
 const ROOT = path.join(__dirname, '..');
 
@@ -70,6 +71,7 @@ async function playGame(browser, url, gi) {
   if (opt.throttle > 1) { const cdp = await ctx.newCDPSession(pg); await cdp.send('Emulation.setCPUThrottlingRate', { rate: opt.throttle }); }
   await pg.goto(url + (opt.query ? '?' + opt.query : '') + `#bfai-${opt.level}-${opt.side}`, { waitUntil: 'domcontentloaded' });
   await pg.waitForFunction('!!window.__xq && window.__xq.started', null, { timeout: 60000 });
+  for (const c of opt.cfg) { const i = c.indexOf('='), ks = c.slice(0, i).split('.'), val = c.slice(i + 1); await pg.evaluate(`(()=>{let o=BF.CFG;for(const k of ${JSON.stringify(ks.slice(0, -1))})o=o[k];o[${JSON.stringify(ks[ks.length - 1])}]=${val};})()`); }
   await pg.evaluate(`window.__xq.Fx.level='low'; window.__xq.Core.Time.boost=6; BFAI.LEVELS.mid = { ...BFAI.LEVELS.mid, nodes: 20000 }; Math.random = (s => () => { s = (s * 1103515245 + 12345) % 2147483648; return s / 2147483648; })(${opt.seed + gi * 7919});`);
   const human = opt.side;
   const t0 = Date.now();
@@ -106,7 +108,7 @@ async function playGame(browser, url, gi) {
   const q = p => (ms.length ? ms[Math.min(ms.length - 1, Math.floor(p * ms.length))] : 0);
   const compound = all.filter(s => s.seq && s.seq.length > 1).map(s => s.seq.map(a => a.k).join('+'));
   const dd = {}; for (const s of all) dd[s.depth] = (dd[s.depth] || 0) + 1;
-  console.log(`== 页面实测：${opt.ai}${opt.query ? ' ?' + opt.query : ''} | ${opt.level} 档 | 电脑执${opt.side === 'b' ? '汉' : '楚'} | ${games.length} 局 | CPU 降速 ×${opt.throttle}${opt.throttle > 1 ? '（Worker 未必降速）' : ''} | 机器负载 ${os.loadavg()[0].toFixed(1)}（${os.cpus().length} 核）==`);
+  console.log(`== 页面实测：${opt.ai}${opt.query ? ' ?' + opt.query : ''}${opt.cfg.length ? ' ' + opt.cfg.join(' ') : ''} | ${opt.level} 档 | 电脑执${opt.side === 'b' ? '汉' : '楚'} | ${games.length} 局 | CPU 降速 ×${opt.throttle}${opt.throttle > 1 ? '（Worker 未必降速）' : ''} | 机器负载 ${os.loadavg()[0].toFixed(1)}（${os.cpus().length} 核）==`);
   console.log(`电脑思考 ${ms.length} 步：平均 ${ms.length ? Math.round(ms.reduce((a, b) => a + b, 0) / ms.length) : 0} ms，中位 ${Math.round(q(0.5))}，P90 ${Math.round(q(0.9))}，最长 ${Math.round(ms[ms.length - 1] || 0)}；超过 3 秒 ${ms.filter(x => x > 3000).length} 步，超过 5 秒 ${ms.filter(x => x > 5000).length} 步`);
   console.log(`节点 平均 ${all.length ? Math.round(all.reduce((a, s) => a + s.nodes, 0) / all.length) : 0}；算到几层 ${JSON.stringify(dd)}；组合行动 ${compound.length} 次 ${JSON.stringify([...new Set(compound)])}`);
   for (const [i, g] of games.entries()) console.log(`第 ${i + 1} 局：${g.result ? (g.result.winner === 'r' ? '汉胜' : g.result.winner === 'b' ? '楚胜' : '和') + '（' + (g.result.reason || '') + '）' : '没下完'}，${g.plies} 手，第 ${g.round} 回合，${g.secs}s` + (g.logs.length || g.wlog.length ? `；问题：${[...g.wlog, ...g.logs].slice(0, 5).join(' | ')}` : '；无报错'));
