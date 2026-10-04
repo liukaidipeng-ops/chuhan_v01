@@ -28,6 +28,7 @@ jobs:
     timeout-minutes: 180
     strategy:
       fail-fast: false
+      max-parallel: 8   # 免费账号同时只能跑 20 个任务：模拟最多占 8 个，给网站发布、配音留位置（2026-10-04 曾把它们堵了半小时）
       matrix: ${{ fromJSON(needs.plan.outputs.matrix) }}
     steps:
       - uses: actions/checkout@v4
@@ -44,7 +45,7 @@ jobs:
           retention-days: 7
   collect:
     needs: [plan, run]
-    if: always() && needs.plan.outputs.any == 'true'
+    if: ${{ !cancelled() && needs.plan.outputs.any == 'true' }}   # 取消了就不合并、不提交
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
