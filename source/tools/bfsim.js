@@ -90,6 +90,11 @@ PRESETS['ctr-death'] = { engine: CTR, set: { 'counter.a': true, 'counter.e': tru
 PRESETS['ctr-atk'] = { engine: CTR, set: { 'counter.a': true, 'counter.e': true, 'counter.dmg': 'atk', 'counter.onDeath': false } };  // 还手按自己的攻击力（二级以上士打 2）
 PRESETS['huichun'] = { engine: CTR, set: { 'skills.huichun.level': 4 } };   // 满级相 / 象回春
 PRESETS['pofu-a+revive-free'] = { set: {}, patches: ['pofu-noup', 'revive-free'] };
+// 背水一战（用户 2026-10-04：主公技只用来扳回局面；只供模拟，见 tools/variants/engine_beishui.js）。电脑配 tools/variants/bfai_beishui.js（楚方也拿它防守）
+const BSE = 'tools/variants/engine_beishui.js';
+PRESETS['bs-a'] = { engine: BSE, set: { 'beishui.on': true, 'beishui.fewer.b': true, 'beishui.check': 'none' } };    // 楚车马炮比汉少才能用；两枚子各走一步、最多吃一子、哪步都不能将军；用过的子冻结一回合
+PRESETS['bs-b'] = { engine: BSE, set: { 'beishui.on': true, 'beishui.fewer.b': true, 'beishui.check': 'allow' } };   // 同上，但可以将军
+PRESETS['revive-few'] = { engine: BSE, set: { 'beishui.fewer.r': true } };   // 汉方召回也要车马炮比楚少才能用（和 bs-a / bs-b 用逗号连着写）
 function applyPatches(BF, names) {
   if (!names || !names.length) return;
   const has = n => names.includes(n);
@@ -388,6 +393,7 @@ function worker() {
       act: side2(), up: side2(), kills: side2(), hits: side2(), meritBy: side2(), friendly: side2(),
       ultRound: {}, artRound: {}, artKind: {}, firstLv: { r: {}, b: {} }, samples: [], rescue: 0, jumaCounter: side2(), msMax: 0, ms: 0,
       upHp: { r: { full: 0, hurt: 0, last: 0 }, b: { full: 0, hurt: 0, last: 0 } },   // 手动升级时那枚子的血量：满血 / 掉过血（其中只剩 1 血）
+      avail: {},     // 背水变体：主帅兵法“少子才能用”的条件第一次满足的回合（只在开了 beishui.fewer 的那一方记）
       firstR2: {},   // 各方第一次有二级车的回合（用户：“一旦二血车先获得主动权，战场局面就几乎一边倒了”）
     };
     let lastRound = 0, guard = 0;
@@ -440,6 +446,10 @@ function worker() {
       if (g.round > job.maxRounds) { R.reason = 'cap'; break; }
       if (++guard > job.maxRounds * 6) { R.reason = 'stuck'; break; }
       const side = g.turn;
+      if (BF.CFG.beishui && BF.CFG.beishui.fewer && BF.CFG.beishui.fewer[side] && R.avail[side] == null && !g.S.used.art[side] && (side === 'b' || g.S.dead.r.length)) {
+        const c = { r: 0, b: 0 }; for (const row of g.S.board) for (const p of row) if (p && (p.t === 'r' || p.t === 'n' || p.t === 'c')) c[p.s]++;
+        if (c[side] < c[side === 'r' ? 'b' : 'r']) R.avail[side] = g.round;
+      }
       if (side === 'b' && R.pf && g.S.cnt.b >= g.S.fx.pf) pfEnd();
       const pre = side === 'b' && !R.pf ? { s: +neutral(g.S).toFixed(2), m: matDiff(g.S) } : null;
       if (g.status && g.status.mustPass) { const info = g.apply({ k: 'pass' }); if (!info) throw new Error('pass 失败'); record({ k: 'pass' }, info, side); R.plies++; sample(); continue; }
@@ -642,6 +652,8 @@ function summarize(rs) {
     S.firstR2 = { n: first.length, win: first.filter(r => r.winner === who(r)).length, onlyN: only.length, onlyWin: only.filter(r => r.winner === who(r)).length }; }
   const jc = (s, k) => rs.reduce((t, r) => t + ((r.jumaCounter && r.jumaCounter[s] && r.jumaCounter[s][k]) || 0), 0);
   S.counter = { fanji: { r: jc('r', 'fanji'), b: jc('b', 'fanji') }, heal: { r: jc('r', 'heal'), b: jc('b', 'heal') }, juma: { r: jc('r', 'hit'), b: jc('b', 'hit') } };
+  // 背水变体：少子条件满足过的局、平均第几回合、其中真用了的局、这些局的胜率
+  S.avail = {}; for (const s of ['r', 'b']) { const g = rs.filter(r => r.avail && r.avail[s] != null); if (!g.length) continue; const used = g.filter(r => r.act[s][s === 'r' ? 'art_revive' : 'art_pofu']); S.avail[s] = { n: g.length, round: mean(g.map(r => r.avail[s])), win: g.filter(r => r.winner === s).length, used: used.length, usedWin: used.filter(r => r.winner === s).length }; }
   const pfs = rs.filter(r => r.pf);
   if (pfs.length) {
     const avg = f => mean(pfs.map(f));
@@ -718,6 +730,7 @@ function print(S, o) {
   const ur = S.ult.used, ar = S.art.used;
   L.push(`终极兵法：汉用 ${ur.r[0]} 局（平均第 ${S.ult.round.r.toFixed(1)} 回合，用了的局胜 ${ur.r[0] ? pct(ur.r[1] / ur.r[0]) : '-'}）  楚用 ${ur.b[0]} 局（第 ${S.ult.round.b.toFixed(1)} 回合，胜 ${ur.b[0] ? pct(ur.b[1] / ur.b[0]) : '-'}）  护驾破鸿门宴 ${S.rescue} 局`);
   L.push(`主帅兵法：汉召回 ${ar.r[0]} 局（第 ${S.art.round.r.toFixed(1)} 回合，胜 ${ar.r[0] ? pct(ar.r[1] / ar.r[0]) : '-'}）  楚破釜 ${ar.b[0]} 局（第 ${S.art.round.b.toFixed(1)} 回合，胜 ${ar.b[0] ? pct(ar.b[1] / ar.b[0]) : '-'}）`);
+  for (const s of ['r', 'b']) { const A = S.avail && S.avail[s]; if (A) L.push(`少子才能用的主帅兵法（${s === 'r' ? '汉召回' : '楚背水'}）：条件满足过 ${A.n} 局（${pct(A.n / S.n)}，最早平均第 ${A.round.toFixed(1)} 回合；这些局${s === 'r' ? '汉' : '楚'}胜 ${pct(A.win / A.n)}）；真用了 ${A.used} 局（胜 ${A.used ? pct(A.usedWin / A.used) : '-'}）`); }
   { const f = H => { const n = H.full + H.hurt; return n ? `满血 ${pct(H.full / n)}、掉过血 ${pct(H.hurt / n)}（只剩 1 血 ${pct(H.last / n)}），共 ${n} 次` : '-'; };
     L.push(`手动升级时的血量（升级回满血，掉了血再升更划算）：汉 ${f(S.upHp.r)} | 楚 ${f(S.upHp.b)}`); }
   if (S.counter && (S.counter.fanji.r + S.counter.fanji.b + S.counter.heal.r + S.counter.heal.b)) L.push(`反击 / 回春（每局平均）：士象还手 汉 ${(S.counter.fanji.r / S.n).toFixed(2)} | 楚 ${(S.counter.fanji.b / S.n).toFixed(2)}；回春回血 汉 ${(S.counter.heal.r / S.n).toFixed(2)} | 楚 ${(S.counter.heal.b / S.n).toFixed(2)}；拒马反伤 汉 ${(S.counter.juma.r / S.n).toFixed(2)} | 楚 ${(S.counter.juma.b / S.n).toFixed(2)}`);
