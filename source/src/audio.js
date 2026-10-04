@@ -137,9 +137,13 @@ const Sfx = (() => {
   //  基础音效
   // ======================================================================
   const has = id => !!(samples[id] && samples[id].length);
+  // 鼓点回调：每敲一下大鼓（音效也好、配乐也好）知会一声，场边擂鼓的士兵跟着动。t = 多少秒后响，v = 多响
+  let drumCb = null;
+  const drumHit = (t, v) => { if (drumCb) try { drumCb(Math.max(0, t || 0), v == null ? 0.8 : v); } catch (e) { } };
   const B = {
     // 战鼓：真实大鼓录音降调 + 鼓皮拍击，合成低频只作补底
     taiko(t = 0, v = 0.9, p = 1, pan, dest) {
+      drumHit(t, v);
       if (has('drum')) {
         smp('drum', { t, vol: v * 0.95, rate: 0.72 * p, rj: 0.05, pan, dest });
         smp('soft', { t, vol: v * 0.22, rate: 0.55 * p, pan, dest });
@@ -426,7 +430,7 @@ const Sfx = (() => {
     // —— 决战：一阵紧过一阵的战鼓（全用录音：大鼓、小鼓、滚奏、锣、呐喊），不用合成乐器 ——
     finalBar(t) {
       const dest = this.bus, beat = 60 / 132, st = beat / 4, bar = this.bar, ph = bar % 8;
-      const big = (i, v, r = 0.62) => { if (has('drum')) { smp('drum', { t: t + i * st, vol: v, rate: r, rj: 0.03, dest }); smp('soft', { t: t + i * st, vol: v * 0.2, rate: 0.5, dest }); } else taikoTo(dest, t + i * st, v, 0.9); };
+      const big = (i, v, r = 0.62) => { drumHit(t + i * st, v); if (has('drum')) { smp('drum', { t: t + i * st, vol: v, rate: r, rj: 0.03, dest }); smp('soft', { t: t + i * st, vol: v * 0.2, rate: 0.5, dest }); } else taikoTo(dest, t + i * st, v, 0.9); };
       const small = (i, v) => { if (has('drum')) smp('drum', { t: t + i * st, vol: v, rate: 1.25, rj: 0.06, dest, pan: i % 2 ? 0.25 : -0.25 }); else taikoTo(dest, t + i * st, v * 0.6, 1.5); };
       // 大鼓：咚——咚咚 咚——咚咚咚；每四小节最后一小节打满
       const bigPat = ph % 4 === 3 ? [1, 0, 0.7, 0, 1, 0, 0.7, 0.7, 1, 0.7, 0.8, 0.7, 1, 0.9, 1, 1] : ph % 2 ? [1, 0, 0, 0.6, 0, 0, 0.9, 0, 1, 0, 0.6, 0, 0.9, 0, 0.7, 0.8] : [1, 0, 0, 0, 0.8, 0, 0.6, 0, 1, 0, 0, 0.6, 0.9, 0, 0.7, 0];
@@ -563,6 +567,7 @@ const Sfx = (() => {
     march(t, steps) { B.march(t, steps * 0.25, 10, 0.2); }, whoosh(t, d) { B.whoosh(t, d); }, arrows(t) { B.arrows(t); }, thunk(t) { B.thunks(t); },
     row(t) { B.splash(t, 0.1); }, wind(t = 0, dur = 6) { nz({ t, dur, type: 'bandpass', f: 400, f2: 900, q: 0.8, vol: 0.4, a: 1.5 }); nz({ t: t + 1, dur, type: 'lowpass', f: 300, vol: 0.4, a: 1.5 }); },
   };
+  S.onDrum = fn => { drumCb = fn; };
   return S;
 })();
 

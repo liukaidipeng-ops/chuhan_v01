@@ -134,8 +134,10 @@ const Models = (() => {
     else if (kind === 'crew') out.weapon = mk([P(G.cyl(0.02, 0.02, 2.0, 5), C.wood, 0, 0.5, 0), P(G.cyl(0.07, 0.07, 0.16, 7), 0x6e675b, 0, 1.5, 0)]);
     else if (kind === 'zhanma') out.weapon = mk([P(G.cyl(0.02, 0.022, 1.5, 5), C.wood, 0, 0.35, 0), P(new THREE.TorusGeometry(0.045, 0.014, 4, 8), C.bronze, 0, 1.1, 0), P(G.box(0.05, 0.92, 0.13), C.metal, 0, 1.58, 0.03), P(G.box(0.03, 0.14, 0.09), C.metal, 0, 2.07, 0.07), P(G.cone(0.05, 0.12, 6), tas, 0, 1.04, 0, Math.PI)]);
     else if (kind === 'banner') out.weapon = mk([P(G.cyl(0.022, 0.026, 3.0, 5), C.wood, 0, 0.9, 0), P(G.cone(0.05, 0.18, 5), C.gold, 0, 2.48, 0)]);
+    else if (kind === 'drummer') out.weapon = mk([P(G.cyl(0.028, 0.034, 0.95, 5), C.wood, 0, 0.42, 0), P(G.sph(0.075, 6), 0x8e2418, 0, 0.9, 0)]);   // 鼓槌
     // 盾（腕部为原点）
-    if (kind === 'spear') out.shield = mk([P(G.box(0.46, 0.72, 0.05), c.cloth2, 0, 0.08, 0.04), P(G.box(0.38, 0.62, 0.02), c.cloth, 0, 0.08, 0.072), P(G.sph(0.07, 6), C.metal, 0, 0.1, 0.07), P(G.box(0.46, 0.04, 0.07), c.trim, 0, 0.42, 0.04), P(G.box(0.46, 0.04, 0.07), c.trim, 0, -0.26, 0.04)]);
+    if (kind === 'drummer') out.shield = mk([P(G.cyl(0.028, 0.034, 0.95, 5), C.wood, 0, 0.42, 0), P(G.sph(0.075, 6), 0x8e2418, 0, 0.9, 0)]);   // 另一只手的鼓槌
+    else if (kind === 'spear') out.shield = mk([P(G.box(0.46, 0.72, 0.05), c.cloth2, 0, 0.08, 0.04), P(G.box(0.38, 0.62, 0.02), c.cloth, 0, 0.08, 0.072), P(G.sph(0.07, 6), C.metal, 0, 0.1, 0.07), P(G.box(0.46, 0.04, 0.07), c.trim, 0, 0.42, 0.04), P(G.box(0.46, 0.04, 0.07), c.trim, 0, -0.26, 0.04)]);
     else if (kind === 'sword') out.shield = mk([P(G.cyl(0.3, 0.3, 0.05, 12), c.cloth2, 0, 0.05, 0.05, Math.PI / 2), P(new THREE.TorusGeometry(0.3, 0.02, 4, 16), c.trim, 0, 0.05, 0.075), P(G.sph(0.08, 6), C.metal, 0, 0.05, 0.09)]);
     else if (kind === 'zhanma') out.shield = mk([P(G.box(0.62, 1.02, 0.06), c.cloth2, 0, 0.12, 0.05), P(G.box(0.52, 0.92, 0.024), 0xb8862e, 0, 0.12, 0.088), P(G.sph(0.09, 6), 0xf3d27a, 0, 0.16, 0.09), P(G.box(0.62, 0.05, 0.09), 0xf3d27a, 0, 0.62, 0.05), P(G.box(0.62, 0.05, 0.09), 0xf3d27a, 0, -0.38, 0.05), P(G.box(0.05, 0.92, 0.03), 0xf3d27a, 0, 0.12, 0.11)]);
     else if (isGuard) {
@@ -167,6 +169,7 @@ const Models = (() => {
     archer: { aW: -0.15, wAbs: 0, aS: -0.2, sAbs: 0, chargeW: -0.3, chargeAbs: 0.2 },
     crew: { aW: -0.3, wAbs: 0.1, aS: 0.05, sAbs: 0, chargeW: -1.2, chargeAbs: Math.PI / 2 },
     banner: { aW: -0.35, wAbs: 0, aS: 0.05, sAbs: 0, chargeW: -0.6, chargeAbs: 0.25 },
+    drummer: { aW: -0.5, wAbs: 0.9, aS: -0.5, sAbs: 0.9, chargeW: -1.2, chargeAbs: 1.2 },
   };
   const _m = new THREE.Matrix4(), _r = new THREE.Matrix4(), _t = new THREE.Matrix4(), _e = new THREE.Euler(), _q = new THREE.Quaternion(), _v = new THREE.Vector3(), _s = new THREE.Vector3(), _ax = new THREE.Vector3();
   const tr = (m, x, y, z) => m.multiply(_t.makeTranslation(x, y, z));
@@ -264,6 +267,8 @@ const Models = (() => {
         // 垂头丧气：弯腰低头，双臂耷拉
         case 'slump': set({ crouch: 0.1, lean: 0.38, twist: 0, sway: 0, hx: 0.7, hy: Math.sin(T * 0.4) * 0.12, aW: 0.12, aWz: 0.08, wAbs: 0.7, aS: 0.12, aSz: -0.08, sAbs: 0.5 }); break;
         case 'ready': set({ crouch: 0.08, lean: 0.15, aW: kp.chargeW, wAbs: kp.chargeAbs, aS: -1.0, sAbs: 0.1, hx: -0.1 }); break;
+        // 擂鼓的架势：两腿微屈，双槌端在胸前
+        case 'drum': set({ crouch: 0.07, lean: 0.1, twist: 0, sway: 0, hx: 0.02, hy: 0, aW: -1.25, aWz: 0.12, wAbs: 1.05, aS: -1.25, aSz: -0.12, sAbs: 1.05 }); break;
       }
       // 一次性动作
       if (u.act && u.actT >= 0) {
@@ -277,6 +282,14 @@ const Models = (() => {
           case 'raise': J.aW = -2.5; J.wAbs = 0; break;
           case 'hit': J.lean -= 0.5 * s; J.hx -= 0.6 * s; J.aW += 0.6 * s; J.aS += 0.6 * s; break;
           case 'shieldBash': J.aS = -1.3 - 0.4 * s; J.lean += 0.3 * s; break;
+          // 擂鼓：槌高高扬起再砸在鼓面上（beatW 右手、beatS 左手），砸下去的一瞬身子跟着一沉
+          case 'beatW': case 'beatS': {
+            const up = q < 0.45 ? Math.sin(q / 0.45 * Math.PI / 2) : Math.max(0, 1 - (q - 0.45) / 0.18), hit = q > 0.6 ? Math.max(0, 1 - (q - 0.63) / 0.37) : 0;
+            const a = -1.3 - 1.25 * up + 0.12 * hit, w = 1.45 - 1.75 * up;
+            if (u.act === 'beatW') { J.aW = a; J.wAbs = w; } else { J.aS = a; J.sAbs = w; }
+            J.lean += -0.1 * up + 0.16 * hit; J.crouch += 0.05 * hit; J.twist += (u.act === 'beatW' ? -1 : 1) * 0.16 * (up - hit);
+            break;
+          }
         }
         if (q >= 1) u.act = null;
       }
