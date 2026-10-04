@@ -105,6 +105,7 @@ PRESETS['bs3-a'] = { engine: BSE2, set: { ...BS3, 'beishui.check': 'none' } };
 PRESETS['bs3-b'] = { engine: BSE2, set: { ...BS3, 'beishui.check': 'allow' } };
 // 背水一战第四版（用户 2026-10-04 定：可以各挡一路，过程不受限制，只看结算时不被将、也不将对方）= 第三版 + finalOnly，A 版（结算不许将军）
 PRESETS['bs4'] = { engine: BSE2, set: { ...BS3, 'beishui.check': 'none', 'beishui.finalOnly': true } };
+PRESETS['revive-few4'] = { engine: BSE2, set: { 'beishui.fewer.r': true, 'beishui.maxLeft.r': 3 } };   // 用户定：召回的触发条件和背水一致（至少丢了一半车马炮、且比对方少）
 PRESETS['revive-few3'] = { engine: BSE2, set: { 'beishui.fewer.r': true } };   // 汉方召回也要车马炮比楚少（用户：“可能也需要进攻棋子少于对方才能使用”）
 PRESETS['revive-few2'] = { engine: BSE2, set: { 'beishui.fewer.r': true } };   // 汉方召回也要车马炮比楚少（和 bs2-a / bs2-b 用逗号连着写；persist 对汉方同样生效）   // 汉方召回也要车马炮比楚少才能用（和 bs-a / bs-b 用逗号连着写）
 function applyPatches(BF, names) {
