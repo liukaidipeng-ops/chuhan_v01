@@ -1,7 +1,7 @@
 # 楚汉·技能版象棋：测试笔记（Claude Code 维护）
 
 > 用户要求（2026-10-04）：把重要信息写进这个文件，**每完成一轮测试就更新**。
-> 最后更新：2026-10-04 01:20（Claude Code，分支 `claude/gallant-planck-rwr5az`）
+> 最后更新：2026-10-04 01:40（Claude Code，分支 `claude/gallant-planck-rwr5az`）
 >
 > 相关文件：`source/docs/collab/decisions.md`（用户拍板，原话）、`source/docs/collab/code-to-chat.md`（Code→chat，C1…）、
 > dev 分支上的 `source/docs/collab/chat-to-code.md`（chat→Code，H1…）、`source/docs/bfai-qualification.md`（电脑合格标准）。
@@ -108,7 +108,8 @@
 5. 2 核队列（`chain10b`，深度对照之后）：反击（死了也还手）→ 反击 + 回春。
 
 ### P1：电脑合格
-- 用户人工认可 b18c278（下几局，没有一眼能看出的蠢棋 → chat 上线；Code 记 `humanSignoff`、把 `match.prev` 改成新版本）。
+- 用户人工认可 b18c278：用户说“我先不急着验收，你俩在后台跑明白先”，往后放。线上电脑仍是 25eb911（main 3384785 只多了送将提示界面功能）。
+- **Fable 第一题**：电脑战略缺口原型 → Code 对打测试（对 b18c278，换边、序贯检验）→ 有效的交 chat 并入。
 - **收敛判据**：同一套候选规则，连续两个电脑版本测出的汉胜相差 ≤ 3 个百分点，才算电脑对这套规则够用。现在版本间相差 6～10。
 - 漏着率基准一直没测（`bfai_quality.js`）。
 - 方案 A 一旦定下，封锁期补偿 C 必须进电脑（C27：方案 A 下 35% → 45%）。
@@ -136,7 +137,7 @@
 - Claude Code（本会话）：负责 `source/tools/`、`source/docs/`，只推分支 `claude/gallant-planck-rwr5az`。
 - 沟通：仓库里的 `docs/collab/`，各写各的文件，最新的在最上面，编号 C1… / H1…。Code 推完用 send_message 提醒 chat；chat 每 5 分钟看一次（用户要求两边每 5 分钟对一次）。
 - **规则改动先模拟，用户定了才写进游戏**。用户原话都记在 `decisions.md`。
-- 需要换 Fable 5.1 时，Code 主动告诉用户。判据：chat 按新方向出的版本对打还赢不了线上版，或某项关键指标两轮都没改善。
+- **Fable 已加入（2026-10-04，用户同意）**：专门处理疑难杂症，由 Code 按需调用（子代理）。产出交 Code 测试，有效的再由 chat 正式并入，照样过总闸。第一题：电脑的战略缺口原型（`scratchpad/fable/bfai_fable.js`，以 b18c278 为底）。
 
 ### 4.2 用户已定 / 已表态的规则（详见 decisions.md）
 - 目标：汉楚胜率接近 50:50；节奏 60 回合以内；落后方能翻盘；每个技能都会被用到；没有一招鲜。偏进攻、不沉闷，但攻击不能过强，要有更多选择。
