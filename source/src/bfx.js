@@ -549,7 +549,7 @@ const BFX = (() => {
       await sleep(0.3);
     } else {
       // 破釜沉舟：沉舟的火映红河面，楚军踏火连进两步
-      title('破釜沉舟', '楚军连进两步 · 此后三回合不用技能', 2600);
+      if (BF.CFG.beishui.on) title('背水一战', '两枚子各进一步 · 用过的子下回合不能动', 2600); else title('破釜沉舟', '楚军连进两步 · 此后三回合不用技能', 2600);
       Sfx.B.gong(0, 0.9); Sfx.B.woodbreak(0.3, 0.7); Sfx.B.boom(0.4, 0.5); Sfx.B.taiko(0.1, 0.9); Sfx.B.taiko(0.45, 1);
       const vp = say('bf_art_b');
       const k = [...Board.pieces.values()].find(m => m.userData.t === 'k' && m.userData.s === 'b');
@@ -576,7 +576,7 @@ const BFX = (() => {
         const P0 = board[st.from[1]][st.from[0]], m = P0 && Board.pieces.get(P0.id);
         // 蓄势：脚下火环一收，火线直扑落点
         Fx.ring(A.clone().setY(TOP + 0.02), 1.8, 0.35, 0xff6a2a, 0.9); P.fire(A.clone().setY(TOP + 0.1), 14, 0.6); Sfx.B.whoosh(0, 0.6, 0.5); Sfx.B.taiko(0, 0.9, 0.9);
-        labelPop(st.from, i ? '再进！' : '破釜！', side);
+        labelPop(st.from, i ? '再进！' : BF.CFG.beishui.on ? '背水！' : '破釜！', side);
         blaze(A, B);
         await sleep(0.28);
         // 棋子身上带着火冲过去（低特效档看得到棋子本身；电影档是它的兵踏着火线）

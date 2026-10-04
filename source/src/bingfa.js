@@ -39,12 +39,19 @@
     generalArts: { fromRound: 1, xiaohe: { usesPerGame: 1 }, pofu: { usesPerGame: 1, steps: 2, mayEndInCheck: false, skillLockRounds: 3 } },
     ultimates: { cost: 20, hongmen: { usesPerGame: 1, rounds: 3 }, simian: { usesPerGame: 1, rounds: 2, radius: 2, minPiecesInRadius: 3 } },
     longCheckLimit: 6,
+    // 背水一战（on = true 时代替楚方的破釜沉舟；默认关，线上还是破釜沉舟）：
+    //   轮到楚方时，楚方车马炮最多还剩 maxLeft 枚、而且比汉方的车马炮少，才能用（每局一次，次数仍看 generalArts.pofu.usesPerGame）；
+    //   两枚不同的子各走一步（twoPieces），两步合计最多吃掉 maxKills 个子（打伤不算）；check: 'none' = 哪一步都不能将军，'allow' = 可以；
+    //   用完没有技能封锁，但用过的两枚子在楚方之后 freeze 个回合里不能动（原地的拒马、齐射能用）——
+    //   例外：楚方被将军时，冻结的子可以去吃正在将军的那枚（strictEscape：只能吃它，而且要吃死；false = 吃哪个子都行，只要解了将）
+    //   fewer.r：汉方的召回良将也要“汉方车马炮比楚方少”才能用（和 on 无关，单独的开关）
+    beishui: { on: false, maxLeft: 3, twoPieces: true, maxKills: 1, check: 'none', freeze: 1, strictEscape: true, fewer: { r: false } },
   };
   // 主技能（三级解锁）；SKILLS_OF 列出这一兵种全部技能（含四级的）
   const SKILL_OF = (t, s) => ({ p: 'juma', r: 'chongzhen', n: 'taying', c: 'pili', a: 'hujia', e: s === 'r' ? 'qishe' : 'jianta' })[t] || null;
   const SKILLS_OF = (t, s) => ({ p: ['juma', 'shensu', 'huifang'], a: ['hujia', 'jinwei'], e: [s === 'r' ? 'qishe' : 'jianta', 'feiyue'] })[t] || (SKILL_OF(t, s) ? [SKILL_OF(t, s)] : []);
   const SKILL_CN = { juma: '拒马', chongzhen: '冲阵', taying: '踏营', pili: '霹雳', qishe: '齐射', jianta: '践踏', hujia: '护驾', shensu: '神速营', huifang: '回防', jinwei: '铁甲禁卫', feiyue: '飞越' };
-  const ART_CN = { r: '召回良将', b: '破釜沉舟' }, ULT_CN = { r: '四面楚歌', b: '鸿门宴' };
+  const ART_CN = { r: '召回良将', get b() { return CFG.beishui && CFG.beishui.on ? '背水一战' : '破釜沉舟'; } }, ULT_CN = { r: '四面楚歌', b: '鸿门宴' };
   const ORTHO = [[1, 0], [-1, 0], [0, 1], [0, -1]];
   const RING8 = [[1, 0], [-1, 0], [0, 1], [0, -1], [1, 1], [1, -1], [-1, 1], [-1, -1]];
   // 称号：兵种随等级晋升（界面显示、升级演出用）
@@ -108,7 +115,19 @@
   }
   const at = (S, f, r) => (inBoard(f, r) ? S.board[r][f] : null);
   const round = S => Math.floor((S.cnt.r + S.cnt.b) / 2) + 1;
-  const artOpen = S => round(S) >= (CFG_CUR.generalArts.fromRound || 1);   // 主帅兵法（召回良将、破釜沉舟）从第几回合起才能用
+  const BSon = () => (CFG_CUR.beishui && CFG_CUR.beishui.on ? CFG_CUR.beishui : null);   // 背水一战开着就返回它的配置
+  // 车马炮的枚数（只数棋盘上的，不看等级血量）：[己方, 对方]
+  const majors = (S, s) => { let m = 0, o = 0; for (const row of S.board) for (const p of row) if (p && (p.t === 'r' || p.t === 'n' || p.t === 'c')) { if (p.s === s) m++; else o++; } return [m, o]; };
+  // 主帅兵法（召回良将、破釜沉舟 / 背水一战）现在能不能用：从第几回合起；背水一战要楚方车马炮丢了一半且比汉方少；fewer.r 时召回也要汉方更少
+  const artOpen = S => {
+    if (round(S) < (CFG_CUR.generalArts.fromRound || 1)) return false;
+    const B = CFG_CUR.beishui; if (!B) return true;
+    if (S.turn === 'b' && B.on) { const [m, o] = majors(S, 'b'); return m < o && (B.maxLeft == null || m <= B.maxLeft); }
+    if (S.turn === 'r' && B.fewer && B.fewer.r) { const [m, o] = majors(S, 'r'); return m < o; }
+    return true;
+  };
+  // 背水一战：用过的子在冻结期里不能动（己方行动数还没到 p.bz）
+  const frozen = (S, p) => !!(p && p.bz && S.cnt[p.s] < p.bz);
   const hmActive = S => S.cnt.r < S.fx.hm; // 鸿门宴：汉帅不能动
   const smActive = S => S.cnt.b < S.fx.sm; // 四面楚歌：楚军涣散
   const pfActive = S => S.cnt.b < S.fx.pf; // 破釜沉舟后楚方兵种技能封锁
@@ -301,6 +320,14 @@
   const findMove = (S, from, to) => moveTargets(S, from[0], from[1]).find(m => m.to[0] === to[0] && m.to[1] === to[1]) || null;
 
   // ---------- 行动结算（在 S 上直接改；不合法返回 null） ----------
+  // 破釜沉舟 / 背水一战两步走完之后的收尾（resolve 和 pofuPairs 共用）：合不合规矩、封锁 / 冻结
+  function bsFinish(S, BS, ids, ev, ev00) {
+    if (BS && ev.slice(ev00).filter(e => e.e === 'kill' && !e.friendly && e.s === 'r').length > BS.maxKills) return false;   // 最多吃掉几个子
+    if (!(BS ? BS.check === 'allow' : CFG_CUR.generalArts.pofu.mayEndInCheck) && inCheckF(S, 'r')) return false;
+    S.fx.pf = S.cnt.b + 1 + (BS ? 0 : CFG_CUR.generalArts.pofu.skillLockRounds);   // 背水一战没有技能封锁
+    if (BS) for (const row of S.board) for (const q of row) if (q && q.s === 'b' && ids.includes(q.id)) q.bz = S.cnt.b + 1 + BS.freeze;   // 用过的两枚子冻结
+    return true;
+  }
   function resolve(S, a) {
     const side = S.turn, ev = [];
     const own = (f, r) => { const p = at(S, f, r); return p && p.s === side ? p : null; };
@@ -311,13 +338,20 @@
     if (a.k === 'mv') {
       const p = own(a.from[0], a.from[1]); if (!p) return null;
       if (S.jmLock != null && p.id === S.jmLock) return null;
+      const fz = frozen(S, p);
+      if (fz) {   // 背水一战用过的子：只有被将军时去吃子解将才行
+        const q = at(S, a.to[0], a.to[1]), strict = CFG_CUR.beishui && CFG_CUR.beishui.strictEscape;
+        if (!(inCheckF(S, side) && q && q.s !== side && (!strict || checkers(S.board, other(side)).includes(q.id)))) return null;
+      }
       const m = findMove(S, a.from, a.to); if (!m) return null;
       extra.res = strike(S, a.from, a.to, side, ev);
+      if (fz && CFG_CUR.beishui && CFG_CUR.beishui.strictEscape && extra.res !== 'kill') return null;   // 要吃死
       if (m.via) { setCd(S, p, m.via); extra.via = m.via; ev.push({ e: 'passive', sk: m.via, id: p.id }); }
       trample(S, p, a.to, extra.res, side, ev);
     } else if (a.k === 'sk') {
       const p = own(a.at[0], a.at[1]); if (!p) return null;
       const sk = a.sk || SKILL_OF(p.t, p.s); if (!sk || !skillOk(S, p, sk)) return null;
+      if (frozen(S, p) && sk !== 'juma' && sk !== 'qishe') return null;   // 冻结的子只能用原地的技能
       extra.sk = sk;
       const cd = () => { const q = S.board.flat().find(x => x && x.id === p.id); if (q) setCd(S, q, sk); };
       if (sk === 'juma') {
@@ -361,6 +395,7 @@
       } else if (sk === 'hujia') {
         const k = findKing(S.board, side); if (!k) return null;
         const K = S.board[k[1]][k[0]];
+        if (frozen(S, K)) return null;   // 冻结的帅将不能被护驾换走
         S.board[k[1]][k[0]] = p; S.board[a.at[1]][a.at[0]] = K;
         ev.push({ e: 'swap', a: p.id, b: K.id, pa: a.at.slice(), pb: k.slice() });
         // 樊哙闯帐：汉士护驾，当场破掉鸿门宴
@@ -381,8 +416,11 @@
         const steps = a.steps || [];
         if (steps.length !== CFG_CUR.generalArts.pofu.steps) return null;
         extra.steps = [];
+        const BS = BSon(), ids = [], ev00 = ev.length;
         for (const m of steps) {
           const p = own(m.from[0], m.from[1]); if (!p) return null;
+          if (BS && BS.twoPieces && ids.includes(p.id)) return null;   // 背水一战：两枚不同的子各走一步
+          ids.push(p.id);
           const mm = findMove(S, m.from, m.to); if (!mm) return null;
           const n0 = ev.length;
           const res = strike(S, m.from, m.to, side, ev);
@@ -390,9 +428,9 @@
           trample(S, p, m.to, res, side, ev);
           extra.steps.push({ from: m.from, to: m.to, res, ev0: n0, ev1: ev.length });
           if (inCheckF(S, side)) return null;
+          if (BS && BS.check === 'none' && inCheckF(S, 'r')) return null;   // 背水一战（不许将军的版本）：哪一步都不能将军
         }
-        if (!CFG_CUR.generalArts.pofu.mayEndInCheck && inCheckF(S, 'r')) return null;
-        S.fx.pf = S.cnt.b + 1 + CFG_CUR.generalArts.pofu.skillLockRounds;
+        if (!bsFinish(S, BS, ids, ev, ev00)) return null;
       }
       S.used.art[side]++;
     } else if (a.k === 'ult') {
@@ -583,13 +621,14 @@
     if (S.turn !== 'b' || S.freeUsed || !artOpen(S) || S.used.art.b >= CFG_CUR.generalArts.pofu.usesPerGame || smActive(S)) return [];
     // 结果和“每个组合都 attempt 一遍”完全一样（test/bingfa.test.js 里逐个核对），只是省掉了重复劳动：
     //   第一步只结算一次，第二步从第一步结算完的局面接着走；每一步照 resolve() 里破釜沉舟那一段原样结算
-    const out = [], side = 'b', P = CFG_CUR.generalArts.pofu, lim = CFG_CUR.longCheckLimit, hist = S.ckHist[side];
+    const out = [], side = 'b', lim = CFG_CUR.longCheckLimit, hist = S.ckHist[side];
+    const BS = BSon(), noChk = BS && BS.check === 'none', bsDef = !!BS && inCheckF(S, 'b');   // 背水一战：楚方被将军时，不打子的两步（防守）也列出来
     const step = (T, m, ev) => {
       const p = T.board[m.from[1]][m.from[0]];
       const res = strike(T, m.from, m.to, side, ev);
       if (m.via) { setCd(T, p, m.via); ev.push({ e: 'passive', sk: m.via, id: p.id }); }
       trample(T, p, m.to, res, side, ev);
-      return !inCheckF(T, side);
+      return !inCheckF(T, side) && !(noChk && inCheckF(T, 'r'));
     };
     for (let r = 0; r < 10; r++) for (let f = 0; f < 9; f++) {
       const p = S.board[r][f]; if (!p || p.s !== 'b') continue;
@@ -601,14 +640,14 @@
         for (let r2 = 0; r2 < 10; r2++) for (let f2 = 0; f2 < 9; f2++) {
           const q = T.board[r2][f2]; if (!q || q.s !== 'b') continue;
           if (!mine1 && q.id !== only) continue;
+          if (BS && BS.twoPieces && q.id === p.id) continue;
           for (const m2 of moveTargets(T, f2, r2)) {
             const t2 = at(T, m2.to[0], m2.to[1]);
-            if (!hit1 && !t2) continue;
+            if (!hit1 && !t2 && !bsDef) continue;
             if (keep && !keep(m1, t1, m2, t2)) continue;
             const U = cloneState(T), ev = ev1.slice();
             if (!step(U, m2, ev)) continue;
-            if (!P.mayEndInCheck && inCheckF(U, 'r')) continue;
-            U.fx.pf = U.cnt.b + 1 + P.skillLockRounds;
+            if (!bsFinish(U, BS, [p.id, q.id], ev, 0)) continue;
             U.used.art[side]++;
             if (inCheckS(U, side)) continue;
             if (lim && hist.length >= lim) {     // 长将（和 attempt() 里一样）
@@ -640,7 +679,7 @@
           if (!mine1 && q.id !== only) continue;
           for (const m2 of moveTargets(T, f2, r2)) {
             const t2 = at(T, m2.to[0], m2.to[1]);
-            if (!hit1 && !t2) continue;
+            if (!hit1 && !t2 && !(BSon() && inCheckF(S, 'b'))) continue;
             if (keep && !keep(m1, t1, m2, t2)) continue;
             const a = { k: 'art', steps: [{ from: m1.from, to: m1.to }, { from: m2.from, to: m2.to }] };
             const res = attempt(S, a); if (res) out.push({ a, S: res.S, ev: res.ev });
@@ -757,7 +796,7 @@
     selfCheckFrom(f, r) {
       CFG_CUR = this.cfg;
       const p = this.at(f, r), S = this.S;
-      if (!p || p.s !== this.turn || this.result || S.final || (S.jmLock != null && p.id === S.jmLock)) return [];
+      if (!p || p.s !== this.turn || this.result || S.final || (S.jmLock != null && p.id === S.jmLock) || frozen(S, p)) return [];
       const out = [];
       for (const m of moveTargets(S, f, r)) {
         const T = cloneState(S);
@@ -880,6 +919,7 @@
     get dead() { return this.S.dead; }
     get upgraded() { return this.S.upgraded; }
     jmActive(p) { return jmActive(this.S, p); }
+    frozen(p) { return frozen(this.S, p); }   // 背水一战用过的子：这一回合不能动
     simianCount() { return simianCount(this.S); }
     cdLeft(p, sk) { if (!p) return 0; const k = sk ? cdKey(p, sk) : 'cd'; return Math.max(0, (p[k] || 0) - this.S.cnt[p.s]); }
     mustPass() { return !!this.status.mustPass; }
@@ -893,6 +933,7 @@
       bf: true, board: S.board,
       fx: { hm: Math.max(0, S.fx.hm - S.cnt.r), sm: Math.max(0, S.fx.sm - S.cnt.b), pf: Math.max(0, S.fx.pf - S.cnt.b) },
       jmActive: p => jmActive(S, p),
+      frozen: p => frozen(S, p),
     };
   }
   // 破釜沉舟第一步走完后的局面（界面预览用）
@@ -914,7 +955,7 @@
   const BF = { Game, CFG, view, pofuPreview, SKILL_OF, SKILLS_OF, SKILL_CN, SKILL_DESC, ART_CN, ULT_CN, RANK_CN, HERO_CN, heroName, rankName, START, newState, cloneState, attempt, evaluate, levelInfo, maxLvOf: t => maxLv(t),
     // 电脑用（调用前会把配置指到默认值）
     // version：接口每加一个函数就 +1；只增不改，已有函数的参数和返回值不动
-    ai: { version: 1, gen: (S, c) => { CFG_CUR = CFG; return gen(S, c); }, atk: p => { CFG_CUR = CFG; return atk(p); }, expand: S => { CFG_CUR = CFG; return expand(S); }, upgradeState: (S, a) => { CFG_CUR = CFG; return upgradeState(S, a); }, jumaState: (S, a) => { CFG_CUR = CFG; return jumaState(S, a); }, pofuPairs: (S, only, keep) => { CFG_CUR = CFG; return pofuPairs(S, only, keep); }, pofuPairsRef: (S, only, keep) => { CFG_CUR = CFG; return pofuPairsRef(S, only, keep); }, inCheck: (S, s) => inCheckS(S, s), upCost: p => { CFG_CUR = CFG; return upCost(p); }, moveTargets: (S, f, r) => { CFG_CUR = CFG; return moveTargets(S, f, r); } }, hpOf: (t, lv) => hpOf(t, lv, CFG) };
+    ai: { version: 1, gen: (S, c) => { CFG_CUR = CFG; return gen(S, c); }, atk: p => { CFG_CUR = CFG; return atk(p); }, expand: S => { CFG_CUR = CFG; return expand(S); }, upgradeState: (S, a) => { CFG_CUR = CFG; return upgradeState(S, a); }, jumaState: (S, a) => { CFG_CUR = CFG; return jumaState(S, a); }, pofuPairs: (S, only, keep) => { CFG_CUR = CFG; return pofuPairs(S, only, keep); }, pofuPairsRef: (S, only, keep) => { CFG_CUR = CFG; return pofuPairsRef(S, only, keep); }, artReady: S => { CFG_CUR = CFG; const sd = S.turn; return !S.freeUsed && artOpen(S) && S.used.art[sd] < CFG.generalArts[sd === 'r' ? 'xiaohe' : 'pofu'].usesPerGame && !(sd === 'b' && smActive(S)); }, inCheck: (S, s) => inCheckS(S, s), upCost: p => { CFG_CUR = CFG; return upCost(p); }, moveTargets: (S, f, r) => { CFG_CUR = CFG; return moveTargets(S, f, r); } }, hpOf: (t, lv) => hpOf(t, lv, CFG) };
   if (typeof module !== 'undefined' && module.exports) module.exports = BF;
   global.BF = BF;
 })(typeof window !== 'undefined' ? window : globalThis);

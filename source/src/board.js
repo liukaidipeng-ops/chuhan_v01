@@ -1255,7 +1255,8 @@ const Board = (() => {
   }
   function decoOpts(game, p) {
     const fx = game.fx, hm = p.s === 'r' && p.t === 'k' && fx.hm > 0, sm = p.s === 'b' && p.t !== 'k' && fx.sm > 0;
-    return { jm: game.jmActive(p), hm, dim: sm, chain: hm || sm };
+    const bz = !!(game.frozen && game.frozen(p));   // 背水一战用过的子：下回合不能动，同样套上锁链
+    return { jm: game.jmActive(p), hm, dim: sm || bz, chain: hm || sm || bz };
   }
   // 改质感参数后重建全部升级材质，并把棋盘上的子重新装扮一遍
   function skinTune(patch) {

@@ -271,7 +271,7 @@
       if (sk === 'qishe') { const q = g.at(e.to[0], e.to[1]); return cn + '·' + (q ? PCH[q.s][q.t] : ''); }
       return cn + '·' + PCH[p.s][p.t];
     }
-    if (e.k === 'art') { if (g.turn === 'r') { const d = g.dead.r.find(x => x.id === e.id); return '召回·' + (d ? PCH.r[d.t] : ''); } return '破釜沉舟'; }
+    if (e.k === 'art') { if (g.turn === 'r') { const d = g.dead.r.find(x => x.id === e.id); return '召回·' + (d ? PCH.r[d.t] : ''); } return BF.ART_CN.b; }
     if (e.k === 'ult') return g.turn === 'r' ? '四面楚歌' : '鴻門宴';
     if (e.k === 'sk' && !p) return '';
     if (e.k === 'pass') return '停著';
@@ -641,14 +641,15 @@
     const local = async () => { await waitIdle(); return BFAI.think(S, level, () => new Promise(r => setTimeout(r, 0))); };
     if (bfW === null) {
       try {
-        const src = document.getElementById('eng').textContent + '\nself.onmessage=async e=>{const d=e.data;try{const seq=await BFAI.think(d.S,d.level);postMessage({id:d.id,seq:seq,stat:BFAI.think.last});}catch(err){postMessage({id:d.id,err:String(err&&err.stack||err)});}};';
+        const src = document.getElementById('eng').textContent + '\nself.onmessage=async e=>{const d=e.data;try{if(d.cfg){Object.assign(BF.CFG.beishui,d.cfg.beishui);BF.CFG.generalArts.fromRound=d.cfg.fromRound;BF.CFG.attack=d.cfg.attack;}const seq=await BFAI.think(d.S,d.level);postMessage({id:d.id,seq:seq,stat:BFAI.think.last});}catch(err){postMessage({id:d.id,err:String(err&&err.stack||err)});}};';
         bfW = new Worker(URL.createObjectURL(new Blob([src], { type: 'text/javascript' })));
         bfW.onmessage = e => { const w = bfWait.get(e.data.id); if (!w) return; bfWait.delete(e.data.id); if (e.data.err) w.rej(new Error(e.data.err)); else { bfThink.last = e.data.stat; w.res(e.data.seq); } };
         bfW.onerror = () => { bfW = false; for (const w of bfWait.values()) w.rej(new Error('worker')); bfWait.clear(); };
       } catch (e) { bfW = false; }
     }
     if (!bfW) return local();
-    return new Promise((res, rej) => { const id = ++bfWSeq; bfWait.set(id, { res, rej }); bfW.postMessage({ id, S, level }); }).catch(e => { console.warn('电脑线程出错，改在主线程算', e); return local(); });
+    // 试验性的规则开关（背水一战等）也带给电脑线程：它那边有自己的一份配置
+    return new Promise((res, rej) => { const id = ++bfWSeq; bfWait.set(id, { res, rej }); bfW.postMessage({ id, S, level, cfg: { beishui: BF.CFG.beishui, fromRound: BF.CFG.generalArts.fromRound, attack: BF.CFG.attack } }); }).catch(e => { console.warn('电脑线程出错，改在主线程算', e); return local(); });
   }
   function cancelAI() { aiSeq++; if (aiThinking) { try { AI.cancel(); } catch (e) { } } aiThinking = false; }
   function maybeAI() {
@@ -1300,6 +1301,7 @@
     const me = game.at(f, r);
     selMoves = game.legalFrom(f, r).map(m => { const q = game.at(m.to[0], m.to[1]); return { ...m, atk: !!(q && q.hp > game.atkOf(me)) }; });
     Board.showMoves(sel, withBad(bfDmg(selMoves), f, r), !!+opts.hints);
+    if (game.frozen(me) && !selMoves.length) toast('这枚子刚用过背水一战，这一回合不能动', 2200);
     Sfx.select();
   }
   function bfClear() { Board.clearMoves(false); sel = null; selMoves = []; selBad = []; }
@@ -1377,7 +1379,7 @@
       }
       M.board = pv.S.board; M.sel = null;
       Board.clearMoves(true); Sfx.place();
-      M.hint = '破釜沉舟 · 第二步：选子再走一步'; renderBar();
+      M.hint = BF.CFG.beishui.on ? '背水一战 · 第二步：换一枚子再走一步' : '破釜沉舟 · 第二步：选子再走一步'; renderBar();
       return;
     }
     if (hit && M.m1) { doBF({ k: 'art', steps: [M.m1, { from: hit.from, to: hit.to }] }); return; }
@@ -1457,7 +1459,12 @@
     });
   }
   const escTip = t => String(t || '').replace(/&/g, '&amp;').replace(/"/g, '&quot;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
-  const ART_DESC = { r: '复活一枚被吃的己方子，回到它的开局位置（一级）。每局一次。', b: '连走两步（不能用技能，第二步不能将军）。此后 3 回合楚军不能用兵种技能。每局一次。' };
+  const ART_DESC = { r: '复活一枚被吃的己方子，回到它的开局位置（一级）。每局一次。',
+    get b() {
+      const B = BF.CFG.beishui;
+      if (!B.on) return '连走两步（不能用技能，第二步不能将军）。此后 3 回合楚军不能用兵种技能。每局一次。';
+      return `绝境里的反扑：楚军车马炮${B.maxLeft != null ? `最多还剩 ${B.maxLeft} 枚、而且` : ''}比汉军少时才能用。两枚不同的子各走一步，合计最多吃 ${B.maxKills} 个子${B.check === 'none' ? '，不能将军' : ''}；用过的两枚子下一回合不能动（被将军时可以去吃掉将军的那枚）。每局一次。`;
+    } };
   const ULT_DESC = { r: `${BF.CFG.ultimates.cost} 军功，楚将两格内须有 ${BF.CFG.ultimates.simian.minPiecesInRadius} 枚汉子。${BF.CFG.ultimates.simian.rounds} 回合内楚军除将外不能移动，只能吃掉将军的子，也不算将军。`, b: `${BF.CFG.ultimates.cost} 军功。汉帅 ${BF.CFG.ultimates.hongmen.rounds} 回合不能动；汉士「护驾」可破。` };
   const artTip = s => `<b>主帅兵法 · ${BF.ART_CN[s]}</b><br>${ART_DESC[s]}`;
   const ultTip = s => `<b>终极兵法 · ${BF.ULT_CN[s]}</b><br>${ULT_DESC[s]}`;
@@ -1501,6 +1508,7 @@
     }
     if (p.lv < mx) { const cost = game.upgradeCost(p), base = game.baseCost(p); h += `<br><b>下一级</b>「${game.rankName(p, p.lv + 1)}」${lvGain(p, p.lv + 1)} <small>${cost} 功，或攒满 ${base} 片甲</small>`; }
     if (game.jmActive(p)) h += '<br><em>拒马中：来犯者先挨 1 点</em>';
+    if (game.frozen(p)) h += '<br><em>背水一战之后力竭：这一回合不能动（被将军时可以去吃掉将军的那枚子）</em>';
     if (p.s === 'b' && game.fx.sm) h += `<br><em>军心涣散：还有 ${game.fx.sm} 回合不能移动</em>`;
     return h;
   }
@@ -1523,6 +1531,13 @@
     if (side === 'r') {
       if (!game.dead.r.length) return ['暂无阵亡', '召回良将复活己方被吃的子；现在还没有子阵亡'];
       return ['原位被占', '阵亡棋子的开局位置被占着（或复活后己方仍被将军），暂时不能复活'];
+    }
+    const BS = BF.CFG.beishui;
+    if (BS.on) {
+      let m = 0, o = 0; for (const p of game.board.flat()) if (p && (p.t === 'r' || p.t === 'n' || p.t === 'c')) { if (p.s === 'b') m++; else o++; }
+      if (BS.maxLeft != null && m > BS.maxLeft) return ['兵力尚足', `背水一战要到绝境才能用：楚军的车马炮最多还剩 ${BS.maxLeft} 枚（现在 ${m} 枚）`];
+      if (m >= o) return ['未落下风', `背水一战要楚军的车马炮比汉军少才能用（现在楚 ${m} 枚、汉 ${o} 枚）`];
+      return ['无法连走', '背水一战要两枚不同的子各走一步：每步走完己方不被将军' + (BS.check === 'none' ? '、也不能将军对方' : '') + `，两步合计最多吃 ${BS.maxKills} 个子；现在找不到这样的两步`];
     }
     return ['无法连走', '破釜沉舟要连走两步普通走子：每步走完己方不被将军，两步走完不能将军对方；现在找不到这样的两步'];
   }
@@ -1641,7 +1656,7 @@
         return;
       }
       bfClear();
-      bfMode = { kind: 'pofu', firsts: game.pofuFirst(), hint: '破釜沉舟 · 第一步：选子走一步（两步走完不能将军）' };
+      bfMode = { kind: 'pofu', firsts: game.pofuFirst(), hint: BF.CFG.beishui.on ? '背水一战 · 第一步：选一枚子走一步（两枚不同的子各走一步，最多吃一个子）' : '破釜沉舟 · 第一步：选子走一步（两步走完不能将军）' };
       renderBar(); return;
     }
     if (a === 'ult') {
@@ -1744,7 +1759,7 @@
       else if (sk === 'hujia') line = info.extra.rescue ? '樊哙闯帐：汉士护驾，鸿门宴破' : `${nm(s, P0.t)}护驾，与${s === 'r' ? '汉王' : '霸王'}换位`;
       else if (sk === 'chongzhen') line = foe.length >= 2 ? `${SIDE_ARMY[s]}车冲阵，连破${SIDE_ARMY[o]}两阵` : foe.length ? `${SIDE_ARMY[s]}车冲阵，击破${nm(o, foe[0].t)}` : `${SIDE_ARMY[s]}车冲阵受阻`;
       else line = `${nm(s, P0.t)}${cn}` + (foe.length ? `，击杀${foe.map(k => XQ.NAMES[o][k.t]).join('、')}` : '') + (hurt.length ? `，${hurt.length} 子负伤` : '');
-    } else if (info.k === 'art') line = s === 'r' ? `召回良将：${nm('r', (ev.find(x => x.e === 'revive') || {}).t || 'p')}重回阵前` : `项羽破釜沉舟，楚军连进两步` + (kills.length ? `，击杀${kills.filter(k => k.s === o).map(k => XQ.NAMES[o][k.t]).join('、')}` : '');
+    } else if (info.k === 'art') line = s === 'r' ? `召回良将：${nm('r', (ev.find(x => x.e === 'revive') || {}).t || 'p')}重回阵前` : `项羽${BF.ART_CN.b}，楚军连进两步` + (kills.length ? `，击杀${kills.filter(k => k.s === o).map(k => XQ.NAMES[o][k.t]).join('、')}` : '');
     else if (info.k === 'ult') line = s === 'b' ? `鸿门宴：汉王 ${BF.CFG.ultimates.hongmen.rounds} 回合不得移动` : '四面楚歌：楚军军心涣散，动弹不得';
     else if (info.k === 'pass') line = `${SIDE_ARMY[s]}按兵不动`;
     if (info.k === 'mv' && info.extra && info.extra.via === 'shensu') line = `${nm(s, 'p')}神速营疾行` + (info.check ? '，将军！' : '');
@@ -2820,6 +2835,7 @@
   const q = new URLSearchParams(location.search);
   const urlRoom = (q.get('room') || '').toUpperCase();
   const hostRec = store.get('host', null);
+  if (/[?&]beishui=1/.test(location.search)) { BF.CFG.beishui.on = true; if (/[?&]check=allow/.test(location.search)) BF.CFG.beishui.check = 'allow'; }
   window.__xq = {
     get busy() { return busy; }, get started() { return started; }, get game() { return game; }, get mode() { return mode; }, get aiThinking() { return aiThinking; },
     doMove, startGame, finishGame, Ending, Fx, Board, Core, Camp, Squads, Spect, setView, onData, Net, requestUndo, sendEmote, get clock() { return clock; }, get opts() { return opts; }, joinRoom, notation, get notes() { return notes; }, aiSay,
