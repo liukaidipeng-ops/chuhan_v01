@@ -94,7 +94,12 @@ PRESETS['pofu-a+revive-free'] = { set: {}, patches: ['pofu-noup', 'revive-free']
 const BSE = 'tools/variants/engine_beishui.js';
 PRESETS['bs-a'] = { engine: BSE, set: { 'beishui.on': true, 'beishui.fewer.b': true, 'beishui.check': 'none' } };    // 楚车马炮比汉少才能用；两枚子各走一步、最多吃一子、哪步都不能将军；用过的子冻结一回合
 PRESETS['bs-b'] = { engine: BSE, set: { 'beishui.on': true, 'beishui.fewer.b': true, 'beishui.check': 'allow' } };   // 同上，但可以将军
-PRESETS['revive-few'] = { engine: BSE, set: { 'beishui.fewer.r': true } };   // 汉方召回也要车马炮比楚少才能用（和 bs-a / bs-b 用逗号连着写）
+PRESETS['revive-few'] = { engine: BSE, set: { 'beishui.fewer.r': true } };
+// 背水一战第二版（2026-10-04 独立核查之后）：少子要持续、将不能用、冻结的子只能吃将军的那枚；电脑配 tools/variants/bfai_beishui2.js（真会用背水，攻守都算）
+const BSE2 = 'tools/variants/engine_beishui2.js', BS2 = { 'beishui.on': true, 'beishui.fewer.b': true, 'beishui.persist': true, 'beishui.noKing': true, 'beishui.strictEscape': true };
+PRESETS['bs2-a'] = { engine: BSE2, set: { ...BS2, 'beishui.check': 'none' } };
+PRESETS['bs2-b'] = { engine: BSE2, set: { ...BS2, 'beishui.check': 'allow' } };
+PRESETS['revive-few2'] = { engine: BSE2, set: { 'beishui.fewer.r': true } };   // 汉方召回也要车马炮比楚少（和 bs2-a / bs2-b 用逗号连着写；persist 对汉方同样生效）   // 汉方召回也要车马炮比楚少才能用（和 bs-a / bs-b 用逗号连着写）
 function applyPatches(BF, names) {
   if (!names || !names.length) return;
   const has = n => names.includes(n);
@@ -394,6 +399,8 @@ function worker() {
       ultRound: {}, artRound: {}, artKind: {}, firstLv: { r: {}, b: {} }, samples: [], rescue: 0, jumaCounter: side2(), msMax: 0, ms: 0,
       upHp: { r: { full: 0, hurt: 0, last: 0 }, b: { full: 0, hurt: 0, last: 0 } },   // 手动升级时那枚子的血量：满血 / 掉过血（其中只剩 1 血）
       avail: {},     // 背水变体：主帅兵法“少子才能用”的条件第一次满足的回合（只在开了 beishui.fewer 的那一方记）
+      fewEnd: {}, sus: {}, susN: { r: 0, b: 0 },   // 车马炮“持续落后”：自己走完还比对方少、到下回合轮到自己时还少（第一次的回合、持续了几回合）
+      bs: !!(BF.CFG.beishui && BF.CFG.beishui.on),   // 背水一战变体（统计里“破釜”改叫“背水”）
       firstR2: {},   // 各方第一次有二级车的回合（用户：“一旦二血车先获得主动权，战场局面就几乎一边倒了”）
     };
     let lastRound = 0, guard = 0;
@@ -441,6 +448,7 @@ function worker() {
     // 破釜沉舟前后（用户 2026-10-03：“执汉需要利用好破釜的 debuff 进行反击”）：楚那一回合开始前 s0、破釜之后 s1、
     //   封锁期结束（轮到楚、楚方行动数到 fx.pf）时 s2。分数 = 中性估值（+ 汉优），m* = 子力差（汉 − 楚）
     const matDiff = S => { const m = material(S); return m.r - m.b; };
+    const atkCount = S => { const c = { r: 0, b: 0 }; for (const row of S.board) for (const p of row) if (p && (p.t === 'r' || p.t === 'n' || p.t === 'c')) c[p.s]++; return c; };
     const pfEnd = () => { if (R.pf && R.pf.s2 == null) { R.pf.s2 = +neutral(g.S).toFixed(2); R.pf.m2 = matDiff(g.S); R.pf.endRound = g.round; } };
     while (!g.result) {
       if (g.round > job.maxRounds) { R.reason = 'cap'; break; }
@@ -450,6 +458,7 @@ function worker() {
         const c = { r: 0, b: 0 }; for (const row of g.S.board) for (const p of row) if (p && (p.t === 'r' || p.t === 'n' || p.t === 'c')) c[p.s]++;
         if (c[side] < c[side === 'r' ? 'b' : 'r']) R.avail[side] = g.round;
       }
+      { const c = atkCount(g.S), o = side === 'r' ? 'b' : 'r'; if (R.fewEnd[side] && c[side] < c[o]) { if (R.sus[side] == null) R.sus[side] = g.round; R.susN[side]++; } }
       if (side === 'b' && R.pf && g.S.cnt.b >= g.S.fx.pf) pfEnd();
       const pre = side === 'b' && !R.pf ? { s: +neutral(g.S).toFixed(2), m: matDiff(g.S) } : null;
       if (g.status && g.status.mustPass) { const info = g.apply({ k: 'pass' }); if (!info) throw new Error('pass 失败'); record({ k: 'pass' }, info, side); R.plies++; sample(); continue; }
@@ -471,6 +480,7 @@ function worker() {
         if (!info) throw new Error('非法行动 ' + JSON.stringify(a) + ' seed=' + job.seed);
         record(a, info, side);
       }
+      { const c = atkCount(g.S), o = side === 'r' ? 'b' : 'r'; R.fewEnd[side] = c[side] < c[o]; }
       if (pre && seq.some(a => a.k === 'art' && a.steps)) R.pf = { round: g.round, s0: pre.s, m0: pre.m, s1: +neutral(g.S).toFixed(2), m1: matDiff(g.S), lockTo: g.S.fx.pf };
       R.plies++;
       sample();
@@ -593,7 +603,7 @@ async function run(o) {
         // 序贯检验：每下完一对就看一次，能下结论就不再发新局（正在下的下完为止）
         if (o.match && !o.fixed && !stopped && done % 2 === 0) { const st = matchStats(results, o.sprt); if (st.verdict) { stopped = st; next = jobs.length; } }
         if (!o.quiet && process.stderr.isTTY) process.stderr.write(`\r${done}/${jobs.length}`);
-        else if (done % 25 === 0 || done === jobs.length) process.stderr.write(`进度 ${done}/${jobs.length}  ${Math.round((Date.now() - t0) / 1000)}s` + (o.match ? (st => `  新版得分 ${pct(st.score)}  Elo ${st.elo.toFixed(0)}  LLR ${st.llr.toFixed(2)}`)(matchStats(results, o.sprt)) : (w => `  汉 ${w.r} 楚 ${w.b} 和 ${results.length - w.r - w.b}` + (w.r + w.b ? `  汉胜（分胜负的局）${pct(w.r / (w.r + w.b))}` : ''))({ r: results.filter(r => r.winner === 'r').length, b: results.filter(r => r.winner === 'b').length })) + '\n');
+        else if (done % 25 === 0 || done === jobs.length) process.stderr.write(`进度 ${done}/${jobs.length}  ${Math.round((Date.now() - t0) / 1000)}s` + (o.match ? (st => `  新版得分 ${pct(st.score)}  Elo ${st.elo.toFixed(0)}  LLR ${st.llr.toFixed(2)}`)(matchStats(results, o.sprt)) : (w => `  汉 ${w.r} 楚 ${w.b} 和 ${results.length - w.r - w.b}` + (w.r + w.b ? `  汉方胜率 ${pct(w.r / (w.r + w.b))}` : ''))({ r: results.filter(r => r.winner === 'r').length, b: results.filter(r => r.winner === 'b').length })) + '\n');
         feed();
       });
       c.on('exit', () => { if (--alive === 0) resolve(); });
@@ -654,6 +664,9 @@ function summarize(rs) {
   S.counter = { fanji: { r: jc('r', 'fanji'), b: jc('b', 'fanji') }, heal: { r: jc('r', 'heal'), b: jc('b', 'heal') }, juma: { r: jc('r', 'hit'), b: jc('b', 'hit') } };
   // 背水变体：少子条件满足过的局、平均第几回合、其中真用了的局、这些局的胜率
   S.avail = {}; for (const s of ['r', 'b']) { const g = rs.filter(r => r.avail && r.avail[s] != null); if (!g.length) continue; const used = g.filter(r => r.act[s][s === 'r' ? 'art_revive' : 'art_pofu']); S.avail[s] = { n: g.length, round: mean(g.map(r => r.avail[s])), win: g.filter(r => r.winner === s).length, used: used.length, usedWin: used.filter(r => r.winner === s).length }; }
+  // 车马炮持续落后的局：第一次的回合、这些局的胜率、其中用了主帅兵法的局
+  S.sus = {}; for (const s of ['r', 'b']) { const g = rs.filter(r => r.sus && r.sus[s] != null); if (!g.length) continue; const used = g.filter(r => r.act[s][s === 'r' ? 'art_revive' : 'art_pofu']); S.sus[s] = { n: g.length, round: mean(g.map(r => r.sus[s])), turns: mean(g.map(r => r.susN[s])), win: g.filter(r => r.winner === s).length, used: used.length, usedWin: used.filter(r => r.winner === s).length }; }
+  S.bs = rs.some(r => r.bs);
   const pfs = rs.filter(r => r.pf);
   if (pfs.length) {
     const avg = f => mean(pfs.map(f));
@@ -729,13 +742,15 @@ function print(S, o) {
   for (const [k, v] of Object.entries(S.merit)) L.push(`  ${k.padEnd(6)} ${v.r.toFixed(1).padStart(6)} | ${v.b.toFixed(1).padStart(6)}`);
   const ur = S.ult.used, ar = S.art.used;
   L.push(`终极兵法：汉用 ${ur.r[0]} 局（平均第 ${S.ult.round.r.toFixed(1)} 回合，用了的局胜 ${ur.r[0] ? pct(ur.r[1] / ur.r[0]) : '-'}）  楚用 ${ur.b[0]} 局（第 ${S.ult.round.b.toFixed(1)} 回合，胜 ${ur.b[0] ? pct(ur.b[1] / ur.b[0]) : '-'}）  护驾破鸿门宴 ${S.rescue} 局`);
-  L.push(`主帅兵法：汉召回 ${ar.r[0]} 局（第 ${S.art.round.r.toFixed(1)} 回合，胜 ${ar.r[0] ? pct(ar.r[1] / ar.r[0]) : '-'}）  楚破釜 ${ar.b[0]} 局（第 ${S.art.round.b.toFixed(1)} 回合，胜 ${ar.b[0] ? pct(ar.b[1] / ar.b[0]) : '-'}）`);
-  for (const s of ['r', 'b']) { const A = S.avail && S.avail[s]; if (A) L.push(`少子才能用的主帅兵法（${s === 'r' ? '汉召回' : '楚背水'}）：条件满足过 ${A.n} 局（${pct(A.n / S.n)}，最早平均第 ${A.round.toFixed(1)} 回合；这些局${s === 'r' ? '汉' : '楚'}胜 ${pct(A.win / A.n)}）；真用了 ${A.used} 局（胜 ${A.used ? pct(A.usedWin / A.used) : '-'}）`); }
+  L.push(`主帅兵法：汉召回 ${ar.r[0]} 局（第 ${S.art.round.r.toFixed(1)} 回合，胜 ${ar.r[0] ? pct(ar.r[1] / ar.r[0]) : '-'}）  楚${S.bs ? '背水' : '破釜'} ${ar.b[0]} 局（第 ${S.art.round.b.toFixed(1)} 回合，胜 ${ar.b[0] ? pct(ar.b[1] / ar.b[0]) : '-'}）`);
+  for (const s of ['r', 'b']) { const A = S.avail && S.avail[s]; if (A) L.push(`少子才能用的主帅兵法（${s === 'r' ? '汉召回' : '楚背水'}）：轮到自己时车马炮比对方少（多半只是兑子吃回之前那一下）过 ${A.n} 局，第一次平均第 ${A.round.toFixed(1)} 回合；真用了 ${A.used} 局（胜 ${A.used ? pct(A.usedWin / A.used) : '-'}）`); }
+  if (S.sus && (S.sus.r || S.sus.b)) L.push('车马炮持续落后（自己走完还少、到下回合还少）：' + ['r', 'b'].map(s => { const A = S.sus[s]; return `${s === 'r' ? '汉' : '楚'} ${A ? `${A.n} 局（${pct(A.n / S.n)}，第一次平均第 ${A.round.toFixed(1)} 回合、平均落后 ${A.turns.toFixed(1)} 回合；这些局${s === 'r' ? '汉' : '楚'}胜 ${pct(A.win / A.n)}；其中用了主帅兵法 ${A.used} 局、胜 ${A.used ? pct(A.usedWin / A.used) : '-'}）` : '0 局'}`; }).join(' | '));
   { const f = H => { const n = H.full + H.hurt; return n ? `满血 ${pct(H.full / n)}、掉过血 ${pct(H.hurt / n)}（只剩 1 血 ${pct(H.last / n)}），共 ${n} 次` : '-'; };
     L.push(`手动升级时的血量（升级回满血，掉了血再升更划算）：汉 ${f(S.upHp.r)} | 楚 ${f(S.upHp.b)}`); }
   if (S.counter && (S.counter.fanji.r + S.counter.fanji.b + S.counter.heal.r + S.counter.heal.b)) L.push(`反击 / 回春（每局平均）：士象还手 汉 ${(S.counter.fanji.r / S.n).toFixed(2)} | 楚 ${(S.counter.fanji.b / S.n).toFixed(2)}；回春回血 汉 ${(S.counter.heal.r / S.n).toFixed(2)} | 楚 ${(S.counter.heal.b / S.n).toFixed(2)}；拒马反伤 汉 ${(S.counter.juma.r / S.n).toFixed(2)} | 楚 ${(S.counter.juma.b / S.n).toFixed(2)}`);
   if (S.firstR2 && (S.firstR2.n || S.firstR2.onlyN)) L.push(`先有二级车的一方：两边都有的 ${S.firstR2.n} 局里先到的胜 ${S.firstR2.n ? pct(S.firstR2.win / S.firstR2.n) : '-'}；只有一方有的 ${S.firstR2.onlyN} 局里有的一方胜 ${S.firstR2.onlyN ? pct(S.firstR2.onlyWin / S.firstR2.onlyN) : '-'}`);
-  if (S.pf) L.push(`破釜前后（${S.pf.n} 局，分数 + 汉优）：破釜那一手汉方 ${S.pf.gain.toFixed(2)} 分（子力 ${S.pf.gainM.toFixed(2)}）；之后封锁期汉方 ${S.pf.back >= 0 ? '+' : ''}${S.pf.back.toFixed(2)} 分（子力 ${S.pf.backM >= 0 ? '+' : ''}${S.pf.backM.toFixed(2)}）；追回一半以上 ${pct(S.pf.half)}；封锁期内就分了胜负 ${S.pf.ended} 局；这些局汉胜 ${pct(S.pf.redWin)}`);
+  if (S.pf && S.bs) L.push(`背水前后（${S.pf.n} 局，分数 + 汉优；背水没有封锁期，这里的“之后”只是汉方紧接着的一手）：背水那一手汉方 ${S.pf.gain.toFixed(2)} 分（子力 ${S.pf.gainM.toFixed(2)}）；汉方随后一手 ${S.pf.back >= 0 ? '+' : ''}${S.pf.back.toFixed(2)} 分；这些局汉胜 ${pct(S.pf.redWin)}`);
+  else if (S.pf) L.push(`破釜前后（${S.pf.n} 局，分数 + 汉优）：破釜那一手汉方 ${S.pf.gain.toFixed(2)} 分（子力 ${S.pf.gainM.toFixed(2)}）；之后封锁期汉方 ${S.pf.back >= 0 ? '+' : ''}${S.pf.back.toFixed(2)} 分（子力 ${S.pf.backM >= 0 ? '+' : ''}${S.pf.backM.toFixed(2)}）；追回一半以上 ${pct(S.pf.half)}；封锁期内就分了胜负 ${S.pf.ended} 局；这些局汉胜 ${pct(S.pf.redWin)}`);
   L.push('首次升到 N 级（平均回合 / 出现的局占比）  汉 | 楚');
   for (const [k, v] of Object.entries(S.firstLv)) L.push(`  ${k} 级  第 ${v.r.toFixed(1)} 回合 ${pct(v.rn)} | 第 ${v.b.toFixed(1)} 回合 ${pct(v.bn)}`);
   L.push('局面分随回合（汉方视角，正 = 汉优）/ 军功 / 等级总和');
