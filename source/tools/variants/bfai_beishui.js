@@ -5,6 +5,7 @@
 //   没开 beishui.on（或引擎里没有这一项）时和 b18c278 完全一样。
 //   基础版本可用环境变量 BFAI_BS_BASE 换（默认 b18c278）。
 // 用法：node tools/bfsim.js --ai tools/variants/bfai_beishui.js --preset bs-a …
+//   （按节点数收手照常有效：电脑就是 b18c278 那份，nodeCap / L.nodes 都在；bfsim 只扫这个外壳文件，会误报“不支持”）
 'use strict';
 const fs = require('fs'), path = require('path'), os = require('os');
 const { execFileSync } = require('child_process');
