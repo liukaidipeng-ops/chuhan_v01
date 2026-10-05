@@ -8,6 +8,7 @@
 //   --mode xe3：再加码——两边开局各 30 功、楚象升级每级 10 功、汉方车马炮一级攻击 2 每升一级 +1（升级价照旧）。
 //   --mode xe4：同 xe3，但楚开局只有 10 功（只够升到二级），给汉留出围剿的时间。
 //   --mode xe5：两边 30 功；楚象一级 6 血 1 攻、二级 1 血 1 攻（无视塞象眼、落地秒杀），升级 30 功、第 7 回合起才能升；汉车马炮攻击、血都从 2 起，每级 +1。
+//   --mode xe6：xe5 + 前 10 回合楚将无敌（不算被将军、不会被将死）。
 //   --normal：不开 XE2（现行规则），当对照——平常汉方打楚象有多早、多频繁。
 'use strict';
 process.env.ENGINE_REV = process.env.ENGINE_REV || '9aca810';
@@ -39,8 +40,10 @@ const XE5 = () => {
   XE2(); const C = BF.CFG; C.skills.jianta.level = 2; C.upgrade.cost.e = [30, 30, 30]; C.upgrade.maxLevel.e = 2;
   C.sideStats = { b: { e: { hp: [6, 1], atk: [1, 1], noLegFrom: 2, upFromRound: 7 } }, r: { r: { atk: [2, 3, 4, 5], hp: [2, 3, 4, 5] }, n: { atk: [2, 3, 4], hp: [2, 3, 4] }, c: { atk: [2, 3, 4], hp: [2, 3, 4] } } };
 };
-const START_MERIT = opt.normal ? null : opt.mode === 'xe3' || opt.mode === 'xe5' ? { r: 30, b: 30 } : opt.mode === 'xe4' ? { r: 30, b: 10 } : null;
-if (!opt.normal) (opt.mode === 'xe5' ? XE5 : opt.mode === 'xe3' || opt.mode === 'xe4' ? XE3 : XE2)();
+// XE6（用户再加一条）：XE5 + 前 10 回合楚将无敌（不算被将军、不会被将死；500 点血只在决战里有用，这里不设）
+const XE6 = () => { XE5(); BF.CFG.kingShield = { side: 'b', untilRound: 10 }; };
+const START_MERIT = opt.normal ? null : ['xe3', 'xe5', 'xe6'].includes(opt.mode) ? { r: 30, b: 30 } : opt.mode === 'xe4' ? { r: 30, b: 10 } : null;
+if (!opt.normal) (opt.mode === 'xe6' ? XE6 : opt.mode === 'xe5' ? XE5 : opt.mode === 'xe3' || opt.mode === 'xe4' ? XE3 : XE2)();
 function loadAI(spec) {
   if (!spec.startsWith('git:')) return require(path.resolve(path.join(__dirname, '..'), spec));
   const rev = spec.slice(4), file = path.join(os.tmpdir(), `bfai_${rev}_${process.pid}.js`);

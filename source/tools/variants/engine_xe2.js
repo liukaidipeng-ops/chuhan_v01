@@ -37,6 +37,13 @@ function enginePath() {
     "    if (!p0 || p0.s !== S.turn || p0.t === 'k' || p0.lv >= maxLv(p0.t) || S.upgraded || S.merit[p0.s] < upCost(p0) || upLocked(S, p0)) return null;");
   rep("      if (this.result || !p || p.s !== S.turn || p.t === 'k' || p.lv >= maxLv(p.t) || S.upgraded) return false;",
     "      if (this.result || !p || p.s !== S.turn || p.t === 'k' || p.lv >= maxLv(p.t) || S.upgraded || upLocked(S, p)) return false;");
+  // 极端诊断六（XE6 = XE5 + 楚将前 10 回合无敌）：CFG.kingShield = { side, untilRound }——这一方的帅将在第 untilRound 回合（含）之前不算被将军：
+  //   走子不用管将军、不会被将死，对方将它也不给将军的军功。判断被将军的两个函数（inCheckS / inCheckF）都认，电脑通过 BF.ai.inCheck 也一样。
+  rep("  const inCheckS = (S, s) => (S.final ? false :",
+    "  const kingShielded = (S, s) => { const K = CFG_CUR.kingShield; return !!(K && K.side === s && Math.floor((S.cnt.r + S.cnt.b) / 2) + 1 <= K.untilRound); };   // 变体·xe2：帅将无敌的回合\n" +
+    "  const inCheckS = (S, s) => (S.final || kingShielded(S, s) ? false :");
+  rep("  const inCheckF = (S, s) => !S.final && inCheck(S.board, s);",
+    "  const inCheckF = (S, s) => !S.final && !kingShielded(S, s) && inCheck(S.board, s);");
   const file = path.join(os.tmpdir(), `bingfa_xe2_${process.pid}.js`);
   fs.writeFileSync(file, s);
   process.on('exit', () => { try { fs.unlinkSync(file); } catch (e) { } });
