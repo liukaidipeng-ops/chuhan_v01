@@ -75,7 +75,11 @@ const XE8 = () => {
 // 极端诊断九（XE9，用户 2026-10-05：“先测吧”——用最早那版的摆阵羁绊）：XE8 + 两处
 //   · 楚士：斜走、横走一格，不受九宫限制，只在己方半场（不过河）；
 //   · 羁绊：两个四级士都贴着同一只象（上下左右相邻）才每回合回 8 血——光升满不贴着没有。
-const XE9 = () => { XE8(); const C = BF.CFG; C.sideStats.b.a.freeMove = [[1, 1], [1, -1], [-1, 1], [-1, -1], [1, 0], [-1, 0]]; C.healAura.adj = 'e'; };
+// 2026-10-05 更正：上面第一次做 XE9 时象 24 血、士 17 血沿用了 XE8（Code 定的数），没按用户原题；用户：“这是我的测试题！……我的象是6血！”
+//   现在照原题：象一级 6 血（二级 1 血）、士 2/5/8/11 血 2/4/6/8 攻；其余（马、象二级、楚将前 20 回合、提速、汉 11 车、两边 30 功）和 XE8 相同。
+//   原题没写楚有没有车炮兵：照 XE8 不给；用户为 XE8 加的“第 30 回合起楚可召回车”保留（只影响踩完后收尾）。旧的那版留作 xe9old。
+const XE9old = () => { XE8(); const C = BF.CFG; C.sideStats.b.a.freeMove = [[1, 1], [1, -1], [-1, 1], [-1, -1], [1, 0], [-1, 0]]; C.healAura.adj = 'e'; };
+const XE9 = () => { XE9old(); const C = BF.CFG; C.sideStats.b.e.hp = [6, 1]; C.sideStats.b.a.hp = [2, 5, 8, 11]; };
 const setupXE8 = g => g.setup(T => {
   for (let r = 0; r < 10; r++) for (let f = 0; f < 9; f++) {
     const p = T.board[r][f]; if (!p) continue;
@@ -83,8 +87,8 @@ const setupXE8 = g => g.setup(T => {
     else if (p.s === 'r' && (p.t === 'p' || p.t === 'n' || p.t === 'c')) { p.t = 'r'; p.lv = 1; p.hp = 5; }   // 汉：兵、马、炮的位置换成车
   }
 });
-const START_MERIT = opt.normal ? null : ['xe3', 'xe5', 'xe6', 'xe7', 'xe8', 'xe9'].includes(opt.mode) ? { r: 30, b: 30 } : opt.mode === 'xe4' ? { r: 30, b: 10 } : null;
-if (!opt.normal) ({ xe9: XE9, xe8: XE8, xe7: XE7, xe6: XE6, xe5: XE5, xe3: XE3, xe4: XE3 }[opt.mode] || XE2)();
+const START_MERIT = opt.normal ? null : ['xe3', 'xe5', 'xe6', 'xe7', 'xe8', 'xe9', 'xe9old'].includes(opt.mode) ? { r: 30, b: 30 } : opt.mode === 'xe4' ? { r: 30, b: 10 } : null;
+if (!opt.normal) ({ xe9old: XE9old, xe9: XE9, xe8: XE8, xe7: XE7, xe6: XE6, xe5: XE5, xe3: XE3, xe4: XE3 }[opt.mode] || XE2)();
 // --plan A|B|C（只管楚的升级，走子仍是电脑）：A 先升满两个士；B 只攒钱；C 先升马。三套都是“象能升就升”，升完电脑自己走象。
 function planUp(S) {
   if (S.upgraded) return null;
@@ -152,7 +156,7 @@ const round = S => Math.floor((S.cnt.r + S.cnt.b) / 2) + 1;
 async function play(seed) {
   let a = seed >>> 0; Math.random = () => { a = (a * 1103515245 + 12345) % 2147483648; return a / 2147483648; };
   const g = new BF.Game();
-  if ((opt.mode === 'xe8' || opt.mode === 'xe9') && !opt.normal) setupXE8(g);
+  if (['xe8', 'xe9', 'xe9old'].includes(opt.mode) && !opt.normal) setupXE8(g);
   if (START_MERIT) { g.S.merit.r = START_MERIT.r; g.S.merit.b = START_MERIT.b; }
   const chuE = new Set(); for (const row of g.S.board) for (const p of row) if (p && p.s === 'b' && p.t === 'e') chuE.add(p.id);
   const R = { seed, winner: null, reason: null, rounds: 0, firstHit: null, hits: 0, kills: [], ups: [], autoups: [], maxLv: 1, wipes: [], note: '', meritB: {}, otherUpsB: 0, upsB: [], healFrom: null, rc: [], formAt: null, bondAt: null };
@@ -221,7 +225,7 @@ async function play(seed) {
   for (let i = 0; i < opt.games; i++) {
     const R = await play(opt.seed + i); out.push(R);
     const killedBy = R.kills.filter(k => k.by === 'r').map(k => '第' + k.round + '回合').join('、') || '无';
-    if (opt.mode === 'xe8' || opt.mode === 'xe9') {
+    if (['xe8', 'xe9', 'xe9old'].includes(opt.mode)) {
       const ups = R.upsB.map(u => ({ a: '士', n: '马', e: '象' }[u.t] || u.t) + u.to + '@' + u.round).join(' ');
       console.log(`种子 ${R.seed}：${R.winner === 'r' ? '汉胜' : R.winner === 'b' ? '楚胜' : '和/' + R.reason}（${R.reason}，${R.rounds} 回合）${R.note ? ' ' + R.note : ''}｜楚升级 ${ups || '无'}｜回血从第 ${R.healFrom == null ? '—' : R.healFrom} 回合｜象被汉打中 ${R.hits} 下，第一下第 ${R.firstHit == null ? '—' : R.firstHit} 回合，被杀 ${R.kills.filter(k => k.by === 'r').map(k => '第' + k.round + '回合').join('、') || '无'}｜秒杀 ${R.wipes.map(w => '第' + w.round + '回合踩死' + w.kills).join('、') || '无'}｜召回车 ${R.rc.length ? R.rc.length + ' 次（第 ' + R.rc[0] + ' 回合起）' : '无'}${R.formAt != null ? '｜摆好阵 第 ' + R.formAt + ' 回合' : ''}｜羁绊成立 ${R.bondAt == null ? '无' : '第 ' + R.bondAt + ' 回合'}`);
       continue;
