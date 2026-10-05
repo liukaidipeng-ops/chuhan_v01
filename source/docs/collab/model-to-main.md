@@ -2,6 +2,26 @@
 
 最新的在最上面，编号接着往下排（M1、M2…）。格式见同目录 `MODEL-WORKFLOW.md` 第 6 节。TD 用 `git show origin/model-lab:source/docs/collab/model-to-main.md` 看。
 
+## M6 · 10-06 · 交付 · 界面（iPhone 适配）
+
+- 提交：model-lab 上带这张交付单的那次提交。交付前合过 `origin/dev`，`node build.js` 能过，`test/*.test.js` 八个全过。
+- Ham 确认：10-06 00:04 他发来三张 iPhone 实机截图（从主屏幕图标打开的）——对局中屏幕顶上状态栏那一条是空的朱红色，大厅顶上反而是灰色，「玩法」一行的说明文字顶出了画框。改完后在审批台 art-015 说明，他 00:37 在聊天里说“通过了，提交吧”。
+- 改了什么：
+  1. **`<head>` 里加了一行** `<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">`。原来只有 `apple-mobile-web-app-capable`，没写状态栏样式，所以从主屏幕图标打开时 iPhone 在顶上留一条、自己上色，取到的颜色还是错的。加了之后状态栏透明，页面画到屏幕最顶上，时间和电量浮在画面上。各处顶部本来就按 `--safe-t` 留了位置（大厅、头像牌、状态条、棋谱、设置面板等）。
+  2. **新加一个元素 `<div id="eTint"></div>`**（紧跟在 `<canvas id="gl">` 后面）和一段样式「iPhone 顶上那一条的颜色」：给“在 Safari 里直接打开”的人用的。iOS 26 的 Safari 不看 `theme-color`，自己从贴着屏幕上边的固定定位元素取色给状态栏上色。`#eTint` 是一条永远在最上层、贴着上边的细条，专门给它取色：大厅 / 加载页 / 设置 / 整页式弹窗 / 终局卡片显示时是朱 `#a8281c`，其余（对局中）是墨 `#141311`；`html`、`body` 的背景色同步，作为后备。高度是 `min(14px, var(--safe-t))`，没有安全区的设备上高度为 0；`@media (display-mode:standalone)` 下 `display:none`（主屏幕打开时页面自己画到顶，不需要它）。
+  3. 手机竖屏：二级页面顶上「技能新象棋 / 返回」那一行从 84 压到 60 像素；主界面顶栏同样。
+  4. 手机竖屏和设置面板：选项标签 `.opt .lbl` 允许换行，小字说明不再顶出右边画框（Ham 截图里「玩法」那行 `#varNote` 的“技能模式：升级、生命值、兵种技能与主帅兵法”）。
+- 改了哪些文件：`source/src/template.html`、`source/docs/collab/ui-shots/m6_iphone_sim.jpg`、本文件。没碰脚本。
+- `id` 和 `data-*`：新加一个 `id="eTint"`，没有删、没有改。
+- **我验证不了的（重要）**：我没有 iPhone，上面第 1、2 条都是按资料做的，没在真机上看过。
+  - 第 1 条：据我了解，iOS 是在“添加到主屏幕”的那一刻记下状态栏样式的，旧图标不会自动更新。我已经告诉 Ham：上线后要把桌面图标删掉重加一次（重加后图标名也会从「楚汉·三维象棋」变成「技能新象棋」）。
+  - 第 2 条：资料说 Safari 取色有时不及时（Ham 截图里大厅灰、对局红，像是取到了上一个画面的颜色）。如果上线后在 Safari 里颜色还是跟不上，可能需要你在脚本里补一手（比如进出对局时动一下 `#eTint` 逼它重新取色），到时我们再看。
+  - 状态栏透明之后，请留意对局中有没有东西被状态栏或灵动岛挡住：我核过用了 `--safe-t` 的有 `#cardOpp`、`#status`、`#netbadge`、`#log`、`#bubOpp`、`#updBar`、`#bfDebug`、大厅各页、`#mSet`、`.e-m`；**没用的**有 `.cinebar`（本来就该盖到顶）、`#endcard`（内容居中，边框 inset 18px，在灵动岛机型上顶边那条线会从状态栏文字后面穿过）、`#banner`、`#verse`。`#endcard:before` 的顶边要不要让开安全区，等 Ham 实机看了再说。
+- 需要 TD 做的：合并、部署；上线仍等 Ham 在你那边点头。他这次在我这边说的是“通过了，提交吧”。
+- 想让 Ham 定的：无。
+- 图：`ui-shots/m6_iphone_sim.jpg` 是我把 `--safe-t` 强行设成 59px、再在顶上画一条色带**模拟** Safari 的样子拼的，不是真机，也不是主屏幕打开的样子（主屏幕打开时顶上没有那条色带）。
+- 参考：<https://1ar.io/updates/safari-26-liquid-glass-web/>、<https://github.com/joe-bell/skills/pull/6>
+
 ## M5 · 10-05 · 交付 · 界面（第二批：对局界面和其余弹窗）
 
 > **10-05 23:34 Ham 在我这边说：“通过了，你发布完以后通知 td。”** 我发布不了，这张交付单就是通知：M5 他已经点头，请合并、过一遍界面后部署（上线前要不要再让他看一眼，按你们的规矩）。

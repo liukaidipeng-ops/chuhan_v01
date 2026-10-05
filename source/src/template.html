@@ -5,6 +5,7 @@
 <meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,viewport-fit=cover">
 <meta name="theme-color" content="#1b1a19">
 <meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
 <meta name="description" content="技能新象棋：可与朋友联机、可人机对战的水墨风三维中国象棋">
 <title>技能新象棋</title>
 <style>
@@ -649,8 +650,8 @@ body.compact #log{width:164px;max-height:34vh}
 #mSet .tabp{min-height:0}
 #mSet .opt,#mSet .tabp .row{flex-direction:column;align-items:stretch;gap:8px;min-height:92px;margin:0;padding:10px 14px 12px;border:2px solid var(--c);border-top:0}
 #mSet .tabp .row{flex-direction:row;flex-wrap:wrap;align-items:center;justify-content:flex-start;min-height:0;padding:14px}
-#mSet .opt .lbl{font-size:15px}
-#mSet .opt .lbl small{display:inline;margin:0 0 0 10px;font-size:11px}
+#mSet .opt .lbl{font-size:15px;white-space:normal}
+#mSet .opt .lbl small{display:inline-block;margin:0 0 0 10px;font-size:11px;line-height:1.5}
 #mSet .seg{flex-wrap:nowrap;justify-content:flex-start}
 #mSet .seg button{flex:1 1 auto;padding:0 6px;font-size:13px;text-align:center}
 #mSet .vol{justify-content:flex-start}#mSet .vol input{width:100%;accent-color:var(--k)}
@@ -742,6 +743,21 @@ body.compact #log{width:164px;max-height:34vh}
 #endcard .btn{min-height:52px;border:2px solid var(--c);border-radius:0;background:none;color:var(--c);box-shadow:none;font-family:var(--ef);font-weight:900}
 #endcard .btn.solid{background:var(--k);color:var(--c);border-color:var(--c)}
 @media (hover:hover){#endcard .btn:hover{background:var(--c);color:var(--k)}}
+
+/* ---------- iPhone 顶上那一条（状态栏区域）的颜色 ----------
+   iOS 26 的 Safari 不看 theme-color，它自己给状态栏那一条上色：取“贴着屏幕上边、宽度占满、高于 10 像素的固定定位元素”的背景色，
+   没有就取 body 的背景色；透明度为 0、pointer-events:none 的层也算。页面里这样的全屏层很多，所以它取到的颜色不可控
+   （Ham 实机：大厅顶上是灰的，对局顶上是朱红的，正好反了）。
+   这里放一条专门给它取色的细条 #eTint：永远在最上层、贴着上边；颜色跟着当前画面走——大厅、整页式弹窗、终局卡片、加载页是朱，对局中是墨。
+   高度取 min(14px, 安全区高度)：没有刘海的设备安全区是 0，这一条就不存在，不会多出一道色条。body 的背景色同步，作为取不到时的后备。 */
+#eTint{position:fixed;left:0;right:0;top:0;height:min(14px,var(--safe-t));z-index:100;pointer-events:none;background-color:#141311}
+/* 从主屏幕图标打开（独立窗口）时，状态栏是透明的，页面自己画到屏幕最顶上，不需要取色条——留着反而会在对局画面顶上多出一道墨线 */
+@media (display-mode:standalone){#eTint{display:none}}
+html,body{background-color:#141311}
+html:has(#lobby:not(.hidden)),html:has(#lobby:not(.hidden)) body,html:has(#lobby:not(.hidden)) #eTint,
+html:has(#loading),html:has(#loading) body,html:has(#loading) #eTint,
+html:has(#mSet:not(.hidden)) #eTint,html:has(.modal.e-m:not(.hidden)) #eTint,
+html:has(#endcard:not(.hidden)),html:has(#endcard:not(.hidden)) body,html:has(#endcard:not(.hidden)) #eTint{background-color:#a8281c}
 
 /* ---------- 其余弹窗：发言、导出、更新说明、玩法、选择、观战入席（和设置面板同一个骨架：左边竖条页名，底栏固定） ---------- */
 .e-m,.e-c,#pauseOv,#bfTip,#loading{--g:#a8281c;--c:#f0e7d2;--k:#141311;--ef:"EB","Noto Serif SC","Source Han Serif SC","Noto Serif CJK SC","Songti SC","STSong","SimSun",serif;--es:"PingFang SC","Noto Sans SC","Noto Sans CJK SC","Microsoft YaHei",sans-serif}
@@ -893,7 +909,7 @@ body.compact #log{width:164px;max-height:34vh}
 @media (max-width:640px){
   #lobby{--bw:calc(100vw - 48px);--pw:calc(100vw - 48px)}
   #lobby .pane{padding-bottom:0}
-  #lobby .e-top{height:84px}
+  #lobby .e-top{height:60px}
   #pMain .e-name{display:none}
   #pMain .e-top{justify-content:flex-end}
   #lobby .row.mini{gap:18px}
@@ -916,11 +932,11 @@ body.compact #log{width:164px;max-height:34vh}
   #lobby .resume .btn{width:100%}
 
   /* 二级页：左边竖条写页名，右边内容，底栏固定 */
-  #lobby .pane:not(#pMain):not(.hidden){display:grid;grid-template-columns:58px minmax(0,1fr);grid-template-rows:84px minmax(0,1fr) auto;column-gap:0;align-content:start}
+  #lobby .pane:not(#pMain):not(.hidden){display:grid;grid-template-columns:58px minmax(0,1fr);grid-template-rows:60px minmax(0,1fr) auto;column-gap:0;align-content:start}
   #lobby .pane:not(#pMain):before{content:"技能新象棋";grid-column:1/-1;grid-row:1;align-self:center;font-size:13px;letter-spacing:.4em;white-space:nowrap}
   #lobby .e-hd{display:contents}
   #lobby .pane:not(#pMain) h3{grid-column:1;grid-row:2;padding:22px 0;border:2px solid var(--c);font-size:34px;line-height:1;letter-spacing:.4em;writing-mode:vertical-rl;text-orientation:upright;display:flex;align-items:center}
-  #lobby .e-back{position:absolute;right:0;top:calc(var(--safe-t) + 20px)}
+  #lobby .e-back{position:absolute;right:0;top:calc(var(--safe-t) + 8px)}
   #lobby .pane:not(#pMain) .e-body{grid-column:2;grid-row:2;margin-left:-2px;padding:0;max-width:none}
   #lobby .pane:not(#pMain) .e-bar{grid-column:1/-1;grid-row:3;position:sticky;bottom:0;z-index:2;gap:12px;margin:22px -24px 0;padding:16px 24px calc(16px + var(--safe-b));border:0;border-top:2px solid var(--c);background:var(--g);height:auto}
   #lobby .e-bar .btn{position:static;flex:1 1 0;width:auto;height:60px;margin:0;border:2px solid var(--c);border-radius:0;box-shadow:none;background:none;color:var(--c);font-size:28px;letter-spacing:.3em;padding-left:.3em;transition:none}
@@ -941,8 +957,8 @@ body.compact #log{width:164px;max-height:34vh}
   #lobby .e-opts{display:block;border:0}
   #lobby .opt{flex-direction:column;align-items:stretch;gap:8px;min-height:92px;padding:10px 14px 12px;border:2px solid var(--c);border-top:0}
   #lobby .e-body>.e-opts:first-child .opt:first-child{border-top:2px solid var(--c)}
-  #lobby .opt .lbl{font-size:15px}
-  #lobby .opt .lbl small{display:inline;margin:0 0 0 10px;font-size:11px}
+  #lobby .opt .lbl{font-size:15px;white-space:normal}
+  #lobby .opt .lbl small{display:inline-block;margin:0 0 0 10px;font-size:11px;line-height:1.5;vertical-align:baseline}
   #lobby .seg{flex-wrap:nowrap;justify-content:flex-start}
   #lobby .seg button{flex:1 1 auto;padding:0 6px;font-size:13px;text-align:center}
   #lobby #lockPw{max-width:none!important}
@@ -982,6 +998,7 @@ body.compact #log{width:164px;max-height:34vh}
 <body>
 <svg width="0" height="0" style="position:absolute"><filter id="rough"><feTurbulence type="fractalNoise" baseFrequency="0.04" numOctaves="3" result="n"/><feDisplacementMap in="SourceGraphic" in2="n" scale="5"/></filter></svg>
 <canvas id="gl"></canvas>
+<div id="eTint"></div>
 <div id="paper"></div>
 <div id="vignette"></div>
 
