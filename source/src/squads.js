@@ -13,7 +13,9 @@ const Squads = (() => {
   const rightOf = yaw => new V3(Math.cos(yaw), 0, -Math.sin(yaw));
   const yawOf = d => Math.atan2(d.x, d.z);
   const at = (anchor, yaw, x, z) => anchor.clone().addScaledVector(rightOf(yaw), x).addScaledVector(fwd(yaw), z);
-  const gy = p => Fx.groundY(p);
+  // 乘船过河的那一会儿，水面这一段把人和车垫到船板的高度（deck = 船板离地多高；平时是 null）
+  let deck = null, deckId = 0;
+  const gy = p => { const y = Fx.groundY(p); return deck != null && Math.abs(p.x) < 4.8 ? Math.max(y, deck) : y; };
   const unitKey = (t, s) => ({ p: 'inf', r: 'chariot', n: 'cav', c: 'cannon', a: 'guard', e: s === 'r' ? (Models.TIGER ? 'tiger' : 'xbow') : 'ele', k: s === 'r' ? 'liu' : 'xiang' }[t]);
   const snd = (t, s) => Sfx.unit(unitKey(t, s));
   // 声音按真实时间走，演出按“动画速度”走（默认 1.5 倍）：real = 演出里的 d 秒实际是几秒；wait = 实打实等 sec 秒
@@ -1064,9 +1066,8 @@ const Squads = (() => {
       const hd = Cam.homeDir();
       Fx.shot(mid.clone().addScaledVector(hd, 3.2).addScaledVector(c.side, 1.6).add(new V3(0, 2.1, 0)), mid.clone().add(new V3(0, 0.25, 0)), 0.6);
     }
-    const boat = info.crossesRiver && (t === 'p' || t === 'c'), live = Stand.on && !boat;   // 模型模式：棋盘上那一队直接起步，不再化墨重生
+    const boat = info.crossesRiver && (t === 'p' || t === 'c'), live = Stand.on;   // 模型模式：棋盘上那一队直接起步，不再化墨重生
     if (live) Stand.hide(m); else Fx.sink(m);
-    if (boat) { await boatSquad(c); return; }
     const L = c.mt === 'n'; // 日字路线（揭棋中按位置走法，可能与兵种不同）
     const lvN = info.piece.lv || 0;
     const yaw0 = L ? yawOf(knightCorner(info).clone().sub(A)) : yaw;
@@ -1076,6 +1077,7 @@ const Squads = (() => {
     if (cine && A.distanceTo(B) > 1.8) stopCam = Fx.follow(() => sq.center(0.2), () => c.side.clone().multiplyScalar(2.6).addScaledVector(d, -1.4).add(new V3(0, 1.3, 0)), () => d.clone().multiplyScalar(0.8).add(new V3(0, 0.05, 0)), 4);
     const dist = L ? 2.2 : A.distanceTo(B);
     const dur = Math.max(0.6, dist / SPEED[t]);
+    const ferry = boat ? rideBoat(sq, c, dur) : null;   // 兵卒、炮过河：脚下垫一条船，照平地的速度直接过去
     if (sq.march && t === 'n') await sq.march(L ? [A, knightCorner(info), B] : [A, A.clone().lerp(B, 0.35), B]);
     else if (sq.march) await sq.march(L ? [A, knightCorner(info), B] : [A, B], dur);
     else {
@@ -1084,6 +1086,7 @@ const Squads = (() => {
       sq.setPose('idle');
     }
     stopCam();
+    if (ferry) ferry.done();
     await sleep(0.1);
     if (await settleSquad(sq, m, B)) return;
     await sq.dissolve();
@@ -1105,113 +1108,42 @@ const Squads = (() => {
   // 马的行进路线：直奔落点（这里给出路线中点，供朝向和镜头用）
   const knightCorner = info => Board.pos(info.from[0], info.from[1]).lerp(Board.pos(info.to[0], info.to[1]), 0.5);
 
-  // ---------- 渡河：兵卒三条帆船，炮一条大船 ----------
-  async function boatSquad(c) {
-    const { A, B, d, info } = c;
-    const t = info.piece.t, s = info.piece.s;
-    const sA = Math.sign(A.z);
-    const xc = A.x + (B.x - A.x) * (A.z / (A.z - B.z));
-    const H = Board.HALF;
-    const bankA = new V3(xc, 0, sA * (H + 0.32)), bankB = new V3(xc, 0, -sA * (H + 0.32));
-    const yaw = yawOf(new V3(0, 0, -sA));
-    const lvN = info.piece.lv || 0;
-    const sq = make(t, s, A, yawOf(bankA.clone().sub(A).lengthSq() > 1e-3 ? bankA.clone().sub(A) : new V3(0, 0, -sA)), 'move', lvN || 1, lvN);
-    await sq.appear();
-    Sfx.river(3.2);
-    // 走到岸边
-    if (sq.march) await sq.march([A, bankA], Math.max(0.4, A.distanceTo(bankA) / 0.9));
-    else { sq.setPose('march'); snd(t, s).move(1, sq.sndN); await walkPath(sq, [A, bankA], Math.max(0.4, A.distanceTo(bankA) / 0.9)); sq.setPose('idle'); }
-    await turnTo(sq, yaw, 0.2);
-    // 船自上游漂来
-    const nb = t === 'p' ? (sq.units && sq.units.length <= 4 ? 1 : 3) : 1;
-    const boats = [];
-    for (let i = 0; i < nb; i++) {
-      const b = Models.makeBoat({ side: s, sail: true }); const sc = t === 'p' ? 0.36 : 0.5;
-      b.group.scale.setScalar(sc); b.sc = sc;
-      b.x0 = xc + (i - (nb - 1) / 2) * 0.62; b.group.position.set(b.x0 - 1.4, 0.03, sA * 0.08);
-      scene.add(b.group); boats.push(b);
-    }
-    let bt = 0;
-    const bUp = onFrame(dt => { bt += dt; boats.forEach((b, i) => { b.update(dt); b.group.position.y = 0.03 + Math.sin(bt * 3 + i) * 0.012; b.group.rotation.z = Math.sin(bt * 2.3 + i) * 0.035; b.man.poleArm.rotation.z = 0.5 + Math.sin(bt * 3.2 + i) * 0.25; }); });
-    await tween(0.7, k => boats.forEach(b => { b.group.position.x = b.x0 - 1.4 * (1 - k); }), ease.out);
-    Sfx.B.splash(0, 0.2);
-    // 登船
-    const slots = [];
-    if (sq.troop) {
-      sq.follow = false;
-      sq.units.forEach((u, i) => { const b = boats[Math.floor(i / 4) % nb]; slots.push({ u, b, lx: -0.35 + (i % 4) * 0.28, lz: 0 }); });
-      const from = sq.units.map(u => u.p.clone());
-      sq.setPose('march');
-      await tween(0.5, k => slots.forEach((sl, i) => { const to = sl.b.group.localToWorld(new V3(sl.lx, 0.3, sl.lz)); sl.u.p.lerpVectors(from[i], to, k); sl.u.p.y = from[i].y + (to.y - from[i].y) * k + Math.sin(k * Math.PI) * 0.1; }));
-      sq.setPose('idle');
-    } else {
-      // 炮车整体上船（兵法里多出来的炮车随船隐去，上岸再现）
-      if (sq.echoes) { sq.echoesShow(false); sq.echoFrozen = true; }
-      const from = sq.anchor.clone();
-      await tween(0.5, k => { const to = boats[0].group.localToWorld(new V3(0.1, 0.3, 0)); sq.anchor.lerpVectors(from, to, k); });
-    }
-    // 顺流斜渡
-    const bz0 = boats.map(b => b.group.position.clone());
-    const carry = () => {
-      if (sq.troop) slots.forEach(sl => { const to = sl.b.group.localToWorld(new V3(sl.lx, 0.3, sl.lz)); sl.u.p.copy(to); });
-      else { sq.anchor.copy(boats[0].group.localToWorld(new V3(0.1, 0.3, 0))); }
-    };
-    const cUp = onFrame(carry);
-    const gyBak = Fx.groundY;
-    await tween(1.1, k => boats.forEach((b, i) => { b.group.position.x = bz0[i].x + 0.35 * k; b.group.position.z = bz0[i].z - sA * 0.16 * k; b.group.rotation.y = -sA * 0.12 * Math.sin(k * Math.PI); }), ease.inOut);
-    cUp();
-    // 下船登岸
-    if (sq.troop) {
-      const from = sq.units.map(u => u.p.clone());
-      sq.anchor.copy(bankB);
-      sq.setPose('march');
-      await tween(0.5, k => sq.units.forEach((u, i) => { const to = sq.slot(i); to.y = Fx.groundY(to); u.p.lerpVectors(from[i], to, k); u.p.y += Math.sin(k * Math.PI) * 0.1; }));
-      sq.follow = true;
-    } else {
-      const from = sq.anchor.clone();
-      await tween(0.5, k => sq.anchor.lerpVectors(from, bankB, k));
-      if (sq.echoes) { sq.echoFrozen = false; sq.syncEchoes(); sq.echoesShow(true); for (const e of sq.echoes) for (const { dst } of e.pairs) P.ink(dst.position.clone(), 4, 0.3, 0.25, 0.6); }
-    }
-    // 船离去
-    boats.forEach(b => tween(0.8, k => { b.group.scale.setScalar(Math.max(0.001, b.sc * (1 - k))); b.group.position.x += 0.01; }).then(() => Core.disposeTree(b.group)));
-    sleep(0.85).then(bUp);
-    if (sq.march) await sq.march([bankB, B], Math.max(0.3, bankB.distanceTo(B) / 0.9));
-    else { await walkPath(sq, [bankB, B], Math.max(0.3, bankB.distanceTo(B) / 0.9)); sq.setPose('idle'); }
-    await sq.dissolve();
-    await Fx.rise(c.m, B, 0.35);
+  // ---------- 渡河：兵卒、炮乘船 ----------
+  // Ham 10-06 定的：不要“走到岸边 → 等船 → 上船 → 摆渡 → 下船”那一长串，直接乘船过去，速度和平地一样。
+  // 做法：队伍照常从起点走到落点；靠近河的时候脚下现出一条船，跟着队伍过河，上岸后隐去。水面那一段把人垫到船板的高度（见上面的 deck）
+  function rideBoat(sq, c, dur) {
+    const { A, B, info } = c, H = Board.HALF;
+    const span = sq.troop ? 2 * Math.max(...sq.offsets.map(o => Math.abs(o[0]))) : (sq.echoes ? sq.echoes.length * 0.42 : 0) + 0.3;   // 这一队横着有多宽
+    const sc = sq.troop ? Math.max(0.34, Math.min(0.5, (span + 0.1) / 2.2)) : Math.max(0.5, Math.min(0.62, (span + 0.8) / 2.2));   // 船的大小跟着队伍走；太大了船夫会比兵高出一大截
+    const b = Models.makeBoat({ side: info.piece.s, sail: true });
+    b.group.scale.setScalar(0.001); b.group.position.set(sq.anchor.x, 0.03, 0); scene.add(b.group);
+    const my = ++deckId; deck = 0.03 + 0.3 * sc;
+    Sfx.river(Math.max(1.2, real(dur)));
+    let t = 0, k = 0, gone = false, wet = false;
+    const off = onFrame(dt => {
+      t += dt; b.update(dt);
+      const z = sq.anchor.z, near = !gone && Math.abs(z) < H + 0.5;
+      k += ((near ? 1 : 0) - k) * Math.min(1, dt * (near ? 10 : 5));
+      b.group.scale.setScalar(Math.max(0.001, sc * k));
+      b.group.position.set(sq.anchor.x, 0.03 + Math.sin(t * 3) * 0.012, Math.max(-0.05, Math.min(0.05, z * 0.25)));   // 河很窄，船只是跟着横挪一点
+      b.group.rotation.z = Math.sin(t * 2.3) * 0.035; b.man.poleArm.rotation.z = 0.5 + Math.sin(t * 3.2) * 0.25;
+      if (!wet && Math.abs(z) < H + 0.1) { wet = true; Sfx.B.splash(0, 0.2); P.splash(new V3(sq.anchor.x, 0.05, 0), 5, 0.5); }
+    });
+    return { done() { gone = true; sleep(0.6).then(() => { off(); if (deckId === my) deck = null; Core.disposeTree(b.group); }); } };
   }
 
-  // 低特效档：棋子自己坐船
+  // 低特效档：棋子照平时那样一步过去，河里垫一条船
   async function pieceBoat(c) {
     const { A, B, s, m } = c;
-    const sA = Math.sign(A.z);
     const xc = A.x + (B.x - A.x) * (A.z / (A.z - B.z));
-    const H = Board.HALF;
-    const S = new V3(xc - 0.55, 0.03, sA * 0.06), T = new V3(xc + 0.25, 0.03, -sA * 0.06);
-    const boat = Models.makeBoat({ side: s, sail: true });
-    const bs = 0.5;
-    boat.group.position.copy(S).add(new V3(-1.2, 0, 0)); boat.group.scale.setScalar(0.001);
-    scene.add(boat.group);
-    let t = 0;
-    const up = onFrame(dt => { t += dt; boat.update(dt); boat.group.position.y = 0.03 + Math.sin(t * 3) * 0.012; boat.group.rotation.z = Math.sin(t * 2.3) * 0.035; boat.man.poleArm.rotation.z = 0.5 + Math.sin(t * 3.2) * 0.25; });
-    Sfx.river(2.4);
-    const grow = tween(0.6, k => { boat.group.scale.setScalar(Math.max(0.001, bs * Math.min(1, k * 1.6))); boat.group.position.x = S.x - 1.2 * (1 - k); }, ease.out);
-    const E1 = new V3(S.x + 0.1, TOP, sA * (H + 0.2));
-    const A0 = m.position.clone();
-    await tween(Math.min(0.6, 0.2 + A0.distanceTo(E1) * 0.1), k => { m.position.lerpVectors(A0, E1, k); m.position.y = TOP + Math.sin(k * Math.PI) * 0.1; });
-    await grow;
-    const deck = () => boat.group.localToWorld(new V3(0.2, 0.33, 0));
-    const p0 = m.position.clone();
-    await tween(0.28, k => { m.position.lerpVectors(p0, deck(), k); m.position.y += Math.sin(k * Math.PI) * 0.22; });
-    P.splash(deck().setY(0.05), 5, 0.5); Sfx.B.splash(0, 0.25);
-    await tween(1.1, k => { boat.group.position.x = S.x + (T.x - S.x) * k; boat.group.position.z = S.z + (T.z - S.z) * k; boat.group.rotation.y = -sA * 0.18 * Math.sin(k * Math.PI); m.position.copy(deck()); }, ease.inOut);
-    const E2 = new V3(T.x, TOP, -sA * (H + 0.2));
-    const p1 = m.position.clone();
-    await tween(0.28, k => { m.position.lerpVectors(p1, E2, k); m.position.y += Math.sin(k * Math.PI) * 0.22; });
-    Sfx.place();
-    tween(0.7, k => { boat.group.scale.setScalar(Math.max(0.001, bs * (1 - k))); }).then(() => { up(); Core.disposeTree(boat.group); });
-    if (E2.distanceTo(B) > 0.05) await tween(Math.min(0.6, 0.15 + E2.distanceTo(B) * 0.1), k => { m.position.lerpVectors(E2, B, k); m.position.y = TOP + Math.sin(k * Math.PI) * 0.1; });
-    m.position.copy(B);
+    const boat = Models.makeBoat({ side: s, sail: true }), bs = 0.5;
+    boat.group.position.set(xc, 0.03, 0); boat.group.scale.setScalar(0.001); scene.add(boat.group);
+    let t = 0, k = 0, gone = false;
+    const up = onFrame(dt => { t += dt; boat.update(dt); k += ((gone ? 0 : 1) - k) * Math.min(1, dt * (gone ? 5 : 14)); boat.group.scale.setScalar(Math.max(0.001, bs * k)); boat.group.position.y = 0.03 + Math.sin(t * 3) * 0.012; boat.group.rotation.z = Math.sin(t * 2.3) * 0.035; boat.man.poleArm.rotation.z = 0.5 + Math.sin(t * 3.2) * 0.25; });
+    Sfx.river(1.2); Sfx.B.splash(0.12, 0.2);
+    await Fx.lowMove(c);
+    P.splash(new V3(xc, 0.05, 0), 5, 0.5);
+    gone = true; sleep(0.7).then(() => { up(); Core.disposeTree(boat.group); });
   }
 
   // ======================================================================
