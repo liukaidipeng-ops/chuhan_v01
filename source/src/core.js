@@ -313,9 +313,10 @@ const Core = (() => {
   })();
   const matCache = new Map();
   function toon(color, opts = {}) {
-    const key = color + JSON.stringify(opts);
-    if (!opts.unique && matCache.has(key)) return matCache.get(key);
+    // unique 的材质不进缓存，也就不用算键——带贴图时 JSON.stringify 会把整张贴图编码一遍，一张 1024 的画布要好几秒
     const { unique, ...rest } = opts;
+    const key = unique ? '' : color + JSON.stringify(opts);
+    if (!unique && matCache.has(key)) return matCache.get(key);
     const m = new THREE.MeshToonMaterial({ color, gradientMap: gradMap, ...rest });
     if (!opts.unique) matCache.set(key, m);
     return m;

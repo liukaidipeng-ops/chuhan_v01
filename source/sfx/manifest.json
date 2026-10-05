@@ -834,5 +834,143 @@
    "dur": 2.13,
    "src": "Kokoro TTS 多声线齐喊（本项目生成）"
   }
+ ],
+ "hoofr": [
+  {
+   "f": "hoofr_0.mp3",
+   "dur": 2.28,
+   "src": "0ad (CC BY-SA 3.0): mstep113"
+  },
+  {
+   "f": "hoofr_1.mp3",
+   "dur": 2.32,
+   "src": "0ad (CC BY-SA 3.0): mstep114"
+  },
+  {
+   "f": "hoofr_2.mp3",
+   "dur": 2.4,
+   "src": "0ad (CC BY-SA 3.0): mstep115"
+  },
+  {
+   "f": "hoofr_3.mp3",
+   "dur": 2.32,
+   "src": "0ad (CC BY-SA 3.0): mstep111"
+  },
+  {
+   "f": "hoofr_4.mp3",
+   "dur": 2.39,
+   "src": "0ad (CC BY-SA 3.0): mstep112"
+  }
+ ],
+ "hoofwar": [
+  {
+   "f": "hoofwar_0.mp3",
+   "dur": 3.26,
+   "src": "0ad (CC BY-SA 3.0): alarmcreatecavalry_1"
+  }
+ ],
+ "neigha": [
+  {
+   "f": "neigha_0.mp3",
+   "dur": 1.49,
+   "src": "0ad (CC BY-SA 3.0): horse_attack1"
+  },
+  {
+   "f": "neigha_1.mp3",
+   "dur": 1.41,
+   "src": "0ad (CC BY-SA 3.0): horse_attack2"
+  },
+  {
+   "f": "neigha_2.mp3",
+   "dur": 1.25,
+   "src": "0ad (CC BY-SA 3.0): horse_attack3"
+  }
+ ],
+ "neighm": [
+  {
+   "f": "neighm_0.mp3",
+   "dur": 1.39,
+   "src": "0ad (CC BY-SA 3.0): horse_idle1"
+  },
+  {
+   "f": "neighm_1.mp3",
+   "dur": 1.53,
+   "src": "0ad (CC BY-SA 3.0): horse_idle3"
+  },
+  {
+   "f": "neighm_2.mp3",
+   "dur": 0.98,
+   "src": "0ad (CC BY-SA 3.0): horse_select1"
+  }
+ ],
+ "neighd": [
+  {
+   "f": "neighd_0.mp3",
+   "dur": 2.15,
+   "src": "0ad (CC BY-SA 3.0): death_horse_10"
+  },
+  {
+   "f": "neighd_1.mp3",
+   "dur": 1.98,
+   "src": "0ad (CC BY-SA 3.0): death_horse_11"
+  },
+  {
+   "f": "neighd_2.mp3",
+   "dur": 1.55,
+   "src": "0ad (CC BY-SA 3.0): horse_death1"
+  }
+ ],
+ "elecry": [
+  {
+   "f": "elecry_0.mp3",
+   "dur": 1.57,
+   "src": "0ad (CC BY-SA 3.0): elephant_order1"
+  },
+  {
+   "f": "elecry_1.mp3",
+   "dur": 2.94,
+   "src": "0ad (CC BY-SA 3.0): elephant_attack1"
+  },
+  {
+   "f": "elecry_2.mp3",
+   "dur": 2.64,
+   "src": "0ad (CC BY-SA 3.0): elephant_death1"
+  }
+ ],
+ "elestep": [
+  {
+   "f": "elestep_0.mp3",
+   "dur": 2.77,
+   "src": "CC0 stomp/soft，压低 + 处理"
+  }
+ ],
+ "elerun": [
+  {
+   "f": "elerun_0.mp3",
+   "dur": 2.76,
+   "src": "CC0 stomp/soft，压低 + 处理"
+  }
+ ],
+ "foot": [
+  {
+   "f": "foot_0.mp3",
+   "dur": 2.8,
+   "src": "0ad (CC BY-SA 3.0): hstep_dirt_MN_11"
+  },
+  {
+   "f": "foot_1.mp3",
+   "dur": 2.8,
+   "src": "0ad (CC BY-SA 3.0): hstep_dirt_MN_13"
+  },
+  {
+   "f": "foot_2.mp3",
+   "dur": 2.8,
+   "src": "0ad (CC BY-SA 3.0): Footstep_Gravel_Walking"
+  },
+  {
+   "f": "foot_3.mp3",
+   "dur": 2.8,
+   "src": "0ad (CC BY-SA 3.0): Footstep_Grass_Walking"
+  }
  ]
 }
