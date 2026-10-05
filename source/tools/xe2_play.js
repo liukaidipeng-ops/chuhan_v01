@@ -48,7 +48,7 @@ const XE6 = () => { XE5(); BF.CFG.kingShield = { side: 'b', untilRound: 10 }; };
 // XE7（用户再加一条）：XE6 + 象升到二级后两回合无敌（打不动、不掉血）
 const XE7 = () => { XE6(); BF.CFG.sideStats.b.e.invOnUp = { lv: 2, rounds: 2 }; };
 // XE8（用户提、Code 定数值，“楚想赢只有一种方法：先把两个士升满拿回血”）：
-//   楚没有兵、车、炮；士 2/5/8/11 血、2/4/6/8 攻，每级 5 功，两个士都到四级后楚全队每回合末回 8 血（回不过满血）；
+//   楚没有兵、车、炮；士 17/20/23/26 血（原定 2 血汉一下就打死、回血凑不齐，用户让提血）、2/4/6/8 攻，每级 5 功，两个士都到四级后楚全队每回合末回 8 血（回不过满血）；
 //   马 50 血 0 攻，升一级（30 功）150 血 10 攻，只能往前直走一格；象一级 24 血 1 攻、不能动，第 9 回合起才能升（30 功），
 //   二级 1 血、落地秒杀全场、两回合无敌、无视塞象眼；楚将前 20 回合无敌、不能动、不会被将死。
 //   汉：兵、马、炮的位置都换成车（11 辆），车 5/7/9/11 血、2/4/6/8 攻，每级 2 功；帅仕相照旧。两边开局 30 功，第 10 回合末起每回合各加 30（上限仍是 30）。
@@ -63,7 +63,7 @@ const XE8 = () => {
   if (C.r6 && C.r6.cost) C.r6.cost.r = [2, 2, 2];   // r6 的车价表优先，一起改
   C.sideStats = {
     b: { e: { hp: [24, 1], atk: [1, 1], noLegFrom: 2, upFromRound: 9, invOnUp: { lv: 2, rounds: 2 }, immobileBelow: 2 },
-         a: { hp: [2, 5, 8, 11], atk: [2, 4, 6, 8] },
+         a: { hp: [17, 20, 23, 26], atk: [2, 4, 6, 8] },   // 用户：“杀士就把士初始血量提上去”。A 打法里同一个士每两回合升一级（升级回满血），汉两下最多 16 → 17 血打不死
          n: { hp: [50, 150], atk: [0, 10], fwdOnly: true } },
     r: { r: { hp: [5, 7, 9, 11], atk: [2, 4, 6, 8] } },
   };
@@ -75,7 +75,6 @@ const setupXE8 = g => g.setup(T => {
   for (let r = 0; r < 10; r++) for (let f = 0; f < 9; f++) {
     const p = T.board[r][f]; if (!p) continue;
     if (p.s === 'b' && (p.t === 'p' || p.t === 'r' || p.t === 'c')) T.board[r][f] = null;   // 楚：兵、车、炮拿掉
-    else if (p.s === 'b' && p.t === 'a') p.inv = 999;   // 楚士打不动：不然汉一下就打死一级的士（2 血），回血永远凑不齐，楚怎么走都输
     else if (p.s === 'r' && (p.t === 'p' || p.t === 'n' || p.t === 'c')) { p.t = 'r'; p.lv = 1; p.hp = 5; }   // 汉：兵、马、炮的位置换成车
   }
 });
@@ -92,8 +91,13 @@ function planUp(S) {
   return null;
 }
 // --hanplan hunt（验证设定用的“完美围剿”）：汉每回合只要有车打得到楚象，就先把那辆车升一级再打（先打血少的那只）；打不到才交给电脑
+// --hanplan huntA：先打士（拆回血光环），打不到士再打象
 function huntSeq(S) {
-  const els = []; for (let r = 0; r < 10; r++) for (let f = 0; f < 9; f++) { const p = S.board[r][f]; if (p && p.s === 'b' && p.t === 'e') els.push({ p, at: [f, r] }); }
+  for (const t of opt.hanplan === 'huntA' ? ['a', 'e'] : ['e']) { const x = huntType(S, t); if (x) return x; }
+  return null;
+}
+function huntType(S, ty) {
+  const els = []; for (let r = 0; r < 10; r++) for (let f = 0; f < 9; f++) { const p = S.board[r][f]; if (p && p.s === 'b' && p.t === ty) els.push({ p, at: [f, r] }); }
   if (!els.length) return null;
   els.sort((x, y) => x.p.hp - y.p.hp);
   for (const t of els) {
@@ -131,7 +135,7 @@ async function play(seed) {
     let pre = [];
     if (opt.plan && side === 'b') { const at = planUp(g.S); if (at) pre = [{ k: 'up', at }]; }   // 固定打法：楚的升级按计划来
     let seq;
-    if (opt.hanplan === 'hunt' && side === 'r' && (seq = huntSeq(g.S))) { /* 完美围剿 */ }
+    if ((opt.hanplan === 'hunt' || opt.hanplan === 'huntA') && side === 'r' && (seq = huntSeq(g.S))) { /* 完美围剿 */ }
     else if (pre.length || (opt.plan && side === 'b')) {
       const S1 = BF.cloneState(g.S); if (pre.length) { const U = BF.ai.upgradeState(S1, pre[0].at); if (U) { Object.assign(S1, U); } } S1.upgraded = true;   // 电脑只管走子
       seq = pre.concat((await AI.think(S1, 'mid')).filter(a => a.k !== 'up'));
