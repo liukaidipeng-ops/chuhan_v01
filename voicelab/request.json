@@ -1,5 +1,5 @@
 {
- "batch": "b21",
+ "batch": "b22",
  "list_voices": false,
  "hosts": [
   "https://api.minimax.cn"
@@ -8,96 +8,16 @@
   {
    "voice": "Chinese (Mandarin)_Reliable_Executive",
    "pitch": -1,
-   "id": "real_r_h_r0_a",
-   "text": "韩信！<#0.25#>国士无双。<#0.2#>寡人，痛失一臂啊。",
-   "vol": 1.4,
-   "speed": 0.8,
-   "emotion": "sad",
-   "modify": {
-    "pitch": -12,
-    "timbre": -8
-   }
-  },
-  {
-   "voice": "Chinese (Mandarin)_Reliable_Executive",
-   "pitch": -1,
-   "id": "real_r_h_r0_b",
-   "text": "韩信！<#0.2#>(sniffs)国士无双。<#0.15#>寡人，痛失一臂啊！(sighs)",
    "vol": 1.5,
-   "speed": 0.84,
+   "speed": 0.82,
    "emotion": "fearful",
    "modify": {
     "pitch": -12,
     "timbre": -8,
     "intensity": -30
-   }
-  },
-  {
-   "voice": "Chinese (Mandarin)_Reliable_Executive",
-   "pitch": -1,
-   "id": "real_r_h_r1_a",
-   "text": "夏侯婴！<#0.25#>往后，谁为寡人驾车啊。",
-   "vol": 1.4,
-   "speed": 0.8,
-   "emotion": "sad",
-   "modify": {
-    "pitch": -12,
-    "timbre": -8
-   }
-  },
-  {
-   "voice": "Chinese (Mandarin)_Reliable_Executive",
-   "pitch": -1,
-   "id": "real_r_h_r1_b",
-   "text": "夏侯婴！<#0.2#>(sniffs)往后，谁为寡人驾车啊！",
-   "vol": 1.5,
-   "speed": 0.84,
-   "emotion": "fearful",
-   "modify": {
-    "pitch": -12,
-    "timbre": -8,
-    "intensity": -30
-   }
-  },
-  {
-   "voice": "Chinese (Mandarin)_Reliable_Executive",
-   "pitch": -1,
-   "id": "real_r_h_p0_a",
-   "text": "周勃！<#0.25#>安刘氏者，本该是你啊。",
-   "vol": 1.4,
-   "speed": 0.8,
-   "emotion": "sad",
-   "modify": {
-    "pitch": -12,
-    "timbre": -8
-   }
-  },
-  {
-   "voice": "Chinese (Mandarin)_Reliable_Executive",
-   "pitch": -1,
-   "id": "real_r_h_p0_b",
-   "text": "周勃！<#0.2#>(sniffs)安刘氏者，本该是你啊！",
-   "vol": 1.5,
-   "speed": 0.84,
-   "emotion": "fearful",
-   "modify": {
-    "pitch": -12,
-    "timbre": -8,
-    "intensity": -30
-   }
-  },
-  {
-   "voice": "Chinese (Mandarin)_Reliable_Executive",
-   "pitch": -1,
-   "id": "real_r_h_p1_a",
-   "text": "曹参！<#0.25#>身上七十处伤，这回，没挺过去啊。",
-   "vol": 1.4,
-   "speed": 0.8,
-   "emotion": "sad",
-   "modify": {
-    "pitch": -12,
-    "timbre": -8
    },
+   "id": "real_r_h_p1_c",
+   "text": "曹参！<#0.2#>(sniffs)身上七十处伤。<#0.25#>这回，没挺过去。<#0.15#>(sighs)",
    "tone": [
     "曹参/(cao2)(can1)"
    ]
@@ -105,8 +25,6 @@
   {
    "voice": "Chinese (Mandarin)_Reliable_Executive",
    "pitch": -1,
-   "id": "real_r_h_p1_b",
-   "text": "曹参！<#0.2#>(sniffs)身上七十处伤，这回，没挺过去啊。(sighs)",
    "vol": 1.5,
    "speed": 0.84,
    "emotion": "fearful",
@@ -115,6 +33,8 @@
     "timbre": -8,
     "intensity": -30
    },
+   "id": "real_r_h_p1_d1",
+   "text": "曹参！<#0.2#>(sniffs)身上七十处伤。",
    "tone": [
     "曹参/(cao2)(can1)"
    ]
@@ -122,413 +42,82 @@
   {
    "voice": "Chinese (Mandarin)_Reliable_Executive",
    "pitch": -1,
-   "id": "real_r_h_p2_a",
-   "text": "王陵！<#0.25#>你这直肠子，怎么就走了。",
    "vol": 1.4,
-   "speed": 0.8,
-   "emotion": "sad",
-   "modify": {
-    "pitch": -12,
-    "timbre": -8
-   }
-  },
-  {
-   "voice": "Chinese (Mandarin)_Reliable_Executive",
-   "pitch": -1,
-   "id": "real_r_h_p2_b",
-   "text": "王陵！<#0.2#>(sniffs)你这直肠子，怎么就走了啊！",
-   "vol": 1.5,
-   "speed": 0.84,
-   "emotion": "fearful",
-   "modify": {
-    "pitch": -12,
-    "timbre": -8,
-    "intensity": -30
-   }
-  },
-  {
-   "voice": "Chinese (Mandarin)_Reliable_Executive",
-   "pitch": -1,
-   "id": "real_r_h_p3_a",
-   "text": "卢绾！<#0.25#>你我自幼相伴，怎忍先寡人而去。",
-   "vol": 1.4,
-   "speed": 0.8,
+   "speed": 0.76,
    "emotion": "sad",
    "modify": {
     "pitch": -12,
     "timbre": -8
    },
-   "tone": [
-    "卢绾/(lu2)(wan3)"
-   ]
-  },
-  {
-   "voice": "Chinese (Mandarin)_Reliable_Executive",
-   "pitch": -1,
-   "id": "real_r_h_p3_b",
-   "text": "卢绾！<#0.2#>(sniffs)你我自幼相伴，怎忍先寡人而去啊！",
-   "vol": 1.5,
-   "speed": 0.84,
-   "emotion": "fearful",
-   "modify": {
-    "pitch": -12,
-    "timbre": -8,
-    "intensity": -30
-   },
-   "tone": [
-    "卢绾/(lu2)(wan3)"
-   ]
-  },
-  {
-   "voice": "Chinese (Mandarin)_Reliable_Executive",
-   "pitch": -1,
-   "id": "real_r_h_p4_a",
-   "text": "傅宽！<#0.3#>好兄弟。<#0.2#>走好。",
-   "vol": 1.4,
-   "speed": 0.8,
-   "emotion": "sad",
-   "modify": {
-    "pitch": -12,
-    "timbre": -8
-   }
-  },
-  {
-   "voice": "Chinese (Mandarin)_Reliable_Executive",
-   "pitch": -1,
-   "id": "real_r_h_p4_b",
-   "text": "傅宽！<#0.25#>(sniffs)好兄弟，走好啊。(sighs)",
-   "vol": 1.5,
-   "speed": 0.84,
-   "emotion": "fearful",
-   "modify": {
-    "pitch": -12,
-    "timbre": -8,
-    "intensity": -30
-   }
-  },
-  {
-   "voice": "Chinese (Mandarin)_Reliable_Executive",
-   "pitch": -1,
-   "id": "real_r_h_a0_a",
-   "text": "樊哙！<#0.25#>鸿门宴上，你救过寡人的命啊。",
-   "vol": 1.4,
-   "speed": 0.8,
-   "emotion": "sad",
-   "modify": {
-    "pitch": -12,
-    "timbre": -8
-   },
-   "tone": [
-    "樊哙/(fan2)(kuai4)"
-   ]
-  },
-  {
-   "voice": "Chinese (Mandarin)_Reliable_Executive",
-   "pitch": -1,
-   "id": "real_r_h_a0_b",
-   "text": "樊哙！<#0.2#>(sniffs)鸿门宴上，你救过寡人的命啊！",
-   "vol": 1.5,
-   "speed": 0.84,
-   "emotion": "fearful",
-   "modify": {
-    "pitch": -12,
-    "timbre": -8,
-    "intensity": -30
-   },
-   "tone": [
-    "樊哙/(fan2)(kuai4)"
-   ]
-  },
-  {
-   "voice": "Chinese (Mandarin)_Reliable_Executive",
-   "pitch": -1,
-   "id": "real_r_h_a1_a",
-   "text": "纪信！<#0.25#>你又替寡人，死了一回。",
-   "vol": 1.4,
-   "speed": 0.8,
-   "emotion": "sad",
-   "modify": {
-    "pitch": -12,
-    "timbre": -8
-   }
-  },
-  {
-   "voice": "Chinese (Mandarin)_Reliable_Executive",
-   "pitch": -1,
-   "id": "real_r_h_a1_b",
-   "text": "纪信！<#0.2#>(sniffs)你又替寡人，死了一回啊。(sighs)",
-   "vol": 1.5,
-   "speed": 0.84,
-   "emotion": "fearful",
-   "modify": {
-    "pitch": -12,
-    "timbre": -8,
-    "intensity": -30
-   }
-  },
-  {
-   "voice": "Chinese (Mandarin)_Reliable_Executive",
-   "pitch": -1,
-   "id": "real_r_h_e0_a",
-   "text": "子房！<#0.25#>没了你，谁替寡人运筹帷幄啊。",
-   "vol": 1.4,
-   "speed": 0.8,
-   "emotion": "sad",
-   "modify": {
-    "pitch": -12,
-    "timbre": -8
-   }
-  },
-  {
-   "voice": "Chinese (Mandarin)_Reliable_Executive",
-   "pitch": -1,
-   "id": "real_r_h_e0_b",
-   "text": "子房！<#0.2#>(sniffs)没了你，谁替寡人运筹帷幄啊！",
-   "vol": 1.5,
-   "speed": 0.84,
-   "emotion": "fearful",
-   "modify": {
-    "pitch": -12,
-    "timbre": -8,
-    "intensity": -30
-   }
-  },
-  {
-   "voice": "Chinese (Mandarin)_Reliable_Executive",
-   "pitch": -1,
-   "id": "real_r_h_e1_a",
-   "text": "萧何！<#0.25#>你走了，谁替寡人守这关中啊。",
-   "vol": 1.4,
-   "speed": 0.8,
-   "emotion": "sad",
-   "modify": {
-    "pitch": -12,
-    "timbre": -8
-   }
-  },
-  {
-   "voice": "Chinese (Mandarin)_Reliable_Executive",
-   "pitch": -1,
-   "id": "real_r_h_e1_b",
-   "text": "萧何！<#0.2#>(sniffs)你走了，谁替寡人守这关中啊！",
-   "vol": 1.5,
-   "speed": 0.84,
-   "emotion": "fearful",
-   "modify": {
-    "pitch": -12,
-    "timbre": -8,
-    "intensity": -30
-   }
+   "id": "real_r_h_p1_d2",
+   "text": "这回，没挺过去。(sighs)"
   },
   {
    "voice": "Chinese (Mandarin)_Reliable_Executive",
    "pitch": -1,
    "vol": 1.2,
-   "speed": 0.98,
+   "speed": 0.74,
+   "emotion": "sad",
    "modify": {
     "pitch": -12,
     "timbre": -8
    },
-   "id": "real_r_jq_start_a",
-   "text": "十五子尽数扣下，翻开方知是何兵马！",
-   "emotion": "happy"
+   "id": "real_r_h_p1_d3",
+   "text": "这回。<#0.2#>没挺过去。"
   },
   {
    "voice": "Chinese (Mandarin)_Reliable_Executive",
    "pitch": -1,
-   "vol": 1.2,
-   "speed": 0.95,
+   "vol": 1.4,
+   "speed": 0.76,
+   "emotion": "sad",
    "modify": {
     "pitch": -12,
     "timbre": -8
    },
-   "id": "real_r_jq_start_b",
-   "text": "十五子尽数扣下！翻开，方知是何兵马。",
-   "emotion": "calm"
+   "id": "real_r_h_p4_c",
+   "text": "傅宽。<#0.3#>(sighs)好兄弟。<#0.25#>一路走好。"
   },
   {
    "voice": "Chinese (Mandarin)_Reliable_Executive",
    "pitch": -1,
    "vol": 1.5,
-   "speed": 0.9,
-   "emotion": "angry",
+   "speed": 0.8,
+   "emotion": "fearful",
    "modify": {
     "pitch": -12,
     "timbre": -8,
-    "intensity": -80
+    "intensity": -30
    },
-   "id": "real_u_r_k_m4_a",
-   "text": "传令，移驾！"
+   "id": "real_r_h_p4_d",
+   "text": "傅宽！<#0.25#>(sniffs)好兄弟。<#0.2#>走好。"
   },
   {
    "voice": "Chinese (Mandarin)_Reliable_Executive",
    "pitch": -1,
-   "vol": 1.2,
-   "speed": 0.98,
+   "vol": 1.5,
+   "speed": 0.84,
+   "emotion": "fearful",
+   "modify": {
+    "pitch": -12,
+    "timbre": -8,
+    "intensity": -30
+   },
+   "id": "real_r_h_p4_e1",
+   "text": "傅宽！(sniffs)"
+  },
+  {
+   "voice": "Chinese (Mandarin)_Reliable_Executive",
+   "pitch": -1,
+   "vol": 1.4,
+   "speed": 0.76,
+   "emotion": "sad",
    "modify": {
     "pitch": -12,
     "timbre": -8
    },
-   "id": "real_u_r_k_m4_b",
-   "text": "此地不宜久留。",
-   "emotion": "calm"
-  },
-  {
-   "voice": "Chinese (Mandarin)_Reliable_Executive",
-   "pitch": -1,
-   "vol": 1.5,
-   "speed": 0.88,
-   "emotion": "angry",
-   "modify": {
-    "pitch": -12,
-    "timbre": -8,
-    "intensity": -100
-   },
-   "id": "real_r_x_poke_a",
-   "text": "放肆！寡人的头，也是你碰得的？"
-  },
-  {
-   "voice": "Chinese (Mandarin)_Reliable_Executive",
-   "pitch": -1,
-   "vol": 1.5,
-   "speed": 0.88,
-   "emotion": "angry",
-   "modify": {
-    "pitch": -12,
-    "timbre": -8,
-    "intensity": -100
-   },
-   "id": "real_r_x_poke_b",
-   "text": "再戳，拖出去砍了！"
-  },
-  {
-   "voice": "Chinese (Mandarin)_Reliable_Executive",
-   "pitch": -1,
-   "vol": 1.5,
-   "speed": 0.9,
-   "emotion": "angry",
-   "modify": {
-    "pitch": -12,
-    "timbre": -8,
-    "intensity": -80
-   },
-   "id": "real_r_x_flee_a",
-   "text": "三十六计，走为上！"
-  },
-  {
-   "voice": "Chinese (Mandarin)_Reliable_Executive",
-   "pitch": -1,
-   "vol": 1.2,
-   "speed": 0.95,
-   "modify": {
-    "pitch": -12,
-    "timbre": -8
-   },
-   "id": "real_r_x_flee_b",
-   "text": "三十六计，走为上。",
-   "emotion": "calm"
-  },
-  {
-   "voice": "Chinese (Mandarin)_Humorous_Elder",
-   "pitch": -3,
-   "vol": 1.5,
-   "speed": 0.85,
-   "emotion": "sad",
-   "modify": {
-    "intensity": -60,
-    "pitch": -20,
-    "timbre": -30,
-    "sound_effects": "spacious_echo"
-   },
-   "id": "real_b_h_r0_a",
-   "text": "龙且！<#0.15#>吾之猛将，竟折于此。",
-   "tone": [
-    "龙且/(long2)(ju1)"
-   ]
-  },
-  {
-   "voice": "Chinese (Mandarin)_Humorous_Elder",
-   "pitch": -3,
-   "vol": 1.5,
-   "speed": 0.85,
-   "emotion": "sad",
-   "modify": {
-    "intensity": -60,
-    "pitch": -20,
-    "timbre": -30,
-    "sound_effects": "spacious_echo"
-   },
-   "id": "real_b_h_r0_b",
-   "text": "龙且！<#0.15#>(sighs)吾之猛将，竟折于此啊。",
-   "tone": [
-    "龙且/(long2)(ju1)"
-   ]
-  },
-  {
-   "voice": "Chinese (Mandarin)_Humorous_Elder",
-   "pitch": -3,
-   "vol": 1.5,
-   "speed": 0.85,
-   "emotion": "sad",
-   "modify": {
-    "intensity": -60,
-    "pitch": -20,
-    "timbre": -30,
-    "sound_effects": "spacious_echo"
-   },
-   "id": "real_b_h_e1_a",
-   "text": "项佗！<#0.15#>项氏子弟，又折一人。",
-   "tone": [
-    "项佗/(xiang4)(tuo2)"
-   ]
-  },
-  {
-   "voice": "Chinese (Mandarin)_Humorous_Elder",
-   "pitch": -3,
-   "vol": 1.5,
-   "speed": 0.85,
-   "emotion": "sad",
-   "modify": {
-    "intensity": -60,
-    "pitch": -20,
-    "timbre": -30,
-    "sound_effects": "spacious_echo"
-   },
-   "id": "real_b_h_e1_b",
-   "text": "项佗！<#0.15#>(sighs)项氏子弟，又折一人啊。",
-   "tone": [
-    "项佗/(xiang4)(tuo2)"
-   ]
-  },
-  {
-   "voice": "Chinese (Mandarin)_Humorous_Elder",
-   "pitch": -3,
-   "vol": 1.5,
-   "speed": 0.85,
-   "emotion": "sad",
-   "modify": {
-    "intensity": -60,
-    "pitch": -20,
-    "timbre": -30,
-    "sound_effects": "spacious_echo"
-   },
-   "id": "real_b_h_p2_a",
-   "text": "子期！<#0.12#>吾，如何向虞姬交代。(sighs)"
-  },
-  {
-   "voice": "Chinese (Mandarin)_Humorous_Elder",
-   "pitch": -3,
-   "vol": 1.5,
-   "speed": 0.85,
-   "emotion": "sad",
-   "modify": {
-    "intensity": -60,
-    "pitch": -20,
-    "timbre": -30,
-    "sound_effects": "spacious_echo"
-   },
-   "id": "real_b_h_p2_b",
-   "text": "子期！<#0.12#>吾，如何向虞姬交代。<#0.2#>(exhale)"
+   "id": "real_r_h_p4_e2",
+   "text": "好兄弟。<#0.25#>走好。(sighs)"
   }
  ]
 }
