@@ -8,7 +8,7 @@
   // 更新说明（设置里、大厅底部点「更新」查看；最新的放最前）
   const NEWS = [
     ['第六版', '2026 年 10 月', [
-      '技能模式的数值改了一轮，两边更均势、车不再一家独大：车、马、炮、兵卒升到三级攻击变成 2（一下能吃掉 2 血的子）；车四级不再加血（3 血）；车升级变贵，10 / 12 / 20 功（原来 6 / 8 / 20）。刘邦的「召回良将」也改了：死时一级的回来还是一级，二级以上的回来都是二级；召回的当回合可以花军功给它升一级；它第一次升级只要半价。改规则之前开的局接着下，还按原来的规则',
+      '技能模式的数值改了一轮，两边更均势、车不再一家独大：车、马、炮、兵卒升到三级攻击变成 2（一下能吃掉 2 血的子）；车四级不再加血（3 血）；车升级变贵，10 / 12 / 20 功（原来 6 / 8 / 20）。刘邦的「召回良将」也改了：按兵种选，回来最多二级（死时一级的还是一级），可以放回这一兵种任意一个空着的原位（车放左角右角都行）；落位后可以马上花军功给它升一级，它第一次升级只要半价。改规则之前开的局接着下，还按原来的规则',
       '马、战象、步兵、炮的音效换成了真实录音：马蹄踏在土上、真马嘶、真象鸣、一队人行军的脚步、巨炮。兵种开口说话时，先台词、再脚步、最后一声嘶鸣；技能模式里等级越高，马蹄和脚步叠得越厚，一级炮用小一号的炮声',
       '配音多了一套「写实版」：项羽、刘邦、旁白、两军士兵全部重新配过，有语气、有情绪，楚军汉军嗓音不同。新装默认用写实版；想听原来那套，在 设置 → 声音 → 配音 里选「原版」',
       '放技能更清楚了：能放的落点带金色四角框；选定目标后，一个瞄准圈把它框住，下方出现「确定」，点了才发动（再点一次目标也行）。背水一战走完第一步，落点会留下虚影、头顶悬一个「一」，并留下这一步的路径。刚被召回的子，那一回合身边绕着金光',
@@ -1352,6 +1352,7 @@
   function exitBfMode(repaint = true) {
     if (bfMode && bfMode.kind === 'pofu' && bfMode.m1) Board.reconcile(game);
     if (bfMode && bfMode.bs) { Board.showBad([]); Board.showStep(null); }
+    if (bfMode && (bfMode.kind === 'rvUp' || bfMode.kind === 'rvBusy')) { bfMode = null; Board.reconcile(game); }   // 召回只演了落位、还没提交：把那枚子收走
     bfMode = null;
     if (repaint) renderBar();
   }
@@ -1403,6 +1404,12 @@
   }
   function bfClick(p) {
     if (bfMode && bfMode.kind === 'pofu') { pofuClick(p); return; }
+    if (bfMode && (bfMode.kind === 'rvBusy' || bfMode.kind === 'rvUp')) return;   // 召回落位后等玩家点「升级 / 结束回合」：棋盘不接别的操作
+    if (bfMode && bfMode.kind === 'rvPlace') {
+      const q = p && bfMode.o.squares.find(x => x[0] === p[0] && x[1] === p[1]);
+      if (q) { reviveLand(bfMode.o, q); return; }
+      exitBfMode(false); Board.clearMoves(false); renderBar(); return;
+    }
     if (bfMode && bfMode.kind === 'confirm') {
       const a = bfMode.a;
       if (p && a.to && p[0] === a.to[0] && p[1] === a.to[1]) { bfMode = null; doBF(a); return; }
@@ -1571,7 +1578,7 @@
       '<b>三级</b>解锁技能，<b>四级</b>成名将；棋身 木 → 银 → 金 → 玉',
       '打不死的目标头顶标 <b>-1</b>，能一击杀死才标<b>「殺」</b>',
       '<b>军功 20</b> 可发终极兵法；主帅兵法每局一次',
-      ...(r6On() ? ['车、马、炮、兵<b>三级起攻击 2</b>；车升级贵：<b>10 / 12 / 20</b> 功', '<b>召回</b>：死时一级回来一级，二级以上回来<b>二级</b>；可以<b>当场花军功升一级</b>，第一次升级<b>半价</b>'] : ['<b>这一局用的是旧规则</b>：攻击都是 1，车升级 6 / 8 / 20，召回回来一级']),
+      ...(r6On() ? ['车、马、炮、兵<b>三级起攻击 2</b>；车升级贵：<b>10 / 12 / 20</b> 功', '<b>召回</b>的子最多<b>二级</b>，落位后可以马上升级，第一次升级<b>半价</b>'] : ['<b>这一局用的是旧规则</b>：攻击都是 1，车升级 6 / 8 / 20，召回回来一级']),
       '<b>决战</b>：双方车马兵炮都死光后，象、士、帅将可过河进攻；帅将 3 血，打死为止',
     ].map(x => `<li>${x}</li>`).join('');
     $('bfTip').classList.remove('hidden');
@@ -1591,7 +1598,7 @@
   const escTip = t => String(t || '').replace(/&/g, '&amp;').replace(/"/g, '&quot;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
   const ART_DESC = { get r() {
       const B = BF.CFG.beishui, R = r6On(), cond = B.on ? `汉军车马炮${B.maxLeft != null ? `最多还剩 ${B.maxLeft} 枚、而且` : ''}比楚军少时才能用。` : '';
-      if (R) return `复活一枚被吃的己方子，回到它的开局位置：死时一级的回来还是一级，二级以上的回来都是${LVCN[R.reviveLevel]}级，血回满。${R.reviveUp ? '召回的当回合可以花军功给它升一级；' : ''}${R.reviveHalf ? '它第一次升级只要半价。' : ''}召回占这一回合，它这回合不能动。每局一次。` + cond;
+      if (R) return `复活一枚被吃的子，放回原位，最多${LVCN[R.reviveLevel]}级。${R.reviveUp ? '落位后可以马上升级' + (R.reviveHalf ? '（第一次半价）' : '') + '；' : ''}它这回合不能动。每局一次。` + cond;
       return '复活一枚被吃的己方子，回到它的开局位置（一级）。每局一次。' + cond; },
     get b() {
       const B = BF.CFG.beishui;
@@ -1720,7 +1727,19 @@
     if (bfMode) {
       hint = bfMode.hint;
       if (bfMode.bs) { if (bfMode.m1 || bfMode.bad) B.push(`<button class="sk" data-a="bsRedo">重 走<small>棋子归位</small></button>`); }   // 背水一战发动后不能取消，只能把两步重走
-      else {
+      else if (bfMode.kind === 'rvUp') {
+        const o = bfMode.o;
+        B.push(`<button class="sk up ready" data-a="rvUp">升${LVCN[o.upLv]}级<small>${o.upCost} 功${r6On() && r6On().reviveHalf ? ' · 半价' : ''}</small></button>`);
+        B.push(`<button class="sk ready ok" data-a="rvEnd">结束回合<small>不升级</small></button>`);
+        B.push(`<button class="sk" data-a="rvRedo">重 选<small>换一枚</small></button>`);
+      }
+      else if (bfMode.kind === 'rvPlace') {
+        // 位置也给成按钮（棋盘角上的格子可能被名牌挡住）：车马炮士相分左右，兵按从左到右的五个兵位
+        const o = bfMode.o, nmAt = q => (o.t === 'p' ? ['左边', '', '左二', '', '中路', '', '右二', '', '右边'][q[0]] : q[0] < 4 ? '左边' : '右边');
+        o.squares.forEach((q, i) => B.push(`<button class="sk ready" data-a="rvAt" data-i="${i}">${nmAt(q)}<small>放这里</small></button>`));
+        B.push(`<button class="sk" data-a="cancel">取消<small>换一着</small></button>`);
+      }
+      else if (bfMode.kind !== 'rvBusy') {
         if (bfMode.kind === 'confirm') B.push(`<button class="sk ready ok" data-a="ok">确 定<small>发动</small></button>`);
         B.push(`<button class="sk" data-a="cancel">取消<small>换一着</small></button>`);
       }
@@ -1781,6 +1800,15 @@
       return;
     }
     if (a === 'bsRedo') { if (bfMode && bfMode.bs) bsReset(); return; }
+    if (a === 'rvUp' || a === 'rvEnd') {   // 召回落位后：升级 / 不升级，这时才真正提交
+      const M = bfMode; if (!M || M.kind !== 'rvUp' || !canAct()) return;
+      bfMode = null; rvLanded = M.o.id;
+      const e = { k: 'art', id: M.o.id, at: M.at.slice() }; if (a === 'rvUp') e.up = true;
+      if (!doBF(e)) { rvLanded = null; Board.reconcile(game); renderBar(); }
+      return;
+    }
+    if (a === 'rvAt') { const M = bfMode; if (M && M.kind === 'rvPlace' && el && M.o.squares[+el.dataset.i]) reviveLand(M.o, M.o.squares[+el.dataset.i]); return; }
+    if (a === 'rvRedo') { if (bfMode && bfMode.kind === 'rvUp') { exitBfMode(false); renderBar(); reviveFlow(); } return; }
     if (a === 'ok') { if (bfMode && bfMode.kind === 'confirm') { const act = bfMode.a; bfMode = null; doBF(act); } return; }
     if (a === 'cancel') { if (bfMode && bfMode.bs) return; exitBfMode(false); Board.clearMoves(false); if (sel) bfSelect(sel[0], sel[1]); renderBar(); return; }
     if (a === 'up' && sel) { doBF({ k: 'up', at: sel }); return; }
@@ -1801,18 +1829,7 @@
           if (id != null && canAct()) doBF({ k: 'art', id: +id });
           return;
         }
-        // 每枚子一行，写明回来几级；能当场升级的另给一个按钮，写明升到几级、要几点军功（已经是半价）。同兵种的两枚用左 / 右分开
-        const sm = t => `<small style="display:block;font-size:12px;line-height:1.5;opacity:.85">${t}</small>`, items = [];
-        const same = t => opts2.filter(x => x.t === t).length > 1;
-        const where = o => { const f = o.at[0]; return o.t === 'p' ? ['左边', '', '左二', '', '中', '', '右二', '', '右边'][f] : f < 4 ? '左' : '右'; };
-        for (const o of opts2) {
-          const nm = (same(o.t) ? where(o) : '') + XQ.NAMES.r[o.t];
-          if (items.length) items.push({ br: 1 });
-          items.push({ v: o.id, label: nm + sm(`回来${LVCN[o.lv]}级`), cls: 'r', w: o.upCost != null ? '31%' : '60%' });
-          if (o.upCost != null) items.push({ w: '65%', v: o.id + 'u', label: `并当场升${LVCN[o.upLv]}级` + sm(`${o.upCost} 功${R.reviveHalf ? ' · 半价' : ''}` + (o.canUp ? '' : game.upgraded ? ' · 本回合已升过级' : ` · 军功不够（现在 ${game.merit.r}）`)), cls: 'r', dis: !o.canUp });
-        }
-        const v = await pick('召 回 良 将', `复活一枚被吃的子，放回它的开局位置：死时一级的回来还是一级，二级以上的回来都是${LVCN[R.reviveLevel]}级。` + (R.reviveHalf ? '它第一次升级只要半价' + (R.reviveUp ? '，可以当场就升。' : '。') : R.reviveUp ? '可以当场花军功给它升一级。' : '') + '召回占这一回合，它这回合不能动。', items);
-        if (v != null && canAct()) doBF(/u$/.test(v) ? { k: 'art', id: parseInt(v, 10), up: true } : { k: 'art', id: +v });
+        reviveFlow();
         return;
       }
       if (BF.CFG.beishui.on) {
@@ -1836,10 +1853,46 @@
     }
     if (a === 'pass') doBF({ k: 'pass' });
   }
+  // 召回良将（r6）：选兵种 → 有不止一个空位就在棋盘上点位置 → 落位。升得起级的话落位后停一下，玩家自己点「升级」或「结束回合」
+  //   棋局里召回和当场升级是同一个行动（{ k:'art', id, at, up }），所以落位那一下先只演不提交，等玩家点了再提交
+  let rvLanded = null;
+  async function reviveFlow() {
+    const R = r6On(), list = game.reviveOptions(), blocked = game.reviveBlocked();
+    const sm = t => `<small style="display:block;font-size:12px;line-height:1.4;opacity:.85">${t}</small>`;
+    const silver = 'background:linear-gradient(160deg,#fbfcfd,#cfd6df 55%,#eef1f5);border-color:#8a94a3;box-shadow:inset 0 0 0 1px #fff8;';
+    const items = list.map((o, i) => ({ v: i, label: XQ.NAMES.r[o.t] + sm(LVCN[o.lv] + '级'), cls: 'r', w: '74px', style: o.lv >= 2 ? silver : '' }))
+      .concat(blocked.map(t => ({ v: 'x', label: XQ.NAMES.r[t] + sm('原位被占'), cls: 'r', w: '74px', dis: true })));
+    const v = await pick('召 回 良 将', `复活一枚被吃的子，放回原位（最多${LVCN[R.reviveLevel]}级）。`, items);
+    const o = v == null ? null : list[+v];
+    if (!o || !canAct() || game.turn !== 'r' || bfMode) return;
+    if (o.squares.length > 1) {
+      bfClear();
+      bfMode = { kind: 'rvPlace', o, hint: `召回${XQ.NAMES.r[o.t]}：放到哪边？` };
+      Board.showMoves(null, o.squares.map(q => ({ to: q, skill: true })), true);
+      renderBar(); return;
+    }
+    reviveLand(o, o.squares[0]);
+  }
+  async function reviveLand(o, sq) {
+    Board.clearMoves(false);
+    if (!o.canUp) { bfMode = null; doBF({ k: 'art', id: o.id, at: sq.slice() }); return; }
+    bfClear();
+    bfMode = { kind: 'rvBusy', hint: '' }; renderBar();   // 落位演出期间不接别的操作
+    busy++;
+    try {
+      await BFX.reviveShow({ t: o.t, id: o.id, at: sq, lv: o.lv });
+      const m = Board.pieces.get(o.id);
+      if (m) Board.decorate(m, { s: 'r', t: o.t, id: o.id, lv: o.lv, hp: BF.hpOf(o.t, o.lv), xp: 0, kills: 0 }, {});
+    } catch (e) { console.error(e); }
+    busy--; Core.Time.skip = false;
+    if (!(bfMode && bfMode.kind === 'rvBusy') || game.result || ended) { Board.reconcile(game); return; }   // 演出期间棋局变了（超时、认输……）
+    bfMode = { kind: 'rvUp', o, at: sq.slice(), hint: `${XQ.NAMES.r[o.t]}归阵 · 要升级现在点` };
+    renderBar();
+  }
   function pick(title, text, items) {
     return new Promise(res => {
       $('pickT').textContent = title; $('pickP').textContent = text;
-      $('pickList').innerHTML = items.map(i => i.br ? '<i style="flex-basis:100%;height:0"></i>' : `<button class="btn small ${i.cls || ''}" data-v="${i.v}"${i.dis ? ' disabled' : ''} style="${i.w ? `width:${i.w};max-width:260px;padding-left:4px;padding-right:4px;` : ''}${i.dis ? 'opacity:.45' : ''}">${i.label}</button>`).join('');
+      $('pickList').innerHTML = items.map(i => i.br ? '<i style="flex-basis:100%;height:0"></i>' : `<button class="btn small ${i.cls || ''}" data-v="${i.v}"${i.dis ? ' disabled' : ''} style="${i.w ? `width:${i.w};max-width:260px;padding-left:4px;padding-right:4px;` : ''}${i.style || ''}${i.dis ? 'opacity:.45' : ''}">${i.label}</button>`).join('');
       $('mPick').classList.remove('hidden');
       const fin = v => { $('mPick').classList.add('hidden'); res(v); };
       $('pickList').querySelectorAll('button').forEach(b => b.onclick = () => fin(b.dataset.v));
@@ -1851,6 +1904,8 @@
     if (e.k === 'art' && e.steps) { Board.reconcile(game); Board.showStep(null); }
     const note = bfNote(game, e);
     const info = game.apply(e);
+    if (info && rvLanded != null && e.k === 'art' && e.id === rvLanded) info.landed = true;   // 界面已经先演过落位
+    rvLanded = null;
     if (!info) { if (!remote) toast('这一步不合法'); return false; }
     bfMode = null; sel = null; selMoves = []; Board.clearMoves();
     barKey = '';
