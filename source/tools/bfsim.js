@@ -415,7 +415,7 @@ function worker() {
       fewEnd: {}, sus: {}, susN: { r: 0, b: 0 },   // 车马炮“持续落后”：自己走完还比对方少、到下回合轮到自己时还少（第一次的回合、持续了几回合）
       bs: !!(BF.CFG.beishui && BF.CFG.beishui.on),   // 背水一战变体（统计里“破釜”改叫“背水”）
       firstR2: {},   // 各方第一次有二级车的回合（用户：“一旦二血车先获得主动权，战场局面就几乎一边倒了”）
-      rev: null,     // 汉方召回：{ t 兵种, dl 死时等级, rl 回来的等级, round }（用户 2026-10-05：召回最多二级，死时一级回来还是一级）
+      rev: null,     // 汉方召回：{ t 兵种, dl 死时等级, rl 回来的等级（当场升级之前）, up 当场升了级, round }（用户 2026-10-05：召回最多二级，死时一级回来还是一级）
     };
     const deathLv = {};   // 每枚子最近一次阵亡时的等级（从吃子事件里读，只观察、不影响对局）
     let lastRound = 0, guard = 0;
@@ -456,7 +456,11 @@ function worker() {
         else if (e.e === 'autoup') { r2(e.t, e.lv, e.s); inc(R.up[e.s], e.t + e.lv + '*'); if (R.firstLv[e.s][e.lv] == null) R.firstLv[e.s][e.lv] = g.round; }
         else if (e.e === 'final' && !R.final) { R.final = true; R.finalRound = g.round; }
         else if (e.e === 'rescue') R.rescue++;
-        else if (e.e === 'revive' && !R.rev) { const q = e.at && g.S.board[e.at[1]] && g.S.board[e.at[1]][e.at[0]]; R.rev = { t: e.t, dl: deathLv[e.id] != null ? deathLv[e.id] : null, rl: q && q.id === e.id ? q.lv : null, round: g.round }; }
+        else if (e.e === 'revive' && !R.rev) { const q = e.at && g.S.board[e.at[1]] && g.S.board[e.at[1]][e.at[0]]; R.rev = { t: e.t, dl: deathLv[e.id] != null ? deathLv[e.id] : null, rl: e.lv != null ? e.lv : q && q.id === e.id ? q.lv : null, up: false, round: g.round }; }
+        else if (e.e === 'reviveUp') {   // 变体：召回后当回合花军功升一级（engine_han 的 reviveUp）
+          r2(e.t, e.lv, 'r'); inc(R.act.r, 'art_revive_up'); inc(R.up.r, e.t + e.lv); if (R.firstLv.r[e.lv] == null) R.firstLv.r[e.lv] = g.round;
+          if (R.rev && R.rev.up === false) R.rev.up = true;
+        }
         else if (e.e === 'counter') inc(R.jumaCounter[other(side)], 'hit');
         else if (e.e === 'fanji') inc(R.jumaCounter[other(side)], 'fanji');   // 变体：士 / 象还手（记在还手的一方）
         else if (e.e === 'heal') inc(R.jumaCounter[side], 'heal');
@@ -763,7 +767,7 @@ function summarize(rs) {
   // 召回的子：兵种、死时几级、回来几级，以及按“死时一级 / 二级以上”分开的汉胜率
   { const g = rs.filter(r => r.rev); if (g.length) { const cnt = f => { const o = {}; for (const r of g) { const k = f(r); o[k] = (o[k] || 0) + 1; } return o; };
     const done = r => r.winner != null || r.reason !== 'probe', lo = g.filter(r => r.rev.dl === 1 && done(r)), hi = g.filter(r => r.rev.dl != null && r.rev.dl >= 2 && done(r));   // 探针局（召回后就停）没有胜负，不算胜率
-    S.rev = { n: g.length, t: cnt(r => r.rev.t), dl: cnt(r => r.rev.dl == null ? '?' : r.rev.dl), rl: cnt(r => r.rev.rl == null ? '?' : r.rev.rl), lo: [lo.length, lo.filter(r => r.winner === 'r').length], hi: [hi.length, hi.filter(r => r.winner === 'r').length] }; } }
+    S.rev = { n: g.length, t: cnt(r => r.rev.t), dl: cnt(r => r.rev.dl == null ? '?' : r.rev.dl), rl: cnt(r => r.rev.rl == null ? '?' : r.rev.rl), up: g.filter(r => r.rev.up).length, lo: [lo.length, lo.filter(r => r.winner === 'r').length], hi: [hi.length, hi.filter(r => r.winner === 'r').length] }; } }
   // 翻盘：第 R 回合时局面分落后 ≥ T 的一方，最后赢了的比例
   S.comeback = {};
   for (const rd of [10, 20, 30]) for (const T of [2, 4]) {
@@ -817,7 +821,7 @@ function print(S, o) {
   L.push(`终极兵法：汉用 ${ur.r[0]} 局（平均第 ${S.ult.round.r.toFixed(1)} 回合，用了的局胜 ${ur.r[0] ? pct(ur.r[1] / ur.r[0]) : '-'}）  楚用 ${ur.b[0]} 局（第 ${S.ult.round.b.toFixed(1)} 回合，胜 ${ur.b[0] ? pct(ur.b[1] / ur.b[0]) : '-'}）  护驾破鸿门宴 ${S.rescue} 局`);
   L.push(`主帅兵法：汉召回 ${ar.r[0]} 局（第 ${S.art.round.r.toFixed(1)} 回合，胜 ${ar.r[0] ? pct(ar.r[1] / ar.r[0]) : '-'}）  楚${S.bs ? '背水' : '破釜'} ${ar.b[0]} 局（第 ${S.art.round.b.toFixed(1)} 回合，胜 ${ar.b[0] ? pct(ar.b[1] / ar.b[0]) : '-'}）`);
   if (S.rev) { const TN = { r: '车', n: '马', c: '炮', p: '兵', a: '士', e: '象' }, j = o => Object.entries(o).sort().map(([k, v]) => `${TN[k] || k} ${v}`).join('、'), jl = o => Object.entries(o).sort().map(([k, v]) => `${k} 级 ${v}`).join('、');
-    L.push(`召回的子（${S.rev.n} 次）：${j(S.rev.t)}；死时 ${jl(S.rev.dl)}；回来 ${jl(S.rev.rl)}；死时一级的那些局汉胜 ${S.rev.lo[0] ? pct(S.rev.lo[1] / S.rev.lo[0]) : '-'}（${S.rev.lo[0]} 局），二级以上 ${S.rev.hi[0] ? pct(S.rev.hi[1] / S.rev.hi[0]) : '-'}（${S.rev.hi[0]} 局）`); }
+    L.push(`召回的子（${S.rev.n} 次）：${j(S.rev.t)}；死时 ${jl(S.rev.dl)}；回来 ${jl(S.rev.rl)}${S.rev.up ? `；当场花军功升了一级 ${S.rev.up} 次` : ''}；死时一级的那些局汉胜 ${S.rev.lo[0] ? pct(S.rev.lo[1] / S.rev.lo[0]) : '-'}（${S.rev.lo[0]} 局），二级以上 ${S.rev.hi[0] ? pct(S.rev.hi[1] / S.rev.hi[0]) : '-'}（${S.rev.hi[0]} 局）`); }
   for (const s of ['r', 'b']) { const A = S.avail && S.avail[s]; if (A) L.push(`少子才能用的主帅兵法（${s === 'r' ? '汉召回' : '楚背水'}）：轮到自己时满足用的条件（车马炮比对方少；第三版还要至少丢了一半）过 ${A.n} 局，第一次平均第 ${A.round.toFixed(1)} 回合；真用了 ${A.used} 局（胜 ${A.used ? pct(A.usedWin / A.used) : '-'}）`); }
   if (S.sus && (S.sus.r || S.sus.b)) L.push('车马炮持续落后（自己走完还少、到下回合还少）：' + ['r', 'b'].map(s => { const A = S.sus[s]; return `${s === 'r' ? '汉' : '楚'} ${A ? `${A.n} 局（${pct(A.n / S.n)}，第一次平均第 ${A.round.toFixed(1)} 回合、平均落后 ${A.turns.toFixed(1)} 回合；这些局${s === 'r' ? '汉' : '楚'}胜 ${pct(A.win / A.n)}；其中用了主帅兵法 ${A.used} 局、胜 ${A.used ? pct(A.usedWin / A.used) : '-'}）` : '0 局'}`; }).join(' | '));
   { const f = H => { const n = H.full + H.hurt; return n ? `满血 ${pct(H.full / n)}、掉过血 ${pct(H.hurt / n)}（只剩 1 血 ${pct(H.last / n)}），共 ${n} 次` : '-'; };

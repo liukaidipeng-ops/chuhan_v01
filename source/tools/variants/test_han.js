@@ -1,11 +1,11 @@
-// engine_han.js 自测：默认关时和底版一样；reviveLevel、startBonus、reviveCap 生效
+// engine_han.js 自测：默认关时和底版一样；reviveLevel、startBonus、reviveCap、reviveUp 生效
 'use strict';
 const assert = require('assert'), path = require('path');
 global.XQ = require(path.join(__dirname, '..', '..', 'src', 'rules.js'));
 const BF = global.BF = require(require('./engine_han.js').enginePath());
 let pass = 0; const ok = (c, m) => { assert.ok(c, m); pass++; console.log('  ✓ ' + m); };
 const B = BF.CFG;
-ok(B.generalArts.xiaohe.reviveLevel === 1 && B.generalArts.xiaohe.reviveCap === false && B.merit.startBonus.r === 0 && B.merit.startBonus.b === 0, '默认：召回一级、不封顶、没有开局加成');
+ok(B.generalArts.xiaohe.reviveLevel === 1 && B.generalArts.xiaohe.reviveCap === false && B.generalArts.xiaohe.reviveUp === false && B.merit.startBonus.r === 0 && B.merit.startBonus.b === 0, '默认：召回一级、不封顶、不能当场升级、没有开局加成');
 { const g = new BF.Game(); ok(g.merit.r === B.merit.start && g.merit.b === B.merit.start, '默认开局军功两边一样'); }
 B.merit.startBonus.r = 1; { const g = new BF.Game(); ok(g.merit.r === B.merit.start + 1 && g.merit.b === B.merit.start, 'startBonus.r=1：汉开局多 1 点'); } B.merit.startBonus.r = 0;
 // 召回：汉车 id 找开局位置空着、车马炮少于楚且最多 3 枚（背水开着时的条件）
@@ -66,6 +66,35 @@ for (const [t, dl, lvl, cap, want] of [
   const ok2 = opts.length === 1 && g.apply({ k: 'art', id: 0 });
   let p = null; for (const row of g.S.board) for (const q of row) if (q && q.id === 0) p = q;
   ok(ok2 && p && p.lv === 2 && p.hp === BF.hpOf('r', 2), `吃掉三级车之后召回：回来 ${p && p.lv} 级 ${p && p.hp} 血（应 2 级）`);
+}
+B.generalArts.xiaohe.reviveLevel = 1; B.generalArts.xiaohe.reviveCap = false; B.beishui.on = true;
+
+// 召回后当回合花军功升一级（reviveUp，第六轮 r6_help）：{ k:'art', id, up:true }
+{
+  const cost0 = B.upgrade.cost.r.slice(); B.upgrade.cost.r = [10, 12, 20];   // 第六轮用的车价
+  const mk = (deadLv, merit, opt = {}) => {
+    B.beishui.on = true; B.generalArts.xiaohe.reviveLevel = 2; B.generalArts.xiaohe.reviveCap = true; B.generalArts.xiaohe.reviveUp = opt.up !== false;
+    const g = new BF.Game();
+    g.setup(T => { for (let r = 0; r < 10; r++) for (let f = 0; f < 9; f++) { const p = T.board[r][f]; if (p && p.s === 'r' && p.t !== 'k' && p.id !== 13) T.board[r][f] = null; }
+      T.dead.r = [{ id: 0, t: 'r', s: 'r', lv: deadLv }]; T.merit.r = merit; T.turn = 'r'; });
+    return g;
+  };
+  const rook = g => { for (const row of g.S.board) for (const q of row) if (q && q.id === 0) return q; return null; };
+  const hasUp = list => list.some(k => (k.a || k).k === 'art' && (k.a || k).up);
+  { const g = mk(1, 30, { up: false }); ok(!g.apply({ k: 'art', id: 0, up: true }), '开关关着：召回 + 升级不合法'); ok(!hasUp(BF.ai.expand(g.S)) && !hasUp(BF.ai.gen(g.S, false)), '开关关着：电脑候选里没有召回 + 升级'); }
+  { const g = mk(1, 30); ok(hasUp(BF.ai.expand(g.S)) && hasUp(BF.ai.gen(g.S, false)), '开关开着：电脑候选里有召回 + 升级');
+    const info = g.apply({ k: 'art', id: 0, up: true }), p = rook(g), rv = info && info.ev.find(e => e.e === 'revive'), up = info && info.ev.find(e => e.e === 'reviveUp');
+    ok(!!info && p && p.lv === 2 && p.hp === BF.hpOf('r', 2) && g.S.merit.r === 30 - 10, `死时一级的车：召回一级、当场升二级（${p && p.lv} 级 ${p && p.hp} 血），扣 10 军功（剩 ${g.S.merit.r}）`);
+    ok(rv && rv.lv === 1 && up && up.lv === 2 && up.cost === 10, '事件：召回 lv 1（升级前）、reviveUp lv 2 花 10');
+    ok(g.S.turn === 'b' && g.S.upgraded === false, '召回 + 升级占这一回合：轮到楚，升级标记清掉'); }
+  { const g = mk(2, 30); const info = g.apply({ k: 'art', id: 0, up: true }), p = rook(g);
+    ok(!!info && p && p.lv === 3 && p.hp === BF.hpOf('r', 3) && g.S.merit.r === 30 - 12, `死时二级的车：召回二级、当场升三级（${p && p.lv} 级），扣 12 军功`); }
+  { const g = mk(1, 9); ok(!g.apply({ k: 'art', id: 0, up: true }), '军功不够（9 < 10）：召回 + 升级不合法'); ok(!!g.apply({ k: 'art', id: 0 }), '军功不够时照样可以只召回'); }
+  { const g = mk(1, 30); const up1 = g.apply({ k: 'up', at: [4, 3] });
+    ok(!!up1 && !g.apply({ k: 'art', id: 0, up: true }), '这回合已经升过别的子：召回 + 升级不合法（每回合最多升一次）');
+    ok(!hasUp(BF.ai.gen(g.S, false)), '升过级之后电脑的 gen 候选里也没有召回 + 升级');
+    ok(!!g.apply({ k: 'art', id: 0 }), '升过别的子之后照样可以只召回'); }
+  B.upgrade.cost.r = cost0; B.generalArts.xiaohe.reviveUp = false;
 }
 B.generalArts.xiaohe.reviveLevel = 1; B.generalArts.xiaohe.reviveCap = false; B.beishui.on = true;
 console.log('通过', pass, '项');
