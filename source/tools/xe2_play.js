@@ -190,6 +190,7 @@ async function play(seed) {
       if (opt.plan === 'AF' || opt.plan === 'AF2' || opt.plan === 'F') {
         const fs1 = formStep(S1);
         if (fs1 && fs1.done) for (const x of fs1.done) { const q = g.S.board[x.at[1]][x.at[0]]; if (q && !q.bz) { q.bz = 1e9; const q1 = S1.board[x.at[1]][x.at[0]]; if (q1) q1.bz = 1e9; if (R.formAt == null) R.formAt = round(g.S); } }
+        if (fs1 && fs1.done) { const U = BF.CFG.generalArts.pofu.usesPerGame; g.S.used.art.b = U; S1.used.art.b = U; }   // 摆好阵后楚不再用破釜沉舟：它的两步不管冻结，会把象头的士挪走（验证脚本的漏洞，不是规则）
         else if (fs1 && fs1.mv && BF.attempt(S1, fs1.mv)) fm = fs1.mv;
       }
       seq = pre.concat(fm ? [fm] : (await AI.think(S1, 'mid')).filter(a => a.k !== 'up'));
