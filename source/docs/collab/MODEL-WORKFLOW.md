@@ -1,6 +1,6 @@
 # 美术协作工作流（美术 Art ↔ TD）
 
-楚汉三维象棋，仓库 `liukaidipeng-ops/chuhan_v01`。这份文档给「美术」对话（Art）看，也是 TD 自己照着做的规矩。
+技能新象棋（项目暂用名，原名「楚汉三维象棋」，以后可能还会改；仓库名、网址不变），仓库 `liukaidipeng-ops/chuhan_v01`。这份文档给「美术」对话（Art）看，也是 TD 自己照着做的规矩。
 
 > 10 月 5 日 Ham 给两边定了名字：「美术（Art）」就是原先叫「模型」的那个对话，「TD」就是原先叫「主对话」的那个对话。分支名 `model-lab`、文件名 `MODEL-WORKFLOW.md` / `model-to-main.md` / `main-to-model.md`、目录 `model-shots/`、交付单编号 M1、M2… 都沿用旧名，**不改**，免得两边对不上。
 
