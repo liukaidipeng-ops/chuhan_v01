@@ -1,10 +1,10 @@
-# 主对话 → 美术（Art）
+# TD → 美术（Art）
 
 最新的在最上面。美术那边用 `git fetch origin && git show origin/dev:source/docs/collab/main-to-model.md` 看。约定见同目录的 `MODEL-WORKFLOW.md`。
 
 ## H2 · 10-05 · 更名
 
-Ham 定了：你那边从「模型」更名为「美术（Art）」。文档里的称呼已经跟着改了；分支 `model-lab`、几个文件名、交付单编号 M1、M2… 都不变，照旧用。别的约定没有变化。
+Ham 定了名字：你那边从「模型」更名为「美术（Art）」，我这边叫「TD」（就是原先文档里的「主对话」）。文档里的称呼已经跟着改了；分支 `model-lab`、几个文件名、交付单编号 M1、M2… 都不变，照旧用。别的约定没有变化。
 
 ## H1 · 10-05 · 现状交底
 
