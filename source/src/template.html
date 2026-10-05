@@ -639,7 +639,7 @@ body.compact #log{width:164px;max-height:34vh}
 #mSet .rod,#mSet .wrap:after{display:none}
 #mSet .wrap{width:min(560px,100%);height:min(780px,100%);max-height:100%}
 #mSet .scroll{width:100%;height:100%;max-height:100%;padding:calc(24px + var(--safe-t)) 24px 0;border:0;border-radius:0;background:var(--g);box-shadow:0 30px 90px rgba(0,0,0,.5);text-align:left;
-  display:grid;grid-template-columns:58px minmax(0,1fr);grid-template-rows:minmax(0,1fr) auto;align-content:start}
+  display:grid;grid-template-columns:58px minmax(0,1fr);grid-template-rows:1fr auto;align-content:start}
 #mSet h3,#lobby .e-band-t{margin:0;padding:22px 0;border:2px solid var(--c);color:var(--k);font-size:34px;font-weight:900;line-height:1;letter-spacing:.4em;writing-mode:vertical-rl;text-orientation:upright;display:flex;align-items:center;white-space:nowrap}
 #mSet h3{grid-column:1;grid-row:1}
 #mSet .e-body{grid-column:2;grid-row:1;margin-left:-2px;min-width:0}
@@ -659,6 +659,171 @@ body.compact #log{width:164px;max-height:34vh}
 #mSet .e-bar .btn{height:60px;min-height:0;padding:0;white-space:nowrap}
 #mSet .e-bar #tExit{flex:0 0 132px;font-size:18px;letter-spacing:.2em}
 #mSet .e-bar #bSetClose{flex:1 1 0;font-size:28px;letter-spacing:.5em;padding-left:.5em}
+
+/* ---------- 对局界面：头像牌、状态条、工具、棋谱、技能栏、提示、复盘条、终局（只换皮：颜色、边框、字体；位置和大小不动） ---------- */
+:root{--g:#a8281c;--c:#f0e7d2;--k:#141311;--ef:"EB","Noto Serif SC","Source Han Serif SC","Noto Serif CJK SC","Songti SC","STSong","SimSun",serif;--es:"PingFang SC","Noto Sans SC","Noto Sans CJK SC","Microsoft YaHei",sans-serif}
+.pcard{border:0;border-radius:0;background:var(--c);color:var(--k);box-shadow:inset 0 0 0 3px var(--c),inset 0 0 0 5px var(--k),0 8px 22px rgba(20,19,17,.25)}
+.pcard:before,.pcard:after{display:none}
+.pcard.active{box-shadow:inset 0 0 0 3px var(--c),inset 0 0 0 5px var(--k),0 0 0 4px var(--g),0 10px 26px rgba(20,19,17,.3)}
+.por .trk{stroke:rgba(20,19,17,.15)}.por .arc{stroke:var(--k)}.por .arc.low{stroke:var(--g)}
+.por .face{border:2px solid var(--k);box-shadow:none}
+.por .seal{border-radius:0;transform:none;box-shadow:inset 0 0 0 1.5px var(--c);color:var(--c);font-family:var(--ef);font-weight:900}
+.pcard.r .seal{background:var(--g)}.pcard.b .seal{background:var(--k)}
+.pcard .who{font-family:var(--ef);font-weight:900;letter-spacing:.1em}
+.pcard .tag,.pcard .undo,.pcard .clk .stp,.pcard .clk.inf,.pcard .mer small{color:#5b564c;font-family:var(--es)}
+.pcard .clk,.pcard .clk .stp.solo{color:var(--k)}
+.pcard .clk.low,.pcard .clk .stp.low,.pcard.think .tag:after{color:var(--g)}
+.capp{border:1.5px solid var(--k);background:var(--c);box-shadow:none;font-family:var(--ef);font-weight:900}
+.capp.r{color:var(--g)}.capp.b{color:var(--k)}
+.pcard .mer{color:var(--k)}
+.pcard .mer b{border-radius:0;background:var(--k);color:var(--c);font-family:var(--ef);font-weight:900}
+.pcard .mer i{color:var(--k)}.pcard .mer i.pop{color:var(--g)}
+.pcard .fxs span{padding:2px 7px;border-radius:0;background:var(--k);color:var(--c);font-family:var(--es)}
+.pcard .fxs span.red{background:var(--g)}
+.pcard .fxs span.used{background:none;color:#5b564c;border:1px solid rgba(20,19,17,.35)}
+.pcard .fxs span.ok{background:none;color:var(--k);border:1px solid var(--k)}
+.pcard .fxs span.go{background:var(--g);color:var(--c);border:1px solid var(--g);box-shadow:0 0 0 2px var(--c),0 0 0 4px var(--g);animation:eGo 1.4s ease-in-out infinite}
+@keyframes eGo{50%{box-shadow:0 0 0 2px var(--c),0 0 0 6px rgba(168,40,28,.4)}}
+#status{padding:9px 24px 9px calc(24px + .2em);border:0;clip-path:none;background:var(--k);color:var(--c);box-shadow:inset 0 0 0 3px var(--k),inset 0 0 0 4px var(--c),0 6px 18px rgba(0,0,0,.25);font-family:var(--ef);font-weight:900;font-size:15px}
+#status.warn{background:var(--g);color:var(--c);box-shadow:inset 0 0 0 3px var(--g),inset 0 0 0 4px var(--c),0 6px 18px rgba(0,0,0,.25)}
+#status #specN{color:var(--c);font-family:var(--es);font-weight:400}
+#netbadge{border:1.5px solid var(--k);border-radius:0;background:var(--c);color:var(--k);font-family:var(--es)}
+#netbadge.bad{border-color:var(--c);background:var(--g);color:var(--c)}
+.tool{border-radius:50%;background:var(--k);color:var(--c);box-shadow:inset 0 0 0 3px var(--k),inset 0 0 0 4.5px var(--c),0 4px 12px rgba(0,0,0,.28);font-family:var(--ef);font-weight:900;font-size:20px}
+.tool.red{background:var(--g);color:var(--c);box-shadow:inset 0 0 0 3px var(--g),inset 0 0 0 4.5px var(--c),0 4px 12px rgba(0,0,0,.28)}
+.tool small{border:1.5px solid var(--k);background:var(--c);color:var(--k);box-shadow:none}
+.tool .lvl{border-radius:0;background:var(--c);color:var(--k)}
+#log{padding:12px 12px 10px;border:0;border-radius:0;background:var(--c);color:var(--k);box-shadow:inset 0 0 0 3px var(--c),inset 0 0 0 5px var(--k),0 8px 24px rgba(20,19,17,.25)}
+#log .lh{border-bottom:1.5px solid var(--k);color:var(--k);font-family:var(--ef);font-weight:900}
+#log #logExport{border:1.5px solid var(--k)!important;border-radius:0!important;background:none!important;font-family:var(--es)!important;font-weight:400}
+#logList .r{color:var(--g)}
+#logList .last{border-radius:0;background:rgba(20,19,17,.12)}
+#logList em.rv{background:var(--k);color:var(--c)}#logList .r em.rv{background:var(--g)}
+.bubble{border-radius:0;font-family:var(--ef);font-weight:900}
+.bubble b{font-family:var(--es);font-weight:400}
+#bubOpp{border-left:0;background:var(--k);color:var(--c);box-shadow:inset 0 0 0 3px var(--k),inset 0 0 0 4px var(--c),0 8px 24px rgba(0,0,0,.3)}
+#bubOpp:before{border-bottom-color:var(--k)}
+#bubMe{border:0;background:var(--c);color:var(--k);box-shadow:inset 0 0 0 3px var(--c),inset 0 0 0 5px var(--k),0 8px 24px rgba(20,19,17,.25)}
+#bubMe:after{border-top-color:var(--k)}
+.sk,.sk.ready,.sk.on{--sb:var(--k);--sf:var(--c);border-radius:0;background:var(--sb);color:var(--sf);box-shadow:inset 0 0 0 3px var(--sb),inset 0 0 0 4px var(--sf),0 4px 12px rgba(0,0,0,.28);font-family:var(--ef);font-weight:900}
+.sk small{color:inherit;font-weight:400;opacity:.85}
+.sk.up{--sb:var(--c);--sf:var(--k);background:var(--sb);color:var(--sf)}.sk.up small{color:inherit}
+.sk.art,.sk.ok{--sb:var(--g);--sf:var(--c);background:var(--sb);color:var(--sf);border-color:transparent}.sk.ok small{color:inherit}
+.sk.ult{--sb:var(--g);--sf:var(--c);background:var(--sb);box-shadow:inset 0 0 0 3px var(--sb),inset 0 0 0 4px var(--sf),inset 0 0 0 6px var(--sb),inset 0 0 0 7px var(--sf),0 4px 12px rgba(0,0,0,.28)}
+.sk.pas{background:var(--k);opacity:.75}
+.sk.on{outline:3px solid var(--c);outline-offset:2px}
+.sk.ready{outline:3px solid var(--g);outline-offset:2px;animation:eRdy 1.4s ease-in-out infinite}
+@keyframes eRdy{50%{outline-offset:5px}}
+.sk:disabled,.sk.off{opacity:.5;filter:none}
+.sk .cd{border-radius:0}
+.sk .cdn{border:1.5px solid var(--k);background:var(--c);color:var(--k)}
+#bfHint{border:0;border-radius:0;background:var(--k);color:var(--c);box-shadow:inset 0 0 0 1px var(--c);font-family:var(--es)}
+#bfBar.col #bfHint{border-radius:0}
+#skHint{border-radius:0;background:var(--g);color:var(--c);box-shadow:inset 0 0 0 3px var(--g),inset 0 0 0 4px var(--c),0 6px 18px rgba(0,0,0,.3);font-family:var(--ef);font-weight:900}
+#skHint small{color:var(--c);font-family:var(--es);font-weight:400}
+#skHint:before{border-radius:0;background:var(--c);box-shadow:none}
+#bfReport li{border-left:4px solid var(--c);border-radius:0;background:var(--k);color:var(--c);font-family:var(--es)}
+#bfReport li.r{border-left-color:var(--g)}
+#tip{border:0;border-radius:0;background:var(--k);color:var(--c);box-shadow:inset 0 0 0 3px var(--k),inset 0 0 0 4px var(--c),0 8px 24px rgba(0,0,0,.35);font-family:var(--es)}
+#tip b{color:#fff;font-family:var(--ef);font-weight:900}#tip small{color:rgba(240,231,210,.75)}
+#toast{padding:12px 24px;border-radius:0;background:var(--k);color:var(--c);box-shadow:inset 0 0 0 3px var(--k),inset 0 0 0 4px var(--c);font-family:var(--ef);font-weight:900}
+#skip{border:2px solid var(--c);border-radius:0;background:var(--k);color:var(--c);font-family:var(--ef);font-weight:900}
+#rpBar{padding:12px;border:0;border-radius:0;background:var(--k);box-shadow:inset 0 0 0 3px var(--k),inset 0 0 0 4px var(--c),0 8px 24px rgba(0,0,0,.35)}
+#rpBar button{border-radius:0;background:none;color:var(--c);box-shadow:inset 0 0 0 1.5px var(--c);font-family:var(--ef);font-weight:900}
+#rpBar button.pl{background:var(--g)}#rpBar button.x{box-shadow:inset 0 0 0 1.5px var(--c)}
+#rpInfo{color:var(--c)}
+#rpBar{width:max-content}
+#endcard{background:var(--g);color:var(--c);font-family:var(--ef)}
+#endcard:before{inset:18px;border:2px solid var(--c);box-shadow:none}
+#endcard .cols div{font-family:"Noto Serif SC","Source Han Serif SC","Noto Serif CJK SC","Songti SC","STSong","SimSun",serif;font-weight:bold}
+#endcard .cols div.big{color:var(--k)}
+#endcard .win{border-radius:0;background:var(--c);color:var(--k);filter:none;font-weight:900;box-shadow:inset 0 0 0 4px var(--c),inset 0 0 0 6px var(--k)}
+#endcard .mine{font-family:var(--es)}
+#endcard .btn{min-height:52px;border:2px solid var(--c);border-radius:0;background:none;color:var(--c);box-shadow:none;font-family:var(--ef);font-weight:900}
+#endcard .btn.solid{background:var(--k);color:var(--c);border-color:var(--c)}
+@media (hover:hover){#endcard .btn:hover{background:var(--c);color:var(--k)}}
+
+/* ---------- 其余弹窗：发言、导出、更新说明、玩法、选择、观战入席（和设置面板同一个骨架：左边竖条页名，底栏固定） ---------- */
+.e-m,.e-c,#pauseOv,#bfTip,#loading{--g:#a8281c;--c:#f0e7d2;--k:#141311;--ef:"EB","Noto Serif SC","Source Han Serif SC","Noto Serif CJK SC","Songti SC","STSong","SimSun",serif;--es:"PingFang SC","Noto Sans SC","Noto Sans CJK SC","Microsoft YaHei",sans-serif}
+.modal.e-m{padding:0;background:rgba(20,19,17,.66);color:var(--c);font-family:var(--ef)}
+.modal.e-m .rod,.modal.e-m .wrap:after{display:none}
+.modal.e-m .wrap{width:min(560px,100%)}
+.modal.e-m .scroll{width:100%;max-height:min(780px,100dvh);padding:calc(24px + var(--safe-t)) 24px 0;border:0;border-radius:0;background:var(--g);box-shadow:0 30px 90px rgba(0,0,0,.5);text-align:left;
+  display:grid;grid-template-columns:58px minmax(0,1fr);grid-template-rows:auto auto;align-content:start}
+.modal.e-m .scroll>h3{grid-column:1;grid-row:1;margin:0;padding:22px 0;border:2px solid var(--c);color:var(--k);font-size:34px;font-weight:900;line-height:1;letter-spacing:.4em;word-spacing:-.6em;writing-mode:vertical-rl;text-orientation:upright;display:flex;align-items:center;white-space:nowrap}
+.modal.e-m .e-body{grid-column:2;grid-row:1;margin-left:-2px;min-width:0;padding:16px 16px 18px;border:2px solid var(--c);font-family:var(--es);font-size:15px;line-height:1.8}
+.modal.e-m .e-bar{grid-column:1/-1;grid-row:2;position:sticky;bottom:0;z-index:2;display:flex;gap:12px;margin:22px -24px 0;padding:16px 24px calc(16px + var(--safe-b));border-top:2px solid var(--c);background:var(--g)}
+.modal.e-m .btn{min-height:48px;padding:0 18px;border:2px solid var(--c);border-radius:0;background:none;color:var(--c);box-shadow:none;font-family:var(--ef);font-weight:900;font-size:16px;letter-spacing:.12em;white-space:nowrap}
+.modal.e-m .btn.solid{background:var(--k);color:var(--c);border-color:var(--c)}
+.modal.e-m .btn:active{background:var(--c);color:var(--k);transform:scale(.97)}
+.modal.e-m .btn:disabled{opacity:.38}
+@media (hover:hover){.modal.e-m .btn:hover{background:var(--c);color:var(--k)}}
+.modal.e-m .e-bar .btn{flex:0 0 132px;height:60px;min-height:0;padding:0;font-size:18px;letter-spacing:.2em}
+.modal.e-m .e-bar .btn.solid,.modal.e-m .e-bar .btn:only-child{flex:1 1 0;font-size:26px;letter-spacing:.4em;padding-left:.4em}
+.modal.e-m .note,.modal.e-m p{margin:0 0 10px;color:var(--c);font-family:var(--es);font-size:15px;line-height:1.7}
+.modal.e-m .e-body h3{margin:22px 0 8px!important;padding:0;color:var(--k);font-family:var(--ef);font-weight:900;font-size:22px;letter-spacing:.3em;word-spacing:-.5em}
+.modal.e-m .help{font-size:15px!important;line-height:1.85!important;opacity:1!important}
+.modal.e-m .help b{color:#fff7e6}
+.modal.e-m .news{max-height:none;padding:0;color:var(--c);font-size:14px}
+.modal.e-m .news h4{margin:16px 0 4px;color:var(--k);font-family:var(--ef);font-weight:900;font-size:18px;letter-spacing:.1em}
+.modal.e-m .news h4:first-child{margin-top:0}
+.modal.e-m .news h4 small{color:var(--c);font-family:var(--es);opacity:.9}
+.modal.e-m input,.modal.e-m textarea{border:2px solid var(--c)!important;border-radius:0!important;background:rgba(20,19,17,.22)!important;color:var(--c)!important}
+.modal.e-m input::placeholder{color:rgba(240,231,210,.55)}
+.modal.e-m input.code{border-width:0 0 2px!important;background:none!important}
+#mExport #exportNote{color:var(--c)!important}
+#chat .phr button{min-height:48px;border:2px solid var(--c);border-radius:0;background:none;color:var(--c);font-family:var(--ef);font-weight:900;font-size:16px}
+#chat .phr button:active{background:var(--c);color:var(--k)}
+#chat .free .btn{min-width:64px}
+#chat #watchOpts .row{margin:0 0 12px!important}#chat #watchOpts .btn{width:100%;min-height:56px;font-size:20px}
+#mPick .chips{gap:8px;margin:6px 0 0}
+#mName .row{margin:8px 0 0}
+@media (max-width:640px){
+  .modal.e-m .wrap{width:100%;height:100%}
+  .modal.e-m .scroll{height:100%;max-height:none;box-shadow:none;grid-template-rows:auto 1fr}
+  .modal.e-m .e-bar{align-self:end}
+}
+/* 小卡片式弹窗（喊话、选择、观战入席、导出）：不占全屏，和规则速览一个样子 */
+.modal.e-c{padding:14px;background:rgba(20,19,17,.5);color:var(--c);font-family:var(--es)}
+.modal.e-c .rod,.modal.e-c .wrap:after{display:none}
+.modal.e-c .wrap{width:min(430px,100%)}
+.modal.e-c .scroll{width:100%;max-height:calc(100dvh - 28px);padding:22px 22px 18px;border:0;border-radius:0;background:var(--g);box-shadow:inset 0 0 0 5px var(--g),inset 0 0 0 7px var(--c),0 20px 60px rgba(0,0,0,.45);text-align:left}
+.modal.e-c .scroll>h3{margin:2px 0 12px;padding:0;color:var(--k);font-family:var(--ef);font-weight:900;font-size:22px;letter-spacing:.2em;word-spacing:-.4em}
+.modal.e-c .note,.modal.e-c p{margin:0 0 10px;color:var(--c);font-family:var(--es);font-size:14px;line-height:1.7}
+.modal.e-c .e-bar{display:flex;justify-content:flex-end;gap:10px;margin:16px 0 2px}
+.modal.e-c .btn{min-height:44px;padding:0 16px;border:2px solid var(--c);border-radius:0;background:none;color:var(--c);box-shadow:none;font-family:var(--ef);font-weight:900;font-size:15px;letter-spacing:.12em;white-space:nowrap}
+.modal.e-c .btn.solid{background:var(--k);color:var(--c);border-color:var(--c)}
+.modal.e-c .btn:active{background:var(--c);color:var(--k);transform:scale(.97)}
+.modal.e-c .btn:disabled{opacity:.38}
+@media (hover:hover){.modal.e-c .btn:hover{background:var(--c);color:var(--k)}}
+.modal.e-c input,.modal.e-c textarea{border:2px solid var(--c)!important;border-radius:0!important;background:rgba(20,19,17,.22)!important;color:var(--c)!important}
+.modal.e-c input::placeholder{color:rgba(240,231,210,.55)}
+.modal.e-c input.code{border-width:0 0 2px!important;background:none!important}
+#mExport textarea{height:min(38vh,300px)!important}
+/* ---------- 暂停 ---------- */
+#pauseOv{background:rgba(20,19,17,.72);font-family:var(--ef)}
+#pauseOv .pz{width:min(420px,calc(100vw - 48px));padding:30px 28px 26px;background:var(--g);color:var(--c);box-shadow:inset 0 0 0 5px var(--g),inset 0 0 0 7px var(--c),0 30px 90px rgba(0,0,0,.5)}
+#pauseOv .pzT{font-family:var(--ef);font-weight:900;font-size:60px;line-height:1.1;letter-spacing:.3em;padding-left:.3em;color:var(--k);text-shadow:none;animation:none}
+#pauseOv .pzI{margin:10px 0 4px;font-family:var(--es);font-size:14px;letter-spacing:.08em;opacity:1}
+#pauseOv .row{margin:18px 0 0;gap:10px;flex-wrap:nowrap}
+#pauseOv .btn{min-width:0;min-height:48px;padding:0 16px;border:2px solid var(--c);border-radius:0;background:none;color:var(--c);box-shadow:none;font-family:var(--ef);font-weight:900;font-size:16px;letter-spacing:.14em;white-space:nowrap}
+#pauseOv .btn.small{flex:1 1 0}
+#pauseOv #pzGo{--d:132px;width:var(--d);height:var(--d);padding:0;border:0;border-radius:50%;background:var(--k);color:var(--c);box-shadow:inset 0 0 0 5px var(--k),inset 0 0 0 7px var(--c);font-size:34px;letter-spacing:.08em;transition:transform .16s}
+#pauseOv .btn:active{transform:scale(.96)}
+@media (hover:hover){#pauseOv .btn.small:hover{background:var(--c);color:var(--k)}#pauseOv #pzGo:hover{transform:translateY(-6px);background:var(--k);color:var(--c)}}
+/* ---------- 规则速览 ---------- */
+#bfTip{padding:20px 22px 18px;border:0;border-radius:0;background:var(--g);color:var(--c);box-shadow:inset 0 0 0 5px var(--g),inset 0 0 0 7px var(--c),0 20px 60px rgba(0,0,0,.45);font-family:var(--es)}
+#bfTip h4{margin:4px 0 10px;text-align:left;color:var(--k);font-family:var(--ef);font-weight:900;font-size:22px;letter-spacing:.2em;word-spacing:-.4em}
+#bfTip ul{color:var(--c);font-size:14px;line-height:1.8}
+#bfTip li b{color:var(--k)}
+#bfTip .row{margin:14px 0 2px;justify-content:flex-end;gap:10px}
+#bfTip .btn{min-height:44px;padding:0 16px;border:2px solid var(--c);border-radius:0;background:none;color:var(--c);box-shadow:none;font-family:var(--ef);font-weight:900;font-size:15px;letter-spacing:.12em}
+#bfTip .btn.solid{background:var(--k)}
+/* ---------- 加载 ---------- */
+#loading{background:var(--g);color:var(--c)}
+#loading .big{color:var(--k);font-family:var(--ef);font-weight:900;font-size:min(72px,13vw);letter-spacing:.2em;padding-left:.2em;white-space:nowrap}
+#loading .bar{background:rgba(240,231,210,.25)}#loading .bar i{background:var(--c)}
+#loading .note{color:var(--c);font-family:var(--es)}
 
 /* ---------- 询问弹窗（悔棋、求和、退出对局的确认等共用） ---------- */
 #mAsk{--c:#f0e7d2;--k:#141311;--ef:"EB","Noto Serif SC","Source Han Serif SC","Noto Serif CJK SC","Songti SC","STSong","SimSun",serif;--es:"PingFang SC","Noto Sans SC","Noto Sans CJK SC","Microsoft YaHei",sans-serif;
@@ -820,7 +985,7 @@ body.compact #log{width:164px;max-height:34vh}
 <div id="paper"></div>
 <div id="vignette"></div>
 
-<div id="loading"><div class="big">楚漢</div><div class="bar"><i></i></div><div class="note" id="loadTxt">研墨铺纸…</div></div>
+<div id="loading"><div class="big">技能新象棋</div><div class="bar"><i></i></div><div class="note" id="loadTxt">研墨铺纸…</div></div>
 
 <!-- 对局界面 -->
 <div id="hud" class="hidden">
@@ -985,15 +1150,17 @@ body.compact #log{width:164px;max-height:34vh}
 </div></div></div>
 
 <!-- 发言 -->
-<div id="chat" class="modal hidden"><div class="wrap"><div class="rod t"></div><div class="rod b"></div><div class="scroll">
+<div id="chat" class="modal e-c hidden"><div class="wrap"><div class="rod t"></div><div class="rod b"></div><div class="scroll">
   <h3 id="chatT">阵 前 喊 话</h3>
+  <div class="e-body">
   <div id="watchOpts" class="hidden">
     <div class="opt"><div class="lbl">站队<small id="wName"></small></div><div class="seg" id="wSide"><button data-v="r" class="r">汉</button><button data-v="n">中立</button><button data-v="b">楚</button></div></div>
     <div class="row" style="margin:10px 0 6px"><button class="btn red solid wide" id="bLaugh">哈 哈 大 笑</button></div>
   </div>
   <div class="phr" id="phr"></div>
   <div class="free"><input id="chatIn" maxlength="24" placeholder="自己写一句（最多 24 字）" enterkeyhint="send"><button class="btn small solid" id="chatSend">发</button></div>
-  <div class="row"><button class="btn small" id="chatClose">关 闭</button></div>
+  </div>
+  <div class="e-bar"><button class="btn small" id="chatClose">关闭</button></div>
 </div></div></div>
 
 <!-- 通用确认框 -->
@@ -1003,16 +1170,18 @@ body.compact #log{width:164px;max-height:34vh}
 </div></div></div>
 
 <!-- 更新说明 -->
-<div id="mExport" class="modal hidden"><div class="wrap"><div class="rod t"></div><div class="rod b"></div><div class="scroll">
-  <h3>导 出 本 局</h3>
+<div id="mExport" class="modal e-c hidden"><div class="wrap"><div class="rod t"></div><div class="rod b"></div><div class="scroll">
+  <h3>导出本局</h3>
+  <div class="e-body">
   <div id="exportNote" style="font-size:14px;color:var(--ink3);margin-bottom:8px"></div>
   <textarea id="exportText" readonly style="width:100%;height:38vh;font-size:12px;line-height:1.5;font-family:ui-monospace,Menlo,Consolas,monospace;border:1px solid #bba;background:rgba(255,255,255,.55);padding:8px;resize:none;user-select:text;-webkit-user-select:text"></textarea>
-  <div class="row"><button class="btn small solid" id="bExportCopy">复 制</button><button class="btn small" id="bExportClose">关 闭</button></div>
+  </div>
+  <div class="e-bar"><button class="btn small" id="bExportClose">关闭</button><button class="btn small solid" id="bExportCopy">复制</button></div>
 </div></div></div>
-<div id="mNews" class="modal hidden"><div class="wrap"><div class="rod t"></div><div class="rod b"></div><div class="scroll">
-  <h3>更 新 说 明</h3>
-  <div class="news" id="newsBody"></div>
-  <div class="row"><button class="btn small solid" id="bNewsClose">知道了</button></div>
+<div id="mNews" class="modal e-m hidden"><div class="wrap"><div class="rod t"></div><div class="rod b"></div><div class="scroll">
+  <h3>更新说明</h3>
+  <div class="e-body"><div class="news" id="newsBody"></div></div>
+  <div class="e-bar"><button class="btn small solid" id="bNewsClose">知道了</button></div>
 </div></div></div>
 
 <!-- 兵法规则速览 -->
@@ -1020,14 +1189,15 @@ body.compact #log{width:164px;max-height:34vh}
 
 <!-- 暂停 -->
 <div id="pauseOv" class="hidden"><div class="pz">
-  <div class="pzT">暂 停</div>
+  <div class="pzT">暂停</div>
   <div class="pzI" id="pzInfo"></div>
   <div class="row"><button class="btn solid" id="pzGo">继 续</button></div>
   <div class="row"><button class="btn small" id="pzSet">设 置</button><button class="btn small red" id="pzResign">认 输</button><button class="btn small" id="pzExit">返回大厅</button></div>
 </div></div>
 
-<div id="mHelp" class="modal hidden"><div class="wrap"><div class="rod t"></div><div class="rod b"></div><div class="scroll">
-  <h3>玩 法</h3>
+<div id="mHelp" class="modal e-m hidden"><div class="wrap"><div class="rod t"></div><div class="rod b"></div><div class="scroll">
+  <h3>玩法</h3>
+  <div class="e-body">
   <div class="help">
   · 点己方棋子，棋子浮起并圈出；再点墨点落子，头顶有"殺"字的敌子即可吃。<br>
   · 拖动旋转视角，双指捏合或滚轮缩放；按住鼠标中键拖动（手机双指一起拖）平移画面，「視」闪烁时点一下归位。<br>
@@ -1081,21 +1251,26 @@ body.compact #log{width:164px;max-height:34vh}
   · 炮响、爆炸取自 <a href="https://www.openclonk.org" target="_blank" rel="noopener" style="color:inherit;text-decoration:underline">OpenClonk</a>（作者 Benboncan、Checkmaty 等），按 <a href="https://creativecommons.org/licenses/by/3.0/" target="_blank" rel="noopener" style="color:inherit;text-decoration:underline">CC BY 3.0</a> 授权使用，做过降调和叠加。<br>
   · 其余音效是公共领域（CC0）素材或程序合成。
   </div>
-  <div class="row"><button class="btn small solid" id="bHelpClose">知道了</button></div>
+  </div>
+  <div class="e-bar"><button class="btn small solid" id="bHelpClose">知道了</button></div>
 </div></div></div>
 
-<div id="mPick" class="modal hidden"><div class="wrap"><div class="rod t"></div><div class="rod b"></div><div class="scroll">
+<div id="mPick" class="modal e-c hidden"><div class="wrap"><div class="rod t"></div><div class="rod b"></div><div class="scroll">
   <h3 id="pickT">选 择</h3>
+  <div class="e-body">
   <p class="note" id="pickP"></p>
   <div class="chips" id="pickList"></div>
-  <div class="row"><button class="btn small" id="pickNo">取 消</button></div>
+  </div>
+  <div class="e-bar"><button class="btn small" id="pickNo">取消</button></div>
 </div></div></div>
 
-<div id="mName" class="modal hidden"><div class="wrap"><div class="rod t"></div><div class="rod b"></div><div class="scroll">
-  <h3>观 战 入 席</h3>
+<div id="mName" class="modal e-c hidden"><div class="wrap"><div class="rod t"></div><div class="rod b"></div><div class="scroll">
+  <h3>观战入席</h3>
+  <div class="e-body">
   <p class="note" id="nameNote">这局已有两位棋手对弈，你将作为观众入席。</p>
   <div class="row"><input class="code" id="nameIn" maxlength="8" placeholder="留个名号" autocomplete="off" style="letter-spacing:.2em;font-family:var(--font);width:9em"></div>
-  <div class="row"><button class="btn small" id="nameRnd">换个名号</button><button class="btn red solid" id="nameGo">入 席</button></div>
+  </div>
+  <div class="e-bar"><button class="btn small" id="nameRnd">换个名号</button><button class="btn red solid" id="nameGo">入席</button></div>
 </div></div></div>
 
 <div id="veil"><i></i><b></b><u><em></em><span><strong></strong><small></small></span></u></div>
