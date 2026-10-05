@@ -190,4 +190,38 @@ const ok = (x, msg) => { assert(x, msg); };
   assert(i4 && i4.ev.some(e => e.e === 'occupy' && e.n === 3) && g4.result && g4.result.reason === 'occupy' && g4.result.winner === 'r', '满三回合：夺营获胜 ' + JSON.stringify(g4.result));
   console.log('决战 OK');
 }
+// ---------- 破釜沉舟 / 背水一战组合：快的写法（第一步只结算一次）要和老写法（每个组合都 attempt 一遍）逐项相同 ----------
+// 两套规则各核对一遍：先关掉背水（破釜沉舟），再用默认（背水一战）
+for (const bsOn of [false, true]) {
+  BF.CFG.beishui.on = bsOn;
+  let seed = 20261004; const rnd = () => { seed |= 0; seed = seed + 0x6D2B79F5 | 0; let t = Math.imul(seed ^ seed >>> 15, 1 | seed); t = t + Math.imul(t ^ t >>> 7, 61 | t) ^ t; return ((t ^ t >>> 14) >>> 0) / 4294967296; };
+  let positions = 0, pairs = 0;
+  for (let gi = 0; gi < 8; gi++) {
+    const g = new BF.Game();
+    g.setup(S => { S.merit.r = S.merit.b = 12; });
+    for (let ply = 0; ply < 60 && !g.result; ply++) {
+      const S = BF.cloneState(g.S);
+      if (S.turn === 'b' && !S.used.art.b && ply % 2 === 1 && ply > 6) {
+        const A = BF.ai.pofuPairs(S), B = BF.ai.pofuPairsRef(S);
+        const key = k => JSON.stringify(k.a), mB = new Map(B.map(k => [key(k), k]));
+        assert(A.length === B.length, `破釜组合个数不同：${A.length} 对 ${B.length}`);
+        for (const k of A) { const o = mB.get(key(k)); assert(o && JSON.stringify(o.S) === JSON.stringify(k.S) && JSON.stringify(o.ev) === JSON.stringify(k.ev), '破釜组合结算不同：' + key(k)); }
+        // only：只列某枚子出手的组合 = 全部组合里筛出来的
+        const p = S.board.flat().find(x => x && x.s === 'b' && x.t === 'r');
+        if (p) { const sub = BF.ai.pofuPairs(S, p.id), want = A.filter(k => k.a.steps.some((st, i) => { const q = (i ? null : S.board[st.from[1]][st.from[0]]); return q && q.id === p.id; }) ); assert(sub.length >= want.length, 'only 漏了组合'); for (const k of sub) assert(mB.has(key(k)), 'only 多出了组合'); }
+        positions++; pairs += A.length;
+      }
+      // 随机走一步（偶尔先升级），让局面多样
+      const kids = BF.ai.expand(g.S).filter(k => k.a.k === 'mv' || k.a.k === 'sk');
+      if (!kids.length) break;
+      if (rnd() < 0.25) { const ups = []; for (let r = 0; r < 10; r++) for (let f = 0; f < 9; f++) if (g.canUpgrade && g.canUpgrade(f, r)) ups.push([f, r]); if (ups.length) g.apply({ k: 'up', at: ups[Math.floor(rnd() * ups.length)] }); }
+      const caps = kids.filter(k => k.ev.some(e => e.e === 'kill' || e.e === 'hit'));
+      const pick = caps.length && rnd() < 0.5 ? caps[Math.floor(rnd() * caps.length)] : kids[Math.floor(rnd() * kids.length)];
+      if (!g.apply(pick.a)) break;
+    }
+  }
+  assert(positions >= 20 && pairs > 1000, `组合核对的局面太少：${positions} 个局面 ${pairs} 个组合`);
+  console.log(bsOn ? '背水组合 OK' : '破釜组合 OK', positions, '个局面', pairs, '个组合');
+}
+BF.CFG.beishui.on = true;
 console.log('BINGFA ALL OK');

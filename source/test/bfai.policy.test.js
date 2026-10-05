@@ -4,6 +4,7 @@ const BF = global.BF = require('../src/bingfa.js');
 const AI = require('../src/bfai.js');
 const assert = require('assert');
 AI.LEVELS.hard.budget = 700;
+BF.CFG.beishui.on = false;   // 这一组是破釜沉舟那套规则下的策略题（召回不看兵力、破釜留着杀车）；背水一战的行为在 test/beishui.test.js 里核对
 let id = 300;
 const P = (s, t, lv = 1, x = {}) => ({ s, t, id: id++, lv, hp: BF.hpOf(t, lv), cd: 0, jm: 0, xp: 0, kills: 0, ...x });
 function setup(list, turn, fn) { const g = new BF.Game(); g.setup(T => { for (let r = 0; r < 10; r++) for (let f = 0; f < 9; f++) T.board[r][f] = null; for (const [f, r, p] of list) T.board[r][f] = p; T.turn = turn; if (fn) fn(T); }); return g; }

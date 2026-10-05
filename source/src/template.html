@@ -187,6 +187,8 @@ input.code{font-size:30px;letter-spacing:.4em;text-align:center;width:8.5em;max-
 #tip b{color:#ffd98a;font-weight:bold;letter-spacing:.08em}#tip em{font-style:normal;color:#ff9a7a}#tip small{color:#bfae8a;font-size:12px}
 .sk,.pcard .fxs span{-webkit-touch-callout:none;-webkit-user-select:none;user-select:none}
 .sk.ready{box-shadow:0 0 0 2px rgba(255,210,122,.8),0 0 14px rgba(255,200,90,.6);animation:skGlow 1.6s ease-in-out infinite}
+.sk.ok{background:linear-gradient(#b93a26,#8c2415);color:#fff3dc;border-color:#f0c88a}
+.sk.ok small{color:#ffd9b0}
 @keyframes skGlow{50%{box-shadow:0 0 0 2px rgba(255,210,122,1),0 0 22px rgba(255,200,90,.9)}}
 .gainpop{position:fixed;z-index:31;pointer-events:none;transform:translate(-50%,-50%);font-size:22px;font-weight:bold;letter-spacing:.06em;white-space:nowrap;text-align:center;line-height:1.1;animation:gainup 1.7s ease-out forwards;font-family:var(--num)}
 .gainpop.r{color:#ffd37a;text-shadow:0 0 2px #7a1a0c,0 2px 0 #7a1a0c,0 0 12px rgba(200,40,20,.9)}
@@ -211,6 +213,24 @@ input.code{font-size:30px;letter-spacing:.4em;text-align:center;width:8.5em;max-
 #veil.hm b{background:radial-gradient(ellipse 68% 64% at 50% 50%,transparent 46%,rgba(126,26,12,.3) 70%,rgba(88,12,6,.72) 100%)}
 #veil.sm b{background:radial-gradient(ellipse 68% 64% at 50% 50%,transparent 46%,rgba(44,66,90,.34) 70%,rgba(14,26,42,.76) 100%)}
 @keyframes veilBreath{50%{opacity:.62}}
+/* 背水一战：发动期间四周水墨晕染（墨绿）；两步走完不合法 → 晕染变朱红，点一下屏幕归位重走 */
+#veil.bs{transition:opacity .5s ease;box-shadow:inset 0 0 min(16vw,170px) rgba(42,78,66,.5)}
+#veil.bs b{-webkit-mask-image:var(--inkm);mask-image:var(--inkm);-webkit-mask-size:100% 100%;mask-size:100% 100%;animation-duration:4.4s;
+  background:radial-gradient(ellipse 76% 72% at 50% 50%,rgba(112,140,128,0) 26%,rgba(78,112,98,.5) 50%,rgba(36,64,54,.88) 72%,rgba(12,24,20,.97) 100%)}
+#veil.bs.bad{pointer-events:auto;cursor:pointer;box-shadow:inset 0 0 min(16vw,170px) rgba(170,34,18,.62)}
+#veil.bs.bad b{animation:veilBad 1.5s ease-in-out infinite;
+  background:radial-gradient(ellipse 76% 72% at 50% 50%,rgba(220,90,60,0) 26%,rgba(206,66,40,.62) 50%,rgba(150,24,12,.92) 72%,rgba(60,4,2,.98) 100%)}
+@keyframes veilBad{50%{opacity:.72}}
+#veil u{display:none;position:absolute;left:50%;top:13%;transform:translateX(-50%);text-decoration:none;text-align:center;white-space:nowrap}
+#veil u.mid{top:38%}
+#veil u.low{top:auto;bottom:22%}
+#veil.bs.bad u{display:block;animation:bsMsgIn .28s cubic-bezier(.2,1.5,.4,1) both}
+#veil u em{display:block;font-style:normal;font-family:"XK",var(--font);font-size:clamp(46px,7vw,84px);line-height:1.05;letter-spacing:.16em;padding-left:.16em;color:#b3261a;text-shadow:0 2px 0 rgba(255,246,230,.9),0 0 22px rgba(255,244,226,.95),0 0 46px rgba(255,244,226,.8)}
+#veil u span{display:inline-block;margin-top:4px;font-size:15px;letter-spacing:.1em;color:#f6e9cf;background:rgba(74,12,8,.9);border:1px solid rgba(240,170,140,.55);border-radius:12px;padding:6px 18px 7px;line-height:1.5}
+#veil u strong{font-weight:normal}
+#veil u small{display:block;font-size:12.5px;letter-spacing:.12em;color:#f3cdb8;animation:veilBreath 1.6s ease-in-out infinite}
+@keyframes bsMsgIn{0%{opacity:0;transform:translateX(-50%) scale(1.5)}100%{opacity:1;transform:translateX(-50%) scale(1)}}
+body.compact #veil u span{font-size:13px;white-space:normal;max-width:84vw}
 .sk.pas{opacity:.85;filter:none;background:linear-gradient(#3a3428,#24201a)}
 @keyframes gainup{0%{opacity:0;transform:translate(-50%,-30%) scale(.6)}15%{opacity:1;transform:translate(-50%,-60%) scale(1.15)}30%{transform:translate(-50%,-70%) scale(1)}100%{opacity:0;transform:translate(-50%,-190%) scale(1)}}
 .merpop{position:fixed;z-index:30;pointer-events:none;font-size:15px;font-weight:bold;color:#8a5a12;text-shadow:0 1px 0 #fff8e6,0 0 6px rgba(255,236,190,.9);animation:merup 1.4s ease-out forwards;white-space:nowrap}
@@ -518,7 +538,7 @@ body.compact #log{width:164px;max-height:34vh}
     <div class="dpal" id="dbgPal"></div>
     <div class="dsec"><span id="dbgTip"></span> <button id="dbgStop" class="hidden">停止摆放</button></div>
     <div class="drow">已选中：<span id="dbgSel">—</span></div>
-    <div class="drow">等级 <button data-lv="1">一</button><button data-lv="2">二</button><button data-lv="3">三</button><button data-lv="4" title="车、兵、士能升四级">四</button>　血 <button data-hp="-1">−</button><button data-hp="1">＋</button></div>
+    <div class="drow">等级 <button data-lv="1">一</button><button data-lv="2">二</button><button data-lv="3">三</button><button data-lv="4" title="车、兵、士、相 / 象能升四级">四</button>　血 <button data-hp="-1">−</button><button data-hp="1">＋</button></div>
     <div class="drow">甲片（击杀数） <button data-xp="-1">−</button><button data-xp="1">＋</button>　<button id="dbgCd">清冷却</button></div>
     <div class="drow">军功 汉 <input id="dbgMr" type="number" min="0" max="30"> 楚 <input id="dbgMb" type="number" min="0" max="30"></div>
     <div class="drow">回合 <input id="dbgRound" type="number" min="1" max="200"> 走棋 <button data-turn="r">汉</button><button data-turn="b">楚</button></div>
@@ -636,7 +656,7 @@ body.compact #log{width:164px;max-height:34vh}
   <div class="opt"><div class="lbl">音乐音量</div><div class="vol"><input type="range" min="0" max="100" id="vMusic"></div></div>
   <div class="opt"><div class="lbl">音效音量</div><div class="vol"><input type="range" min="0" max="100" id="vSfx"></div></div>
   <div class="opt"><div class="lbl">语音音量</div><div class="vol"><input type="range" min="0" max="100" id="vVoice"></div></div>
-  <div class="opt"><div class="lbl">配音</div><div class="seg" data-s="voice"><button data-v="1">开</button><button data-v="0">关</button></div></div>
+  <div class="opt"><div class="lbl">配音<small>写实：有感情的新配音；原版：老味道</small></div><div class="seg" data-s="voice"><button data-v="2">写实</button><button data-v="1">原版</button><button data-v="0">关</button></div></div>
   </div>
   <div class="tabp hidden" data-t="etc">
   <div class="opt" id="optServer"><div class="lbl">自定义线路<small>一般不用填</small></div><input id="oServer" placeholder="wss://…/mqtt" style="flex:1;min-width:0;font-size:14px;padding:6px;border:1px solid #bba;background:rgba(255,255,255,.5)"></div>
@@ -726,9 +746,26 @@ body.compact #log{width:164px;max-height:34vh}
   · <b>被动技能</b>不用按按钮：能用时直接作为普通走法出现；同一回合里主动技能和被动技能可以一起用（例如架完拒马，再用回防后退一格）。<br>
   · 电脑上把鼠标停在按钮、兵法签或棋子上，手机上长按，可以看到说明；右侧「法」按钮是规则速览。选子后，打不死的目标头顶标「-1」「-2」，能一击杀死才标「殺」。<br>
   · <b>决战</b>：棋盘上双方的车、马、兵、炮都死光后，屏幕会提示进入决战——象、士、帅将都可以过河进攻（象仍走田、士仍走斜一格，只是不受河界九宫限制）；帅将按过河兵走（前、左、右各一格，不能后退），各有 3 点生命；没有将军——可以对脸、可以送将，帅将被打到 0 血就输；士的「铁甲禁卫」出了九宫也能用；<b>夺营</b>——帅将走进对方九宫后，对方再走三步还没把它打死（它自己也没走出九宫），就算获胜。<br>
-  · <b>主帅兵法</b>（每局一次）：刘邦「召回良将」复活一子；项羽「破釜沉舟」连走两步（不能以将军收尾），之后三回合不用技能。<br>
+  · <b>主帅兵法</b>（每局一次，只给落了下风的一方用）：己方车马炮最多还剩 3 枚、而且比对方少时才能用。刘邦「召回良将」复活一子；项羽「背水一战」连走两步——同一枚子走两步，或两枚子各走一步，合计最多吃一个子；只看两步走完：楚将不被将军、也不将着汉帅就行。发动后不能取消；用过的子下一回合不能动（被将军时可以去吃掉将军的那枚）。<br>
   · <b>终极兵法</b>（20 军功，每局一次）：楚「鸿门宴」——汉帅三回合不能动，但汉士可用「护驾」闯帐救驾、当场破解；汉「四面楚歌」——楚将 2 格内有 3 枚汉子时可发动，两回合内楚军只有将能照常走，其余的子不能移动、不能用技能，只能吃掉正在将军的那枚子，而且楚军这期间的威胁不算将军（汉方可借此解将）；楚军没被将军时也可以点「停着」不走。<br>
   · 同一子连续将军不得超过六回合。
+  </div>
+  <div id="helpR6" hidden>
+  <h3 style="margin-top:14px">本 局 的 试 行 规 则</h3>
+  <div class="help">
+  · 这一局用的是还在试的新规则，和上面写的有五处不同：<br>
+  · <b>攻击</b>：车、兵三级和四级攻击 2，马、炮三级攻击 2（一、二级都是 1）；士、相 / 象、帅将不变。<b>车四级 3 血</b>（不再是 4 血）。<br>
+  · <b>车升级</b>：10 / 12 / 20 功（原来 6 / 8 / 20）。<br>
+  · <b>召回良将</b>：死时一级的回来还是一级，二级、三级、四级的回来都是二级，血回满。<br>
+  · 召回的<b>当回合</b>可以花军功给召回的子升一级（每回合最多升一次；召回占这一回合，它这回合不能动）。<br>
+  · 召回的子<b>第一次升级半价</b>（单数向上取整，比如车一升二 5 功、二升三 6 功）；甲片照常抵价，攒够自动晋升的片数也减半；升过一次之后恢复原价。
+  </div>
+  </div>
+  <h3 style="margin-top:14px">音 效 素 材</h3>
+  <div class="help" style="font-size:13px;line-height:1.75;opacity:.85">
+  · 马蹄、马嘶、象鸣、猛兽吼声、脚步、投石命中等录音取自 <a href="https://wildfiregames.com" target="_blank" rel="noopener" style="color:inherit;text-decoration:underline">0 A.D.</a>（© Wildfire Games），按 <a href="https://creativecommons.org/licenses/by-sa/3.0/" target="_blank" rel="noopener" style="color:inherit;text-decoration:underline">CC BY-SA 3.0</a> 授权使用，做过剪辑、叠加和回声处理。<br>
+  · 炮响、爆炸取自 <a href="https://www.openclonk.org" target="_blank" rel="noopener" style="color:inherit;text-decoration:underline">OpenClonk</a>（作者 Benboncan、Checkmaty 等），按 <a href="https://creativecommons.org/licenses/by/3.0/" target="_blank" rel="noopener" style="color:inherit;text-decoration:underline">CC BY 3.0</a> 授权使用，做过降调和叠加。<br>
+  · 其余音效是公共领域（CC0）素材或程序合成。
   </div>
   <div class="row"><button class="btn small solid" id="bHelpClose">知道了</button></div>
 </div></div></div>
@@ -747,7 +784,7 @@ body.compact #log{width:164px;max-height:34vh}
   <div class="row"><button class="btn small" id="nameRnd">换个名号</button><button class="btn red solid" id="nameGo">入 席</button></div>
 </div></div></div>
 
-<div id="veil"><i></i><b></b></div>
+<div id="veil"><i></i><b></b><u><em></em><span><strong></strong><small></small></span></u></div>
 <div id="cdRed"></div><div id="cdBig"></div>
 <div id="stamp">將</div>
 <div id="banner"><div class="tw"><div class="t" id="bannerT"></div><span class="bseal">楚漢<br>逐鹿</span></div><div class="ln"></div><div class="s" id="bannerS"></div></div>

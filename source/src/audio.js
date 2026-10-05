@@ -54,11 +54,11 @@ const Sfx = (() => {
   const nb = () => { if (_nb) return _nb; const b = ctx.createBuffer(1, ctx.sampleRate * 3, ctx.sampleRate), d = b.getChannelData(0); for (let i = 0; i < d.length; i++) d[i] = Math.random() * 2 - 1; return (_nb = b); };
   function out(dest, pan) { if (pan === undefined || !ctx.createStereoPanner) return dest; const p = ctx.createStereoPanner(); p.pan.value = Math.max(-1, Math.min(1, pan)); p.connect(dest); return p; }
   function env(g, T, a, peak, dec, hold = 0) { g.gain.setValueAtTime(0.0001, T); g.gain.exponentialRampToValueAtTime(Math.max(0.0002, peak), T + a); if (hold) g.gain.setValueAtTime(Math.max(0.0002, peak), T + a + hold); g.gain.exponentialRampToValueAtTime(0.0001, T + a + hold + dec); }
-  // 播放录音
-  function smp(id, { t = 0, vol = 0.5, rate = 1, rj = 0.08, pan, dest, loop = false, dur, lp } = {}) {
+  // 播放录音。i = 指定第几段（不给就随机挑一段）；dur = 放到第几秒收住，最后 fade 秒淡出
+  function smp(id, { t = 0, vol = 0.5, rate = 1, rj = 0.08, pan, dest, loop = false, dur, lp, i, fade = 0.3 } = {}) {
     if (!ok()) return;
     const list = samples[id]; if (!list || !list.length) return;
-    const buf = list[Math.floor(Math.random() * list.length)]; if (!buf) return;
+    const buf = list[i == null ? Math.floor(Math.random() * list.length) : i % list.length]; if (!buf) return;
     const T = now() + Math.max(0, t);
     const s = ctx.createBufferSource(); s.buffer = buf; s.loop = loop;
     s.playbackRate.value = rate * (1 + (Math.random() * 2 - 1) * rj);
@@ -67,8 +67,28 @@ const Sfx = (() => {
     if (lp) { const f = ctx.createBiquadFilter(); f.type = 'lowpass'; f.frequency.value = lp; s.connect(f); node = f; }
     node.connect(g); g.connect(out(dest || sfxBus, pan ?? R(-0.4, 0.4)));
     s.start(T);
-    if (dur) { g.gain.setValueAtTime(vol, T + Math.max(0, dur - 0.3)); g.gain.linearRampToValueAtTime(0.0001, T + dur); s.stop(T + dur + 0.05); }
+    if (dur) { g.gain.setValueAtTime(vol, T + Math.max(0, dur - fade)); g.gain.linearRampToValueAtTime(0.0001, T + dur); s.stop(T + dur + 0.05); }
   }
+  // 把一段录音铺满 dur 秒：录音不够长就接着再放一遍（首尾交叠一点），到点淡出
+  function run(id, { t = 0, dur = 1, i, pan, rate = 1, fade = 0.4, ...o } = {}) {
+    const list = samples[id]; if (!ok() || !list || !list.length) return;
+    const k = i == null ? Math.floor(Math.random() * list.length) : i % list.length, buf = list[k]; if (!buf) return;
+    const len = buf.duration / rate, hop = Math.max(0.5, len - 0.25); pan = pan ?? R(-0.4, 0.4);
+    for (let a = 0; a < dur - 0.15; a += hop) smp(id, { ...o, i: k, rate, pan, t: t + a, dur: dur - a < len ? dur - a : undefined, fade: Math.min(fade, (dur - a) * 0.6) });
+  }
+  // 轮着用：同一组录音洗一遍牌挨个放，放完再洗（三门炮连着响，不会连出同一声）
+  const bags = {};
+  function pick(id) {
+    const n = samples[id] ? samples[id].length : 0; if (!n) return 0;
+    let b = bags[id]; if (!b || !b.length) { b = bags[id] = [...Array(n).keys()].sort(() => Math.random() - 0.5); }
+    return b.pop();
+  }
+  // —— 兵种台词和音效的衔接 ——
+  // 兵种一开口就登记“这句说到什么时候”；马、象、虎的脚步和叫声照着排：先台词，再脚步，最后叫声
+  let cue = 0;
+  const lineLeft = () => (ok() ? Math.max(0, cue - now()) : 0);
+  // 脚步该在多少秒后起：压着台词的尾音（tight 秒）进来。小队照这个时间起步，画面和声音才对得上
+  const after = (tight = 0.45) => { const L = lineLeft(); return L > tight ? L - tight : 0; };
   function nz({ t = 0, dur = 0.3, type = 'lowpass', f = 800, f2, q = 1, vol = 0.4, a = 0.004, hold = 0, pan, dest } = {}) {
     if (!ok()) return;
     const T = now() + Math.max(0, t);
@@ -137,9 +157,15 @@ const Sfx = (() => {
   //  基础音效
   // ======================================================================
   const has = id => !!(samples[id] && samples[id].length);
+  // 真实录音相对旧的合成音的音量系数（各处调用还是按旧的习惯传 v）
+  const HOOF_GAIN = 1.7, NEIGH_GAIN = 5, CRY_GAIN = 2.6, MARCH_GAIN = 1.5;
+  // 鼓点回调：每敲一下大鼓（音效也好、配乐也好）知会一声，场边擂鼓的士兵跟着动。t = 多少秒后响，v = 多响
+  let drumCb = null;
+  const drumHit = (t, v) => { if (drumCb) try { drumCb(Math.max(0, t || 0), v == null ? 0.8 : v); } catch (e) { } };
   const B = {
     // 战鼓：真实大鼓录音降调 + 鼓皮拍击，合成低频只作补底
     taiko(t = 0, v = 0.9, p = 1, pan, dest) {
+      drumHit(t, v);
       if (has('drum')) {
         smp('drum', { t, vol: v * 0.95, rate: 0.72 * p, rj: 0.05, pan, dest });
         smp('soft', { t, vol: v * 0.22, rate: 0.55 * p, pan, dest });
@@ -153,10 +179,10 @@ const Sfx = (() => {
     },
     shime(t = 0, v = 0.4, pan, dest) { tn({ t, f: 330, f2: 250, dur: 0.12, vol: v * 0.5, pan, dest }); nz({ t, dur: 0.05, type: 'bandpass', f: 2500, q: 2, vol: v * 0.5, pan, dest }); },
     step(t = 0, v = 0.3, pan) { smp('step', { t, vol: v, pan, rate: R(0.8, 1.1), lp: 2600 }); },
-    march(t = 0, dur = 1.5, men = 12, v = 0.22, rate = 0.5) {
-      const n = Math.min(men, 10);
-      for (let i = 0; i < n; i++) { const off = R(0, 0.1), pan = R(-0.7, 0.7); for (let k = 0; k * rate < dur; k++) B.step(t + k * rate + off, v * R(0.5, 1), pan); }
-      for (let k = 0; k * rate * 2 < dur; k++) smp('chain', { t: t + k * rate * 2 + R(0, 0.1), vol: 0.07, rate: R(0.9, 1.2) });
+    // 行军脚步：真实脚步录音。5 人以上用“一队人行军”那条，1～3 人用对应人数的那条（都是不加处理的原声）
+    march(t = 0, dur = 1.5, men = 12, v = 0.22, quick = false) {
+      const id = men >= 5 ? 'troop' : 'foot' + Math.max(1, Math.min(3, Math.round(men)));
+      run(id, { t, dur: dur + 0.35, vol: v * MARCH_GAIN * (men >= 5 ? 1 : [1.5, 1.5, 1.25, 1.1][Math.max(1, Math.min(3, Math.round(men)))]), rate: quick ? 1.18 : 1, rj: 0.02 });
     },
     clang(t = 0, v = 0.4, pan) { smp(Math.random() < 0.5 ? 'metal' : 'blade', { t, vol: v, pan, rate: R(0.85, 1.15) }); },
     plate(t = 0, v = 0.4) { smp('plate', { t, vol: v }); },
@@ -183,39 +209,30 @@ const Sfx = (() => {
         nz({ t: tt, dur: d, type: 'bandpass', f: 1500, q: 1, vol: v * 0.2, a: 0.05, pan });
       }
     },
-    hooves(t = 0, dur = 1.5, horses = 1, v = 0.3, rate = 0.36) {
-      for (let h = 0; h < horses; h++) {
-        const off = R(0, rate), pan = R(-0.6, 0.6);
-        for (let k = 0; k * rate < dur; k++) for (const s of [0, 0.07, 0.15]) {
-          const tt = t + off + k * rate + s + R(0, 0.012);
-          // 马蹄：木块撞击录音升调（拟音师的老办法），加一点泥土低频
-          if (has('wood')) { smp('wood', { t: tt, vol: v * 0.5, rate: R(1.5, 2.0), pan, lp: 2400, rj: 0.04 }); nz({ t: tt, dur: 0.05, type: 'lowpass', f: R(160, 220), vol: v * 0.45, pan }); }
-          else nz({ t: tt, dur: 0.06, type: 'lowpass', f: R(170, 260), vol: v, pan });
-          if (k % 2 === 0 && s === 0) smp('step', { t: tt, vol: v * 0.35, rate: R(0.5, 0.65), pan, lp: 1200 });
-        }
-      }
+    // 马蹄：真实录音（做过“踏在土上”的处理）。几匹马叠几层，最多三层：每层换一段录音、明显错开、快慢略有不同
+    hooves(t = 0, dur = 1.5, horses = 1, v = 0.3) {
+      const L = samples.hoofr ? samples.hoofr.length : 0; if (!L) return;
+      const n = Math.max(1, Math.min(3, Math.round(horses))), first = Math.floor(Math.random() * L);
+      const offs = [0, R(0.17, 0.3), R(0.38, 0.55)], rates = [1, R(0.9, 0.95), R(1.06, 1.12)], gains = [1, 0.8, 0.67];
+      for (let i = 0; i < n; i++) run('hoofr', { i: first + i * 2, t: t + offs[i], dur: Math.max(0.6, dur - offs[i]), vol: v * HOOF_GAIN * gains[i], rate: rates[i], rj: 0, pan: [0, -0.45, 0.45][i] + R(-0.15, 0.15) });
     },
-    neigh(t = 0, v = 0.12) {
-      if (!ok()) return;
-      const T = now() + t;
-      const o = ctx.createOscillator(); o.type = 'sawtooth';
-      o.frequency.setValueAtTime(520, T); o.frequency.linearRampToValueAtTime(980, T + 0.18); o.frequency.linearRampToValueAtTime(760, T + 0.5); o.frequency.linearRampToValueAtTime(420, T + 1.0);
-      const l = ctx.createOscillator(); l.frequency.value = 11; const lg = ctx.createGain(); lg.gain.value = 70; l.connect(lg); lg.connect(o.frequency);
-      const g = ctx.createGain(); g.gain.setValueAtTime(0.0001, T); g.gain.linearRampToValueAtTime(v, T + 0.08); g.gain.setValueAtTime(v, T + 0.7); g.gain.linearRampToValueAtTime(0.0001, T + 1.05);
-      const m = ctx.createGain();
-      for (const [fm, q] of [[1100, 4], [2600, 5]]) { const bp = ctx.createBiquadFilter(); bp.type = 'bandpass'; bp.frequency.value = fm; bp.Q.value = q; o.connect(bp); bp.connect(m); }
-      m.connect(g); g.connect(sfxBus);
-      o.start(T); l.start(T); o.stop(T + 1.1); l.stop(T + 1.1);
-      smp('breath', { t: t + 0.9, vol: v * 1.5, rate: 0.7 });
-    },
+    // 马嘶：真实录音。kind：'m' 行进时、'a' 进攻、'd' 倒地
+    neigh(t = 0, v = 0.12, kind = 'm') { smp(kind === 'a' ? 'neigha' : kind === 'd' ? 'neighd' : 'neighm', { t, vol: v * NEIGH_GAIN, rj: 0.03 }); },
     snort(t = 0, v = 0.2) { smp('breath', { t, vol: v, rate: R(0.6, 0.8) }); },
+    // 虎啸 / 低吼：有真实录音（tiger、tigergrowl）就用，没有就拿现成的兽吼压低了顶上
+    roar(t = 0, v = 0.6, fall = false, atk = false) { if (atk && has('tigeratk')) smp('tigeratk', { t, vol: v, rj: 0.02 }); else if (has('tiger')) smp('tiger', { t, vol: v, rate: fall ? 0.86 : 1, rj: 0.02 }); else smp('roar', { t, vol: v, rate: fall ? 0.6 : 0.78 }); },
+    growl(t = 0, v = 0.3) { if (has('tigergrowl')) smp('tigergrowl', { t, vol: v, rate: R(0.92, 1.05) }); else smp('roar', { t, vol: v * 0.5, rate: 0.5, lp: 900 }); },
     wheels(t = 0, dur = 1.5, v = 0.4) { smp('rolling', { t, vol: v, loop: true, dur: dur + 0.2, rate: R(0.7, 0.9) }); nz({ t, dur, type: 'lowpass', f: 140, vol: v * 0.8, a: 0.2, hold: dur * 0.5 }); },
     whip(t = 0) { nz({ t, dur: 0.06, type: 'highpass', f: 2500, vol: 0.6 }); smp('swing', { t: t - 0.06, vol: 0.2, rate: 1.4 }); },
     horn(t = 0, dur = 2.2, f = 98, v = 0.2) { voiceOsc({ t, f, dur, vol: v, cut: 350, cut2: 1400, q: 2, a: 0.25, rel: 0.6, vib: 0.006, detune: 6, bend: 0.8 }); voiceOsc({ t, f: f / 2, dur, vol: v * 0.6, type: 'square', cut: 250, cut2: 600, a: 0.3, rel: 0.6, bend: 0.8 }); },
     boom(t = 0, big = 1) { smp('boom', { t, vol: 0.9 * big, rate: R(0.7, 0.9) }); tn({ t, f: 60, f2: 26, dur: 1.4 * big, vol: 0.9 }); nz({ t, dur: 1.6 * big, type: 'lowpass', f: 1400, f2: 90, vol: 0.5 }); smp('rockfall', { t: t + 0.4, vol: 0.25 * big }); },
     cannon(t = 0) { smp('cannon', { t, vol: 1, rate: R(0.85, 1) }); tn({ t, f: 55, f2: 30, dur: 1.1, vol: 0.8 }); nz({ t: t + 0.05, dur: 2.2, type: 'lowpass', f: 300, f2: 80, vol: 0.3, a: 0.1 }); },
-    fuse(t = 0, dur = 0.5) { for (let i = 0; i < dur / 0.03; i++) nz({ t: t + i * 0.03, dur: 0.02, type: 'highpass', f: R(3000, 7000), vol: R(0.05, 0.14) }); },
-    whistle(t = 0, dur = 1) { tn({ t, f: 1500, f2: 520, dur, vol: 0.05, a: 0.1 }); nz({ t, dur, type: 'bandpass', f: 1200, f2: 500, q: 8, vol: 0.08, a: 0.1 }); },
+    // 巨炮：三条成品（实录炮响 + 爆炸 + 火药爆炸叠出来的）轮着用；small = 技能模式一级的初级炮
+    bigCannon(t = 0, v = 1, small = false) { if (small && has('cannon1')) smp('cannon1', { t, vol: v * 0.8, rj: 0.03 }); else if (has('bigcannon')) smp('bigcannon', { i: pick('bigcannon'), t, vol: v, rj: 0.03 }); else B.cannon(t); },
+    // 炮弹炸开：三条成品（爆炸 + 投石命中）轮着用
+    blast(t = 0, v = 1, small = false) { if (has('blast')) smp('blast', { i: pick('blast'), t, vol: v * (small ? 0.55 : 1), rate: small ? 1.15 : 1, rj: 0.03 }); else B.boom(t, v); },
+    fuse(t = 0, dur = 0.5) { if (has('fuse')) { smp('fuse', { t, vol: 0.5, rj: 0.04, dur: Math.max(0.3, dur + 0.25), fade: 0.2 }); return; } for (let i = 0; i < dur / 0.03; i++) nz({ t: t + i * 0.03, dur: 0.02, type: 'highpass', f: R(3000, 7000), vol: R(0.05, 0.14) }); },
+    whistle(t = 0, dur = 1) { tn({ t, f: 1500, f2: 520, dur, vol: 0.09, a: 0.1 }); nz({ t, dur, type: 'bandpass', f: 1200, f2: 500, q: 8, vol: 0.16, a: 0.1 }); },
     bowDraw(t = 0) { smp('creak', { t, vol: 0.15, rate: 1.6 }); nz({ t, dur: 0.4, type: 'bandpass', f: 900, q: 5, vol: 0.05, a: 0.3 }); },
     twang(t = 0, n = 7) { for (let i = 0; i < n; i++) smp('bow', { t: t + R(0, 0.12), vol: 0.4, rate: R(0.85, 1.2), pan: R(-0.7, 0.7) }); },
     arrows(t = 0, n = 14) { for (let i = 0; i < n; i++) nz({ t: t + i * 0.03 + R(0, 0.05), dur: 0.35, type: 'bandpass', f: R(1800, 3200), f2: 900, q: 6, vol: 0.09, pan: R(-0.8, 0.8) }); },
@@ -233,23 +250,16 @@ const Sfx = (() => {
       for (const [f, g, d] of [[98, 0.45, 5], [147, 0.25, 4], [233, 0.15, 3.5], [311, 0.1, 3], [415, 0.06, 2]]) tn({ t, f, f2: f * 0.985, dur: d, vol: g * v, a: 0.01, dest }); nz({ t, dur: 0.3, type: 'bandpass', f: 600, q: 1, vol: 0.15 * v, dest }); },
     bell(t = 0, f = 880, v = 0.12) { for (const [r, g, d] of [[1, 1, 2.4], [2.7, 0.4, 1.4], [5.1, 0.2, 0.8]]) tn({ t, f: f * r, dur: d, vol: v * g, dest: musicBus }); },
     tick(t = 0, v = 0.3) { tn({ t, f: 1150, f2: 900, dur: 0.05, vol: v }); nz({ t, dur: 0.015, type: 'highpass', f: 4000, vol: v * 0.5 }); },
-    trumpet(t = 0, v = 0.22, fall = false) { // 象鸣
-      if (!ok()) return;
-      const T = now() + t;
-      const o = ctx.createOscillator(); o.type = 'sawtooth';
-      o.frequency.setValueAtTime(fall ? 700 : 380, T); o.frequency.linearRampToValueAtTime(fall ? 900 : 760, T + 0.2); o.frequency.linearRampToValueAtTime(fall ? 260 : 640, T + (fall ? 1.6 : 1.1));
-      const l = ctx.createOscillator(); l.frequency.value = 23; const lg = ctx.createGain(); lg.gain.value = 60; l.connect(lg); lg.connect(o.frequency);
-      const vs = has('trumpet') ? v * 0.45 : v;
-      const g = ctx.createGain(); g.gain.setValueAtTime(0.0001, T); g.gain.linearRampToValueAtTime(vs, T + 0.1); g.gain.setValueAtTime(vs, T + (fall ? 1.2 : 0.8)); g.gain.linearRampToValueAtTime(0.0001, T + (fall ? 1.8 : 1.2));
-      const bp = ctx.createBiquadFilter(); bp.type = 'bandpass'; bp.frequency.value = 1200; bp.Q.value = 1.5;
-      o.connect(bp); bp.connect(g); g.connect(sfxBus); o.start(T); l.start(T); o.stop(T + 2); l.stop(T + 2);
-      if (has('trumpet')) smp('trumpet', { t, vol: v * 2.4, rate: fall ? 1.15 : R(1.55, 1.8), rj: 0.03 });
-      else smp('roar', { t, vol: v * 0.8, rate: fall ? 0.9 : 1.3 });
+    // 象鸣：真实大象录音，三声随机；i 指定用哪一声（0 = 行进时那声）。第二声录得偏响，压一点
+    trumpet(t = 0, v = 0.22, i) {
+      const n = samples.elecry ? samples.elecry.length : 0; if (!n) return;
+      const k = i == null ? Math.floor(Math.random() * n) : i % n;
+      smp('elecry', { i: k, t, vol: v * CRY_GAIN * (k === 1 ? 0.7 : 1), rj: 0.02 });
     },
     stompHeavy(t = 0, v = 0.6) {
       if (has('stomp')) { smp('stomp', { t, vol: v, rate: R(0.7, 0.85) }); smp('drum', { t, vol: v * 0.5, rate: 0.5, rj: 0.05 }); return; }
       tn({ t, f: 50, f2: 30, dur: 0.4, vol: v }); nz({ t, dur: 0.2, type: 'lowpass', f: 180, vol: v * 0.6 }); },
-    heave(t = 0) { // 炮手号子"嘿——呦"
+    heave(t = 0) { // 炮手号子"嘿——呦"（合成的人声，现在不用了：炮手有真人台词）
       for (const [dt, f0, f1] of [[0, 180, 150], [0.5, 150, 200]]) for (let i = 0; i < 3; i++) voiceOsc({ t: t + dt + R(0, 0.04), f: f0 * R(0.95, 1.05), dur: 0.38, vol: 0.05, cut: 1100, q: 3, a: 0.04, rel: 0.2, bend: f1 / f0 });
     },
     cheer(t = 0, v = 1) {
@@ -274,68 +284,80 @@ const Sfx = (() => {
   //  各兵种音效套组（与方案表一致）
   // ======================================================================
   const U = {
-    // 兵：慢鼓 + 大量整齐脚步 + 甲片；冲锋：急鼓 + 喊杀 + 矛刺 + 兵器碰撞
+    // 兵：真实的行军脚步（不擂鼓）。n = 技能模式里这一队几个人（0 = 普通模式的整队）；冲锋：一队人跑步的原声；接敌：矛刺 + 兵器碰撞 + 喊杀
     inf: {
-      move(dur = 1.3) { for (let k = 0; k * 0.62 < dur + 0.3; k++) B.taiko(k * 0.62, 0.45, 1.05); B.march(0.05, dur, 14, 0.24, 0.5); },
-      charge(dur = 1) { for (let k = 0; k < 10; k++) B.taiko(k * 0.1, 0.35 + k * 0.03, 1.1); B.shout(0.1, 12, 0.1, 0.9); B.march(0, dur, 12, 0.3, 0.26); },
+      move(dur = 1.3, n = 0) { B.march(0.05, dur, n || 12, 0.24); },
+      charge(dur = 1, n = 0) { smp('trooprun', { t: 0, vol: 0.6 * (n ? [0.6, 0.6, 0.75, 0.9][Math.min(3, n)] : 1), rj: 0.02, dur: dur + 0.5, fade: 0.4 }); },
       impact() { for (let i = 0; i < 4; i++) B.stab(i * 0.08 + R(0, 0.04), 0.4); B.clang(0.02, 0.4); B.clang(0.12, 0.35); B.shout(0.05, 6, 0.08, 0.5); },
     },
     // 车：扬鞭 + 车轮滚滚 + 驷马小跑
     chariot: {
-      move(dur = 1) { B.whip(0); B.wheels(0.05, dur + 0.2, 0.4); B.hooves(0.05, dur, 2, 0.2, 0.3); B.creak(0.2, 0.06); },
-      charge(dur = 2) { B.horn(0, 1.4, 110, 0.18); for (let k = 0; k < 8; k++) B.taiko(0.1 + k * 0.14, 0.4, 1); B.whip(0.3); B.wheels(0.3, dur, 0.55); B.hooves(0.3, dur, 4, 0.3, 0.26); B.neigh(0.5, 0.1); B.shout(0.4, 6, 0.08); },
-      impact() { B.woodbreak(0, 0.7); B.boom(0.02, 0.4); B.clang(0.03, 0.35); B.neigh(0.15, 0.09); for (let i = 0; i < 5; i++) B.stab(R(0.02, 0.3), 0.3); },
-      destroy() { B.woodbreak(0, 0.8); B.woodbreak(0.15, 0.6); smp('hit', { t: 0.3, vol: 0.4 }); B.neigh(0.1, 0.12); smp('metalfall', { t: 0.4, vol: 0.3 }); },
+      move(dur = 1) { B.whip(0); B.wheels(0.05, dur + 0.2, 0.4); B.hooves(0.05, dur + 0.4, 2, 0.2); B.creak(0.2, 0.06); },
+      charge(dur = 2) { B.horn(0, 1.4, 110, 0.18); for (let k = 0; k < 8; k++) B.taiko(0.1 + k * 0.14, 0.4, 1); B.whip(0.3); B.wheels(0.3, dur, 0.55); B.hooves(0.3, dur, 3, 0.3); B.neigh(0.5, 0.1, 'a'); B.shout(0.4, 6, 0.08); },
+      impact() { B.woodbreak(0, 0.7); B.boom(0.02, 0.4); B.clang(0.03, 0.35); B.neigh(0.15, 0.09, 'a'); for (let i = 0; i < 5; i++) B.stab(R(0.02, 0.3), 0.3); },
+      destroy() { B.woodbreak(0, 0.8); B.woodbreak(0.15, 0.6); smp('hit', { t: 0.3, vol: 0.4 }); B.neigh(0.1, 0.12, 'd'); smp('metalfall', { t: 0.4, vol: 0.3 }); },
     },
-    // 马：单骑马蹄 + 鞍具叮当 + 马鼻息；冲锋：马嘶 + 拔刀 + 蹄声如雷
+    // 马：全用真实录音。n = 叠几层马蹄（普通模式 3 层；技能模式一级 1 层、二级 2 层、三级起 3 层）
     cav: {
-      move(dur = 1.2) { B.hooves(0, dur, 2, 0.28, 0.33); smp('chain', { t: 0.1, vol: 0.12 }); B.snort(0.4, 0.2); },
-      charge(dur = 1.8) { B.neigh(0, 0.12); B.ring(0.3, 0.3); B.hooves(0.2, dur, 3, 0.34, 0.3); for (let k = 0; k < 6; k++) B.taiko(0.2 + k * 0.2, 0.35, 1.2); B.shout(0.5, 5, 0.08); },
+      // 移动：台词 → 马蹄（压着台词尾音起）→ 马嘶（马蹄过半之后）。返回马蹄几秒后起，马队照这个时间起步
+      move(dur = 1.2, n = 3) { const w = after(), len = Math.max(2.2, dur + 0.7); B.hooves(w, len, n, 0.3); smp('chain', { t: w + 0.1, vol: 0.1 }); B.neigh(w + len * 0.62, 0.12, 'm'); return w; },
+      // 进攻：战争马蹄垫在台词下面一起跑，台词一完马嘶就起
+      charge(dur = 1.8, n = 3) { const L = lineLeft(); smp('hoofwar', { t: 0.1, vol: (L ? 0.36 : 0.55) * [1, 0.75, 0.88, 1][Math.min(3, n)], rj: 0.02, dur: Math.max(2, dur + 0.6), fade: 0.5 }); B.neigh(Math.max(L + 0.02, 0.9), 0.14, 'a'); },
       impact() { B.whoosh(0, 0.18, 0.5); smp('blade', { t: 0.08, vol: 0.5 }); B.stab(0.1, 0.5); B.shout(0.2, 4, 0.08, 0.4); },
-      die() { B.neigh(0, 0.13); B.neigh(0.25, 0.1); B.thud(0.6, 0.6); },
+      die() { B.neigh(0, 0.14, 'd'); B.thud(0.6, 0.6); },
     },
-    // 炮：炮车吱呀 + 推车号子；开炮：三通鼓 + 引信 + 炮响 + 呼啸 + 爆炸
+    // 炮：移动 = 炮车轮子滚动 + 吱呀；开炮 = 台词说完直接点引信 → 炮响；另一组 = 炮弹呼啸 → 落地炸开 + 碎石
+    //   lv = 技能模式的等级（0 = 普通模式）：一级用初级炮，其余用巨炮
     cannon: {
-      move(dur = 1) { B.wheels(0, dur, 0.25); for (let k = 0; k * 0.7 < dur; k++) B.creak(k * 0.7, 0.07); B.heave(0.1); if (dur > 1.2) B.heave(1.2); },
-      ready() { B.taiko(0, 0.7); B.taiko(0.25, 0.7); B.taiko(0.5, 0.9, 0.9); B.creak(0.6, 0.08); },
-      fire(i) { B.fuse(0, 0.12); B.cannon(0.12); B.whistle(0.35, 0.9); },
-      explode(big) { B.boom(0, big ? 1.2 : 0.7); },
+      move(dur = 1) { const w = after(0.75); B.wheels(w, dur, 0.25); for (let k = 0; k * 0.7 < dur; k++) B.creak(w + k * 0.7, 0.07); return w; },
+      ready() { B.creak(0.1, 0.08); },
+      fire(i, lv = 0) { B.fuse(0, 0.14); B.bigCannon(0.14, 1, lv === 1); B.whistle(0.4, 0.9); },
+      explode(big, lv = 0) { const sm = lv === 1; B.blast(0, big ? 1 : 0.75, sm); smp('rockfall', { t: 0.35, vol: (big ? 0.3 : 0.18) * (sm ? 0.6 : 1) }); },
       destroy() { B.boom(0.1, 0.7); B.woodbreak(0.05, 0.6); B.metalfall(0.3, 0.5); smp('metalfall', { t: 0.6, vol: 0.3, rate: 0.7 }); },
-      impact() { B.boom(0, 0.8); },
+      impact() { B.blast(0, 0.9); },
     },
     // 相（汉弩）：轻步 + 弩机上弦；齐射：弦响 + 箭雨 + 钉入
     xbow: {
-      move(dur = 0.8) { B.march(0, dur, 5, 0.16, 0.4); smp('metal', { t: 0.1, vol: 0.1, rate: 1.8 }); },
+      move(dur = 0.8) { B.march(0, dur, 3, 0.2); smp('metal', { t: 0.1, vol: 0.1, rate: 1.8 }); },
       draw() { B.bowDraw(0); B.bowDraw(0.12); smp('metal', { t: 0.3, vol: 0.12, rate: 1.9 }); B.taiko(0, 0.4); },
       release() { B.twang(0, 8); B.arrows(0.06, 16); },
       impact() { B.thunks(0, 12); B.shout(0.1, 3, 0.06, 0.4); },
     },
-    // 象（楚战象）：沉重低频脚步 + 象鸣；冲锋：象嘶 + 践踏 + 火把
+    // 相（汉虎骑）：和马一个路数。移动：台词 → 慢步 → 一声压低了的虎啸；进攻：台词压着窜出的脚步，台词一完就是那声进攻的虎啸
+    tiger: {
+      move(dur = 1.2) { const w = after(), len = Math.min(2.8, dur + 0.8); run('paws', { t: w, dur: len, vol: 0.4, rj: 0.02 }); B.roar(w + len * 0.62, 0.36); return w; },
+      roar() { B.roar(lineLeft() + 0.02, 0.8, false, true); },
+      charge() { B.whoosh(0.05, 0.4, 0.4); smp('paws', { t: 0.1, vol: lineLeft() ? 0.3 : 0.45, rate: 1.5, rj: 0.02, dur: 1.3 }); },
+      impact() { B.stab(0, 0.55); B.thud(0.02, 0.5); smp('slash', { t: 0, vol: 0.4 }); },
+      die() { B.roar(0, 0.5, true); },
+    },
+    // 象（楚战象）：和马一个路数，全用真实录音。移动：台词 → 重步 → 象鸣；进攻：台词压着奔踏，台词一完象鸣；倒地也是一声象鸣（三声随机）
     ele: {
-      move(dur = 1.4) { for (let k = 0; k * 0.55 < dur; k++) B.stompHeavy(k * 0.55, 0.55); smp('rumble', { t: 0.15, vol: 0.4, rate: 0.75, dur: Math.min(3, dur + 0.6) }); B.trumpet(0.25, 0.14); smp('chain', { t: 0.3, vol: 0.12, rate: 0.6 }); smp('chain', { t: 0.3 + dur * 0.5, vol: 0.1, rate: 0.55 }); },
+      move(dur = 1.4) { const w = after(), len = dur + 0.5; run('elestep', { t: w, dur: len, vol: 0.5, rj: 0.02 }); smp('chain', { t: w + 0.3, vol: 0.12, rate: 0.6 }); B.trumpet(w + Math.min(len * 0.62, 1.8), 0.2, 0); return w; },
       trumpet() { B.trumpet(0, 0.24); },
-      charge(dur = 1.2) { for (let k = 0; k * 0.3 < dur; k++) B.stompHeavy(k * 0.3, 0.55); nz({ dur, type: 'bandpass', f: 600, f2: 1400, q: 0.8, vol: 0.12, a: 0.3 }); B.shout(0.2, 5, 0.07); },
+      charge(dur = 1.2) { smp('elerun', { t: 0.1, vol: lineLeft() ? 0.36 : 0.55, rj: 0.02, dur: Math.max(2, dur + 0.9), fade: 0.5 }); },
+      cry() { B.trumpet(lineLeft() + 0.02, 0.24); },
       stomp() { B.boom(0, 0.5); B.stompHeavy(0, 0.9); smp('rockfall', { t: 0.05, vol: 0.5 }); for (let i = 0; i < 4; i++) B.stab(R(0.02, 0.2), 0.3); },
-      dieCry() { B.trumpet(0, 0.26, true); },
+      dieCry() { B.trumpet(0, 0.26); },
       impact() { B.stompHeavy(0, 0.8); },
     },
     // 士：甲叶叮当 + 盾牌相击；近身：刀出鞘 + 盾撞 + 刀砍
     guard: {
-      move(dur = 0.8) { B.march(0, dur, 2, 0.3, 0.35); smp('chain', { t: 0, vol: 0.2 }); B.plate(0.3, 0.2); },
+      move(dur = 0.8, n = 2) { B.march(0, dur, n || 2, 0.26); smp('chain', { t: 0, vol: 0.2 }); B.plate(0.3, 0.2); },
       charge() { B.ring(0, 0.3); B.ring(0.08, 0.25); B.shout(0.2, 3, 0.1, 0.5); },
       impact() { B.whoosh(0, 0.12, 0.45); smp('blade', { t: 0.05, vol: 0.45 }); B.plate(0.1, 0.45); B.stab(0.14, 0.4); },
     },
     // 帅（刘邦）：一声铜锣 + 亲兵脚步；亲斩：号角 + 锣 + 拔剑 + 剑鸣 + 万人呐喊
     liu: {
-      move(dur = 1) { B.gong(0, 0.35); B.march(0.05, dur, 4, 0.28, 0.45); smp('chain', { t: 0.2, vol: 0.1 }); },
+      move(dur = 1) { B.gong(0, 0.35); B.march(0.05, dur, 3, 0.26); smp('chain', { t: 0.2, vol: 0.1 }); },
       charge() { B.horn(0, 1.6, 98, 0.2); B.gong(0.1, 0.8); for (let k = 0; k < 5; k++) B.taiko(0.2 + k * 0.15, 0.5, 0.9); },
       draw() { smp('unsheathe', { vol: 0.55, rate: 0.9 }); },
       impact() { B.whoosh(0, 0.2, 0.55); smp('blade', { t: 0.05, vol: 0.6, rate: 0.8 }); B.whoosh(0.2, 0.2, 0.5); smp('blade', { t: 0.25, vol: 0.5 }); B.shout(0.3, 14, 0.08, 1.0); },
     },
     // 将（项羽）：铜锣 + 乌骓马蹄；亲斩：号角 + 锣 + 大刀破风 + 裂地 + 万人呐喊
     xiang: {
-      move(dur = 1) { B.gong(0, 0.4); B.hooves(0.05, dur, 1, 0.3, 0.4); B.snort(0.3, 0.2); },
-      charge() { B.horn(0, 1.6, 87, 0.22); B.gong(0.1, 0.9); B.neigh(0.2, 0.12); B.hooves(0.2, 1, 1, 0.36, 0.28); for (let k = 0; k < 5; k++) B.taiko(0.2 + k * 0.14, 0.55, 0.85); },
+      move(dur = 1) { B.gong(0, 0.4); B.hooves(0.05, dur + 0.4, 1, 0.3); B.snort(0.3, 0.2); },
+      charge() { B.horn(0, 1.6, 87, 0.22); B.gong(0.1, 0.9); B.neigh(0.2, 0.12, 'a'); B.hooves(0.2, 1.4, 1, 0.36); for (let k = 0; k < 5; k++) B.taiko(0.2 + k * 0.14, 0.55, 0.85); },
       impact() { smp('twirl', { vol: 0.5, rate: 0.7 }); B.boom(0.1, 0.6); B.clang(0.1, 0.5); smp('rockfall', { t: 0.2, vol: 0.5 }); B.shout(0.35, 16, 0.08, 1.1); },
     },
   };
@@ -349,7 +371,20 @@ const Sfx = (() => {
   const N = { D2: 73.42, E2: 82.41, F2: 87.31, G2: 98, A2: 110, C3: 130.81, D3: 146.83, E3: 164.81, F3: 174.61, G3: 196, A3: 220, B3: 246.94, C4: 261.63, D4: 293.66, E4: 329.63, F4: 349.23, Fs4: 369.99, G4: 392, A4: 440, B4: 493.88, C5: 523.25, D5: 587.33, E5: 659.26, F5: 698.46, Fs5: 739.99, G5: 783.99, A5: 880 };
   // 五声音阶（D 商调）
   const PENTA = [N.D3, N.E3, N.G3, N.A3, N.C4, N.D4, N.E4, N.G4, N.A4, N.C5, N.D5];
+  // 战意：一首录好的古风战斗曲（music-war.mp3，和网页放在一起，选了「战意」才去取）。循环播放，首尾交叠 1.6 秒；
+  //   还没取回来时先不出声；确实取不到（比如把网页存到本地单独打开）才用下面合成的那一套顶着
+  const WAR = { url: 'music-war.mp3?v=1', buf: null, loading: false, failed: false, gain: 0.5, xf: 1.6,
+    hits: [0.36,0.8,0.59,0.6,1.95,0.7,2.14,0.6,2.47,1.0,2.74,0.8,4.15,0.7,4.34,0.5,4.71,0.8,4.94,0.5,5.16,0.5,6.28,0.7,6.55,0.5,7.33,0.7,7.52,0.5,8.97,0.7,9.28,0.6,9.94,0.5,11.0,0.8,11.37,0.6,13.06,0.8,13.25,0.5,13.46,0.5,15.22,0.8,15.62,0.5,17.23,0.7,17.44,0.6,17.64,0.5,18.04,0.5,19.31,0.8,19.54,0.6,19.95,0.5,20.39,0.6,21.23,0.5,21.43,0.6,21.63,0.7,22.27,0.5,22.79,0.5,23.51,0.6,23.69,0.5,23.89,0.5,24.17,0.5,24.48,0.5,25.34,0.5,25.59,0.7,25.89,0.5,26.1,0.5,26.32,0.5,26.57,0.5,27.66,1.0,27.84,0.5,28.17,0.5,28.63,0.5,29.0,0.6,29.75,0.8,31.83,1.0,33.84,0.6,34.21,0.6,35.03,0.5,35.31,0.5,35.6,0.6,35.99,0.8,36.29,0.6,36.53,0.5,37.2,0.5,37.67,0.5,38.0,0.7,38.22,0.5,38.44,0.6,38.78,0.5,39.68,0.5,40.02,0.5,40.3,0.7,40.56,0.5,41.25,0.6,41.89,0.5,42.23,0.7,42.47,0.6,43.05,0.5,43.41,0.5,43.6,0.5,43.82,0.5,44.12,0.5,44.31,0.7,44.53,0.5,44.83,0.5,45.26,0.5,45.66,0.6,45.85,0.6,46.39,0.7,46.66,0.5,48.41,0.6,48.59,0.5,48.77,0.5,50.48,0.7,50.86,0.5,52.56,0.8,52.76,0.5,52.94,0.5,54.64,0.6,55.01,0.5,56.73,0.7,56.91,0.5,58.88,0.8,59.11,0.5,60.89,0.7,61.07,0.5,62.95,0.9,63.17,0.6,65.0,0.7,65.28,0.5,67.08,0.7,67.33,0.6,67.97,0.5,68.48,0.5,68.93,0.5,69.16,0.7,69.42,0.6,69.74,0.6,69.92,0.5,70.46,0.5,70.82,0.5,71.06,0.6,71.31,0.7,71.61,0.5,72.21,0.5,72.68,0.5,73.3,0.8,73.56,0.6,73.85,0.5,74.17,0.5,74.49,0.5,74.97,0.5,75.19,0.5,75.47,0.8,75.75,0.6,76.12,0.5,76.46,0.5,77.45,0.7,77.82,0.6,78.35,0.5,78.59,0.5,79.33,0.6,79.53,0.8,79.94,0.5,80.2,0.6,80.88,0.5,81.61,0.6,81.82,0.6,82.05,0.5,82.31,0.5,82.51,0.5,82.74,0.5,83.71,0.9] };   // 曲子里的大鼓点 [秒, 力度, 秒, 力度…]：场边的擂鼓兵照着敲
+  function loadWar() {
+    if (WAR.buf || WAR.loading || WAR.failed || !ok() || typeof fetch !== 'function') return;
+    WAR.loading = true;
+    fetch(WAR.url).then(r => { if (!r.ok) throw new Error('http ' + r.status); return r.arrayBuffer(); })
+      .then(ab => new Promise((res, rej) => { const p = ctx.decodeAudioData(ab, res, rej); if (p && p.then) p.then(res, rej); }))
+      .then(buf => { WAR.buf = buf; WAR.loading = false; if (Music.on && Music.style === 'war' && !Music.track) Music.start(); })
+      .catch(e => { WAR.loading = false; WAR.failed = true; console.warn('战意曲没取到，用合成的', e); if (Music.on && Music.style === 'war' && Music.wait) Music.start(); });
+  }
   const Music = {
+    track: false, wait: false, seg: null, srcs: [],
     style: 'zen', on: false, next: 0, bar: 0, timer: null, bus: null, idx: 5, intensity: 0.4, motif: null,
     start(style) {
       if (!ok()) return;
@@ -358,11 +393,38 @@ const Sfx = (() => {
       if (this.style === 'off') return;
       this.on = true; this.bar = 0; this.next = now() + 0.3;
       this.bus = ctx.createGain(); this.bus.gain.setValueAtTime(0.0001, now()); this.bus.gain.exponentialRampToValueAtTime(1, now() + 3); this.bus.connect(musicBus);
-      this.startPad();
+      const war = this.style === 'war';
+      this.track = war && !!WAR.buf;
+      this.wait = war && !WAR.buf && !WAR.failed;   // 曲子还在路上：先不出声（不拿合成的那版垫着，免得两版先后接上、听着像混在一起）
+      if (this.track) this.seg = this.playSeg(now() + 0.3, 0.05);
+      else if (!this.wait) this.startPad();
+      if (this.wait) loadWar();
       this.timer = setInterval(() => this.tick(), 120);
+    },
+    // 放一遍录好的曲子：t0 开始，fade 秒淡入
+    playSeg(t0, fade) {
+      const src = ctx.createBufferSource(); src.buffer = WAR.buf;
+      const g = ctx.createGain(); g.gain.setValueAtTime(0.0001, t0); g.gain.linearRampToValueAtTime(WAR.gain, t0 + Math.max(0.02, fade));
+      src.connect(g); g.connect(this.bus); src.start(t0);
+      this.srcs.push(src); src.onended = () => { const i = this.srcs.indexOf(src); if (i >= 0) this.srcs.splice(i, 1); try { g.disconnect(); } catch (e) { } };
+      return { src, g, t0, end: t0 + WAR.buf.duration, hi: 0, next: false };
+    },
+    trackTick() {
+      const s = this.seg; if (!s) return;
+      const t = now(), pos = t - s.t0, H = WAR.hits;
+      while (s.hi < H.length && H[s.hi] < pos + 0.6) { const d = H[s.hi] - pos; if (d > -0.05) drumHit(Math.max(0, d), H[s.hi + 1]); s.hi += 2; }
+      if (!s.next && t > s.end - WAR.xf - 0.7) {   // 快到头了：下一遍提前交叠着进来
+        s.next = true;
+        const tN = s.end - WAR.xf;
+        s.g.gain.setValueAtTime(WAR.gain, tN); s.g.gain.linearRampToValueAtTime(0.0001, s.end);
+        try { s.src.stop(s.end + 0.05); } catch (e) { }
+        this.seg = this.playSeg(tN, WAR.xf);
+      }
     },
     stop(fast) {
       this.on = false; clearInterval(this.timer); this.timer = null;
+      for (const src of this.srcs.splice(0)) { try { src.stop(ok() ? now() + (fast ? 0.5 : 2.6) : 0); } catch (e) { } }
+      this.seg = null; this.track = false; this.wait = false;
       if (this.bus && ok()) { const b = this.bus; b.gain.cancelScheduledValues(now()); b.gain.setValueAtTime(b.gain.value, now()); b.gain.linearRampToValueAtTime(0.0001, now() + (fast ? 0.4 : 2.5)); setTimeout(() => { try { b.disconnect(); } catch (e) { } }, 3000); }
       this.bus = null;
     },
@@ -389,6 +451,8 @@ const Sfx = (() => {
     },
     tick() {
       if (!this.on || !ok()) return;
+      if (this.wait) return;
+      if (this.track) { this.trackTick(); return; }
       while (this.next < now() + 0.8) {
         const t = this.next - now();
         this.next += this.style === 'zen' ? this.zenBar(t) : this.style === 'final' ? this.finalBar(t) : this.warBar(t);
@@ -426,7 +490,7 @@ const Sfx = (() => {
     // —— 决战：一阵紧过一阵的战鼓（全用录音：大鼓、小鼓、滚奏、锣、呐喊），不用合成乐器 ——
     finalBar(t) {
       const dest = this.bus, beat = 60 / 132, st = beat / 4, bar = this.bar, ph = bar % 8;
-      const big = (i, v, r = 0.62) => { if (has('drum')) { smp('drum', { t: t + i * st, vol: v, rate: r, rj: 0.03, dest }); smp('soft', { t: t + i * st, vol: v * 0.2, rate: 0.5, dest }); } else taikoTo(dest, t + i * st, v, 0.9); };
+      const big = (i, v, r = 0.62) => { drumHit(t + i * st, v); if (has('drum')) { smp('drum', { t: t + i * st, vol: v, rate: r, rj: 0.03, dest }); smp('soft', { t: t + i * st, vol: v * 0.2, rate: 0.5, dest }); } else taikoTo(dest, t + i * st, v, 0.9); };
       const small = (i, v) => { if (has('drum')) smp('drum', { t: t + i * st, vol: v, rate: 1.25, rj: 0.06, dest, pan: i % 2 ? 0.25 : -0.25 }); else taikoTo(dest, t + i * st, v * 0.6, 1.5); };
       // 大鼓：咚——咚咚 咚——咚咚咚；每四小节最后一小节打满
       const bigPat = ph % 4 === 3 ? [1, 0, 0.7, 0, 1, 0, 0.7, 0.7, 1, 0.7, 0.8, 0.7, 1, 0.9, 1, 1] : ph % 2 ? [1, 0, 0, 0.6, 0, 0, 0.9, 0, 1, 0, 0.6, 0, 0.9, 0, 0.7, 0.8] : [1, 0, 0, 0, 0.8, 0, 0.6, 0, 1, 0, 0, 0.6, 0.9, 0, 0.7, 0];
@@ -521,7 +585,7 @@ const Sfx = (() => {
     setInterval(() => {
       if (!ctx || ctx.state !== 'running' || !enabled) return;
       if (Math.random() < 0.6) nz({ t: R(0, 1), dur: 0.02, type: 'bandpass', f: R(1500, 3500), q: 2, vol: R(0.01, 0.03), pan: R(-0.8, 0.8) });
-      if (Math.random() < 0.012) B.neigh(0, 0.02);
+      if (Math.random() < 0.012) B.neigh(0, 0.016);
       if (Math.random() < 0.04) smp('cloth', { vol: 0.05, rate: 0.6 });
       if (Math.random() < 0.02) smp('water', { vol: 0.05, dur: 2 });
     }, 900);
@@ -529,6 +593,8 @@ const Sfx = (() => {
 
   const S = {
     init, B, U, unit, river, Music, pluck, hurt, smp,
+    // 兵种台词开口：delay 秒后开始说，说 dur 秒。不带参数 = 这一步没有台词
+    line(delay = 0, dur = 0) { cue = ok() && dur > 0 ? now() + delay + dur : 0; }, lineLeft,
     get ctx() { return ctx; }, get voiceBus() { return voiceBus; },
     get enabled() { return enabled; },
     set enabled(v) { enabled = v; if (master) master.gain.setTargetAtTime(v ? 1 : 0, now(), 0.05); },
@@ -563,6 +629,7 @@ const Sfx = (() => {
     march(t, steps) { B.march(t, steps * 0.25, 10, 0.2); }, whoosh(t, d) { B.whoosh(t, d); }, arrows(t) { B.arrows(t); }, thunk(t) { B.thunks(t); },
     row(t) { B.splash(t, 0.1); }, wind(t = 0, dur = 6) { nz({ t, dur, type: 'bandpass', f: 400, f2: 900, q: 0.8, vol: 0.4, a: 1.5 }); nz({ t: t + 1, dur, type: 'lowpass', f: 300, vol: 0.4, a: 1.5 }); },
   };
+  S.onDrum = fn => { drumCb = fn; };
   return S;
 })();
 
@@ -571,28 +638,43 @@ const Voice = (() => {
   const LINES = window.VOICE_LINES || {};
   const CLIPS = window.VOICE_CLIPS || {};
   const SPK = { narr: '', xiang: '项王', liu: '汉王', elder: '乌江亭长' };
-  const bufs = new Map();
-  let enabled = true, cur = null, barkSrc = null;
+  // 两套配音：原版（内嵌在页面里）和写实版（单独一个包，选了才取；没取到之前先用原版顶着）
+  const REAL = window.VOICE_REAL || null;
+  const bufs = new Map(), durs = new Map();
+  let enabled = true, cur = null, barkSrc = null, mode = 'orig', pack = null, packP = null;
+  function loadPack() {
+    if (pack || !REAL) return Promise.resolve();
+    if (!packP) packP = fetch(REAL.url).then(r => { if (!r.ok) throw 0; return r.arrayBuffer(); }).then(b => { pack = b; }).catch(() => { packP = null; });
+    return packP;
+  }
+  const useReal = id => mode === 'real' && pack && REAL.idx[id];
   const barkCut = () => { if (barkSrc) { try { barkSrc.stop(); } catch (e) { } barkSrc = null; } };
   function b64ToBuf(b64) { const bin = atob(b64); const u = new Uint8Array(bin.length); for (let i = 0; i < bin.length; i++) u[i] = bin.charCodeAt(i); return u.buffer; }
   function decode(id) {
-    if (bufs.has(id)) return bufs.get(id);
+    const real = useReal(id), key = (real ? 'R:' : 'O:') + id;
+    if (bufs.has(key)) return bufs.get(key);
     const ctx = Sfx.ctx;
-    if (!ctx || !CLIPS[id]) return Promise.resolve(null);
-    const p = new Promise(res => { try { ctx.decodeAudioData(b64ToBuf(CLIPS[id]), b => res(b), () => res(null)); } catch (e) { res(null); } });
-    bufs.set(id, p);
+    if (!ctx || (!real && !CLIPS[id])) return Promise.resolve(null);
+    const raw = real ? pack.slice(real[0], real[0] + real[1]) : b64ToBuf(CLIPS[id]);
+    const p = new Promise(res => { try { ctx.decodeAudioData(raw, b => { durs.set(key, b.duration); res(b); }, () => res(null)); } catch (e) { res(null); } });
+    bufs.set(key, p);
     return p;
   }
   return {
     LINES, SPK,
     get enabled() { return enabled; }, set enabled(v) { enabled = v; if (!v) this.cancel(); },
-    preload(ids) { (ids || Object.keys(CLIPS)).forEach(decode); },
-    has(id) { return !!LINES[id]; },
+    // 配音风格：'real' 写实版 / 'orig' 原版
+    get mode() { return mode; }, set mode(v) { mode = v === 'real' && REAL ? 'real' : 'orig'; if (mode === 'real') loadPack(); },
+    get realReady() { return !!pack; },
+    preload(ids) { const go = () => (ids || Object.keys(CLIPS)).forEach(decode); if (mode === 'real' && !pack) loadPack().then(go); else go(); },
+    has(id) { return !!LINES[id] || !!(REAL && REAL.idx[id]); },   // 写实版里单独有的句子（比如虎骑的台词）也算
     speaker(id) { return SPK[(LINES[id] || {}).spk] ?? ''; },
-    text(id) { return (LINES[id] || {}).text || ''; },
+    text(id) { return (mode === 'real' && REAL.text[id]) || (LINES[id] || {}).text || ''; },
     async play(id, { onDur, minDur = 0, rate = 1 } = {}) {
       const est = Math.max(minDur, this.text(id).length * 0.24 + 0.6);
       if (!enabled || !Sfx.ctx) { onDur && onDur(est); return Core.sleep(est); }
+      // 写实版的包还在路上：主帅、旁白最多等它两秒半（免得一局里前一句原版、后一句写实），再不来就先用原版
+      if (mode === 'real' && !pack) await Promise.race([loadPack(), new Promise(r => setTimeout(r, 2500))]);
       const buf = await decode(id);
       if (!buf) { onDur && onDur(est); return Core.sleep(est); }
       const ctx = Sfx.ctx;
@@ -606,9 +688,12 @@ const Voice = (() => {
       return new Promise(res => { let done = false; const fin = () => { if (cur === s) cur = null; if (!done) { done = true; res(); } }; s.onended = fin; setTimeout(fin, (d + 0.5) * 1000); }).then(() => (minDur > d ? Core.sleep(minDur - d) : null));
     },
     cancel() { if (cur) { try { cur.stop(); } catch (e) { } cur = null; } barkCut(); },
+    get busy() { return !!cur; },   // 主帅 / 旁白正在说话
+    // 这句有多长（秒）：解码过就是准的，还没解码先按字数估，顺手开始解码
+    dur(id) { const k = (useReal(id) ? 'R:' : 'O:') + id; if (durs.has(k)) return durs.get(k); decode(id); return this.text(id).replace(/[，。！？、…—\s]/g, '').length * 0.2 + 0.45; },
     // 兵种台词：单独一路，不打断主帅/旁白，也不被它们打断；新的一句会接替上一句
     async bark(id, { vol = 0.9, pan = 0, skipIfBusy = false } = {}) {
-      if (!enabled || !Sfx.ctx || !CLIPS[id]) return;
+      if (!enabled || !Sfx.ctx || !(CLIPS[id] || useReal(id))) return;
       if (skipIfBusy && cur) return;
       const buf = await decode(id); if (!buf) return;
       const ctx = Sfx.ctx;

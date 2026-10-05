@@ -834,5 +834,240 @@
    "dur": 2.13,
    "src": "Kokoro TTS 多声线齐喊（本项目生成）"
   }
+ ],
+ "hoofr": [
+  {
+   "f": "hoofr_0.mp3",
+   "dur": 2.28,
+   "src": "0ad (CC BY-SA 3.0): mstep113"
+  },
+  {
+   "f": "hoofr_1.mp3",
+   "dur": 2.32,
+   "src": "0ad (CC BY-SA 3.0): mstep114"
+  },
+  {
+   "f": "hoofr_2.mp3",
+   "dur": 2.4,
+   "src": "0ad (CC BY-SA 3.0): mstep115"
+  },
+  {
+   "f": "hoofr_3.mp3",
+   "dur": 2.32,
+   "src": "0ad (CC BY-SA 3.0): mstep111"
+  },
+  {
+   "f": "hoofr_4.mp3",
+   "dur": 2.39,
+   "src": "0ad (CC BY-SA 3.0): mstep112"
+  }
+ ],
+ "hoofwar": [
+  {
+   "f": "hoofwar_0.mp3",
+   "dur": 3.26,
+   "src": "0ad (CC BY-SA 3.0): alarmcreatecavalry_1"
+  }
+ ],
+ "neigha": [
+  {
+   "f": "neigha_0.mp3",
+   "dur": 1.49,
+   "src": "0ad (CC BY-SA 3.0): horse_attack1"
+  },
+  {
+   "f": "neigha_1.mp3",
+   "dur": 1.41,
+   "src": "0ad (CC BY-SA 3.0): horse_attack2"
+  },
+  {
+   "f": "neigha_2.mp3",
+   "dur": 1.25,
+   "src": "0ad (CC BY-SA 3.0): horse_attack3"
+  }
+ ],
+ "neighm": [
+  {
+   "f": "neighm_0.mp3",
+   "dur": 1.39,
+   "src": "0ad (CC BY-SA 3.0): horse_idle1"
+  },
+  {
+   "f": "neighm_1.mp3",
+   "dur": 1.53,
+   "src": "0ad (CC BY-SA 3.0): horse_idle3"
+  },
+  {
+   "f": "neighm_2.mp3",
+   "dur": 0.98,
+   "src": "0ad (CC BY-SA 3.0): horse_select1"
+  }
+ ],
+ "neighd": [
+  {
+   "f": "neighd_0.mp3",
+   "dur": 2.15,
+   "src": "0ad (CC BY-SA 3.0): death_horse_10"
+  },
+  {
+   "f": "neighd_1.mp3",
+   "dur": 1.98,
+   "src": "0ad (CC BY-SA 3.0): death_horse_11"
+  },
+  {
+   "f": "neighd_2.mp3",
+   "dur": 1.55,
+   "src": "0ad (CC BY-SA 3.0): horse_death1"
+  }
+ ],
+ "elecry": [
+  {
+   "f": "elecry_0.mp3",
+   "dur": 1.57,
+   "src": "0ad (CC BY-SA 3.0): elephant_order1"
+  },
+  {
+   "f": "elecry_1.mp3",
+   "dur": 2.94,
+   "src": "0ad (CC BY-SA 3.0): elephant_attack1"
+  },
+  {
+   "f": "elecry_2.mp3",
+   "dur": 2.64,
+   "src": "0ad (CC BY-SA 3.0): elephant_death1"
+  }
+ ],
+ "elestep": [
+  {
+   "f": "elestep_0.mp3",
+   "dur": 2.77,
+   "src": "CC0 stomp/soft，压低 + 处理"
+  }
+ ],
+ "elerun": [
+  {
+   "f": "elerun_0.mp3",
+   "dur": 2.76,
+   "src": "CC0 stomp/soft，压低 + 处理"
+  }
+ ],
+ "bigcannon": [
+  {
+   "f": "bigcannon_0.mp3",
+   "dur": 2.36,
+   "src": "试听台 b14 巨炮一：OpenClonk 炮响/爆炸 (CC BY 3.0) + Minetest 火药爆炸 (CC0)"
+  },
+  {
+   "f": "bigcannon_1.mp3",
+   "dur": 3.81,
+   "src": "试听台 b14 巨炮三：OpenClonk 炮响/爆炸 (CC BY 3.0) + Minetest 火药爆炸 (CC0)"
+  },
+  {
+   "f": "bigcannon_2.mp3",
+   "dur": 2.67,
+   "src": "试听台 b14 巨炮五：OpenClonk 炮响/爆炸 (CC BY 3.0) + Minetest 火药爆炸 (CC0)"
+  }
+ ],
+ "cannon1": [
+  {
+   "f": "cannon1_0.mp3",
+   "dur": 1.61,
+   "src": "试听台 b14 初级炮：OpenClonk GunShoot3 (CC BY 3.0)"
+  }
+ ],
+ "blast": [
+  {
+   "f": "blast_0.mp3",
+   "dur": 2.4,
+   "src": "试听台 b14 炸开一：爆炸 (OpenClonk CC BY 3.0 / Minetest CC0) + 0 A.D. 投石命中 (CC BY-SA 3.0)"
+  },
+  {
+   "f": "blast_1.mp3",
+   "dur": 2.28,
+   "src": "试听台 b14 炸开三：爆炸 (OpenClonk CC BY 3.0 / Minetest CC0) + 0 A.D. 投石命中 (CC BY-SA 3.0)"
+  },
+  {
+   "f": "blast_2.mp3",
+   "dur": 2.44,
+   "src": "试听台 b14 炸开四：爆炸 (OpenClonk CC BY 3.0 / Minetest CC0) + 0 A.D. 投石命中 (CC BY-SA 3.0)"
+  }
+ ],
+ "fuse": [
+  {
+   "f": "fuse_0.mp3",
+   "dur": 0.77,
+   "src": "OpenClonk Fuse (CC0)"
+  }
+ ],
+ "tiger": [
+  {
+   "f": "tiger_0.mp3",
+   "dur": 3.31,
+   "src": "试听台 b16 虎啸1：0 A.D. 狮吼 (CC BY-SA 3.0) + 山岭回声"
+  },
+  {
+   "f": "tiger_1.mp3",
+   "dur": 3.72,
+   "src": "试听台 b16 虎啸2：0 A.D. 狮吼 (CC BY-SA 3.0) + 山岭回声"
+  },
+  {
+   "f": "tiger_2.mp3",
+   "dur": 2.76,
+   "src": "试听台 b16 虎啸4：0 A.D. 狮吼 (CC BY-SA 3.0) + 山岭回声"
+  },
+  {
+   "f": "tiger_3.mp3",
+   "dur": 3.52,
+   "src": "试听台 b16 虎啸5：0 A.D. 狮吼 (CC BY-SA 3.0) + 山岭回声"
+  }
+ ],
+ "tigeratk": [
+  {
+   "f": "tigeratk_0.mp3",
+   "dur": 4.05,
+   "src": "试听台 b16 虎啸 6（进攻）：0 A.D. 狮吼 (CC BY-SA 3.0) + CC0 兽吼 + 山岭回声"
+  }
+ ],
+ "paws": [
+  {
+   "f": "paws_0.mp3",
+   "dur": 2.86,
+   "src": "试听台 b16 虎的脚步（放慢）"
+  }
+ ],
+ "troop": [
+  {
+   "f": "troop_0.mp3",
+   "dur": 2.79,
+   "src": "试听台 b15 一队人行军（原声）：0 A.D. 脚步 (CC BY-SA 3.0)"
+  }
+ ],
+ "trooprun": [
+  {
+   "f": "trooprun_0.mp3",
+   "dur": 2.23,
+   "src": "试听台 b16 冲锋：6 个人跑步的原声，0 A.D. 脚步 (CC BY-SA 3.0)"
+  }
+ ],
+ "foot1": [
+  {
+   "f": "foot1_0.mp3",
+   "dur": 2.4,
+   "src": "试听台 b16 1 个人的脚步：0 A.D. 脚步 (CC BY-SA 3.0)"
+  }
+ ],
+ "foot2": [
+  {
+   "f": "foot2_0.mp3",
+   "dur": 2.7,
+   "src": "试听台 b16 2 个人的脚步：0 A.D. 脚步 (CC BY-SA 3.0)"
+  }
+ ],
+ "foot3": [
+  {
+   "f": "foot3_0.mp3",
+   "dur": 2.89,
+   "src": "试听台 b16 3 个人的脚步：0 A.D. 脚步 (CC BY-SA 3.0)"
+  }
  ]
 }

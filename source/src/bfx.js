@@ -15,7 +15,7 @@ const BFX = (() => {
       else if (e.e === 'move') { b[e.to[1]][e.to[0]] = b[e.from[1]][e.from[0]]; b[e.from[1]][e.from[0]] = null; }
       else if (e.e === 'hit') { const p = b[e.at[1]][e.at[0]]; if (p) p.hp = e.hp; }
       else if (e.e === 'swap') { const x = b[e.pa[1]][e.pa[0]]; b[e.pa[1]][e.pa[0]] = b[e.pb[1]][e.pb[0]]; b[e.pb[1]][e.pb[0]] = x; }
-      else if (e.e === 'revive') b[e.at[1]][e.at[0]] = { s: 'r', t: e.t, id: e.id, lv: 1, hp: 1 };
+      else if (e.e === 'revive') b[e.at[1]][e.at[0]] = { s: 'r', t: e.t, id: e.id, lv: e.lv || 1, hp: BF.hpOf(e.t, e.lv || 1) };   // 试行规则里召回可能回来二级
     }
     return b;
   }
@@ -253,7 +253,7 @@ const BFX = (() => {
         if (info.extra && info.extra.via === 'shensu') {
           // 被动「神速营」：疾奔越子，落到空位（不走普通的行军演出）
           await dash(before[info.from[1]][info.from[0]], info.from, info.to, side);
-          if (info.result) Fx.checkStamp(XQ.other(side), info.result.reason === 'checkmate' ? '殺' : info.result.reason === 'kingdead' ? '斬' : info.result.reason === 'occupy' ? '奪' : '困', info.mateName);
+          if (info.result) await Fx.checkStamp(XQ.other(side), info.result.reason === 'checkmate' ? '殺' : info.result.reason === 'kingdead' ? '斬' : info.result.reason === 'occupy' ? '奪' : '困', info.mateName);
           else if (info.check) Fx.checkStamp(XQ.other(side));
         } else {
           await strikeT(before, info.from, info.to, ev, side, { check: info.check, result: info.result, streak: info.streak, mateName: info.mateName });
@@ -275,10 +275,12 @@ const BFX = (() => {
         if (B) for (let r = 0; r < 10 && !at; r++) for (let f = 0; f < 9; f++) if (B[r][f] && B[r][f].id === e.id) { at = [f, r]; break; }
         if (at) await levelUp({ id: e.id, t: e.t, side: e.s, at, lv: e.lv, nm: e.nm, auto: true });
       }
+      // 试行规则：召回后当场花军功升了一级——等它落定，再补上晋升的仪式
+      for (const e of ev.filter(x => x.e === 'reviveUp')) { const rv = ev.find(x => x.e === 'revive' && x.id === e.id); if (rv) await levelUp({ id: e.id, t: e.t, side: 'r', at: rv.at, lv: e.lv, nm: e.nm }); }
     } catch (e) { console.error(e); }
     if (info.k !== 'mv' && info.k !== 'up') {
       if (Cam.cine) await Cam.home(0.8);
-      if (info.result) Fx.checkStamp(XQ.other(side), info.result.reason === 'checkmate' ? '殺' : info.result.reason === 'kingdead' ? '斬' : info.result.reason === 'occupy' ? '奪' : '困', info.mateName);
+      if (info.result) await Fx.checkStamp(XQ.other(side), info.result.reason === 'checkmate' ? '殺' : info.result.reason === 'kingdead' ? '斬' : info.result.reason === 'occupy' ? '奪' : '困', info.mateName);
       else if (info.check) Fx.checkStamp(XQ.other(side));
     }
   }
@@ -409,7 +411,7 @@ const BFX = (() => {
       await sleep(0.25);
     } else if (sk === 'taying') {
       const m = Board.pieces.get(P0.id);
-      Sfx.B.neigh(0, 0.14); Sfx.B.whoosh(0.1, 0.3, 0.4);
+      Sfx.B.neigh(0, 0.14, 'a'); Sfx.B.whoosh(0.1, 0.3, 0.4);
       await leap(m, at, to, before, ev, side, 'n', info, () => { Sfx.B.hooves(0, 0.5, 3, 0.4); });
     } else if (sk === 'feiyue') {
       // 飞越：腾身一跃，越过塞住象眼的子落到田字对角
@@ -532,7 +534,7 @@ const BFX = (() => {
       spiral(B, 0xffe2a0, 50, 0.55, 1.5); Sfx.B.whoosh(0.1, 0.6, 0.9); Sfx.B.hooves(0.3, 1.2, 1, 0.3);
       await sleep(0.55);
       // 良将自光中降下，落地一震
-      const m = Board.makePiece({ s: 'r', t: rv.t, id: rv.id, lv: 1, hp: 1 });
+      const m = Board.makePiece({ s: 'r', t: rv.t, id: rv.id, lv: rv.lv || 1, hp: BF.hpOf(rv.t, rv.lv || 1) });
       m.rotation.y = Board.viewSide === 'b' ? Math.PI : 0;
       Board.piecesRoot.add(m); Board.pieces.set(rv.id, m);
       const top = B.clone().setY(TOP + 4.2), yaw0 = m.rotation.y;
@@ -549,9 +551,9 @@ const BFX = (() => {
       await sleep(0.3);
     } else {
       // 破釜沉舟：沉舟的火映红河面，楚军踏火连进两步
-      title('破釜沉舟', '楚军连进两步 · 此后三回合不用技能', 2600);
+      if (BF.CFG.beishui.on) title('背水一战', '连进两步 · 用过的子下回合不能动', 2600); else title('破釜沉舟', '楚军连进两步 · 此后三回合不用技能', 2600);
       Sfx.B.gong(0, 0.9); Sfx.B.woodbreak(0.3, 0.7); Sfx.B.boom(0.4, 0.5); Sfx.B.taiko(0.1, 0.9); Sfx.B.taiko(0.45, 1);
-      const vp = say('bf_art_b');
+      const vp = say(BF.CFG.beishui.on ? 'bf_art_b2' : 'bf_art_b');
       const k = [...Board.pieces.values()].find(m => m.userData.t === 'k' && m.userData.s === 'b');
       if (k && big) { document.body.classList.add('cine'); const hd = Cam.homeDir(); Cam.to(k.position.clone().addScaledVector(hd, -3).add(new V3(0, 2.2, 0)), k.position.clone().add(new V3(0, 0.4, 0)), 0.9); }
       if (k) {
@@ -576,7 +578,7 @@ const BFX = (() => {
         const P0 = board[st.from[1]][st.from[0]], m = P0 && Board.pieces.get(P0.id);
         // 蓄势：脚下火环一收，火线直扑落点
         Fx.ring(A.clone().setY(TOP + 0.02), 1.8, 0.35, 0xff6a2a, 0.9); P.fire(A.clone().setY(TOP + 0.1), 14, 0.6); Sfx.B.whoosh(0, 0.6, 0.5); Sfx.B.taiko(0, 0.9, 0.9);
-        labelPop(st.from, i ? '再进！' : '破釜！', side);
+        labelPop(st.from, i ? '再进！' : BF.CFG.beishui.on ? '背水！' : '破釜！', side);
         blaze(A, B);
         await sleep(0.28);
         // 棋子身上带着火冲过去（低特效档看得到棋子本身；电影档是它的兵踏着火线）
