@@ -1,0 +1,88 @@
+{
+ "batch": "b22",
+ "key_present": true,
+ "key_len": 126,
+ "host": "https://api.minimax.cn",
+ "probe": [
+  {
+   "host": "https://api.minimax.cn",
+   "http": 200,
+   "code": 0,
+   "msg": "success"
+  }
+ ],
+ "jobs": [
+  {
+   "id": "real_r_h_p1_c",
+   "voice": "Chinese (Mandarin)_Reliable_Executive",
+   "voice_id": "Chinese (Mandarin)_Reliable_Executive",
+   "voice_name": null,
+   "ok": true,
+   "ms": 9360,
+   "chars": 70
+  },
+  {
+   "id": "real_r_h_p1_d1",
+   "voice": "Chinese (Mandarin)_Reliable_Executive",
+   "voice_id": "Chinese (Mandarin)_Reliable_Executive",
+   "voice_name": null,
+   "ok": true,
+   "ms": 5256,
+   "chars": 33
+  },
+  {
+   "id": "real_r_h_p1_d2",
+   "voice": "Chinese (Mandarin)_Reliable_Executive",
+   "voice_id": "Chinese (Mandarin)_Reliable_Executive",
+   "voice_name": null,
+   "ok": true,
+   "ms": 4536,
+   "chars": 21
+  },
+  {
+   "id": "real_r_h_p1_d3",
+   "voice": "Chinese (Mandarin)_Reliable_Executive",
+   "voice_id": "Chinese (Mandarin)_Reliable_Executive",
+   "voice_name": null,
+   "ok": true,
+   "ms": 3348,
+   "chars": 21
+  },
+  {
+   "id": "real_r_h_p4_c",
+   "voice": "Chinese (Mandarin)_Reliable_Executive",
+   "voice_id": "Chinese (Mandarin)_Reliable_Executive",
+   "voice_name": null,
+   "ok": true,
+   "ms": 6300,
+   "chars": 43
+  },
+  {
+   "id": "real_r_h_p4_d",
+   "voice": "Chinese (Mandarin)_Reliable_Executive",
+   "voice_id": "Chinese (Mandarin)_Reliable_Executive",
+   "voice_name": null,
+   "ok": true,
+   "ms": 5688,
+   "chars": 40
+  },
+  {
+   "id": "real_r_h_p4_e1",
+   "voice": "Chinese (Mandarin)_Reliable_Executive",
+   "voice_id": "Chinese (Mandarin)_Reliable_Executive",
+   "voice_name": null,
+   "ok": true,
+   "ms": 2124,
+   "chars": 13
+  },
+  {
+   "id": "real_r_h_p4_e2",
+   "voice": "Chinese (Mandarin)_Reliable_Executive",
+   "voice_id": "Chinese (Mandarin)_Reliable_Executive",
+   "voice_name": null,
+   "ok": true,
+   "ms": 3600,
+   "chars": 27
+  }
+ ]
+}
