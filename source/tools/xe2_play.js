@@ -22,7 +22,7 @@ const opt = { ai: 'src/bfai.js', games: 3, seed: 1000, nodes: 60000, normal: fal
 for (let i = 0; i < argv.length; i++) {
   const k = argv[i], v = () => argv[++i];
   if (k === '--ai') opt.ai = v(); else if (k === '--games') opt.games = +v(); else if (k === '--seed') opt.seed = +v();
-  else if (k === '--nodes') opt.nodes = +v(); else if (k === '--normal') opt.normal = true; else if (k === '--mode') opt.mode = v(); else if (k === '--plan') opt.plan = v(); else if (k === '--hanplan') opt.hanplan = v(); else if (k === '--json') opt.json = v(); else if (k === '--trace') opt.trace = true;
+  else if (k === '--nodes') opt.nodes = +v(); else if (k === '--normal') opt.normal = true; else if (k === '--mode') opt.mode = v(); else if (k === '--plan') opt.plan = v(); else if (k === '--hanplan') opt.hanplan = v(); else if (k === '--json') opt.json = v(); else if (k === '--trace') opt.trace = true; else if (k === '--rounds') opt.maxRounds = +v();
   else throw new Error('未知参数 ' + k);
 }
 const SRC = path.join(__dirname, '..', 'src');
@@ -141,6 +141,7 @@ async function play(seed) {
       const S1 = BF.cloneState(g.S); if (pre.length) { const U = BF.ai.upgradeState(S1, pre[0].at); if (U) { Object.assign(S1, U); } } S1.upgraded = true;   // 电脑只管走子
       seq = pre.concat((await AI.think(S1, 'mid')).filter(a => a.k !== 'up'));
     } else seq = await AI.think(BF.cloneState(g.S), 'mid');
+    if (opt.trace && AI.think.ups) console.error(`  R${round(g.S)} ${side} 候选升级 ${JSON.stringify(AI.think.ups)} 试算 ${AI.think.last && AI.think.last.potMs}ms 用时 ${AI.think.last && AI.think.last.ms}ms`);
     if (!seq || !seq.length) { R.note = '电脑没给着'; break; }
     for (const act of seq) {
       const rd = round(g.S);
