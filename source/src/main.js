@@ -8,6 +8,7 @@
   // 更新说明（设置里、大厅底部点「更新」查看；最新的放最前）
   const NEWS = [
     ['第六版', '2026 年 10 月', [
+      '大厅、设置、询问弹窗换了新样子：朱红底的棋盘格、圆棋子按钮；手机竖屏主按钮固定在屏幕底部。「退出对局」改叫「返回大厅」，点了只问一句「退出本局？」，「继续对局」是大按钮，防误点。游戏现在叫「技能新象棋」',
       '汉相换了新模样：一位朱袍文臣手持汉节，骑着白虎。吃子是虎扑上去咬，文臣端坐、节杖不动。技能模式里四级白虎披金甲；三、四级平时身边没有别人，行进和攻击时两侧才出弩手——攻击时弩手先放一轮箭，虎再扑出去。称号也换了：汉军相、驭虎长史、持节护军、白虎相国。新台词「白虎开道」「放虎！」在写实版配音里',
       '技能模式的数值改了一轮，两边更均势、车不再一家独大：车、马、炮、兵卒升到三级攻击变成 2（一下能吃掉 2 血的子）；车四级不再加血（3 血）；车升级变贵，10 / 12 / 20 功（原来 6 / 8 / 20）。刘邦的「召回良将」也改了：按兵种选，回来最多二级（死时一级的还是一级），可以放回这一兵种任意一个空着的原位（车放左角右角都行）；落位后可以马上花军功给它升一级，它第一次升级只要半价。改规则之前开的局接着下，还按原来的规则',
       '马、战象、步兵、炮的音效换成了真实录音：马蹄踏在土上、真马嘶、真象鸣、一队人行军的脚步、巨炮。兵种开口说话时，先台词、再脚步、最后一声嘶鸣；技能模式里等级越高，马蹄和脚步叠得越厚，一级炮用小一号的炮声',
@@ -132,6 +133,8 @@
   Core.start();
   let lobbySpin = true;
   Core.onFrame(dt => { if (lobbySpin && !Core.Cam.cine) Core.Cam.theta += dt * 0.04; });
+  // 大厅现在是整屏不透明的（美术 M3），后面的三维场景看不见：大厅开着时不画，省电、省发热。开头先画 90 帧，把着色器编译掉，免得开局第一帧卡
+  { const canDraw = Core.render; let warm = 90; if (canDraw) Core.onFrame(() => { if (warm > 0) warm--; Core.render = warm > 0 || $('lobby').classList.contains('hidden'); }); }
   setTimeout(() => { $('loading').style.opacity = 0; setTimeout(() => $('loading').remove(), 900); }, 500);
   // 首次触碰时解锁音频（iOS 必需）
   const unlock = () => { Sfx.init(); applySettings(); setTimeout(() => Voice.preload(['r_start', 'b_start', 'r_check', 'b_check', 'r_mate', 'b_mate']), 300); setTimeout(() => Voice.preload(Object.keys(Voice.LINES).filter(k => /_t\d|^ai_/.test(k))), 2500); setTimeout(() => Voice.preload(Object.keys(Voice.LINES).filter(k => /^u_/.test(k))), 4500); };
@@ -187,12 +190,13 @@
   function toast(msg, ms = 2200) { const t = $('toast'); t.innerHTML = msg; t.classList.add('on'); clearTimeout(toastT); toastT = setTimeout(() => t.classList.remove('on'), ms); }
   function banner(t, s, ms = 2600) { $('banner').classList.remove('lite'); $('bannerT').textContent = t; $('bannerS').textContent = s || ''; $('banner').classList.add('on'); setTimeout(() => $('banner').classList.remove('on'), ms); }
   let askTimer = null;
-  function ask(title, text, secs = 0, yes = '同 意', no = '拒 绝') {
+  function ask(title, text, secs = 0, yes = '同 意', no = '拒 绝', cls = '') {   // cls = 'e-stay'：退出确认，“留下”是大按钮（样式归美术）
     return new Promise(res => {
       $('askT').textContent = title; $('askP').textContent = text; $('askYes').textContent = yes; $('askNo').textContent = no;
+      $('mAsk').classList.toggle('e-stay', cls === 'e-stay');
       $('mAsk').classList.remove('hidden');
       let left = secs;
-      const fin = v => { clearInterval(askTimer); $('mAsk').classList.add('hidden'); res(v); };
+      const fin = v => { clearInterval(askTimer); $('mAsk').classList.add('hidden'); $('mAsk').classList.remove('e-stay'); res(v); };
       $('askYes').onclick = () => fin(true); $('askNo').onclick = () => fin(false);
       clearInterval(askTimer);
       $('askCd').textContent = secs ? `${left} 秒后自动拒绝` : '';
@@ -207,7 +211,7 @@
     return ask(title, text, 0, '确 定', '取 消').then(ok => { row.classList.add('hidden'); return ok ? inp.value.trim() : null; });
   }
   const pwHash = (code, pw) => { let h = 2166136261; for (const ch of code + ':' + pw) { h ^= ch.codePointAt(0); h = Math.imul(h, 16777619); } return (h >>> 0).toString(36); };
-  const closeAsk = () => { clearInterval(askTimer); $('mAsk').classList.add('hidden'); $('askInRow').classList.add('hidden'); };
+  const closeAsk = () => { clearInterval(askTimer); $('mAsk').classList.add('hidden'); $('mAsk').classList.remove('e-stay'); $('askInRow').classList.add('hidden'); };
 
   // ---------- 对局状态 ----------
   let mode = null, mySide = 'r', viewSide = 'r', opts = { ...ropts }, hostSide = 'r';
@@ -2695,8 +2699,8 @@
   $('bRoomAI').onclick = () => { if (!room || !room.host || room.seated) return; room.ai = room.ai ? null : ($('roomAILv').value || 'mid'); if (!room.ai) room.ai2 = null; paintRoom(); try { Net.hallTouch(); } catch (e) { } };
   $('lockOn').onchange = () => { $('lockPw').classList.toggle('hidden', !$('lockOn').checked); if ($('lockOn').checked) $('lockPw').focus(); };
   $('bBackH').onclick = () => showPane('pMain');
-  $('bCreate').onclick = () => { createFor = 'host'; $('createTitle').textContent = '房 间 设 置'; $('bCreateGo').textContent = '创 建'; $('optPub').classList.remove('hidden'); $('optLock').classList.remove('hidden'); showPane('pCreate'); };
-  $('bLocal').onclick = () => { createFor = 'local'; $('optPub').classList.add('hidden'); $('optLock').classList.add('hidden'); $('createTitle').textContent = '本 地 对 战'; $('bCreateGo').textContent = '开 始'; showPane('pCreate'); };
+  $('bCreate').onclick = () => { createFor = 'host'; $('createTitle').textContent = '房间设置'; $('bCreateGo').textContent = '创建'; $('optPub').classList.remove('hidden'); $('optLock').classList.remove('hidden'); showPane('pCreate'); };
+  $('bLocal').onclick = () => { createFor = 'local'; $('optPub').classList.add('hidden'); $('optLock').classList.add('hidden'); $('createTitle').textContent = '本地对战'; $('bCreateGo').textContent = '开始'; showPane('pCreate'); };
   $('bJoinShow').onclick = () => { showPane('pJoin'); setTimeout(() => $('joinCode').focus(), 50); };
   $('bBack1').onclick = () => showPane(createFor === 'host' ? 'pHall' : 'pMain');
   const clearUrl = () => { try { history.replaceState(null, '', location.pathname); } catch (e) { } };
@@ -2829,8 +2833,8 @@
   }
   $('bShare').onclick = () => {
     const code = $('roomCode').textContent, url = inviteUrl(code);
-    const text = `来和我下一局《楚汉三维象棋》！房间码 ${code}`;
-    if (navigator.share) navigator.share({ title: '楚汉三维象棋', text, url }).catch(() => { });
+    const text = `来和我下一局《技能新象棋》！房间码 ${code}`;
+    if (navigator.share) navigator.share({ title: '技能新象棋', text, url }).catch(() => { });
     else copy(`${text}\n${url}`, '邀请链接已复制');
   };
   $('bCopyCode').onclick = () => copy($('roomCode').textContent, '房间码已复制');
@@ -2942,7 +2946,7 @@
   $('vSfx').oninput = e => { S.vSfx = +e.target.value; applySettings(); };
   $('vVoice').value = S.vVoice; $('vVoice').oninput = e => { S.vVoice = +e.target.value; applySettings(); };
   $('oServer').onchange = e => { S.server = e.target.value.trim(); applySettings(); };
-  const openSet = () => { repaintSegs($('mSet')); $('setGame').classList.toggle('hidden', !(mode && started)); $('tDebug').classList.toggle('hidden', !(mode === 'local' && started && game && game.bf)); $('tExit').textContent = watching() ? '离开观战席' : '退出对局'; $('mSet').classList.remove('hidden'); };
+  const openSet = () => { repaintSegs($('mSet')); $('setGame').classList.toggle('hidden', !(mode && started)); $('tDebug').classList.toggle('hidden', !(mode === 'local' && started && game && game.bf)); $('tExit').classList.toggle('hidden', !(mode && started)); $('mSet').classList.remove('hidden'); };
   $('tSet').onclick = $('bSetL').onclick = $('pzSet').onclick = openSet;
   $('bSetClose').onclick = () => $('mSet').classList.add('hidden');
   // 设置分三页：画面 / 声音 / 对局与其他
@@ -2975,7 +2979,7 @@
     }
     const who = mode === 'local' ? '同屏对战' : vsAI() ? (aiBoth() ? `电脑对电脑（汉 ${LV[aiLevel('r')]} / 楚 ${LV[aiLevel('b')]}）` : `人机：电脑执${SIDE_CN[aiSide()]} · ${LV[opts.level] || ''}`) : watching() ? '观战' : `联机：我执${SIDE_CN[mySide]}`;
     const res = G.result ? (G.result.winner ? `${SIDE_CN[G.result.winner]}胜 · ${REASON[G.result.reason] || G.result.reason}` : `和棋 · ${REASON[G.result.reason] || ''}`) : '未分胜负';
-    const lines = [`楚汉三维象棋 · 对局导出（版本 ${APPV}）`, `玩法：${KIND[kind]} · ${who} · 共 ${notes.length} 步 · ${res}`, '棋谱：'];
+    const lines = [`技能新象棋 · 对局导出（版本 ${APPV}）`, `玩法：${KIND[kind]} · ${who} · 共 ${notes.length} 步 · ${res}`, '棋谱：'];
     for (let i = 0; i < notes.length; i += 2) lines.push(`${i / 2 + 1}. ${noteText(notes[i])}${notes[i + 1] ? '  ' + noteText(notes[i + 1]) : ''}`);
     lines.push('---DATA---', JSON.stringify(o));
     return lines.join('\n');
@@ -3009,11 +3013,8 @@
   $('tExit').onclick = $('pzExit').onclick = async () => {
     if (!mode) return;
     $('mSet').classList.add('hidden');
-    let msg;
-    if (watching()) msg = '离开观战席，回到大厅？';
-    else if (mode === 'local' || vsAI()) msg = '退出本局、回到大厅？本局不计胜负。';
-    else msg = game.result ? '离开房间、回到大厅？' : '离开房间、回到大厅？本局不计胜负；对手会看到你已离开，用原邀请链接可以回来接着下。';
-    const ok = await ask(watching() ? '离 席' : '退 出', msg, 0, watching() ? '离 开' : '退 出', '再想想');
+    // Ham 定的（10-05）：按钮叫「返回大厅」，确认只问一句，不写说明；留下是大按钮，防误点
+    const ok = await ask(watching() ? '离开观战？' : '退出本局？', '', 0, '返回大厅', watching() ? '继续观战' : '继续对局', 'e-stay');
     if (ok) leaveGame();
   };
   $('tResign').onclick = $('pzResign').onclick = async () => {
