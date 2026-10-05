@@ -22,6 +22,7 @@ def synth(host, j):
     if j.get('emotion'): vs['emotion'] = j['emotion']
     body = {'model': j.get('model', 'speech-2.8-hd'), 'text': j['text'], 'stream': False, 'language_boost': 'Chinese',
             'voice_setting': vs, 'audio_setting': {'sample_rate': 32000, 'bitrate': 128000, 'format': 'mp3', 'channel': 1}}
+    if j.get('tone'): body['pronunciation_dict'] = {'tone': j['tone']}   # 指定读音：'将军/(jiang1)(jun1)'
     if j.get('modify'): body['voice_modify'] = j['modify']   # 音色效果调节：pitch 低沉↔明亮、intensity 刚劲↔轻柔、timbre 浑厚↔清脆（都是 -100..100），sound_effects 回声等
     return post(host, '/v1/t2a_v2', body)
 
