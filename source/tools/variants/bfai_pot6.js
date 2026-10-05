@@ -178,10 +178,11 @@ rep('  // 局面分（站在 me 这一方看）：子力 + 位置（出子、过
       if (!reach.size) {
         d = 1;
         for (const m of A.moveTargets(H, f, r)) {
-          const [tf, tr] = m.to; if (H.board[tr][tf]) continue;
+          const [tf, tr] = m.to, oc = H.board[tr][tf];
+          if (oc && (oc.s !== side || C.has(oc.id) || oc.t === 'k' || oc.hp > A.atk(q))) continue;   // 第六版：也算“先吃掉挡路的子（一下打得死）再打”——兵挡着象的线时，汉车要先吃兵
           H.board[tr][tf] = q; H.board[r][f] = null;
           for (const z of A.moveTargets(H, tf, tr)) { const v = H.board[z.to[1]][z.to[0]]; if (v && C.has(v.id)) reach.add(v.id); }
-          H.board[r][f] = q; H.board[tr][tf] = null;
+          H.board[r][f] = q; H.board[tr][tf] = oc;
         }
       }
       if (reach.size) { const T = tbl(o, q.t); out.push({ id: q.id, t: q.t, d, reach, top: T.atk[T.mx] }); }

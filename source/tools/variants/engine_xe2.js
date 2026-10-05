@@ -105,6 +105,9 @@ function enginePath() {
   rep("    if (reviveOptions(S).length || pofuFirst(S).length || ultReady(S)) return true;",
     "    if (reviveOptions(S).length || pofuFirst(S).length || ultReady(S)) return true;\n" +
     "    if (rcOk(S) && CFG_CUR.chuRecall.at.some(q => !at(S, q[0], q[1]) && attempt(S, { k: 'rc', at: q }))) return true;   // 变体·xe2（XE8）");
+  // sideStats[方][兵种].cost：这一方这一兵种的升级价（每级），不配照常（XE9：汉车每级 2 功只给汉，楚的车照常价）
+  rep("  const baseCostOf = p => { const b = costTbl(p.t)[p.lv - 1], R = R6();",
+    "  const baseCostOf = p => { const o = sideOv(p.s, p.t), b = (o && o.cost ? o.cost : costTbl(p.t))[p.lv - 1], R = R6(); /* 变体·xe2：按方改升级价 */");
   const file = path.join(os.tmpdir(), `bingfa_xe2_${process.pid}.js`);
   fs.writeFileSync(file, s);
   process.on('exit', () => { try { fs.unlinkSync(file); } catch (e) { } });

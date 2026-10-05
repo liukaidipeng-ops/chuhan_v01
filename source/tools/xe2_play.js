@@ -58,14 +58,13 @@ const XE7 = () => { XE6(); BF.CFG.sideStats.b.e.invOnUp = { lv: 2, rounds: 2 }; 
 const XE8 = () => {
   const C = BF.CFG, J = C.skills.jianta;
   J.onMove = true; J.level = 2; J.radius = 9; J.splashDamage = 99; J.moveCooldown = 0;
-  Object.assign(C.upgrade.cost, { e: [30, 30, 30], a: [5, 5, 5], n: [30, 30], r: [2, 2, 2] });
+  // 升级价按方给（2026-10-05 改：之前写在全局表里，汉的士相、楚的车也跟着变了——XE9 楚有车，楚车 2 功就不对了）
   Object.assign(C.upgrade.maxLevel, { e: 2, a: 4, n: 2, r: 4 });
-  if (C.r6 && C.r6.cost) C.r6.cost.r = [2, 2, 2];   // r6 的车价表优先，一起改
   C.sideStats = {
-    b: { e: { hp: [24, 1], atk: [1, 1], noLegFrom: 2, upFromRound: 9, invOnUp: { lv: 2, rounds: 2 }, immobileBelow: 2 },
-         a: { hp: [17, 20, 23, 26], atk: [2, 4, 6, 8] },   // 用户：“杀士就把士初始血量提上去”。A 打法里同一个士每两回合升一级（升级回满血），汉两下最多 16 → 17 血打不死
-         n: { hp: [50, 150], atk: [0, 10], fwdOnly: true } },
-    r: { r: { hp: [5, 7, 9, 11], atk: [2, 4, 6, 8] } },
+    b: { e: { cost: [30, 30, 30], hp: [24, 1], atk: [1, 1], noLegFrom: 2, upFromRound: 9, invOnUp: { lv: 2, rounds: 2 }, immobileBelow: 2 },
+         a: { cost: [5, 5, 5], hp: [17, 20, 23, 26], atk: [2, 4, 6, 8] },   // 用户：“杀士就把士初始血量提上去”。A 打法里同一个士每两回合升一级（升级回满血），汉两下最多 16 → 17 血打不死
+         n: { cost: [30, 30], hp: [50, 150], atk: [0, 10], fwdOnly: true } },
+    r: { r: { cost: [2, 2, 2], hp: [5, 7, 9, 11], atk: [2, 4, 6, 8] } },
   };
   C.kingShield = { side: 'b', untilRound: 20, immobile: true };
   C.healAura = { side: 'b', t: 'a', lv: 4, count: 2, amount: 8 };
