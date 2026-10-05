@@ -8,6 +8,10 @@ on:
     paths: ['source/tools/simjobs/**']
 permissions:
   contents: write
+# 模拟一批一批排队跑：前一批没跑完，后一批先等着（同一组里只留一个在等）；避免两批叠起来占满免费账号的 20 个位置
+concurrency:
+  group: bfsim-sims
+  cancel-in-progress: false
 jobs:
   plan:
     runs-on: ubuntu-latest
