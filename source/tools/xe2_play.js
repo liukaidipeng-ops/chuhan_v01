@@ -141,7 +141,35 @@ function formStep(S) {
 }
 // --hanplan hunt（验证设定用的“完美围剿”）：汉每回合只要有车打得到楚象，就先把那辆车升一级再打（先打血少的那只）；打不到才交给电脑
 // --hanplan huntA：先打士（拆回血光环），打不到士再打象
+// --hanplan huntW：会拆墙的汉——能直接打到象就先升车再打象；打不到就打“挡在象和车之间的第一枚楚子”（从象往上下左右看过去的第一枚，帅将除外），
+//   先打血最少的；现在打不到就挪一辆车到那条线上、墙后面的空格（下回合打）。
+function wallSeq(S) {
+  const x = huntType(S, 'e'); if (x) return x;
+  const els = []; for (let r = 0; r < 10; r++) for (let f = 0; f < 9; f++) { const p = S.board[r][f]; if (p && p.s === 'b' && p.t === 'e') els.push([f, r]); }
+  const walls = [];
+  for (const [ef, er] of els) for (const [df, dr] of [[0, -1], [0, 1], [-1, 0], [1, 0]]) {
+    let f = ef + df, r = er + dr; while (f >= 0 && f < 9 && r >= 0 && r < 10 && !S.board[r][f]) { f += df; r += dr; }
+    if (!(f >= 0 && f < 9 && r >= 0 && r < 10)) continue;
+    const q = S.board[r][f]; if (q.s !== 'b' || q.t === 'k') continue;
+    const beyond = []; let bf = f + df, br = r + dr; while (bf >= 0 && bf < 9 && br >= 0 && br < 10 && !S.board[br][bf]) { beyond.push([bf, br]); bf += df; br += dr; }
+    walls.push({ q, at: [f, r], beyond });
+  }
+  walls.sort((a, b) => a.q.hp - b.q.hp);
+  const rooks = []; for (let r = 0; r < 10; r++) for (let f = 0; f < 9; f++) { const p = S.board[r][f]; if (p && p.s === 'r' && p.t === 'r') rooks.push({ p, at: [f, r], mt: BF.ai.moveTargets(S, f, r) }); }
+  for (const w of walls) {   // 现在就打得到：先升车再打
+    let best = null;
+    for (const k of rooks) { if (!k.mt.some(m => m.to[0] === w.at[0] && m.to[1] === w.at[1])) continue; const a = { k: 'mv', from: k.at, to: w.at.slice() }; if (!BF.attempt(S, a)) continue; if (!best || k.p.lv > best.p.lv) best = { ...k, a }; }
+    if (best) { const seq = []; if (!S.upgraded && best.p.lv < 4 && BF.ai.upgradeState(S, best.at)) seq.push({ k: 'up', at: best.at }); seq.push(best.a); return seq; }
+  }
+  for (const w of walls) for (const k of rooks) for (const m of k.mt) {   // 挪到墙后面的线上，下回合打
+    if (!w.beyond.some(b => b[0] === m.to[0] && b[1] === m.to[1]) || S.board[m.to[1]][m.to[0]]) continue;
+    const a = { k: 'mv', from: k.at, to: m.to.slice() }; if (!BF.attempt(S, a)) continue;
+    const seq = []; if (!S.upgraded && k.p.lv < 4 && BF.ai.upgradeState(S, k.at)) seq.push({ k: 'up', at: k.at }); seq.push(a); return seq;
+  }
+  return null;
+}
 function huntSeq(S) {
+  if (opt.hanplan === 'huntW') return wallSeq(S);
   for (const t of opt.hanplan === 'huntA' ? ['a', 'e'] : ['e']) { const x = huntType(S, t); if (x) return x; }
   return null;
 }
@@ -184,7 +212,7 @@ async function play(seed) {
     let pre = [];
     if (opt.plan && side === 'b') { const at = planUp(g.S); if (at) pre = [{ k: 'up', at }]; }   // 固定打法：楚的升级按计划来
     let seq;
-    if ((opt.hanplan === 'hunt' || opt.hanplan === 'huntA') && side === 'r' && (seq = huntSeq(g.S))) { /* 完美围剿 */ }
+    if ((opt.hanplan === 'hunt' || opt.hanplan === 'huntA' || opt.hanplan === 'huntW') && side === 'r' && (seq = huntSeq(g.S))) { /* 完美围剿 */ }
     else if (pre.length || (opt.plan && side === 'b')) {
       const S1 = BF.cloneState(g.S); if (pre.length) { const U = BF.ai.upgradeState(S1, pre[0].at); if (U) { Object.assign(S1, U); } } S1.upgraded = true;   // 电脑只管走子
       let fm = null;
