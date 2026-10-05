@@ -665,7 +665,14 @@ body.compact #log{width:164px;max-height:34vh}
 :root{--g:#a8281c;--c:#f0e7d2;--k:#141311;--ef:"EB","Noto Serif SC","Source Han Serif SC","Noto Serif CJK SC","Songti SC","STSong","SimSun",serif;--es:"PingFang SC","Noto Sans SC","Noto Sans CJK SC","Microsoft YaHei",sans-serif}
 .pcard{border:0;border-radius:0;background:var(--c);color:var(--k);box-shadow:inset 0 0 0 3px var(--c),inset 0 0 0 5px var(--k),0 8px 22px rgba(20,19,17,.25)}
 .pcard:before,.pcard:after{display:none}
-.pcard.active{box-shadow:inset 0 0 0 3px var(--c),inset 0 0 0 5px var(--k),0 0 0 4px var(--g),0 10px 26px rgba(20,19,17,.3)}
+/* 轮到谁走：牌外面套一圈朱红粗线，和牌之间留一道缝。.active 由脚本加（轮到这一方、对局进行中）。
+   读秒时脚本再加 .hurry，并把 --beat 设成这一秒的节拍（秒），粗线照这个节拍一亮一暗；不设 --beat 时一秒一下。 */
+.pcard{outline:5px solid transparent;outline-offset:5px}
+.pcard.active{outline-color:var(--g);animation:tlIn .28s ease-out both}
+.pcard.active.hurry{animation:tlBlink var(--beat,1s) steps(1) infinite}
+@keyframes tlIn{from{outline-color:transparent;outline-offset:12px}to{outline-color:var(--g);outline-offset:5px}}
+@keyframes tlBlink{0%{outline-color:var(--g)}50%{outline-color:rgba(168,40,28,.12)}100%{outline-color:var(--g)}}
+@media (prefers-reduced-motion:reduce){.pcard.active,.pcard.active.hurry{animation:none}}
 .por .trk{stroke:rgba(20,19,17,.15)}.por .arc{stroke:var(--k)}.por .arc.low{stroke:var(--g)}
 .por .face{border:2px solid var(--k);box-shadow:none}
 .por .seal{border-radius:0;transform:none;box-shadow:inset 0 0 0 1.5px var(--c);color:var(--c);font-family:var(--ef);font-weight:900}
