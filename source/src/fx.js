@@ -606,7 +606,8 @@ const Fx = (() => {
     const { A, B, m, info } = c;
     const t = info.piece.t;
     const A0 = m.position.clone();
-    const su = Sfx.unit(unitKey(t, c.s)); su.move && su.move(0.6);
+    const lv = info.piece.lv || 0;   // 技能模式的等级：兵、士按人数出脚步，马按等级叠马蹄
+    const su = Sfx.unit(unitKey(t, c.s)); su.move && su.move(0.6, t === 'p' ? Math.min(3, lv) : t === 'a' ? Math.min(3, lv) || 2 : t === 'n' ? Math.min(3, lv) || 3 : undefined);
     if (c.mt === 'n') {
       // 马：一跃沿对角线直接到位（不再分“直一步、斜一步”两段）
       await tween(0.42, k => { m.position.lerpVectors(A0, B, k); m.position.y = TOP + Math.sin(k * Math.PI) * 0.34; }, ease.inOut);
@@ -946,16 +947,19 @@ const Fx = (() => {
   // ---------- 兵种台词 ----------
   let lastBark = '';
   function bark(info, c) {
+    Sfx.line();   // 先当这一步没有台词；真要说了下面再登记（马、象、虎的脚步和叫声照着台词排）
     if (typeof Voice === 'undefined' || !Voice.enabled) return;
     const p = info.piece, kill = !!c.tgt;
-    if (!kill && Math.random() > 0.55) return;
+    if (!kill && (Math.random() > 0.55 || Voice.busy)) return;
     const base = `u_${p.s}_${p.t}_${kill ? 'k' : 'm'}`;
     let id = `${base}${Math.random() < 0.5 ? 1 : 2}`;
     if (id === lastBark) id = `${base}${id.endsWith('1') ? 2 : 1}`;
     if (!Voice.has(id)) return;
     lastBark = id;
     const pan = Math.max(-0.7, Math.min(0.7, c.A.x / 6)) * (Board.viewSide === 'b' ? -1 : 1);
-    sleep(kill ? 0.35 : 0.1).then(() => Voice.bark(id, { vol: kill ? 1 : 0.8, pan, skipIfBusy: !kill }));
+    const delay = kill ? 0.35 : 0.1;
+    Sfx.line(delay, Voice.dur(id));
+    sleep(delay).then(() => Voice.bark(id, { vol: kill ? 1 : 0.8, pan, skipIfBusy: !kill }));
   }
 
   // ======================================================================

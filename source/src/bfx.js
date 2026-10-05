@@ -409,7 +409,7 @@ const BFX = (() => {
       await sleep(0.25);
     } else if (sk === 'taying') {
       const m = Board.pieces.get(P0.id);
-      Sfx.B.neigh(0, 0.14); Sfx.B.whoosh(0.1, 0.3, 0.4);
+      Sfx.B.neigh(0, 0.14, 'a'); Sfx.B.whoosh(0.1, 0.3, 0.4);
       await leap(m, at, to, before, ev, side, 'n', info, () => { Sfx.B.hooves(0, 0.5, 3, 0.4); });
     } else if (sk === 'feiyue') {
       // 飞越：腾身一跃，越过塞住象眼的子落到田字对角

@@ -16,6 +16,8 @@ const Squads = (() => {
   const gy = p => Fx.groundY(p);
   const unitKey = (t, s) => ({ p: 'inf', r: 'chariot', n: 'cav', c: 'cannon', a: 'guard', e: s === 'r' ? (Models.TIGER ? 'tiger' : 'xbow') : 'ele', k: s === 'r' ? 'liu' : 'xiang' }[t]);
   const snd = (t, s) => Sfx.unit(unitKey(t, s));
+  // 行军声：马、象、虎、炮是“台词 → 脚步 → 叫声”，脚步要等台词快说完才起；这里等到脚步起了队伍再动，画面和声音才对得上（最多等 0.9 秒）
+  const stepOff = async (t, s, dur, n) => { const w = snd(t, s).move(dur, n); if (w > 0.05) await sleep(Math.min(w, 0.9)); };
 
   // ======================================================================
   //  基类
@@ -263,11 +265,11 @@ const Squads = (() => {
       const elite = n >= 4; if (elite) n = 3;
       const off = []; if (n) off.push(...lineUp(n, elite ? 0.3 : 0.27)); else for (let r = 0; r < 3; r++) for (let c = 0; c < 4; c++) off.push([(c - 1.5) * 0.24, (1 - r) * 0.25]);
       super('p', side, anchor, yaw, elite ? 'zhanma' : 'spear', off, n ? SC * bigFor(n) * (elite ? 1.08 : 1) : SC);
-      this.elite = elite;
+      this.elite = elite; this.sndN = n;
     }
     async attack(target, c) {
       const { B, d } = c;
-      this.setPose('ready'); snd('p', this.side).charge(1.4);
+      this.setPose('ready'); snd('p', this.side).charge(1.4, this.sndN);
       await sleep(0.25);
       this.setPose('charge');
       const start = this.anchor.clone(), end = B.clone().addScaledVector(d, -0.45);
@@ -298,7 +300,7 @@ const Squads = (() => {
       // 士：手持比人还高一点的带刺巨盾。兵法四级不再加人，三名禁卫换一身金甲、金盾
       const elite = n >= 4; if (elite) n = 3;
       super('a', side, anchor, yaw, elite ? 'guardG' : 'guard', n ? lineUp(n, 0.34) : [[0.24, 0], [-0.24, 0]], SC * 0.975 * (n ? bigFor(n) : 1) * (elite ? 1.08 : 1));
-      this.elite = elite;
+      this.elite = elite; this.sndN = n || 2;
     }
     async attack(target, c) {
       const { B, d } = c;
@@ -415,8 +417,9 @@ const Squads = (() => {
     appear() { return Promise.all([super.appear(), this.guard ? this.guard.appear() : null]); }
     dissolve() { return Promise.all([super.dissolve(), this.guard ? this.guard.dissolve() : null]); }
     async march(path, dur) {
-      this.m.speed = 0.8; let last = 0;
-      snd('e', this.side).move(dur || 1.2);
+      let last = 0;
+      await stepOff('e', this.side, dur || 1.2);   // 台词 → 慢步 → 虎啸
+      this.m.speed = 0.8;
       if (this.guard) this.guard.setPose('march');
       await walkPath(this, path, dur, k => { kick(this, 0.26, 0.3, 0.2, 2); if (k - last > 0.22) { last = k; Fx.Marks.foot(this.anchor.clone().addScaledVector(rightOf(this.yaw), R(-0.08, 0.08))); } });
       this.m.speed = 0;
@@ -490,22 +493,24 @@ const Squads = (() => {
     sync() { const g = this.m.group; g.position.copy(this.anchor).addScaledVector(fwd(this.yaw), -0.05); g.position.y = gy(this.anchor); g.rotation.y = this.yaw - Math.PI / 2; }
     center(h = 0.3) { return super.center(h); }
     async march(path, dur) {
-      this.m.speed = 0.7; let last = 0;
-      snd('e', this.side).move(dur || 1.4); // 战象行军：重步、低吼、象鸣（之前漏了，行进时一点声音都没有）
+      let last = 0;
+      await stepOff('e', this.side, dur || 1.4);   // 战象行军：台词 → 重步 → 象鸣
+      this.m.speed = 0.7;
       await walkPath(this, path, dur, k => { kick(this, 0.34, 0.3, 0.16, 3); if (k - last > 0.18) { last = k; Cam.shake(0.03); Fx.Marks.foot(this.anchor.clone().addScaledVector(rightOf(this.yaw), R(-0.1, 0.1))); } });
       this.m.speed = 0;
     }
     async attack(target, c) {
       const { B, d } = c;
       const s = snd('e', 'b');
-      tween(0.4, k => { this.m.trumpetK = k; }); s.trumpet(); this.m.fire = 1;
+      const start = this.anchor.clone(), end = B.clone().addScaledVector(d, -0.25), run = Math.max(0.5, start.distanceTo(end) / 1.8);
+      tween(0.4, k => { this.m.trumpetK = k; }); s.charge(0.5 + run); this.m.fire = 1;   // 奔踏声垫在台词下面
       if (target.brace) target.brace();
       await sleep(0.5);
       tween(0.3, k => { this.m.trumpetK = 1 - k; });
-      this.m.speed = 1.2; s.charge(1.2);
-      const start = this.anchor.clone(), end = B.clone().addScaledVector(d, -0.25);
-      await tween(Math.max(0.5, start.distanceTo(end) / 1.8), k => { this.anchor.lerpVectors(start, end, k); if (Math.random() < 0.5) P.dust(this.center(0), 1, d, 0.3); }, ease.in);
+      this.m.speed = 1.2;
+      await tween(run, k => { this.anchor.lerpVectors(start, end, k); if (Math.random() < 0.5) P.dust(this.center(0), 1, d, 0.3); }, ease.in);
       this.m.speed = 0;
+      s.cry();   // 人立扬鼻的时候象鸣（台词还没说完就等它说完）
       await tween(0.3, k => { this.m.rearK = k; this.m.trumpetK = k; });
       await sleep(0.1);
       await tween(0.14, k => { this.m.rearK = 1 - k; }, ease.in);
@@ -580,7 +585,7 @@ const Squads = (() => {
       await dead;
       await sleep(0.2);
     }
-    brace() { this.m.horses.forEach((h, i) => tween(0.3, k => { h.rearK = k * (i % 2 ? 0.6 : 0.9); })); Sfx.B.neigh(0, 0.1); }
+    brace() { this.m.horses.forEach((h, i) => tween(0.3, k => { h.rearK = k * (i % 2 ? 0.6 : 0.9); })); Sfx.B.neigh(0, 0.1, 'a'); }
     async die(hit, dir, power) {
       const m = this.m, c = this.center(0.25);
       snd('r', this.side).destroy();
@@ -600,7 +605,7 @@ const Squads = (() => {
       });
       // 战马倒地
       m.horses.forEach((h, i) => { h.deadSide = Math.random() < 0.5 ? 1 : -1; tween(R(0.5, 0.9), k => { h.dead = k; h.rearK *= 0.9; }, ease.in); P.blood(h.group.getWorldPosition(new V3()).setY(TOP + 0.25), 8, 0.6, dir); });
-      if (G >= 1) Sfx.B.neigh(0.05, 0.12);
+      if (G >= 1) Sfx.B.neigh(0.05, 0.12, 'd');
       // 车厢翻倒、散架
       P.wood(c, 14, dir, 1.2 * power);
       Fx.chunks(c, dir, 1.0 * power, 8, { planks: true, scale: 0.8 });
@@ -616,7 +621,7 @@ const Squads = (() => {
   class Cavalry extends Squad {
     constructor(side, anchor, yaw, n = 0) {
       super('n', side, anchor, yaw);
-      this.riders = [];
+      this.riders = []; this.sndN = n ? Math.min(3, n) : 3;   // 马蹄叠几层
       const offs = n === 1 ? [[0, 0]] : n === 2 ? [[0.17, 0.05], [-0.17, -0.1]] : [[0, 0.12], [0.3, -0.3], [-0.3, -0.3]];
       offs.forEach(([x, z], i) => {
         const h = Models.makeCavalry(side, true, i === 0 && side === 'b' ? 'ji' : 'dao');
@@ -638,16 +643,16 @@ const Squads = (() => {
     async march(path, dur, charge = false) {
       // 马走日：不再“先直后斜、拐角人立”，一口气沿对角线奔到位
       const a = path[0], b = path[path.length - 1];
-      const s = snd('n', this.side);
+      const run = Math.max(0.4, a.distanceTo(b) * (charge ? 0.3 : 0.42));
+      if (!charge) await stepOff('n', this.side, run, this.sndN);   // 冲锋的马蹄声在 attack 里已经起了
       this.riders.forEach(h => { h.speed = charge ? 1 : 0.85; });
-      s.move(1.0);
-      await walkPath(this, [a, b], Math.max(0.4, a.distanceTo(b) * (charge ? 0.3 : 0.42)));
+      await walkPath(this, [a, b], run);
       this.riders.forEach(h => { h.speed = 0; });
     }
     async attack(target, c) {
       const { B, d, info } = c;
       const s = snd('n', this.side);
-      s.charge(1.6);
+      s.charge(1.6, this.sndN);
       this.riders.forEach(h => tween(0.3, k => { h.rider.arm.rotation.z = 0.9 + k * 1.6; }));
       // 揭棋里骑兵可能是按别的位置走法出阵的（直线冲锋）
       const corner = c.mt === 'n' ? knightCorner(info) : this.anchor.clone().lerp(B, 0.3);
@@ -675,7 +680,7 @@ const Squads = (() => {
       await dead;
       await sleep(0.2);
     }
-    brace() { this.riders.forEach((h, i) => tween(0.3, k => { h.rearK = k * 0.7; })); Sfx.B.neigh(0, 0.09); }
+    brace() { this.riders.forEach((h, i) => tween(0.3, k => { h.rearK = k * 0.7; })); Sfx.B.neigh(0, 0.09, 'a'); }
     async die(hit, dir, power) {
       const G = gore();
       snd('n', this.side).die();
@@ -705,7 +710,7 @@ const Squads = (() => {
   class Cannon extends Squad {
     constructor(side, anchor, yaw, mode = 'march', n = 0) {
       super('c', side, anchor, yaw);
-      this.mode = mode;
+      this.mode = mode; this.lv = n;
       if (mode === 'battery') {
         const d = fwd(yaw), s = rightOf(yaw);
         this.guns = (n === 1 ? [0] : n === 2 ? [-0.36, 0.36] : [-0.62, 0, 0.62]).map(l => {
@@ -738,8 +743,8 @@ const Squads = (() => {
       });
     }
     async march(path, dur) {
+      await stepOff('c', this.side, dur);
       if (this.horse) this.horse.speed = 0.3;
-      snd('c', this.side).move(dur);
       await walkPath(this, path, dur, k => { for (const w of this.gun.wheels) w.rotation.z -= 0.25; if (Math.random() < 0.3) P.dust(this.center(0), 1, fwd(this.yaw), 0.15); });
       if (this.horse) this.horse.speed = 0;
       Sfx.B.creak(0, 0.06);
@@ -760,8 +765,8 @@ const Squads = (() => {
       let dead = Promise.resolve();
       const fire = async (g, i) => {
         for (let k = 0; k < 6; k++) P.sparks(g.torch.getWorldPosition(new V3()), 2, 0.4);
-        s.fire(i);
-        await sleep(0.12);
+        s.fire(i, this.lv);
+        await sleep(0.14);
         const muzzle = g.barrel.localToWorld(new V3(1.35, 0, 0));
         Cam.shake(0.14); Fx.flash(muzzle, 40, 0.35); P.fire(muzzle, 16, 0.5); Fx.glow(muzzle, 1.5, 0.3, 0.45);
         for (let k = 0; k < 8; k++) Fx.spawn({ pos: muzzle.clone(), vel: d.clone().multiplyScalar(R(1.5, 4)).add(rv(0.4, 0.4, 0.4)), color: 0x6e6a64, size: 0.2, size2: R(0.8, 1.4), life: R(1.2, 2), op: 0.55, drag: 2.2 });
@@ -779,7 +784,7 @@ const Squads = (() => {
         }, ease.linear);
         scene.remove(ball);
         const big = i === ng - 1;
-        s.explode(big);
+        s.explode(big, this.lv);
         if (halo) halo.life = 0;
         Cam.shake(big ? 0.42 : 0.2); Fx.flash(tp, big ? 120 : 60, big ? 0.9 : 0.5, big ? 0.55 : 0); Fx.glow(tp.clone().add(new V3(0, 0.25, 0)), big ? 3.4 : 2, big ? 0.55 : 0.4, big ? 0.5 : 0.4);
         P.fire(tp.clone().add(new V3(0, 0.1, 0)), big ? 44 : 22, big ? 1.1 : 0.7); P.smoke(tp, big ? 16 : 8, big ? 1 : 0.7); P.sparks(tp, big ? 30 : 12, 1.2);
@@ -787,6 +792,7 @@ const Squads = (() => {
         for (let k = 0; k < (big ? 10 : 4); k++) { const o = new THREE.Mesh(new THREE.DodecahedronGeometry(0.07), Core.toon(0x5d554a)); o.position.copy(tp).add(new V3(0, 0.1, 0)); scene.add(o); Fx.throwObj(o, new V3(R(-2, 2), R(2, 5), R(-2, 2)), { life: R(0.8, 1.4) }); }
         if (big) { Fx.slowmo(0.3, 0.15); dead = target.die('blast', d, 1.6, tp); }
       };
+      { const L = Sfx.lineLeft(); if (L > 0.05) await sleep(Math.min(L, 1.2)); }   // 台词说完直接点火
       const shots = this.guns.map((g, i) => sleep(i * 0.28).then(() => fire(g, i)));
       await sleep(0.55);
       Fx.shot(tc.clone().addScaledVector(side, 3.4).addScaledVector(d, -2.0).add(new V3(0, 1.7, 0)), tc.clone().add(new V3(0, 0.3, 0)), flight * 0.75);
@@ -1043,7 +1049,7 @@ const Squads = (() => {
     if (sq.march && t === 'n') await sq.march(L ? [A, knightCorner(info), B] : [A, A.clone().lerp(B, 0.35), B]);
     else if (sq.march) await sq.march(L ? [A, knightCorner(info), B] : [A, B], dur);
     else {
-      sq.setPose('march'); snd(t, s).move(dur);
+      sq.setPose('march'); snd(t, s).move(dur, sq.sndN);
       await walkPath(sq, L ? [A, knightCorner(info), B] : [A, B], dur, k => { if (sq.units && Math.random() < 0.2) Fx.Marks.foot(sq.units[Math.floor(Math.random() * sq.units.length)].p); });
       sq.setPose('idle');
     }
@@ -1084,7 +1090,7 @@ const Squads = (() => {
     Sfx.river(3.2);
     // 走到岸边
     if (sq.march) await sq.march([A, bankA], Math.max(0.4, A.distanceTo(bankA) / 0.9));
-    else { sq.setPose('march'); snd(t, s).move(1); await walkPath(sq, [A, bankA], Math.max(0.4, A.distanceTo(bankA) / 0.9)); sq.setPose('idle'); }
+    else { sq.setPose('march'); snd(t, s).move(1, sq.sndN); await walkPath(sq, [A, bankA], Math.max(0.4, A.distanceTo(bankA) / 0.9)); sq.setPose('idle'); }
     await turnTo(sq, yaw, 0.2);
     // 船自上游漂来
     const nb = t === 'p' ? (sq.units && sq.units.length <= 4 ? 1 : 3) : 1;
