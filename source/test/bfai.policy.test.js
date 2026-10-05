@@ -4,6 +4,7 @@ const BF = global.BF = require('../src/bingfa.js');
 const AI = require('../src/bfai.js');
 const assert = require('assert');
 AI.LEVELS.hard.budget = 700;
+BF.CFG.r6.on = false;        // 同理：数值也照 r6 之前的那套
 BF.CFG.beishui.on = false;   // 这一组是破釜沉舟那套规则下的策略题（召回不看兵力、破釜留着杀车）；背水一战的行为在 test/beishui.test.js 里核对
 let id = 300;
 const P = (s, t, lv = 1, x = {}) => ({ s, t, id: id++, lv, hp: BF.hpOf(t, lv), cd: 0, jm: 0, xp: 0, kills: 0, ...x });

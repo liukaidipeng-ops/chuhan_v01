@@ -23,6 +23,8 @@ const crypto = require('crypto');
 const realDir = path.join(D, 'voice/real'), realMeta = JSON.parse(fs.readFileSync(path.join(realDir, 'real.json'), 'utf8'));
 const realIdx = {}, realParts = []; let realOff = 0;
 for (const l of lines) { const f = path.join(realDir, l.id + '.mp3'); if (!fs.existsSync(f)) continue; const b = fs.readFileSync(f); realIdx[l.id] = [realOff, b.length]; realParts.push(b); realOff += b.length; }
+// 台词表里没有、只在写实版里有的句子（t_ 开头：汉相换成虎骑之后的台词）也打进包
+for (const f of fs.readdirSync(realDir).filter(f => f.endsWith('.mp3')).sort()) { const id = f.slice(0, -4); if (realIdx[id]) continue; const b = fs.readFileSync(path.join(realDir, f)); realIdx[id] = [realOff, b.length]; realParts.push(b); realOff += b.length; }
 const realPack = Buffer.concat(realParts), realVer = crypto.createHash('sha1').update(realPack).digest('hex').slice(0, 8);
 const REAL = { url: 'voice-real.bin?v=' + realVer, idx: realIdx, text: realMeta.text || {} };
 const data = `window.VOICE_LINES=${JSON.stringify(L)};window.VOICE_CLIPS=${JSON.stringify(C)};window.VOICE_REAL=${JSON.stringify(REAL)};window.SFX_CLIPS=${JSON.stringify(S)};`;

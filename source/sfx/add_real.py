@@ -30,6 +30,6 @@ def heavy(n, gap):
         t = i * gap + float(r.uniform(0, 0.04)); items += [(X.rate(stomp, float(r.uniform(0.62, 0.72))), t, 0), (X.rate(soft[i % 3], 0.5), t + 0.01, -2)]
     return X.earth(X.mix(items), 'b')
 put('elestep', [(heavy(4, 0.55), 'CC0 stomp/soft，压低 + 处理')]); put('elerun', [(X.fade(heavy(6, 0.3), 0.05, 0.3), 'CC0 stomp/soft，压低 + 处理')])
-put('foot', [(X.L(SRC + '/' + f + '.ogg', tailpad=0.15)[:int(2.8 * V.SR)], A + f) for f in ('hstep_dirt_MN_11', 'hstep_dirt_MN_13', 'Footstep_Gravel_Walking', 'Footstep_Grass_Walking')])
+# 人的脚步（hstep_dirt_MN_11 / _13、Footstep_Gravel_Walking、Footstep_Grass_Walking）不再单独收：叠好的成品在 add_approved.py 里（foot1/2/3、troop、trooprun）
 json.dump(man, open(D + '/manifest.json', 'w', encoding='utf8'), ensure_ascii=False, indent=1)
-print({k: [(x['f'], x['dur']) for x in man[k]] for k in ('hoofr', 'hoofwar', 'neigha', 'neighm', 'neighd', 'elecry', 'elestep', 'elerun', 'foot')})
+print({k: [(x['f'], x['dur']) for x in man[k]] for k in ('hoofr', 'hoofwar', 'neigha', 'neighm', 'neighd', 'elecry', 'elestep', 'elerun')})

@@ -15,7 +15,7 @@ const BFX = (() => {
       else if (e.e === 'move') { b[e.to[1]][e.to[0]] = b[e.from[1]][e.from[0]]; b[e.from[1]][e.from[0]] = null; }
       else if (e.e === 'hit') { const p = b[e.at[1]][e.at[0]]; if (p) p.hp = e.hp; }
       else if (e.e === 'swap') { const x = b[e.pa[1]][e.pa[0]]; b[e.pa[1]][e.pa[0]] = b[e.pb[1]][e.pb[0]]; b[e.pb[1]][e.pb[0]] = x; }
-      else if (e.e === 'revive') b[e.at[1]][e.at[0]] = { s: 'r', t: e.t, id: e.id, lv: 1, hp: 1 };
+      else if (e.e === 'revive') b[e.at[1]][e.at[0]] = { s: 'r', t: e.t, id: e.id, lv: e.lv || 1, hp: BF.hpOf(e.t, e.lv || 1) };   // 试行规则里召回可能回来二级
     }
     return b;
   }
@@ -275,6 +275,8 @@ const BFX = (() => {
         if (B) for (let r = 0; r < 10 && !at; r++) for (let f = 0; f < 9; f++) if (B[r][f] && B[r][f].id === e.id) { at = [f, r]; break; }
         if (at) await levelUp({ id: e.id, t: e.t, side: e.s, at, lv: e.lv, nm: e.nm, auto: true });
       }
+      // 试行规则：召回后当场花军功升了一级——等它落定，再补上晋升的仪式
+      for (const e of ev.filter(x => x.e === 'reviveUp')) { const rv = ev.find(x => x.e === 'revive' && x.id === e.id); if (rv) await levelUp({ id: e.id, t: e.t, side: 'r', at: rv.at, lv: e.lv, nm: e.nm }); }
     } catch (e) { console.error(e); }
     if (info.k !== 'mv' && info.k !== 'up') {
       if (Cam.cine) await Cam.home(0.8);
@@ -409,7 +411,7 @@ const BFX = (() => {
       await sleep(0.25);
     } else if (sk === 'taying') {
       const m = Board.pieces.get(P0.id);
-      Sfx.B.neigh(0, 0.14); Sfx.B.whoosh(0.1, 0.3, 0.4);
+      Sfx.B.neigh(0, 0.14, 'a'); Sfx.B.whoosh(0.1, 0.3, 0.4);
       await leap(m, at, to, before, ev, side, 'n', info, () => { Sfx.B.hooves(0, 0.5, 3, 0.4); });
     } else if (sk === 'feiyue') {
       // 飞越：腾身一跃，越过塞住象眼的子落到田字对角
@@ -513,40 +515,53 @@ const BFX = (() => {
       if (i % 3 === 0) P.embers(p, 3);
     }, i * 22);
   }
+  // 召回良将的落位演出（art() 里用；界面“先落位、再让玩家决定升不升级”时也单独用）。rv = { t, id, at, lv }
+  async function reviveDrop(rv) {
+    const big = cine() || Fx.level === 'std';
+    // 召回良将：金光自天而降，良将踏光归阵
+    title('召回良将', '汉王复得良将 · ' + XQ.NAMES.r[rv.t] + '重回阵前', 2600);
+    Sfx.B.gong(0, 0.9); Sfx.B.bell(0.1, 660, 0.12); Sfx.B.bell(0.35, 880, 0.1); Sfx.B.bell(0.6, 1175, 0.08);
+    const vp = say('bf_art_r');
+    const B = Board.pos(rv.at[0], rv.at[1]), G = B.clone().setY(TOP + 0.02);
+    if (big) document.body.classList.add('cine');
+    shotAt(rv.at, 3.4, 2.4, 0.9);
+    // 地上先亮起一圈圈金环，光柱落下
+    for (let i = 0; i < 3; i++) setTimeout(() => Fx.ring(G, 1.6 + i * 0.9, 0.9, 0xffd27a, 0.85), i * 220);
+    await sleep(0.5);
+    beam(B, 0xffd98a, 9, 0.5, 2.6); Fx.flash(B.clone().setY(TOP + 0.6), 70, 1.2, 0.35); Fx.glow(B.clone().setY(TOP + 0.5), 3.2, 1.6, 0.5, 0xffd98a, 0.6);
+    spiral(B, 0xffe2a0, 50, 0.55, 1.5); Sfx.B.whoosh(0.1, 0.6, 0.9); Sfx.B.hooves(0.3, 1.2, 1, 0.3);
+    await sleep(0.55);
+    // 良将自光中降下，落地一震
+    const m = Board.makePiece({ s: 'r', t: rv.t, id: rv.id, lv: rv.lv || 1, hp: BF.hpOf(rv.t, rv.lv || 1) });
+    m.rotation.y = Board.viewSide === 'b' ? Math.PI : 0;
+    Board.piecesRoot.add(m); Board.pieces.set(rv.id, m);
+    const top = B.clone().setY(TOP + 4.2), yaw0 = m.rotation.y;
+    Fx.slowmo(0.5, 0.5);
+    await tween(0.75, k => { m.position.lerpVectors(top, B, k * k); m.rotation.y = yaw0 + (1 - k) * Math.PI * 4; m.scale.setScalar(0.6 + 0.4 * k); if (Math.random() < 0.8) Fx.spawn({ pos: m.position.clone(), vel: new V3(R(-0.3, 0.3), R(0.2, 1), R(-0.3, 0.3)), tex: Core.Tex.spark, add: true, color: 0xffd27a, size: 0.2, size2: 0.04, life: 0.5 }); }, ease.linear);
+    m.position.copy(B); m.rotation.y = yaw0; m.scale.set(1, 1, 1);
+    Cam.shake(0.36); Sfx.B.taiko(0, 1, 0.7); Sfx.B.gong(0.02, 0.8); Sfx.B.thud(0, 0.9); Sfx.place();
+    Fx.ring(G, 3.6, 0.9, 0xffe2a0, 0.95); Fx.ring(G, 2.2, 0.6, 0xc9a045, 0.9); P.dust(B, 18, null, 0.4); P.sparks(B.clone().setY(TOP + 0.3), 26, 1.2);
+    Fx.glow(B.clone().setY(TOP + 0.3), 4.2, 0.7, 0.6, 0xffe2a0);
+    // 四周的汉军齐声呼应
+    for (const x of Board.pieces.values()) if (x !== m && x.userData.s === 'r' && x.position.distanceTo(B) < 2.6) { const y0 = x.position.y; tween(0.35, k => { x.position.y = y0 + Math.sin(k * Math.PI) * 0.16; }); }
+    Sfx.B.shout(0.1, 8, 0.1, 0.6);
+    await Promise.race([vp, sleep(1.8)]);
+    await sleep(0.3);
+  }
+  // 界面用：只演落位，不改棋局。棋子先摆在棋盘上（记在 Board.pieces 里），等玩家点「升级」或「结束回合」再真正提交；
+  //   提交时 art() 看到 info.landed 就不再演一遍。玩家改主意则由 Board.reconcile 把它收走
+  async function reviveShow(rv) {
+    try { await reviveDrop(rv); } catch (e) { console.error('召回演出出错', e); }
+    Core.Time.scale = 1; document.body.classList.remove('cine');
+    try { if (Cam.cine) await Cam.home(0.8); } catch (e) { }
+  }
   async function art(info, before) {
     const side = info.side, ev = info.ev;
     const big = cine() || Fx.level === 'std';
     if (side === 'r') {
-      // 召回良将：金光自天而降，良将踏光归阵
       const rv = ev.find(e => e.e === 'revive');
-      title('召回良将', '汉王复得良将 · ' + XQ.NAMES.r[rv.t] + '重回阵前', 2600);
-      Sfx.B.gong(0, 0.9); Sfx.B.bell(0.1, 660, 0.12); Sfx.B.bell(0.35, 880, 0.1); Sfx.B.bell(0.6, 1175, 0.08);
-      const vp = say('bf_art_r');
-      const B = Board.pos(rv.at[0], rv.at[1]), G = B.clone().setY(TOP + 0.02);
-      if (big) document.body.classList.add('cine');
-      shotAt(rv.at, 3.4, 2.4, 0.9);
-      // 地上先亮起一圈圈金环，光柱落下
-      for (let i = 0; i < 3; i++) setTimeout(() => Fx.ring(G, 1.6 + i * 0.9, 0.9, 0xffd27a, 0.85), i * 220);
-      await sleep(0.5);
-      beam(B, 0xffd98a, 9, 0.5, 2.6); Fx.flash(B.clone().setY(TOP + 0.6), 70, 1.2, 0.35); Fx.glow(B.clone().setY(TOP + 0.5), 3.2, 1.6, 0.5, 0xffd98a, 0.6);
-      spiral(B, 0xffe2a0, 50, 0.55, 1.5); Sfx.B.whoosh(0.1, 0.6, 0.9); Sfx.B.hooves(0.3, 1.2, 1, 0.3);
-      await sleep(0.55);
-      // 良将自光中降下，落地一震
-      const m = Board.makePiece({ s: 'r', t: rv.t, id: rv.id, lv: 1, hp: 1 });
-      m.rotation.y = Board.viewSide === 'b' ? Math.PI : 0;
-      Board.piecesRoot.add(m); Board.pieces.set(rv.id, m);
-      const top = B.clone().setY(TOP + 4.2), yaw0 = m.rotation.y;
-      Fx.slowmo(0.5, 0.5);
-      await tween(0.75, k => { m.position.lerpVectors(top, B, k * k); m.rotation.y = yaw0 + (1 - k) * Math.PI * 4; m.scale.setScalar(0.6 + 0.4 * k); if (Math.random() < 0.8) Fx.spawn({ pos: m.position.clone(), vel: new V3(R(-0.3, 0.3), R(0.2, 1), R(-0.3, 0.3)), tex: Core.Tex.spark, add: true, color: 0xffd27a, size: 0.2, size2: 0.04, life: 0.5 }); }, ease.linear);
-      m.position.copy(B); m.rotation.y = yaw0; m.scale.set(1, 1, 1);
-      Cam.shake(0.36); Sfx.B.taiko(0, 1, 0.7); Sfx.B.gong(0.02, 0.8); Sfx.B.thud(0, 0.9); Sfx.place();
-      Fx.ring(G, 3.6, 0.9, 0xffe2a0, 0.95); Fx.ring(G, 2.2, 0.6, 0xc9a045, 0.9); P.dust(B, 18, null, 0.4); P.sparks(B.clone().setY(TOP + 0.3), 26, 1.2);
-      Fx.glow(B.clone().setY(TOP + 0.3), 4.2, 0.7, 0.6, 0xffe2a0);
-      // 四周的汉军齐声呼应
-      for (const x of Board.pieces.values()) if (x !== m && x.userData.s === 'r' && x.position.distanceTo(B) < 2.6) { const y0 = x.position.y; tween(0.35, k => { x.position.y = y0 + Math.sin(k * Math.PI) * 0.16; }); }
-      Sfx.B.shout(0.1, 8, 0.1, 0.6);
-      await Promise.race([vp, sleep(1.8)]);
-      await sleep(0.3);
+      if (info.landed && Board.pieces.has(rv.id)) await sleep(0.15);   // 界面已经先演过落位了（见 reviveShow）
+      else await reviveDrop(rv);
     } else {
       // 破釜沉舟：沉舟的火映红河面，楚军踏火连进两步
       if (BF.CFG.beishui.on) title('背水一战', '连进两步 · 用过的子下回合不能动', 2600); else title('破釜沉舟', '楚军连进两步 · 此后三回合不用技能', 2600);
@@ -627,5 +642,5 @@ const BFX = (() => {
       try { Sfx.Music.duck && Sfx.Music.duck(false); } catch (e) { }
     }
   }
-  return { play, simBoard, shatter, title, hooks, rankPop };
+  return { play, simBoard, shatter, title, hooks, rankPop, reviveShow };
 })();
