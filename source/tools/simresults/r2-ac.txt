@@ -1,0 +1,97 @@
+# r2-ac（GitHub Actions 运行 37242103016）
+# 请求：{"args":"--games 500 --seed 1000 --nodes mid=60000 --set beishui.on=true --set beishui.twoPieces=false --ai git:98dd206 --set attack.r=[1,1,2,2] --set attack.p=[1,1,2,2] --set attack.n=[1,1,2] --set attack.c=[1,1,2] --set attack.e=[1,1,2,2] --set attack.a=[1,2,3,3] --set upgrade.cost.p=[3,3,8] --set upgrade.cost.a=[2,2,4] --set upgrade.cost.e=[2,2,5] --set upgrade.cost.n=[5,5] --set upgrade.cost.c=[5,5] --set skills.qishe.dirs=ortho --set skills.jianta.onMove=true --set skills.qishe.level=3 --set skills.jianta.level=3 --set skills.jianta.moveCooldown=0","env":{"BFSIM_ENGINE":"tools/variants/engine_planc.js","ENGINE_REV":"98dd206"},"chunks":20,"note":"组合（用户定）：Plan A + Plan C（不冷却、三级解锁）"}
+# 收到 20/20 段
+== beishui.on=true beishui.twoPieces=false attack.r=[1,1,2,2] attack.p=[1,1,2,2] attack.n=[1,1,2] attack.c=[1,1,2] attack.e=[1,1,2,2] attack.a=[1,2,3,3] upgrade.cost.p=[3,3,8] upgrade.cost.a=[2,2,4] upgrade.cost.e=[2,2,5] upgrade.cost.n=[5,5] upgrade.cost.c=[5,5] skills.qishe.dirs=ortho skills.jianta.onMove=true skills.qishe.level=3 skills.jianta.level=3 skills.jianta.moveCooldown=0 | mid vs mid  [汉 git:98dd206 | 楚 git:98dd206] | 500 局 | 0s ==
+胜负：汉 231  楚 269  和/超时 0   汉方胜率（分胜负的局）46.2%  95%CI 42–51%
+结局：b:checkmate 269  r:checkmate 229  r:stalemate 2
+回合：平均 34.9  中位 31  P90 63  60 回合内结束 88.8%  进入决战 0.0%
+将死 498 局：将军的子有 2 血以上 92.4%（其中贴在帅将身边 73.3%），双将 7.8%
+攻防指标：车参与的将死 82.9%（三级以上的车 63.1%）；贴脸将死 74.1%；被将死的一方开局 4 个士象，终局平均丢 1.70 个（丢 0/1/2/3/4 个的局：131/108/107/83/69）
+士象技能（两方合计，每局平均次数）：护驾 1.08，铁甲禁卫 0.37，飞越 0.17，齐射 0.07，践踏打中 0.13，反击 0.00
+行动（用过的局占比 / 每局平均次数）  汉 | 楚
+  破釜沉舟         0.0%   0.00 |  26.0%   0.26
+  召回良将        20.4%   0.20 |   0.0%   0.00
+  普通走子       100.0%  32.13 | 100.0%  31.56
+  停着           0.0%   0.00 |   0.2%   0.00
+  冲阵          32.4%   0.59 |  31.4%   0.50
+  飞越           4.0%   0.05 |   7.6%   0.12
+  护驾          28.4%   0.57 |  26.2%   0.51
+  拒马          20.4%   0.78 |  24.4%   0.92
+  霹雳          12.8%   0.16 |  17.2%   0.23
+  齐射           5.6%   0.07 |   0.0%   0.00
+  踏营           8.6%   0.19 |   7.8%   0.16
+  终极兵法         0.4%   0.00 |   6.0%   0.06
+  回防(被动)       1.6%   0.02 |   2.0%   0.03
+  铁甲禁卫(被动)    10.8%   0.16 |  13.2%   0.21
+  神速营(被动)     10.6%   0.18 |  11.8%   0.22
+升级（* = 甲片自动晋升）  汉 | 楚 （用过的局占比 / 每局平均）
+  a2     62.4%  0.95 |  59.4%  0.91
+  a3     47.4%  0.69 |  43.8%  0.64
+  a4     24.4%  0.33 |  26.4%  0.34
+  c2     75.2%  0.98 |  70.8%  0.90
+  c2*     0.2%  0.00 |   0.0%  0.00
+  c3     42.6%  0.53 |  47.8%  0.58
+  e2     30.0%  0.33 |  28.6%  0.31
+  e2*     0.2%  0.00 |   0.8%  0.01
+  e3     20.0%  0.21 |  17.2%  0.18
+  e4      4.2%  0.05 |   4.4%  0.05
+  n2     54.2%  0.74 |  58.0%  0.79
+  n3     35.6%  0.49 |  39.8%  0.54
+  p2     52.0%  0.94 |  55.2%  1.01
+  p2*     0.2%  0.00 |   0.0%  0.00
+  p3     38.0%  0.68 |  40.6%  0.71
+  p4     15.4%  0.24 |  15.8%  0.25
+  r2     86.6%  1.45 |  89.6%  1.36
+  r3     55.0%  0.81 |  57.0%  0.77
+  r4     15.0%  0.15 |  12.2%  0.12
+击杀来源（每局平均）  汉 | 楚
+  普通吃子         4.65 |   4.85
+  冲阵           0.38 |   0.28
+  践踏           0.00 |   0.05
+  霹雳           0.12 |   0.17
+  齐射           0.03 |   0.00
+  踏营           0.02 |   0.03
+  回防(被动)       0.01 |   0.01
+  铁甲禁卫(被动)     0.05 |   0.07
+造成伤害但没打死（每局平均）  汉 | 楚
+  强攻           1.80 |   1.84
+  冲阵           0.30 |   0.27
+  飞越           0.00 |   0.00
+  践踏           0.00 |   0.09
+  霹雳           0.11 |   0.15
+  齐射           0.05 |   0.00
+  踏营           0.01 |   0.01
+军功来源（每局平均）  汉 | 楚
+  击杀       14.2 |   15.7
+  哀兵        5.4 |    5.2
+  回合       19.8 |   19.9
+  将军        6.1 |    5.8
+  过河        0.5 |    0.5
+终极兵法：汉用 2 局（平均第 75.5 回合，用了的局胜 50.0%）  楚用 30 局（第 53.0 回合，胜 100.0%）  护驾破鸿门宴 0 局
+主帅兵法：汉召回 102 局（第 31.1 回合，胜 13.7%）  楚背水 130 局（第 33.6 回合，胜 19.2%）
+少子才能用的主帅兵法（汉召回）：轮到自己时满足用的条件（车马炮比对方少；第三版还要至少丢了一半）过 176 局，第一次平均第 25.5 回合；真用了 102 局（胜 13.7%）
+少子才能用的主帅兵法（楚背水）：轮到自己时满足用的条件（车马炮比对方少；第三版还要至少丢了一半）过 168 局，第一次平均第 25.6 回合；真用了 130 局（胜 19.2%）
+车马炮持续落后（自己走完还少、到下回合还少）：汉 246 局（49.2%，第一次平均第 19.0 回合、平均落后 12.6 回合；这些局汉胜 25.6%；其中用了主帅兵法 97 局、胜 13.4%） | 楚 248 局（49.6%，第一次平均第 17.6 回合、平均落后 15.9 回合；这些局楚胜 33.9%；其中用了主帅兵法 125 局、胜 17.6%）
+手动升级时的血量（升级回满血，掉了血再升更划算）：汉 满血 92.4%、掉过血 7.6%（只剩 1 血 6.7%），共 4782 次 | 楚 满血 92.5%、掉过血 7.5%（只剩 1 血 6.7%），共 4733 次
+先有二级车的一方：两边都有的 332 局里先到的胜 53.9%；只有一方有的 111 局里有的一方胜 92.8%
+背水前后（130 局，分数 + 汉优；背水没有封锁期，这里的“之后”只是汉方紧接着的一手）：背水那一手汉方 -6.84 分（子力 -3.10）；汉方随后一手 +2.73 分；这些局汉胜 80.8%
+首次升到 N 级（平均回合 / 出现的局占比）  汉 | 楚
+  2 级  第 7.4 回合 99.6% | 第 7.3 回合 99.8%
+  3 级  第 18.0 回合 79.2% | 第 17.4 回合 79.6%
+  4 级  第 36.6 回合 33.6% | 第 35.7 回合 35.2%
+局面分随回合（汉方视角，正 = 汉优）/ 军功 / 等级总和
+  R5（500 局在下）分 0.08  军功 汉 3.8 楚 3.6  等级 汉 0.1 楚 0.2
+  R10（486 局在下）分 -0.11  军功 汉 2.7 楚 2.6  等级 汉 1.0 楚 1.0
+  R15（433 局在下）分 -0.31  军功 汉 2.7 楚 2.7  等级 汉 1.8 楚 1.9
+  R20（379 局在下）分 -0.69  军功 汉 4.2 楚 4.1  等级 汉 3.6 楚 3.8
+  R30（258 局在下）分 -0.85  军功 汉 4.4 楚 4.9  等级 汉 7.2 楚 7.8
+  R40（169 局在下）分 0.63  军功 汉 6.7 楚 8.1  等级 汉 9.8 楚 10.3
+翻盘（某回合落后 ≥ T 分的一方最后赢了）
+  R10≥2：208 局，落后方赢 65（31.3%），和 0
+  R10≥4：117 局，落后方赢 29（24.8%），和 0
+  R20≥2：321 局，落后方赢 65（20.2%），和 0
+  R20≥4：268 局，落后方赢 49（18.3%），和 0
+  R30≥2：244 局，落后方赢 40（16.4%），和 0
+  R30≥4：225 局，落后方赢 35（15.6%），和 0
+每步平均 776ms
+（合并 20 份：/home/runner/work/chuhan_v01/chuhan_v01/parts/r2-ac-0.json、/home/runner/work/chuhan_v01/chuhan_v01/parts/r2-ac-1.json、/home/runner/work/chuhan_v01/chuhan_v01/parts/r2-ac-2.json、/home/runner/work/chuhan_v01/chuhan_v01/parts/r2-ac-3.json、/home/runner/work/chuhan_v01/chuhan_v01/parts/r2-ac-4.json、/home/runner/work/chuhan_v01/chuhan_v01/parts/r2-ac-5.json、/home/runner/work/chuhan_v01/chuhan_v01/parts/r2-ac-6.json、/home/runner/work/chuhan_v01/chuhan_v01/parts/r2-ac-7.json、/home/runner/work/chuhan_v01/chuhan_v01/parts/r2-ac-8.json、/home/runner/work/chuhan_v01/chuhan_v01/parts/r2-ac-9.json、/home/runner/work/chuhan_v01/chuhan_v01/parts/r2-ac-10.json、/home/runner/work/chuhan_v01/chuhan_v01/parts/r2-ac-11.json、/home/runner/work/chuhan_v01/chuhan_v01/parts/r2-ac-12.json、/home/runner/work/chuhan_v01/chuhan_v01/parts/r2-ac-13.json、/home/runner/work/chuhan_v01/chuhan_v01/parts/r2-ac-14.json、/home/runner/work/chuhan_v01/chuhan_v01/parts/r2-ac-15.json、/home/runner/work/chuhan_v01/chuhan_v01/parts/r2-ac-16.json、/home/runner/work/chuhan_v01/chuhan_v01/parts/r2-ac-17.json、/home/runner/work/chuhan_v01/chuhan_v01/parts/r2-ac-18.json、/home/runner/work/chuhan_v01/chuhan_v01/parts/r2-ac-19.json）
