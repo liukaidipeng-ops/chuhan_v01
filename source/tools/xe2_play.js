@@ -18,11 +18,11 @@ process.env.ENGINE_REV = process.env.ENGINE_REV || '9aca810';
 const path = require('path'), fs = require('fs'), os = require('os');
 const { execFileSync } = require('child_process');
 const argv = process.argv.slice(2);
-const opt = { ai: 'src/bfai.js', games: 3, seed: 1000, nodes: 60000, normal: false, mode: 'xe2', plan: null, hanplan: null, json: null, maxRounds: 150 };
+const opt = { ai: 'src/bfai.js', games: 3, seed: 1000, nodes: 60000, normal: false, mode: 'xe2', plan: null, hanplan: null, json: null, maxRounds: 150, trace: false };
 for (let i = 0; i < argv.length; i++) {
   const k = argv[i], v = () => argv[++i];
   if (k === '--ai') opt.ai = v(); else if (k === '--games') opt.games = +v(); else if (k === '--seed') opt.seed = +v();
-  else if (k === '--nodes') opt.nodes = +v(); else if (k === '--normal') opt.normal = true; else if (k === '--mode') opt.mode = v(); else if (k === '--plan') opt.plan = v(); else if (k === '--hanplan') opt.hanplan = v(); else if (k === '--json') opt.json = v();
+  else if (k === '--nodes') opt.nodes = +v(); else if (k === '--normal') opt.normal = true; else if (k === '--mode') opt.mode = v(); else if (k === '--plan') opt.plan = v(); else if (k === '--hanplan') opt.hanplan = v(); else if (k === '--json') opt.json = v(); else if (k === '--trace') opt.trace = true;
   else throw new Error('未知参数 ' + k);
 }
 const SRC = path.join(__dirname, '..', 'src');
@@ -158,6 +158,11 @@ async function play(seed) {
         if (e.e === 'heal' && R.healFrom == null) R.healFrom = rd;
       }
       if (wipeKills) R.wipes.push({ round: rd, kills: wipeKills });
+      if (opt.trace) {   // --trace：逐着打出来（第几回合、哪方、什么着、杀了什么、回血几枚）
+        const nm = id => { for (const row of g.S.board) for (const q of row) if (q && q.id === id) return q.s + q.t + q.lv; return id; };
+        const ks = (info.ev || []).filter(e => e.e === 'kill').map(e => (e.how || '') + ':' + e.id), hs = (info.ev || []).filter(e => e.e === 'heal').length, rp = (info.ev || []).filter(e => e.e === 'repel').length;
+        console.error(`  R${rd} ${side} ${act.k === 'up' ? 'up ' + act.at + '→' + nm(pc.id) : act.k + ' ' + (act.from || '') + '→' + (act.to || '')}${ks.length ? ' 杀' + ks.join(',') : ''}${hs ? ' 回血' + hs : ''}${rp ? ' 弹回' : ''}`);
+      }
       for (const row of g.S.board) for (const p of row) if (p && chuE.has(p.id) && p.lv > R.maxLv) R.maxLv = p.lv;
       if (g.result) break;
     }
@@ -165,6 +170,8 @@ async function play(seed) {
     const rr = round(g.S); if ((rr <= 10 || rr % 5 === 0) && R.meritB[rr] == null) R.meritB[rr] = g.S.merit.b;   // 楚的军功走势（前 10 回合每回合、之后每 5 回合记一次）
   }
   R.rounds = round(g.S);
+  if (opt.trace) { console.error('  终局棋盘（大写汉、小写楚，数字=等级）：'); for (let r = 9; r >= 0; r--) console.error('  ' + g.S.board[r].map(p => !p ? ' .' : (p.s === 'r' ? p.t.toUpperCase() : p.t) + p.lv).join(' ')); console.error('  轮到 ' + g.S.turn + '，结果 ' + JSON.stringify(g.result));
+    if (process.env.XE_DUMP) fs.writeFileSync(process.env.XE_DUMP, JSON.stringify(g.S)); }
   if (g.result) { R.winner = g.result.winner; R.reason = g.result.reason; }
   return R;
 }

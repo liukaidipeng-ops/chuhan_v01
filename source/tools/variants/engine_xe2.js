@@ -73,6 +73,12 @@ function enginePath() {
     "      if (n >= H.count) for (const row of S.board) for (const q of row) if (q && q.s === H.side && q.t !== 'k') { const mx = hpOfS(q.s, q.t, q.lv); if (q.hp < mx) { q.hp = Math.min(mx, q.hp + H.amount); ev.push({ e: 'heal', id: q.id, hp: q.hp }); } }\n" +
     "    }\n" +
     "    if (side === 'b' && round(S) >= CFG_CUR.merit.autoIncomeFromRound) {");
+  // 帅将无敌的回合里“将”它不算将军，长将（同一子连续将军不超过 longCheckLimit 回合）也不该记：
+  //   原版记长将用的是只看棋盘的 checkers()，不认无敌。XE8 里楚将不能动、汉一个车一直对着它，记满 6 回合后汉每一步都算长将 → 被判困毙（楚胜）。
+  rep("    const ck = S.final || (side === 'b' && smActive(S)) ? [] : checkers(S.board, side);",
+    "    const ck = S.final || (side === 'b' && smActive(S)) || kingShielded(S, opp) ? [] : checkers(S.board, side);   // 变体·xe2：无敌的帅将不记长将");
+  rep("        const ck = side === 'b' && smActive(T) ? [] : checkers(T.board, side);",
+    "        const ck = side === 'b' && smActive(T) || kingShielded(T, other(side)) ? [] : checkers(T.board, side);   // 变体·xe2");
   const file = path.join(os.tmpdir(), `bingfa_xe2_${process.pid}.js`);
   fs.writeFileSync(file, s);
   process.on('exit', () => { try { fs.unlinkSync(file); } catch (e) { } });
