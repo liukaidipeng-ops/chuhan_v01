@@ -72,6 +72,10 @@ const XE8 = () => {
   C.merit.autoIncomeFromRound = 11; C.merit.autoIncomePerRound = 30;
   C.chuRecall = { side: 'b', fromRound: 30, t: 'r', at: [[0, 9], [8, 9]] };   // 用户：楚第 30 回合起每回合都能召回车（踩完以后好收尾）   // 第 10 回合末起（之后每回合）两边各加 30
 };
+// 极端诊断九（XE9，用户 2026-10-05：“先测吧”——用最早那版的摆阵羁绊）：XE8 + 两处
+//   · 楚士：斜走、横走一格，不受九宫限制，只在己方半场（不过河）；
+//   · 羁绊：两个四级士都贴着同一只象（上下左右相邻）才每回合回 8 血——光升满不贴着没有。
+const XE9 = () => { XE8(); const C = BF.CFG; C.sideStats.b.a.freeMove = [[1, 1], [1, -1], [-1, 1], [-1, -1], [1, 0], [-1, 0]]; C.healAura.adj = 'e'; };
 const setupXE8 = g => g.setup(T => {
   for (let r = 0; r < 10; r++) for (let f = 0; f < 9; f++) {
     const p = T.board[r][f]; if (!p) continue;
@@ -79,16 +83,38 @@ const setupXE8 = g => g.setup(T => {
     else if (p.s === 'r' && (p.t === 'p' || p.t === 'n' || p.t === 'c')) { p.t = 'r'; p.lv = 1; p.hp = 5; }   // 汉：兵、马、炮的位置换成车
   }
 });
-const START_MERIT = opt.normal ? null : ['xe3', 'xe5', 'xe6', 'xe7', 'xe8'].includes(opt.mode) ? { r: 30, b: 30 } : opt.mode === 'xe4' ? { r: 30, b: 10 } : null;
-if (!opt.normal) ({ xe8: XE8, xe7: XE7, xe6: XE6, xe5: XE5, xe3: XE3, xe4: XE3 }[opt.mode] || XE2)();
+const START_MERIT = opt.normal ? null : ['xe3', 'xe5', 'xe6', 'xe7', 'xe8', 'xe9'].includes(opt.mode) ? { r: 30, b: 30 } : opt.mode === 'xe4' ? { r: 30, b: 10 } : null;
+if (!opt.normal) ({ xe9: XE9, xe8: XE8, xe7: XE7, xe6: XE6, xe5: XE5, xe3: XE3, xe4: XE3 }[opt.mode] || XE2)();
 // --plan A|B|C（只管楚的升级，走子仍是电脑）：A 先升满两个士；B 只攒钱；C 先升马。三套都是“象能升就升”，升完电脑自己走象。
 function planUp(S) {
   if (S.upgraded) return null;
   const find = t => { const o = []; for (let r = 0; r < 10; r++) for (let f = 0; f < 9; f++) { const p = S.board[r][f]; if (p && p.s === 'b' && p.t === t) o.push({ p, at: [f, r] }); } return o; };
   const can = x => !!BF.ai.upgradeState(S, x.at);
   const el = find('e').filter(can); if (el.length) return el[0].at;
-  if (opt.plan === 'A') { const a = find('a').filter(x => x.p.lv < 4 && can(x)).sort((x, y) => x.p.lv - y.p.lv)[0]; return a ? a.at : null; }
+  if (opt.plan === 'A' || opt.plan === 'AF') { const a = find('a').filter(x => x.p.lv < 4 && can(x)).sort((x, y) => x.p.lv - y.p.lv)[0]; return a ? a.at : null; }
   if (opt.plan === 'C') { const n = find('n').filter(x => x.p.lv < 2 && can(x))[0]; return n ? n.at : null; }
+  return null;
+}
+// XE9 固定打法 AF / F 的“摆阵”：选一只楚象（先选 (2,9) 那只，死了换另一只），两个士一回合走一步（最短路）走到它上下左右的空格；
+//   两个都贴上以后把这两个士冻住（p.bz，引擎里背水一战冻结的记号）不再动，走子交给电脑
+function formStep(S) {
+  const all = t => { const o = []; for (let r = 0; r < 10; r++) for (let f = 0; f < 9; f++) { const p = S.board[r][f]; if (p && p.s === 'b' && p.t === t) o.push({ p, at: [f, r] }); } return o; };
+  const els = all('e').sort((x, y) => (x.at[0] === 2 ? 0 : 1) - (y.at[0] === 2 ? 0 : 1)); if (!els.length) return null;
+  const E = els[0], nb = [[1, 0], [-1, 0], [0, 1], [0, -1]].map(([df, dr]) => [E.at[0] + df, E.at[1] + dr]).filter(([f, r]) => f >= 0 && f < 9 && r >= 5 && r <= 9);
+  const isNb = at => nb.some(q => q[0] === at[0] && q[1] === at[1]);
+  const advs = all('a'), adj = advs.filter(a => isNb(a.at));
+  if (adj.length >= 2) return { done: adj.slice(0, 2) };
+  for (const a of advs.filter(x => !isNb(x.at))) {   // 最短路（按引擎的走法、绕开别的子）
+    const key = q => q[0] + ',' + q[1], prev = new Map([[key(a.at), null]]), Q = [a.at];
+    const H = BF.cloneState(S); H.board[a.at[1]][a.at[0]] = null;
+    while (Q.length) {
+      const c = Q.shift();
+      if (isNb(c) && !S.board[c[1]][c[0]]) { let x = c, y = prev.get(key(c)); while (y && key(y) !== key(a.at)) { x = y; y = prev.get(key(y)); } return { mv: { k: 'mv', from: a.at.slice(), to: x.slice() } }; }
+      H.board[c[1]][c[0]] = a.p;
+      for (const m of BF.ai.moveTargets(H, c[0], c[1])) { const t = m.to; if (H.board[t[1]][t[0]] || prev.has(key(t))) continue; prev.set(key(t), c); Q.push(t); }
+      H.board[c[1]][c[0]] = null;
+    }
+  }
   return null;
 }
 // --hanplan hunt（验证设定用的“完美围剿”）：汉每回合只要有车打得到楚象，就先把那辆车升一级再打（先打血少的那只）；打不到才交给电脑
@@ -126,10 +152,10 @@ const round = S => Math.floor((S.cnt.r + S.cnt.b) / 2) + 1;
 async function play(seed) {
   let a = seed >>> 0; Math.random = () => { a = (a * 1103515245 + 12345) % 2147483648; return a / 2147483648; };
   const g = new BF.Game();
-  if (opt.mode === 'xe8' && !opt.normal) setupXE8(g);
+  if ((opt.mode === 'xe8' || opt.mode === 'xe9') && !opt.normal) setupXE8(g);
   if (START_MERIT) { g.S.merit.r = START_MERIT.r; g.S.merit.b = START_MERIT.b; }
   const chuE = new Set(); for (const row of g.S.board) for (const p of row) if (p && p.s === 'b' && p.t === 'e') chuE.add(p.id);
-  const R = { seed, winner: null, reason: null, rounds: 0, firstHit: null, hits: 0, kills: [], ups: [], autoups: [], maxLv: 1, wipes: [], note: '', meritB: {}, otherUpsB: 0, upsB: [], healFrom: null, rc: [] };
+  const R = { seed, winner: null, reason: null, rounds: 0, firstHit: null, hits: 0, kills: [], ups: [], autoups: [], maxLv: 1, wipes: [], note: '', meritB: {}, otherUpsB: 0, upsB: [], healFrom: null, rc: [], formAt: null };
   while (!g.result) {
     if (round(g.S) > opt.maxRounds) { R.reason = 'cap'; break; }
     const side = g.S.turn;
@@ -139,7 +165,13 @@ async function play(seed) {
     if ((opt.hanplan === 'hunt' || opt.hanplan === 'huntA') && side === 'r' && (seq = huntSeq(g.S))) { /* 完美围剿 */ }
     else if (pre.length || (opt.plan && side === 'b')) {
       const S1 = BF.cloneState(g.S); if (pre.length) { const U = BF.ai.upgradeState(S1, pre[0].at); if (U) { Object.assign(S1, U); } } S1.upgraded = true;   // 电脑只管走子
-      seq = pre.concat((await AI.think(S1, 'mid')).filter(a => a.k !== 'up'));
+      let fm = null;
+      if (opt.plan === 'AF' || opt.plan === 'F') {
+        const fs1 = formStep(S1);
+        if (fs1 && fs1.done) for (const x of fs1.done) { const q = g.S.board[x.at[1]][x.at[0]]; if (q && !q.bz) { q.bz = 1e9; const q1 = S1.board[x.at[1]][x.at[0]]; if (q1) q1.bz = 1e9; if (R.formAt == null) R.formAt = round(g.S); } }
+        else if (fs1 && fs1.mv && BF.attempt(S1, fs1.mv)) fm = fs1.mv;
+      }
+      seq = pre.concat(fm ? [fm] : (await AI.think(S1, 'mid')).filter(a => a.k !== 'up'));
     } else seq = await AI.think(BF.cloneState(g.S), 'mid');
     if (opt.trace && AI.think.ups) console.error(`  R${round(g.S)} ${side} 候选升级 ${JSON.stringify(AI.think.ups)} 试算 ${AI.think.last && AI.think.last.potMs}ms 用时 ${AI.think.last && AI.think.last.ms}ms`);
     if (!seq || !seq.length) { R.note = '电脑没给着'; break; }
@@ -183,9 +215,9 @@ async function play(seed) {
   for (let i = 0; i < opt.games; i++) {
     const R = await play(opt.seed + i); out.push(R);
     const killedBy = R.kills.filter(k => k.by === 'r').map(k => '第' + k.round + '回合').join('、') || '无';
-    if (opt.mode === 'xe8') {
+    if (opt.mode === 'xe8' || opt.mode === 'xe9') {
       const ups = R.upsB.map(u => ({ a: '士', n: '马', e: '象' }[u.t] || u.t) + u.to + '@' + u.round).join(' ');
-      console.log(`种子 ${R.seed}：${R.winner === 'r' ? '汉胜' : R.winner === 'b' ? '楚胜' : '和/' + R.reason}（${R.reason}，${R.rounds} 回合）${R.note ? ' ' + R.note : ''}｜楚升级 ${ups || '无'}｜回血从第 ${R.healFrom == null ? '—' : R.healFrom} 回合｜象被汉打中 ${R.hits} 下，第一下第 ${R.firstHit == null ? '—' : R.firstHit} 回合，被杀 ${R.kills.filter(k => k.by === 'r').map(k => '第' + k.round + '回合').join('、') || '无'}｜秒杀 ${R.wipes.map(w => '第' + w.round + '回合踩死' + w.kills).join('、') || '无'}｜召回车 ${R.rc.length ? R.rc.length + ' 次（第 ' + R.rc[0] + ' 回合起）' : '无'}`);
+      console.log(`种子 ${R.seed}：${R.winner === 'r' ? '汉胜' : R.winner === 'b' ? '楚胜' : '和/' + R.reason}（${R.reason}，${R.rounds} 回合）${R.note ? ' ' + R.note : ''}｜楚升级 ${ups || '无'}｜回血从第 ${R.healFrom == null ? '—' : R.healFrom} 回合｜象被汉打中 ${R.hits} 下，第一下第 ${R.firstHit == null ? '—' : R.firstHit} 回合，被杀 ${R.kills.filter(k => k.by === 'r').map(k => '第' + k.round + '回合').join('、') || '无'}｜秒杀 ${R.wipes.map(w => '第' + w.round + '回合踩死' + w.kills).join('、') || '无'}｜召回车 ${R.rc.length ? R.rc.length + ' 次（第 ' + R.rc[0] + ' 回合起）' : '无'}${R.formAt != null ? '｜摆好阵 第 ' + R.formAt + ' 回合' : ''}`);
       continue;
     }
     console.log(`种子 ${R.seed}：${R.winner === 'r' ? '汉胜' : R.winner === 'b' ? '楚胜' : '和/' + R.reason}（${R.reason}，${R.rounds} 回合）${R.note ? ' ' + R.note : ''}｜汉第一次打到楚象：${R.firstHit == null ? '没有' : '第 ' + R.firstHit + ' 回合'}，打中 ${R.hits} 下，杀死楚象：${killedBy}｜楚象最高 ${R.maxLv} 级，自己点升级 ${R.ups.map(u => '第' + u.round + '回合→' + u.to + '级').join('、') || '无'}，甲片自动 ${R.autoups.map(u => '第' + u.round + '回合→' + u.lv + '级').join('、') || '无'}｜秒杀全场 ${R.wipes.map(w => '第' + w.round + '回合踩死' + w.kills).join('、') || '无'}｜楚升别的子 ${R.otherUpsB} 次，楚军功 ${Object.entries(R.meritB).slice(0, 12).map(([k, v]) => k + '回合:' + v).join(' ')}`);

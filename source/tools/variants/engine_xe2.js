@@ -61,15 +61,19 @@ function enginePath() {
   //   · sideStats[方][兵种].immobileBelow = L：不到 L 级不能动（楚象一级不能动）；fwdOnly：只能往前直走一格（楚马）
   //   · kingShield.immobile：无敌的那些回合里帅将也不能动
   //   · CFG.healAura = { side, t, lv, count, amount }：这一方有 count 枚 t 兵种到了 lv 级，每回合结束（楚走完）时这一方全队（帅将除外）回 amount 血，回不过满血
+  //     XE9：healAura.adj = 'e' → 要 count 枚这样的子贴着同一枚 adj 兵种（上下左右相邻）才算；sideStats[方][兵种].freeMove = [[df, dr], …] → 按这些方向走一格，只在己方半场
   rep("    if (!ignoreLeg && p.t === 'e') { const o = sideOv(p.s, 'e'); if (o && o.noLegFrom && p.lv >= o.noLegFrom) ignoreLeg = true; }   // 变体·xe2：几级起无视塞象眼\n",
     "    if (!ignoreLeg && p.t === 'e') { const o = sideOv(p.s, 'e'); if (o && o.noLegFrom && p.lv >= o.noLegFrom) ignoreLeg = true; }   // 变体·xe2：几级起无视塞象眼\n" +
     "    { const o = sideOv(p.s, p.t);   // 变体·xe2（XE8）：不能动的子、只能往前走一格的子、无敌期里不能动的帅将\n" +
     "      if (o && o.immobileBelow && p.lv < o.immobileBelow) return [];\n" +
     "      if (p.t === 'k') { const K = CFG_CUR.kingShield; if (K && K.immobile && K.side === p.s && Math.floor((S.cnt.r + S.cnt.b) / 2) + 1 <= K.untilRound) return []; }\n" +
-    "      if (o && o.fwdOnly) { const tr = r + (p.s === 'r' ? 1 : -1); if (!inBoard(f, tr)) return []; const q = S.board[tr][f]; if (q && (q.s === p.s || (q.t === 'k' && !S.final))) return []; return [{ from: [f, r], to: [f, tr] }]; } }\n");
+    "      if (o && o.fwdOnly) { const tr = r + (p.s === 'r' ? 1 : -1); if (!inBoard(f, tr)) return []; const q = S.board[tr][f]; if (q && (q.s === p.s || (q.t === 'k' && !S.final))) return []; return [{ from: [f, r], to: [f, tr] }]; }\n" +
+    "      if (o && o.freeMove) { const out = []; for (const [df, dr] of o.freeMove) { const tf = f + df, tr = r + dr; if (!inBoard(tf, tr) || (p.s === 'b' ? tr < 5 : tr > 4)) continue; const q = S.board[tr][tf]; if (q && (q.s === p.s || (q.t === 'k' && !S.final))) continue; out.push({ from: [f, r], to: [tf, tr] }); } return out; } }   // XE9：按 freeMove 里的方向走一格，只在己方半场（不受九宫限制）\n");
   rep("    if (side === 'b' && round(S) >= CFG_CUR.merit.autoIncomeFromRound) {",
     "    if (side === 'b' && CFG_CUR.healAura) {   // 变体·xe2（XE8）：回血光环，每回合结束时\n" +
-    "      const H = CFG_CUR.healAura; let n = 0; for (const row of S.board) for (const q of row) if (q && q.s === H.side && q.t === H.t && q.lv >= H.lv) n++;\n" +
+    "      const H = CFG_CUR.healAura, okA = q => !!(q && q.s === H.side && q.t === H.t && q.lv >= H.lv); let n = 0;\n" +
+    "      if (!H.adj) { for (const row of S.board) for (const q of row) if (okA(q)) n++; }\n" +
+    "      else for (let r = 0; r < 10; r++) for (let f = 0; f < 9; f++) { const e = S.board[r][f]; if (!e || e.s !== H.side || e.t !== H.adj) continue; let k = 0; for (const [df, dr] of [[1, 0], [-1, 0], [0, 1], [0, -1]]) if (inBoard(f + df, r + dr) && okA(S.board[r + dr][f + df])) k++; if (k > n) n = k; }   // XE9：count 枚贴着同一枚 adj（上下左右）才算\n" +
     "      if (n >= H.count) for (const row of S.board) for (const q of row) if (q && q.s === H.side && q.t !== 'k') { const mx = hpOfS(q.s, q.t, q.lv); if (q.hp < mx) { q.hp = Math.min(mx, q.hp + H.amount); ev.push({ e: 'heal', id: q.id, hp: q.hp }); } }\n" +
     "    }\n" +
     "    if (side === 'b' && round(S) >= CFG_CUR.merit.autoIncomeFromRound) {");
