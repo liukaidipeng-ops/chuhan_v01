@@ -155,7 +155,7 @@ async function play(seed) {
   if ((opt.mode === 'xe8' || opt.mode === 'xe9') && !opt.normal) setupXE8(g);
   if (START_MERIT) { g.S.merit.r = START_MERIT.r; g.S.merit.b = START_MERIT.b; }
   const chuE = new Set(); for (const row of g.S.board) for (const p of row) if (p && p.s === 'b' && p.t === 'e') chuE.add(p.id);
-  const R = { seed, winner: null, reason: null, rounds: 0, firstHit: null, hits: 0, kills: [], ups: [], autoups: [], maxLv: 1, wipes: [], note: '', meritB: {}, otherUpsB: 0, upsB: [], healFrom: null, rc: [], formAt: null };
+  const R = { seed, winner: null, reason: null, rounds: 0, firstHit: null, hits: 0, kills: [], ups: [], autoups: [], maxLv: 1, wipes: [], note: '', meritB: {}, otherUpsB: 0, upsB: [], healFrom: null, rc: [], formAt: null, bondAt: null };
   while (!g.result) {
     if (round(g.S) > opt.maxRounds) { R.reason = 'cap'; break; }
     const side = g.S.turn;
@@ -193,6 +193,12 @@ async function play(seed) {
         if (e.e === 'heal' && R.healFrom == null) R.healFrom = rd;
       }
       if (wipeKills) R.wipes.push({ round: rd, kills: wipeKills });
+      if (R.bondAt == null && BF.CFG.healAura) {   // 羁绊第一次成立（和引擎同一判法：XE8 数四级士，XE9 要贴着同一只象）
+        const H = BF.CFG.healAura, ok = q => !!(q && q.s === H.side && q.t === H.t && q.lv >= H.lv); let n = 0;
+        if (!H.adj) { for (const row of g.S.board) for (const q of row) if (ok(q)) n++; }
+        else for (let r = 0; r < 10; r++) for (let f = 0; f < 9; f++) { const e = g.S.board[r][f]; if (!e || e.s !== H.side || e.t !== H.adj) continue; let k = 0; for (const [df, dr] of [[1, 0], [-1, 0], [0, 1], [0, -1]]) { const q = f + df >= 0 && f + df < 9 && r + dr >= 0 && r + dr < 10 ? g.S.board[r + dr][f + df] : null; if (ok(q)) k++; } if (k > n) n = k; }
+        if (n >= H.count) R.bondAt = rd;
+      }
       if (opt.trace) {   // --trace：逐着打出来（第几回合、哪方、什么着、杀了什么、回血几枚）
         const nm = id => { for (const row of g.S.board) for (const q of row) if (q && q.id === id) return q.s + q.t + q.lv; return id; };
         const ks = (info.ev || []).filter(e => e.e === 'kill').map(e => (e.how || '') + ':' + e.id), hs = (info.ev || []).filter(e => e.e === 'heal').length, rp = (info.ev || []).filter(e => e.e === 'repel').length;
@@ -217,7 +223,7 @@ async function play(seed) {
     const killedBy = R.kills.filter(k => k.by === 'r').map(k => '第' + k.round + '回合').join('、') || '无';
     if (opt.mode === 'xe8' || opt.mode === 'xe9') {
       const ups = R.upsB.map(u => ({ a: '士', n: '马', e: '象' }[u.t] || u.t) + u.to + '@' + u.round).join(' ');
-      console.log(`种子 ${R.seed}：${R.winner === 'r' ? '汉胜' : R.winner === 'b' ? '楚胜' : '和/' + R.reason}（${R.reason}，${R.rounds} 回合）${R.note ? ' ' + R.note : ''}｜楚升级 ${ups || '无'}｜回血从第 ${R.healFrom == null ? '—' : R.healFrom} 回合｜象被汉打中 ${R.hits} 下，第一下第 ${R.firstHit == null ? '—' : R.firstHit} 回合，被杀 ${R.kills.filter(k => k.by === 'r').map(k => '第' + k.round + '回合').join('、') || '无'}｜秒杀 ${R.wipes.map(w => '第' + w.round + '回合踩死' + w.kills).join('、') || '无'}｜召回车 ${R.rc.length ? R.rc.length + ' 次（第 ' + R.rc[0] + ' 回合起）' : '无'}${R.formAt != null ? '｜摆好阵 第 ' + R.formAt + ' 回合' : ''}`);
+      console.log(`种子 ${R.seed}：${R.winner === 'r' ? '汉胜' : R.winner === 'b' ? '楚胜' : '和/' + R.reason}（${R.reason}，${R.rounds} 回合）${R.note ? ' ' + R.note : ''}｜楚升级 ${ups || '无'}｜回血从第 ${R.healFrom == null ? '—' : R.healFrom} 回合｜象被汉打中 ${R.hits} 下，第一下第 ${R.firstHit == null ? '—' : R.firstHit} 回合，被杀 ${R.kills.filter(k => k.by === 'r').map(k => '第' + k.round + '回合').join('、') || '无'}｜秒杀 ${R.wipes.map(w => '第' + w.round + '回合踩死' + w.kills).join('、') || '无'}｜召回车 ${R.rc.length ? R.rc.length + ' 次（第 ' + R.rc[0] + ' 回合起）' : '无'}${R.formAt != null ? '｜摆好阵 第 ' + R.formAt + ' 回合' : ''}｜羁绊成立 ${R.bondAt == null ? '无' : '第 ' + R.bondAt + ' 回合'}`);
       continue;
     }
     console.log(`种子 ${R.seed}：${R.winner === 'r' ? '汉胜' : R.winner === 'b' ? '楚胜' : '和/' + R.reason}（${R.reason}，${R.rounds} 回合）${R.note ? ' ' + R.note : ''}｜汉第一次打到楚象：${R.firstHit == null ? '没有' : '第 ' + R.firstHit + ' 回合'}，打中 ${R.hits} 下，杀死楚象：${killedBy}｜楚象最高 ${R.maxLv} 级，自己点升级 ${R.ups.map(u => '第' + u.round + '回合→' + u.to + '级').join('、') || '无'}，甲片自动 ${R.autoups.map(u => '第' + u.round + '回合→' + u.lv + '级').join('、') || '无'}｜秒杀全场 ${R.wipes.map(w => '第' + w.round + '回合踩死' + w.kills).join('、') || '无'}｜楚升别的子 ${R.otherUpsB} 次，楚军功 ${Object.entries(R.meritB).slice(0, 12).map(([k, v]) => k + '回合:' + v).join(' ')}`);
