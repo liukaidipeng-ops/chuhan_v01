@@ -97,7 +97,7 @@ function planUp(S) {
   const find = t => { const o = []; for (let r = 0; r < 10; r++) for (let f = 0; f < 9; f++) { const p = S.board[r][f]; if (p && p.s === 'b' && p.t === t) o.push({ p, at: [f, r] }); } return o; };
   const can = x => !!BF.ai.upgradeState(S, x.at);
   const el = find('e').filter(can); if (el.length) return el[0].at;
-  if (opt.plan === 'AF') { const F = formTarget(S); const order = F ? [F.headA, F.sideA].filter(Boolean) : []; for (const x of order) if (x.p.lv < 4 && can(x)) return x.at; return null; }   // 象头那个士先升满
+  if (opt.plan === 'AF' || opt.plan === 'AFP') { const F = formTarget(S); const order = F ? [F.headA, F.sideA].filter(Boolean) : []; for (const x of order) if (x.p.lv < 4 && can(x)) return x.at; return null; }   // 象头那个士先升满
   if (opt.plan === 'A' || opt.plan === 'AF2') { const a = find('a').filter(x => x.p.lv < 4 && can(x)).sort((x, y) => x.p.lv - y.p.lv)[0]; return a ? a.at : null; }
   if (opt.plan === 'C') { const n = find('n').filter(x => x.p.lv < 2 && can(x))[0]; return n ? n.at : null; }
   return null;
@@ -106,6 +106,7 @@ function planUp(S) {
 //   远处的士再走到象的侧面（左右两格里空着的那格，或者已经站着士的那格）；一回合走一步（最短路，绕开别的子）。
 //   两个都到位后把这两个士、连同贴着这只象的马冻住（p.bz，引擎里背水一战冻结的记号）不再动，走子交给电脑。
 //   升级：AF = 先把象头那个士一路升满，再升另一个；AF2 = 两个士轮流升（对照：看顺序要不要紧）；F = 不升士。
+//   AFP = AF + 用户定的第三步：两个士到位后，象头士前面那格空着就挑一枚一步走得到的炮 / 兵 / 车垫上去（垫好也冻住），替象头士挨一下、多撑一回合。
 function formTarget(S) {
   const all = t => { const o = []; for (let r = 0; r < 10; r++) for (let f = 0; f < 9; f++) { const p = S.board[r][f]; if (p && p.s === 'b' && p.t === t) o.push({ p, at: [f, r] }); } return o; };
   const els = all('e').sort((x, y) => (x.at[0] === 2 ? 0 : 1) - (y.at[0] === 2 ? 0 : 1)); if (!els.length) return null;
@@ -137,24 +138,31 @@ function formStep(S) {
   const sideOk = sides.filter(([f, r]) => { const q = S.board[r][f]; return !q || (q.s === 'b' && q.t === 'a'); });
   if (!sideOk.some(t => same(sideA.at, t))) { const mv = bfsStep(S, sideA, sideOk); return mv ? { mv } : null; }   // 远士再去侧面
   const keep = [headA, sideA]; for (const x of all('n')) if (sides.some(t => same(x.at, t))) keep.push(x);   // 贴着这只象的马也冻住
+  if (opt.plan === 'AFP') {   // 用户的解法第三步：象头士前面垫一个子（炮 / 兵 / 车），替它挨一下
+    const front = [head[0], head[1] - 1], q = S.board[front[1]] && S.board[front[1]][front[0]];
+    if (q && q.s === 'b') keep.push({ p: q, at: front });
+    else if (!q) for (const t of ['c', 'p', 'r']) for (const x of all(t)) { const mv = { k: 'mv', from: x.at.slice(), to: front.slice() }; if (BF.ai.moveTargets(S, x.at[0], x.at[1]).some(m => same(m.to, front)) && BF.attempt(S, mv)) return { done: keep, mv, pad: true }; }
+  }
   return { done: keep };
 }
 // --hanplan hunt（验证设定用的“完美围剿”）：汉每回合只要有车打得到楚象，就先把那辆车升一级再打（先打血少的那只）；打不到才交给电脑
 // --hanplan huntA：先打士（拆回血光环），打不到士再打象
-// --hanplan huntW：会拆墙的汉——能直接打到象就先升车再打象；打不到就打“挡在象和车之间的第一枚楚子”（从象往上下左右看过去的第一枚，帅将除外），
-//   先打血最少的；现在打不到就挪一辆车到那条线上、墙后面的空格（下回合打）。
+// --hanplan huntW：会拆墙的汉——能直接打到象就先升车再打象；打不到就拆墙：从象往上下左右看过去，一路上的楚子算一串（帅将那条线不算），
+//   先拆整串血最少的那条线、从最外面那枚（垫子）打起；现在打不到就挪一辆车到那条线上、墙后面的空格（下回合打）。
 function wallSeq(S) {
   const x = huntType(S, 'e'); if (x) return x;
   const els = []; for (let r = 0; r < 10; r++) for (let f = 0; f < 9; f++) { const p = S.board[r][f]; if (p && p.s === 'b' && p.t === 'e') els.push([f, r]); }
+  // 从象往四个方向看过去：一路上的楚子算一串墙（碰到帅将这条线就不算——打不动；碰到汉子或出界就停），
+  //   目标是这串最外面的那一枚（垫子），先拆整串血最少的那条线
   const walls = [];
   for (const [ef, er] of els) for (const [df, dr] of [[0, -1], [0, 1], [-1, 0], [1, 0]]) {
-    let f = ef + df, r = er + dr; while (f >= 0 && f < 9 && r >= 0 && r < 10 && !S.board[r][f]) { f += df; r += dr; }
-    if (!(f >= 0 && f < 9 && r >= 0 && r < 10)) continue;
-    const q = S.board[r][f]; if (q.s !== 'b' || q.t === 'k') continue;
-    const beyond = []; let bf = f + df, br = r + dr; while (bf >= 0 && bf < 9 && br >= 0 && br < 10 && !S.board[br][bf]) { beyond.push([bf, br]); bf += df; br += dr; }
-    walls.push({ q, at: [f, r], beyond });
+    let f = ef + df, r = er + dr, chain = [], king = false;
+    while (f >= 0 && f < 9 && r >= 0 && r < 10) { const q = S.board[r][f]; if (q) { if (q.s !== 'b') break; if (q.t === 'k') { king = true; break; } chain.push({ q, at: [f, r] }); } f += df; r += dr; }
+    if (king || !chain.length) continue;
+    const o = chain[chain.length - 1], beyond = []; let bf = o.at[0] + df, br = o.at[1] + dr; while (bf >= 0 && bf < 9 && br >= 0 && br < 10 && !S.board[br][bf]) { beyond.push([bf, br]); bf += df; br += dr; }
+    walls.push({ q: o.q, at: o.at, beyond, tot: chain.reduce((t, c) => t + c.q.hp, 0) });
   }
-  walls.sort((a, b) => a.q.hp - b.q.hp);
+  walls.sort((a, b) => a.tot - b.tot || a.q.hp - b.q.hp);
   const rooks = []; for (let r = 0; r < 10; r++) for (let f = 0; f < 9; f++) { const p = S.board[r][f]; if (p && p.s === 'r' && p.t === 'r') rooks.push({ p, at: [f, r], mt: BF.ai.moveTargets(S, f, r) }); }
   for (const w of walls) {   // 现在就打得到：先升车再打
     let best = null;
@@ -216,11 +224,11 @@ async function play(seed) {
     else if (pre.length || (opt.plan && side === 'b')) {
       const S1 = BF.cloneState(g.S); if (pre.length) { const U = BF.ai.upgradeState(S1, pre[0].at); if (U) { Object.assign(S1, U); } } S1.upgraded = true;   // 电脑只管走子
       let fm = null;
-      if (opt.plan === 'AF' || opt.plan === 'AF2' || opt.plan === 'F') {
+      if (opt.plan === 'AF' || opt.plan === 'AF2' || opt.plan === 'F' || opt.plan === 'AFP') {
         const fs1 = formStep(S1);
         if (fs1 && fs1.done) for (const x of fs1.done) { const q = g.S.board[x.at[1]][x.at[0]]; if (q && !q.bz) { q.bz = 1e9; const q1 = S1.board[x.at[1]][x.at[0]]; if (q1) q1.bz = 1e9; if (R.formAt == null) R.formAt = round(g.S); } }
         if (fs1 && fs1.done) { const U = BF.CFG.generalArts.pofu.usesPerGame; g.S.used.art.b = U; S1.used.art.b = U; }   // 摆好阵后楚不再用破釜沉舟：它的两步不管冻结，会把象头的士挪走（验证脚本的漏洞，不是规则）
-        else if (fs1 && fs1.mv && BF.attempt(S1, fs1.mv)) fm = fs1.mv;
+        if (fs1 && fs1.mv && BF.attempt(S1, fs1.mv)) { fm = fs1.mv; if (fs1.pad) { R.pads = (R.pads || 0) + 1; if (R.padAt == null) R.padAt = round(g.S); } }
       }
       seq = pre.concat(fm ? [fm] : (await AI.think(S1, 'mid')).filter(a => a.k !== 'up'));
     } else seq = await AI.think(BF.cloneState(g.S), 'mid');
@@ -274,7 +282,7 @@ async function play(seed) {
     const killedBy = R.kills.filter(k => k.by === 'r').map(k => '第' + k.round + '回合').join('、') || '无';
     if (['xe8', 'xe9', 'xe9old'].includes(opt.mode)) {
       const ups = R.upsB.map(u => ({ a: '士', n: '马', e: '象' }[u.t] || u.t) + u.to + '@' + u.round).join(' ');
-      console.log(`种子 ${R.seed}：${R.winner === 'r' ? '汉胜' : R.winner === 'b' ? '楚胜' : '和/' + R.reason}（${R.reason}，${R.rounds} 回合）${R.note ? ' ' + R.note : ''}｜楚升级 ${ups || '无'}｜回血从第 ${R.healFrom == null ? '—' : R.healFrom} 回合｜象被汉打中 ${R.hits} 下，第一下第 ${R.firstHit == null ? '—' : R.firstHit} 回合，被杀 ${R.kills.filter(k => k.by === 'r').map(k => '第' + k.round + '回合').join('、') || '无'}｜秒杀 ${R.wipes.map(w => '第' + w.round + '回合踩死' + w.kills).join('、') || '无'}｜召回车 ${R.rc.length ? R.rc.length + ' 次（第 ' + R.rc[0] + ' 回合起）' : '无'}${R.formAt != null ? '｜摆好阵 第 ' + R.formAt + ' 回合' : ''}｜羁绊成立 ${R.bondAt == null ? '无' : '第 ' + R.bondAt + ' 回合'}`);
+      console.log(`种子 ${R.seed}：${R.winner === 'r' ? '汉胜' : R.winner === 'b' ? '楚胜' : '和/' + R.reason}（${R.reason}，${R.rounds} 回合）${R.note ? ' ' + R.note : ''}｜楚升级 ${ups || '无'}｜回血从第 ${R.healFrom == null ? '—' : R.healFrom} 回合｜象被汉打中 ${R.hits} 下，第一下第 ${R.firstHit == null ? '—' : R.firstHit} 回合，被杀 ${R.kills.filter(k => k.by === 'r').map(k => '第' + k.round + '回合').join('、') || '无'}｜秒杀 ${R.wipes.map(w => '第' + w.round + '回合踩死' + w.kills).join('、') || '无'}｜召回车 ${R.rc.length ? R.rc.length + ' 次（第 ' + R.rc[0] + ' 回合起）' : '无'}${R.formAt != null ? '｜摆好阵 第 ' + R.formAt + ' 回合' : ''}｜羁绊成立 ${R.bondAt == null ? '无' : '第 ' + R.bondAt + ' 回合'}${R.pads ? '｜垫子 ' + R.pads + ' 次（第 ' + R.padAt + ' 回合起）' : ''}`);
       continue;
     }
     console.log(`种子 ${R.seed}：${R.winner === 'r' ? '汉胜' : R.winner === 'b' ? '楚胜' : '和/' + R.reason}（${R.reason}，${R.rounds} 回合）${R.note ? ' ' + R.note : ''}｜汉第一次打到楚象：${R.firstHit == null ? '没有' : '第 ' + R.firstHit + ' 回合'}，打中 ${R.hits} 下，杀死楚象：${killedBy}｜楚象最高 ${R.maxLv} 级，自己点升级 ${R.ups.map(u => '第' + u.round + '回合→' + u.to + '级').join('、') || '无'}，甲片自动 ${R.autoups.map(u => '第' + u.round + '回合→' + u.lv + '级').join('、') || '无'}｜秒杀全场 ${R.wipes.map(w => '第' + w.round + '回合踩死' + w.kills).join('、') || '无'}｜楚升别的子 ${R.otherUpsB} 次，楚军功 ${Object.entries(R.meritB).slice(0, 12).map(([k, v]) => k + '回合:' + v).join(' ')}`);
