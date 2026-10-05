@@ -661,10 +661,13 @@ Q.push({
 });
 
 // ---------- 自检：考题本身摆得对不对 ----------
-// 每道题按自己的规则出：实战题（rules）改全局 BF.CFG 的背水 / r6 开关，别的题先恢复现行默认
+// 每道题按自己的规则出（改的是全局 BF.CFG 的背水 / r6 开关，引擎和电脑都看它）：
+//   实战题用收题时记下的 rules；其余的题都是破釜时代、旧数值（2026-10-03～04）出的，固定在背水关、r6 关——
+//   引擎默认先后换成了背水（10-05）和 r6（10-05 晚），不固定的话这些题的局面、价钱、血量都不是出题时的样子。r6 的新题以后另出、写明 rules。
+const EXAM_RULES = { bs: false, r6: false };
 {
   const { applyRules } = require('./game_load.js');
-  for (const q of Q) { const b = q.build; q.build = () => { if (!q.rules) applyRules(null); return b(); }; }
+  for (const q of Q) { const b = q.build; q.build = () => { applyRules(q.rules || EXAM_RULES); return b(); }; }
 }
 async function lint() {
   let bad = 0;
