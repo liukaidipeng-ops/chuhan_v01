@@ -1,6 +1,6 @@
 // ===== 模型：可动士兵（实例化骨架）、战马、骑兵、战车、铜炮、战象、渡船、项羽刘邦骨架、旌旗 =====
 const Models = (() => {
-  const TIGER_ON = false;   // 汉相「文臣虎骑」是否默认启用（美术 M2 已交、Ham 看过造型；等 Ham 点头上线时改成 true）
+  const TIGER_ON = true;    // 汉相「文臣虎骑」默认启用（美术 M2；Ham 10-05 点头上线）。改回 false 就退回谋士车驾
   const { toon, inked, merge, M4, outlineShared, outlineMat, rnd } = Core;
   const V = (x, y, z) => new THREE.Vector3(x, y, z);
   const vcMat = toon(0xffffff, { vertexColors: true });
@@ -1179,7 +1179,7 @@ const Models = (() => {
   }
 
   return {
-    // 汉相用「文臣虎骑」还是原来的谋士车驾：TIGER_ON 是默认值（上线时改成 true）；网址带 ?tiger=1 / ?tiger=0 可以临时换
+    // 汉相用「文臣虎骑」还是原来的谋士车驾：TIGER_ON 是默认值；网址带 ?tiger=1 / ?tiger=0 可以临时换
     TIGER: typeof location !== 'undefined' && (/[?&]tiger=1/.test(location.search) || (TIGER_ON && !/[?&]tiger=0/.test(location.search))),
     SIDE, C, G, P, inkedMerged, soldierPartGeos, soldierStatic, Troop, Army: Troop, PARTS, POSES,
     makeHorse, makeRider, makeCavalry, cavalryStaticGeo, makeChariot, makeCannon, makeElephant, makeAdvisorCart, makeBoat, makeBoatman,
