@@ -15,6 +15,7 @@
 //   于是：自己的子潜力大 → 更值钱、要护着、升级会涨分；对方的子潜力大 → 先吃掉它最划算（吃掉它，它的潜力就没了）。
 //   升级候选：潜力涨得多的升级（潜力涨 × POTW ≥ BFAI_POTUP，默认 0.8）也进根节点的搜索，不受“一级士象没被捉不升”“给车攒军功”这些老规矩挡。
 //   对方“先升级再应”那一层（upsOf）本来就按局面分挑，潜力进了局面分，它也跟着懂了。
+// 第 2 版（默认，BFAI_POTV=1 回到第 1 版）：潜力按当时军功现算、按“还要几回合”打折（升级回合 + 攒钱回合），见 potAt()。
 // 只算“打掉多少”：进攻类技能、升级后攻击力 / 血量变化带来的吃子都算得到；护驾、铁甲禁卫、拒马、神速营这类防守 / 走位的价值第一版不算。
 // 用法（在 source/ 下）：node tools/bfsim.js --ai tools/variants/bfai_pot.js …；调参：BFAI_POTW / BFAI_POTD / BFAI_POTC / BFAI_POTUP。
 // 调试：电脑模块上 think.pot = 这一步算出的潜力表（Map：id → 按等级的潜力），think.last.potMs = 试算花的毫秒。
@@ -29,8 +30,14 @@ const rep = (a, b) => { const n = s.split(a).length - 1; if (n !== 1) throw new 
 rep('  // 局面分（站在 me 这一方看）：子力 + 位置（出子、过河、对着对方主帅的压力）+ 军功 + 兵法 + 决战\n  function score(S, me) {',
 `  // ---- 潜力估值（变体 bfai_pot）----
   const POTON = ENV.BFAI_POT == null || !/^(0|false|off)$/i.test(String(ENV.BFAI_POT));
-  const POTW = ENV.BFAI_POTW != null ? +ENV.BFAI_POTW : 1, POTD = ENV.BFAI_POTD != null ? +ENV.BFAI_POTD : 0.5;
-  const POTC = ENV.BFAI_POTC != null ? +ENV.BFAI_POTC : 30, POTUP = ENV.BFAI_POTUP != null ? +ENV.BFAI_POTUP : 0.8;
+  // 第 1 版（BFAI_POTV=1）：潜力在根上按当时的军功算死一张表，够不着的级（现有军功 + 每回合约 1 功）一律不算，每差一级 × 0.5，封顶 30。
+  // 第 2 版（默认）：只在根上试算“每级能多赚多少、累计要花多少”，潜力在局面分里按当时的军功现算——
+  //   还要几回合 = 差几级 + 攒够军功要几回合（每回合约 BFAI_POTR 功，默认 1），每晚一回合 × BFAI_POTD（默认 0.75），封顶 60。
+  //   钱花在别处，潜力就跌（电脑会为了大招攒钱）；对方军功越攒越多，它那枚子的威胁也越来越大。
+  const POTV = ENV.BFAI_POTV != null ? +ENV.BFAI_POTV : 2;
+  const POTW = ENV.BFAI_POTW != null ? +ENV.BFAI_POTW : 1, POTD = ENV.BFAI_POTD != null ? +ENV.BFAI_POTD : POTV === 1 ? 0.5 : 0.75;
+  const POTC = ENV.BFAI_POTC != null ? +ENV.BFAI_POTC : POTV === 1 ? 30 : 60, POTUP = ENV.BFAI_POTUP != null ? +ENV.BFAI_POTUP : 0.8;
+  const POTR = ENV.BFAI_POTR != null ? +ENV.BFAI_POTR : 1;
   let POT = new Map(), potMs = 0;
   const matOf = (S, side) => { let v = 0; for (const row of S.board) for (const p of row) if (p && p.s === side && p.t !== 'k') v += baseVal(p, false); return v; };
   const findId = (S, id) => { for (let r = 0; r < 10; r++) for (let f = 0; f < 9; f++) { const p = S.board[r][f]; if (p && p.id === id) return { p, at: [f, r] }; } return null; };
@@ -70,31 +77,49 @@ rep('  // 局面分（站在 me 这一方看）：子力 + 位置（出子、过
           G[lv] = bestGain(T, p0.id, side); spent[lv] = cum;
           H = T;
         }
-        const P = []; let any = false;
-        for (let l = p0.lv; l <= lv; l++) {
-          let best = 0;
-          for (let L = l + 1; L <= lv; L++) {
-            if (spent[L] - spent[l] > S0.merit[side] - spent[l] + (L - l)) break;   // 军功够不着（现有的先付掉升到 l 级的钱，之后每回合约 1 功）
-            const v = (G[L] - G[l]) * Math.pow(POTD, L - l);
-            if (v > best) best = v;
+        let any = false; for (let l = p0.lv; l < lv; l++) for (let L = l + 1; L <= lv; L++) if (G[L] > G[l] + 0.05) any = true;   // 浮点误差不算
+        if (!any) continue;   // 升上去也多赚不到什么：不记
+        const e = { side, lv0: p0.lv, top: lv, G, spent };
+        if (POTV === 1) {
+          e.P = [];
+          for (let l = p0.lv; l <= lv; l++) {
+            let best = 0;
+            for (let L = l + 1; L <= lv; L++) {
+              if (spent[L] - spent[l] > S0.merit[side] - spent[l] + (L - l)) break;   // 军功够不着（现有的先付掉升到 l 级的钱，之后每回合约 1 功）
+              const v = (G[L] - G[l]) * Math.pow(POTD, L - l);
+              if (v > best) best = v;
+            }
+            e.P[l] = Math.min(POTC, best);
           }
-          P[l] = Math.min(POTC, best); if (P[l] > 0) any = true;
         }
-        if (any) out.set(p0.id, P);
+        out.set(p0.id, e);
       }
     }
     return out;
+  }
+  // 这枚子现在是 l 级、它这一方有 m 功时的潜力（第 2 版）：升到 L 级多赚 G[L] − G[l]，要 (L − l) 回合升级 + 攒够差的军功的回合，每回合打 POTD 折
+  function potAt(e, l, m) {
+    if (POTV === 1) return (e.P && e.P[l]) || 0;
+    if (l < e.lv0 || l >= e.top || e.G[l] == null) return 0;
+    let best = 0;
+    for (let L = l + 1; L <= e.top; L++) {
+      const gain = e.G[L] - e.G[l]; if (!(gain > 0)) continue;
+      const need = e.spent[L] - e.spent[l], turns = (L - l) + Math.ceil(Math.max(0, need - m) / POTR);
+      const v = gain * Math.pow(POTD, turns);
+      if (v > best) best = v;
+    }
+    return Math.min(POTC, best);
   }
   // 局面分（站在 me 这一方看）：子力 + 位置（出子、过河、对着对方主帅的压力）+ 军功 + 兵法 + 决战
   function score(S, me) {`);
 
 // ---- 局面分里加上每枚子的潜力 ----
 rep('        if (p.jm && p.jm > S.cnt[other(s)]) x += 0.25;',
-  '        if (POT.size) { const P = POT.get(p.id); if (P && P[p.lv]) x += POTW * P[p.lv]; }   // 变体 bfai_pot：这枚子的潜力\n        if (p.jm && p.jm > S.cnt[other(s)]) x += 0.25;');
+  '        if (POT.size) { const e = POT.get(p.id); if (e) x += POTW * potAt(e, p.lv, S.merit[s]); }   // 变体 bfai_pot：这枚子的潜力\n        if (p.jm && p.jm > S.cnt[other(s)]) x += 0.25;');
 
 // ---- 升级候选：潜力涨得多的升级不受老规矩挡 ----
 rep('      const unlock = defender && !must && p.lv >= 2 && !(saving || hoard);\n      if (defender && !must && !unlock && !(p.t === \'a\' && heavy && p.lv < 2)) continue;\n      if ((saving || hoard) && p.t !== \'r\' && !must) continue;\n      cand.push({ at: [f, r], S: T, gain: score(T, me) - base, must, unlock });',
-  '      const PP = POT.get(p.id), potUp = POTON && !!PP && POTW * ((PP[p.lv + 1] || 0) - (PP[p.lv] || 0)) >= POTUP;   // 变体 bfai_pot：升这一级潜力涨得多\n' +
+  '      const PE = POT.get(p.id), potUp = POTON && !!PE && POTW * (potAt(PE, p.lv + 1, S.merit[me] - (A.upCost(p) || 0)) - potAt(PE, p.lv, S.merit[me])) >= POTUP;   // 变体 bfai_pot：升这一级潜力涨得多\n' +
   '      const unlock = defender && !must && p.lv >= 2 && !(saving || hoard) && !potUp;\n' +
   '      if (defender && !must && !unlock && !potUp && !(p.t === \'a\' && heavy && p.lv < 2)) continue;\n' +
   '      if ((saving || hoard) && p.t !== \'r\' && !must && !potUp) continue;\n' +

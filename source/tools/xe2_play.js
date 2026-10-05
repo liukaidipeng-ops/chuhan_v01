@@ -49,7 +49,7 @@ async function play(seed) {
   const g = new BF.Game();
   if (START_MERIT) { g.S.merit.r = START_MERIT.r; g.S.merit.b = START_MERIT.b; }
   const chuE = new Set(); for (const row of g.S.board) for (const p of row) if (p && p.s === 'b' && p.t === 'e') chuE.add(p.id);
-  const R = { seed, winner: null, reason: null, rounds: 0, firstHit: null, hits: 0, kills: [], ups: [], autoups: [], maxLv: 1, wipes: [], note: '' };
+  const R = { seed, winner: null, reason: null, rounds: 0, firstHit: null, hits: 0, kills: [], ups: [], autoups: [], maxLv: 1, wipes: [], note: '', meritB: {}, otherUpsB: 0 };
   while (!g.result) {
     if (round(g.S) > opt.maxRounds) { R.reason = 'cap'; break; }
     const side = g.S.turn;
@@ -61,6 +61,7 @@ async function play(seed) {
       const info = g.apply(act);
       if (!info) { R.note = '非法行动 ' + JSON.stringify(act); break; }
       if (pc && chuE.has(pc.id)) R.ups.push({ round: rd, to: lv0 + 1 });
+      else if (pc && pc.s === 'b') R.otherUpsB++;   // 楚把军功花在了别的子上
       let wipeKills = 0;
       for (const e of info.ev || []) {
         if (e.e === 'hit' && chuE.has(e.id) && side === 'r') { R.hits++; if (R.firstHit == null) R.firstHit = rd; }
@@ -73,6 +74,7 @@ async function play(seed) {
       if (g.result) break;
     }
     if (R.note) break;
+    const rr = round(g.S); if (rr % 5 === 0 && R.meritB[rr] == null) R.meritB[rr] = g.S.merit.b;   // 楚的军功走势（每 5 回合记一次）
   }
   R.rounds = round(g.S);
   if (g.result) { R.winner = g.result.winner; R.reason = g.result.reason; }
@@ -83,7 +85,7 @@ async function play(seed) {
   for (let i = 0; i < opt.games; i++) {
     const R = await play(opt.seed + i); out.push(R);
     const killedBy = R.kills.filter(k => k.by === 'r').map(k => '第' + k.round + '回合').join('、') || '无';
-    console.log(`种子 ${R.seed}：${R.winner === 'r' ? '汉胜' : R.winner === 'b' ? '楚胜' : '和/' + R.reason}（${R.reason}，${R.rounds} 回合）${R.note ? ' ' + R.note : ''}｜汉第一次打到楚象：${R.firstHit == null ? '没有' : '第 ' + R.firstHit + ' 回合'}，打中 ${R.hits} 下，杀死楚象：${killedBy}｜楚象最高 ${R.maxLv} 级，自己点升级 ${R.ups.map(u => '第' + u.round + '回合→' + u.to + '级').join('、') || '无'}，甲片自动 ${R.autoups.map(u => '第' + u.round + '回合→' + u.lv + '级').join('、') || '无'}｜秒杀全场 ${R.wipes.map(w => '第' + w.round + '回合踩死' + w.kills).join('、') || '无'}`);
+    console.log(`种子 ${R.seed}：${R.winner === 'r' ? '汉胜' : R.winner === 'b' ? '楚胜' : '和/' + R.reason}（${R.reason}，${R.rounds} 回合）${R.note ? ' ' + R.note : ''}｜汉第一次打到楚象：${R.firstHit == null ? '没有' : '第 ' + R.firstHit + ' 回合'}，打中 ${R.hits} 下，杀死楚象：${killedBy}｜楚象最高 ${R.maxLv} 级，自己点升级 ${R.ups.map(u => '第' + u.round + '回合→' + u.to + '级').join('、') || '无'}，甲片自动 ${R.autoups.map(u => '第' + u.round + '回合→' + u.lv + '级').join('、') || '无'}｜秒杀全场 ${R.wipes.map(w => '第' + w.round + '回合踩死' + w.kills).join('、') || '无'}｜楚升别的子 ${R.otherUpsB} 次，楚军功 ${Object.entries(R.meritB).slice(0, 6).map(([k, v]) => k + '回合:' + v).join(' ')}`);
   }
   if (opt.json) fs.writeFileSync(opt.json, JSON.stringify(out));
 })();
