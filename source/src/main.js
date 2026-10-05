@@ -716,15 +716,68 @@
       if (!doMove({ from: r.move.from, to: r.move.to })) { console.warn('电脑着法非法', r.move); updateHud(); }
     }).catch(e => { console.error(e); aiThinking = false; });
   }
+  // ---------- 将帅的彩蛋台词（Ham 10-05 要的：主帅走子、吃子之外的“特殊”一类） ----------
+  // 每方一份：n 这一局动过几步；kRun 连着几回合在走帅；chk 连着几回合被将军；left 帅离开过原位；flee 上次说“走为上”是第几步；
+  //   said 一局只说一次的；poke 连着点了几下自己的帅；face 这一步里想走“将帅照面”的次数；cnt 上一步之后还剩多少子、几个车
+  const KT = {}, KHOME = { r: [4, 0], b: [4, 9] };
+  function ktReset(resumed) { Fx.state.kingLines.length = 0; for (const s of 'rb') KT[s] = { n: resumed ? 1 : 0, kRun: 0, chk: 0, left: false, flee: -9, said: new Set(), poke: 0, face: 0, faceAt: -1, cnt: null }; }
+  ktReset(false);
+  const ktCount = s => { let all = 0, rook = 0; for (const row of game.board) for (const q of row) if (q && q.s === s) { all++; if (q.t === 'r' && !q.h) rook++; } return { all, rook }; };
+  const ktInit = () => { if (KT.r) for (const s of 'rb') if (!KT[s].cnt) KT[s].cnt = ktCount(s); };   // 落子之前先数一遍场上的子（落子之后才好比较少了什么）
+  // 主帅开口：带字幕，走主帅那一路声音。这句还没有配音就不说
+  function kingSay(side, id, ms = 3400) { if (!Voice.has(id)) return null; bubble(side, Voice.text(id), ms); return Voice.play(id); }
+  Fx.state.onKingLine = (side, id) => { kingSay(side, id); };
+  // 落子之前：这一步要是主帅自己走，看看有没有彩蛋可说——登记给 Fx，演到这一步时由它说（代替普通的那句）
+  //   开局第一步就动帅 > 亲手吃车 > 连着三回合走帅 > 被将军时自己走开 > 走出去又坐回原位
+  function ktBefore(side, piece, from, to, cap, wasChk) {
+    const k = KT[side]; if (!k) return;
+    const first = k.n === 0; k.n++;
+    if (!piece || piece.t !== 'k') { k.kRun = 0; return; }
+    k.kRun++;
+    const H = KHOME[side], home = to[0] === H[0] && to[1] === H[1], fromHome = from[0] === H[0] && from[1] === H[1];
+    let id = null;
+    if (first) id = 'first';
+    else if (cap && cap.t === 'r' && !cap.h) id = 'eatr';
+    else if (k.kRun >= 3) { id = 'run'; k.kRun = 0; }
+    else if (wasChk && k.n - k.flee >= 3) { id = 'flee'; k.flee = k.n; }
+    else if (home && k.left) id = 'home';
+    if (fromHome) k.left = true;
+    if (id && Voice.has(`${side}_x_${id}`)) { const q = Fx.state.kingLines; q.push({ s: side, from: from.slice(), to: to.slice(), id: `${side}_x_${id}` }); if (q.length > 2) q.shift(); }
+  }
+  // 落子之后（演出放完）：四级名将阵亡的哀叹 > 只剩光杆一个帅 > 两个车都没了 > 连着三回合被将军。一步最多说一句；返回 [哪一方, 哪一句, 字幕留多久]
+  function ktAfter(info) {
+    if (!KT.r || !game) return null;
+    const mover = info.mover, opp = mover === 'r' ? 'b' : 'r';
+    if (info.check) KT[opp].chk++; else KT[opp].chk = 0;
+    let say = null;
+    for (const h of info.heroDead || []) { const id = `${h.s}_h_${h.t}${h.nm}`; if (!say && Voice.has(id)) say = [h.s, id, 5200]; }
+    for (const s of 'rb') {
+      const k = KT[s], was = k.cnt, now = ktCount(s); k.cnt = now;
+      if (!was || say) continue;
+      if (now.all === 1 && was.all > 1 && !k.said.has('alone')) { k.said.add('alone'); say = [s, `${s}_x_alone`, 3600]; }
+      else if (!game.jq && now.rook === 0 && was.rook > 0 && !k.said.has('norook')) { k.said.add('norook'); say = [s, `${s}_x_norook`, 3600]; }
+    }
+    if (KT[opp].chk >= 3) { KT[opp].chk = 0; if (!say) say = [opp, `${opp}_x_chk3`, 3000]; }
+    if (info.result || (say && !Voice.has(say[1]))) return null;
+    return say;
+  }
+  // 连着点自己的主帅 5 下
+  function ktPoke(p) {
+    const s = actor(), k = KT[s]; if (!k || !game) return;
+    const pc = p && game.at(p[0], p[1]);
+    if (pc && pc.s === s && pc.t === 'k' && !pc.h) { if (++k.poke >= 5) { k.poke = 0; const two = Voice.has(`${s}_x_poke2`) && (k.pokeAlt = !k.pokeAlt); kingSay(s, `${s}_x_poke${two ? 2 : ''}`); } } else k.poke = 0;   // 有两句的轮着说
+  }
   // 着法完成后的台词
   function afterMoveLines(info) {
     const mover = info.mover;
     let p = Promise.resolve();
+    const egg = ktAfter(info);
     if (info.result && info.result.reason === 'checkmate') { bubble(mover, '绝杀！', 2600); p = Voice.play(`${mover}_mate`); }
     else if (info.check) {
       bubble(mover, '将军！', 2400); p = Voice.play(`${mover}_check`);
-      if (vsAI() && mover === mySide && Math.random() < 0.55) p.then(() => { if (!ended) aiSay('checked'); });
+      if (!egg && vsAI() && mover === mySide && Math.random() < 0.55) p.then(() => { if (!ended) aiSay('checked'); });
     }
+    if (egg) { p.then(() => { if (!ended && started) kingSay(egg[0], egg[1], egg[2]); }); return; }
     if (!vsAI() || info.result) return;
     if (mover === aiSide() && info.captured && !info.check) { if ('rnc'.includes(info.captured.t) || Math.random() < 0.6) aiSay('cap'); }
     else if (mover === mySide && info.captured && !info.check && 'rnc'.includes(info.captured.t) && Math.random() < 0.6) aiSay('hurt');
@@ -789,8 +842,9 @@
       introSkip = null; if (!busy && !Ending.running) $('skip').classList.add('hidden');
     }
     if (mode !== m) return;
-    if (game.jq && !game.history.length && intro) { bubble('r', '十五子尽数扣下，翻开方知是何兵马！', 2600); await Core.sleep(1.2); }
-    if (game.bf && !game.history.length && intro) { bubble('b', '论兵法，你还嫩了些！', 2400); await Core.sleep(1.0); }
+    if (game.jq && !game.history.length && intro) { bubble('r', '十五子尽数扣下，翻开方知是何兵马！', 3200); if (Voice.has('r_jq_start')) Voice.play('r_jq_start'); await Core.sleep(1.2); }
+    if (game.bf && !game.history.length && intro) { bubble('b', '论兵法，你还嫩了些！', 3200); if (Voice.has('b_bf_start')) Voice.play('b_bf_start'); await Core.sleep(1.0); }
+    ktReset(!!(game.history && game.history.length));
     if (mode === m && game.bf && !game.entries.length && m !== 'watch') showBfTip(false);
     if (mode !== m) return;
     started = true; clock.last = performance.now(); clock.step = stepMax();
@@ -947,8 +1001,11 @@
     }
     const rv0 = (() => { const p = game.at(m.from[0], m.from[1]); return p && p.h ? (p.t !== '?' ? p.t : m.rv) : null; })();
     const note = noteOf(game.board, m, rv0);
+    ktInit();
+    const kt0 = { side: game.turn, pc: game.at(m.from[0], m.from[1]), cap: game.at(m.to[0], m.to[1]), chk: game.inCheck() };
     const info = game.play(m);
     if (!info) return false;
+    ktBefore(kt0.side, kt0.pc, m.from, m.to, kt0.cap, kt0.chk);
     jqLearn(game.history[game.history.length - 1]);
     if (info.captured && game.history[game.history.length - 1].cap) info.captured = { ...game.history[game.history.length - 1].cap };
     info.dt = capView(info);
@@ -1243,13 +1300,14 @@
     // 观众：点哪儿走到哪儿。棋手：点到站在棋盘上的观众就把他弹飞
     if (watching()) { if (!RP && !Ending.running) specGo(e.clientX, e.clientY); return; }
     if (online() && Spect.count) { const sid = Spect.pickOnBoard(e.clientX, e.clientY); if (sid && specFlick(sid, true)) return; }
-    if (game.bf && canAct()) { const p = Board.pick(e.clientX, e.clientY); dbgFreeTurn(p); bfClick(p); return; }
+    if (game.bf && canAct()) { const p = Board.pick(e.clientX, e.clientY); dbgFreeTurn(p); ktPoke(p); bfClick(p); return; }
     if (!canAct()) {
       if (started && !ended && !busy && online() && Net.connected && game.turn !== mySide) toast('还没轮到你');
       if (started && !ended && vsAI() && game.turn !== mySide) toast(`${NAME[aiSide()]}正在思考`);
       return;
     }
     const p = Board.pick(e.clientX, e.clientY);
+    ktPoke(p);
     if (!p) { Board.clearMoves(false); sel = null; selMoves = []; return; }
     const [f, r] = p;
     const mv = selMoves.find(m => m.to[0] === f && m.to[1] === r);
@@ -1288,6 +1346,8 @@
     badN++;
     toast(m.why === 'face' ? '不能送将：将帅不能照面' : '不能送将：这样走，自己的' + (actor() === 'r' ? '帅' : '将') + '会被吃', 2200);
     Sfx.select();
+    // 王不见王：这一步里第二次想走“将帅照面”的棋，自己的主帅开口（有这句配音才说）
+    if (m.why === 'face') { const k = KT[actor()]; if (k) { if (k.faceAt !== ply) { k.faceAt = ply; k.face = 0; } if (++k.face === 2 && kingSay(actor(), `${actor()}_face`)) return true; } }
     if (badN >= 6) { bubble(actor(), '愚蠢，庶子不可教也！', 3800); Voice.play(`${actor()}_bad6`); badN = 0; }          // 点到第六次：终极抱怨，然后从头数
     else if (badN > 2) {
       let i; do { i = Math.floor(Math.random() * BAD_SAY.length); } while (i === badSay);   // 第三次起调侃，不连着说同一句
@@ -1908,6 +1968,10 @@
   function doBF(e, remote = false, clk) {
     if (e.k === 'art' && e.steps) { Board.reconcile(game); Board.showStep(null); }
     const note = bfNote(game, e);
+    ktInit();
+    const kt0 = { side: game.turn, chk: game.inCheck(), heroes: [] };
+    for (const row of game.board) for (const q of row) if (q && q.nm != null) kt0.heroes.push({ id: q.id, s: q.s, t: q.t, nm: q.nm });
+    if (e.k === 'mv' && e.from && e.to) { kt0.pc = game.at(e.from[0], e.from[1]); kt0.cap = game.at(e.to[0], e.to[1]); }
     const info = game.apply(e);
     if (info && rvLanded != null && e.k === 'art' && e.id === rvLanded) info.landed = true;   // 界面已经先演过落位
     rvLanded = null;
@@ -1926,6 +1990,9 @@
     }
     notes.push((bfUpNote ? bfUpNote + ' ' : '') + note); bfUpNote = ''; renderLog();
     Fx.ply = game.history.length;
+    { const alive = new Set(); for (const row of game.board) for (const q of row) if (q) alive.add(q.id);
+      info.heroDead = kt0.heroes.filter(h => !alive.has(h.id));
+      if (e.k === 'mv' && kt0.pc) ktBefore(kt0.side, kt0.pc, e.from, e.to, kt0.cap && !alive.has(kt0.cap.id) ? kt0.cap : null, kt0.chk); else ktBefore(kt0.side, null); }
     if (remote && clk != null) clock[info.mover] = clk;
     clock.step = stepMax(); clock.oppStamp = 0;
     turnStartAt = 0;
