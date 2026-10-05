@@ -1078,7 +1078,7 @@
   async function boardFinale(result) {
     if (!result.winner) {
       // 和棋：鸿沟为界，两军各自收兵
-      banner('鴻溝為界', '四十回合未见杀伐 · 和局', 3000);
+      banner('鸿沟为界', '四十回合未见杀伐 · 和局', 3000);
       Sfx.B.gong(0, 0.8); Camp.cheer('r', 4, 0.8); Camp.cheer('b', 4, 0.8);
       await Core.sleep(3);
       return;
