@@ -1,0 +1,343 @@
+{
+ "batch": "b21",
+ "key_present": true,
+ "key_len": 126,
+ "host": "https://api.minimax.cn",
+ "probe": [
+  {
+   "host": "https://api.minimax.cn",
+   "http": 200,
+   "code": 0,
+   "msg": "success"
+  }
+ ],
+ "jobs": [
+  {
+   "id": "real_r_h_r0_a",
+   "voice": "Chinese (Mandarin)_Reliable_Executive",
+   "voice_id": "Chinese (Mandarin)_Reliable_Executive",
+   "voice_name": null,
+   "ok": true,
+   "ms": 7596,
+   "chars": 45
+  },
+  {
+   "id": "real_r_h_r0_b",
+   "voice": "Chinese (Mandarin)_Reliable_Executive",
+   "voice_id": "Chinese (Mandarin)_Reliable_Executive",
+   "voice_name": null,
+   "ok": true,
+   "ms": 9108,
+   "chars": 60
+  },
+  {
+   "id": "real_r_h_r1_a",
+   "voice": "Chinese (Mandarin)_Reliable_Executive",
+   "voice_id": "Chinese (Mandarin)_Reliable_Executive",
+   "voice_name": null,
+   "ok": true,
+   "ms": 5904,
+   "chars": 35
+  },
+  {
+   "id": "real_r_h_r1_b",
+   "voice": "Chinese (Mandarin)_Reliable_Executive",
+   "voice_id": "Chinese (Mandarin)_Reliable_Executive",
+   "voice_name": null,
+   "ok": true,
+   "ms": 6552,
+   "chars": 42
+  },
+  {
+   "id": "real_r_h_p0_a",
+   "voice": "Chinese (Mandarin)_Reliable_Executive",
+   "voice_id": "Chinese (Mandarin)_Reliable_Executive",
+   "voice_name": null,
+   "ok": true,
+   "ms": 5400,
+   "chars": 33
+  },
+  {
+   "id": "real_r_h_p0_b",
+   "voice": "Chinese (Mandarin)_Reliable_Executive",
+   "voice_id": "Chinese (Mandarin)_Reliable_Executive",
+   "voice_name": null,
+   "ok": true,
+   "ms": 6156,
+   "chars": 40
+  },
+  {
+   "id": "real_r_h_p1_a",
+   "voice": "Chinese (Mandarin)_Reliable_Executive",
+   "voice_id": "Chinese (Mandarin)_Reliable_Executive",
+   "voice_name": null,
+   "ok": true,
+   "ms": 7416,
+   "chars": 42
+  },
+  {
+   "id": "real_r_h_p1_b",
+   "voice": "Chinese (Mandarin)_Reliable_Executive",
+   "voice_id": "Chinese (Mandarin)_Reliable_Executive",
+   "voice_name": null,
+   "ok": true,
+   "ms": 8640,
+   "chars": 56
+  },
+  {
+   "id": "real_r_h_p2_a",
+   "voice": "Chinese (Mandarin)_Reliable_Executive",
+   "voice_id": "Chinese (Mandarin)_Reliable_Executive",
+   "voice_name": null,
+   "ok": true,
+   "ms": 5220,
+   "chars": 35
+  },
+  {
+   "id": "real_r_h_p2_b",
+   "voice": "Chinese (Mandarin)_Reliable_Executive",
+   "voice_id": "Chinese (Mandarin)_Reliable_Executive",
+   "voice_name": null,
+   "ok": true,
+   "ms": 5868,
+   "chars": 44
+  },
+  {
+   "id": "real_r_h_p3_a",
+   "voice": "Chinese (Mandarin)_Reliable_Executive",
+   "voice_id": "Chinese (Mandarin)_Reliable_Executive",
+   "voice_name": null,
+   "ok": true,
+   "ms": 6804,
+   "chars": 41
+  },
+  {
+   "id": "real_r_h_p3_b",
+   "voice": "Chinese (Mandarin)_Reliable_Executive",
+   "voice_id": "Chinese (Mandarin)_Reliable_Executive",
+   "voice_name": null,
+   "ok": true,
+   "ms": 6660,
+   "chars": 50
+  },
+  {
+   "id": "real_r_h_p4_a",
+   "voice": "Chinese (Mandarin)_Reliable_Executive",
+   "voice_id": "Chinese (Mandarin)_Reliable_Executive",
+   "voice_name": null,
+   "ok": true,
+   "ms": 5040,
+   "chars": 31
+  },
+  {
+   "id": "real_r_h_p4_b",
+   "voice": "Chinese (Mandarin)_Reliable_Executive",
+   "voice_id": "Chinese (Mandarin)_Reliable_Executive",
+   "voice_name": null,
+   "ok": true,
+   "ms": 5616,
+   "chars": 42
+  },
+  {
+   "id": "real_r_h_a0_a",
+   "voice": "Chinese (Mandarin)_Reliable_Executive",
+   "voice_id": "Chinese (Mandarin)_Reliable_Executive",
+   "voice_name": null,
+   "ok": true,
+   "ms": 5508,
+   "chars": 39
+  },
+  {
+   "id": "real_r_h_a0_b",
+   "voice": "Chinese (Mandarin)_Reliable_Executive",
+   "voice_id": "Chinese (Mandarin)_Reliable_Executive",
+   "voice_name": null,
+   "ok": true,
+   "ms": 6120,
+   "chars": 46
+  },
+  {
+   "id": "real_r_h_a1_a",
+   "voice": "Chinese (Mandarin)_Reliable_Executive",
+   "voice_id": "Chinese (Mandarin)_Reliable_Executive",
+   "voice_name": null,
+   "ok": true,
+   "ms": 5508,
+   "chars": 33
+  },
+  {
+   "id": "real_r_h_a1_b",
+   "voice": "Chinese (Mandarin)_Reliable_Executive",
+   "voice_id": "Chinese (Mandarin)_Reliable_Executive",
+   "voice_name": null,
+   "ok": true,
+   "ms": 7452,
+   "chars": 49
+  },
+  {
+   "id": "real_r_h_e0_a",
+   "voice": "Chinese (Mandarin)_Reliable_Executive",
+   "voice_id": "Chinese (Mandarin)_Reliable_Executive",
+   "voice_name": null,
+   "ok": true,
+   "ms": 6120,
+   "chars": 39
+  },
+  {
+   "id": "real_r_h_e0_b",
+   "voice": "Chinese (Mandarin)_Reliable_Executive",
+   "voice_id": "Chinese (Mandarin)_Reliable_Executive",
+   "voice_name": null,
+   "ok": true,
+   "ms": 7236,
+   "chars": 46
+  },
+  {
+   "id": "real_r_h_e1_a",
+   "voice": "Chinese (Mandarin)_Reliable_Executive",
+   "voice_id": "Chinese (Mandarin)_Reliable_Executive",
+   "voice_name": null,
+   "ok": true,
+   "ms": 6588,
+   "chars": 39
+  },
+  {
+   "id": "real_r_h_e1_b",
+   "voice": "Chinese (Mandarin)_Reliable_Executive",
+   "voice_id": "Chinese (Mandarin)_Reliable_Executive",
+   "voice_name": null,
+   "ok": true,
+   "ms": 7056,
+   "chars": 46
+  },
+  {
+   "id": "real_r_jq_start_a",
+   "voice": "Chinese (Mandarin)_Reliable_Executive",
+   "voice_id": "Chinese (Mandarin)_Reliable_Executive",
+   "voice_name": null,
+   "ok": true,
+   "ms": 4356,
+   "chars": 32
+  },
+  {
+   "id": "real_r_jq_start_b",
+   "voice": "Chinese (Mandarin)_Reliable_Executive",
+   "voice_id": "Chinese (Mandarin)_Reliable_Executive",
+   "voice_name": null,
+   "ok": true,
+   "ms": 4464,
+   "chars": 33
+  },
+  {
+   "id": "real_u_r_k_m4_a",
+   "voice": "Chinese (Mandarin)_Reliable_Executive",
+   "voice_id": "Chinese (Mandarin)_Reliable_Executive",
+   "voice_name": null,
+   "ok": true,
+   "ms": 2160,
+   "chars": 10
+  },
+  {
+   "id": "real_u_r_k_m4_b",
+   "voice": "Chinese (Mandarin)_Reliable_Executive",
+   "voice_id": "Chinese (Mandarin)_Reliable_Executive",
+   "voice_name": null,
+   "ok": true,
+   "ms": 1944,
+   "chars": 13
+  },
+  {
+   "id": "real_r_x_poke_a",
+   "voice": "Chinese (Mandarin)_Reliable_Executive",
+   "voice_id": "Chinese (Mandarin)_Reliable_Executive",
+   "voice_name": null,
+   "ok": true,
+   "ms": 4464,
+   "chars": 27
+  },
+  {
+   "id": "real_r_x_poke_b",
+   "voice": "Chinese (Mandarin)_Reliable_Executive",
+   "voice_id": "Chinese (Mandarin)_Reliable_Executive",
+   "voice_name": null,
+   "ok": true,
+   "ms": 2664,
+   "chars": 16
+  },
+  {
+   "id": "real_r_x_flee_a",
+   "voice": "Chinese (Mandarin)_Reliable_Executive",
+   "voice_id": "Chinese (Mandarin)_Reliable_Executive",
+   "voice_name": null,
+   "ok": true,
+   "ms": 2556,
+   "chars": 16
+  },
+  {
+   "id": "real_r_x_flee_b",
+   "voice": "Chinese (Mandarin)_Reliable_Executive",
+   "voice_id": "Chinese (Mandarin)_Reliable_Executive",
+   "voice_name": null,
+   "ok": true,
+   "ms": 2268,
+   "chars": 16
+  },
+  {
+   "id": "real_b_h_r0_a",
+   "voice": "Chinese (Mandarin)_Humorous_Elder",
+   "voice_id": "Chinese (Mandarin)_Humorous_Elder",
+   "voice_name": null,
+   "ok": true,
+   "ms": 6516,
+   "chars": 31
+  },
+  {
+   "id": "real_b_h_r0_b",
+   "voice": "Chinese (Mandarin)_Humorous_Elder",
+   "voice_id": "Chinese (Mandarin)_Humorous_Elder",
+   "voice_name": null,
+   "ok": true,
+   "http": 200,
+   "code": 1002,
+   "msg": "rate limit exceeded(RPM)",
+   "ms": 7956,
+   "chars": 40
+  },
+  {
+   "id": "real_b_h_e1_a",
+   "voice": "Chinese (Mandarin)_Humorous_Elder",
+   "voice_id": "Chinese (Mandarin)_Humorous_Elder",
+   "voice_name": null,
+   "ok": true,
+   "ms": 6660,
+   "chars": 31
+  },
+  {
+   "id": "real_b_h_e1_b",
+   "voice": "Chinese (Mandarin)_Humorous_Elder",
+   "voice_id": "Chinese (Mandarin)_Humorous_Elder",
+   "voice_name": null,
+   "ok": true,
+   "ms": 8064,
+   "chars": 40
+  },
+  {
+   "id": "real_b_h_p2_a",
+   "voice": "Chinese (Mandarin)_Humorous_Elder",
+   "voice_id": "Chinese (Mandarin)_Humorous_Elder",
+   "voice_name": null,
+   "ok": true,
+   "ms": 6228,
+   "chars": 38
+  },
+  {
+   "id": "real_b_h_p2_b",
+   "voice": "Chinese (Mandarin)_Humorous_Elder",
+   "voice_id": "Chinese (Mandarin)_Humorous_Elder",
+   "voice_name": null,
+   "ok": true,
+   "ms": 7236,
+   "chars": 46
+  }
+ ]
+}
