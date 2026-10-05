@@ -946,16 +946,27 @@ const Fx = (() => {
 
   // ---------- 兵种台词 ----------
   let lastBark = '';
+  state.kingLines = []; state.onKingLine = null;
   function bark(info, c) {
     Sfx.line();   // 先当这一步没有台词；真要说了下面再登记（马、象、虎的脚步和叫声照着台词排）
     if (typeof Voice === 'undefined' || !Voice.enabled) return;
-    const p = info.piece, kill = !!c.tgt;
-    if (!kill && (Math.random() > 0.55 || Voice.busy)) return;
+    const p = info.piece, kill = !!c.tgt, king = p.t === 'k';
+    // 主帅的彩蛋台词（开局就动帅、被将军时自己走开、亲手吃车……）：main.js 事先按“哪一方、从哪到哪”登记好，这里对上了就由它来说（带字幕），不再说普通的那句
+    if (king && state.kingLines.length) {
+      const i = state.kingLines.findIndex(x => x.s === p.s && x.from[0] === info.from[0] && x.from[1] === info.from[1] && x.to[0] === info.to[0] && x.to[1] === info.to[1]);
+      if (i >= 0) {
+        const kid = state.kingLines.splice(i, 1)[0].id;
+        if (Voice.has(kid) && state.onKingLine) { Sfx.line(0.1 / (Time.boost || 1), Voice.dur(kid)); sleep(0.1).then(() => state.onKingLine(p.s, kid)); return; }
+      }
+    }
+    // 主帅每次走、每次吃子都说一句（他很少动）；别的兵种走子时约一半的步数说
+    if (!kill && ((!king && Math.random() > 0.55) || Voice.busy)) return;
     let base = `u_${p.s}_${p.t}_${kill ? 'k' : 'm'}`;
     if (Models.TIGER && p.s === 'r' && p.t === 'e' && Voice.has('t_' + base + '1')) base = 't_' + base;   // 汉相换成虎骑时用虎骑的台词（白虎开道 / 谋定而后动 / 犯汉者，虎噬之 / 放虎）
-    let id = `${base}${Math.random() < 0.5 ? 1 : 2}`;
-    if (id === lastBark) id = `${base}${id.endsWith('1') ? 2 : 1}`;
-    if (!Voice.has(id)) return;
+    const pool = [1, 2, 3, 4, 5].map(i => base + i).filter(x => Voice.has(x) && Voice.playable(x));   // 一般是两句，主帅有四五句
+    if (!pool.length) return;   // 放不出来就当没有台词（脚步不用白等）
+    const rest = pool.length > 1 ? pool.filter(x => x !== lastBark) : pool;
+    const id = rest[Math.floor(Math.random() * rest.length)];
     lastBark = id;
     const pan = Math.max(-0.7, Math.min(0.7, c.A.x / 6)) * (Board.viewSide === 'b' ? -1 : 1);
     const delay = kill ? 0.35 : 0.1;

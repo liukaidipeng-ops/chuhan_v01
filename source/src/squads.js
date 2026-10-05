@@ -402,25 +402,38 @@ const Squads = (() => {
   }
   // 汉相「虎骑」（预览中：网址带 ?tiger=1 才启用，线上仍是谋士车驾）
   // 平时只有一虎一人，吃子是虎扑；兵法三级起两名弩手随护（四级金甲大黄弩），只有发动「齐射」时才由弩手放箭
-  const TIGER = Models.TIGER, TG = 0.26;
+  const TIGER = Models.TIGER, TG = 0.27;
   class TigerRider extends Squad {
-    constructor(side, anchor, yaw, n = 0) {
+    constructor(side, anchor, yaw, n = 0, role = 'move') {
       super('e', side, anchor, yaw);
-      const gold = n >= 4;
-      this.m = Models.makeTigerRider(side, { gold }); this.m.group.scale.setScalar(TG);
+      this.role = role;
+      const gold = this.gold = n >= 4;
+      this.m = TigerHD.make(side, { gold }); this.m.group.scale.setScalar(TG);   // 美术的精修模型（tiger.js），各画质档它自己按 Core.quality 选面数
       this.group.add(this.m.group);
       this.guard = n >= 3 ? new TroopSquad('e', side, anchor, yaw, gold ? 'xbowG' : 'xbow', [[0.4, -0.02], [-0.4, -0.02]], SC * (gold ? 1.08 : 1)) : null;
+      // 随护弩手平时不在场（棋盘上清爽）：只在行进和攻击时出列，走完、打完就退下。gk 是出列程度，别处照常调 guard.setVis 也不会把他们叫出来
+      if (this.guard) { const g = this.guard, set = g.setVis.bind(g); this.gv = 1; this.gk = 0; g.setVis = k => { this.gv = k; set(k * this.gk); }; g.setVis(1); }
+      // 节杖不动（咆哮、扑击时保持平时的朝向）由美术的 tiger.js 自己管（M4）
       this.updaters.push(dt => { this.m.update(dt); this.sync(); });
       this.sync();
+    }
+    // 随护出列 / 退下：原地一小团墨气
+    escort(on, dur = 0.28) {
+      const g = this.guard; if (!g || (this.gk > 0.5) === !!on) return Promise.resolve();
+      const k0 = this.gk, k1 = on ? 1 : 0;
+      for (const u of g.units) if (!u.dead) P.ink(g.troop.worldPos(u.i, 0.12), 4, 0.22, 0.18, 0.5);
+      return tween(dur, k => { this.gk = k0 + (k1 - k0) * k; g.setVis(this.gv); }, on ? ease.out : ease.in);
     }
     sync() {
       const g = this.m.group; g.position.copy(this.anchor).addScaledVector(fwd(this.yaw), -0.1); if (!this.air) g.position.y = gy(this.anchor); g.rotation.y = this.yaw - Math.PI / 2;
       if (this.guard && !this.guardStay) { this.guard.anchor.copy(this.anchor); this.guard.yaw = this.yaw; }
     }
-    appear() { return Promise.all([super.appear(), this.guard ? this.guard.appear() : null]); }
-    dissolve() { return Promise.all([super.dissolve(), this.guard ? this.guard.dissolve() : null]); }
+    // 棋子模式下化身出场：要走、要打的那一队，随护跟着一起现身；挨打的一方没有随护
+    appear() { const g = this.guard; if (!g || this.role === 'defend') return super.appear(); this.gk = 1; this.gv = 1; return Promise.all([super.appear(), g.appear()]); }
+    dissolve() { const g = this.guard; return Promise.all([super.dissolve(), g ? (this.gk > 0.01 ? g.dissolve() : void g.dispose()) : null]); }
     async march(path, dur) {
       let last = 0;
+      this.escort(true);                           // 起步时随护出列，跟在两侧
       await stepOff('e', this.side, dur || 1.2);   // 台词 → 慢步 → 虎啸
       this.m.speed = 0.8;
       if (this.guard) this.guard.setPose('march');
@@ -432,6 +445,7 @@ const Squads = (() => {
       const { B, d, dist } = c, m = this.m, S = snd('e', this.side);
       // 兵法·齐射：虎伏着不动，两侧弩手放两轮箭
       if (c.ranged && this.guard) {
+        await this.escort(true, 0.25);
         this.guard.setPose('aim'); Sfx.unit('xbow').draw(); tween(0.3, k => { m.roarK = k * 0.5; });
         if (target.brace) target.brace();
         await sleep(0.45);
@@ -445,11 +459,22 @@ const Squads = (() => {
         await sleep(0.4);
         return;
       }
-      // 虎击：伏低咆哮 → 窜出 → 腾身扑下，一爪一口
-      if (this.guard) { this.guardStay = true; this.guard.setPose('ready'); }
-      tween(0.35, k => { m.roarK = k; }); S.roar();
+      // 虎击：伏低咆哮 → 窜出 → 腾身扑下，一爪一口。三、四级是组合：两侧弩手出列先放一轮箭，箭到，虎才窜出去；弩手留在原地，打完退下
       if (target.brace) target.brace();
-      await sleep(0.6);
+      if (this.guard) {
+        this.guardStay = true;
+        await this.escort(true, 0.25);
+        this.guard.setPose('aim'); Sfx.unit('xbow').draw();
+        await sleep(0.35);
+        tween(0.35, k => { m.roarK = k; }); S.roar();
+        await boltVolley(this.guard, target, this.gold ? 8 : 6, dist);
+        P.blood(target.center(0.25), 6, 0.5, d, 0.6);
+        this.guard.setPose('ready');
+        await sleep(0.1);
+      } else {
+        tween(0.35, k => { m.roarK = k; }); S.roar();
+        await sleep(0.6);
+      }
       tween(0.2, k => { m.roarK = 1 - k * 0.6; });
       m.speed = 1.4; S.charge();
       const start = this.anchor.clone(), end = B.clone().addScaledVector(d, -0.34), run = start.distanceTo(end), mid = start.clone().lerp(end, run > 0.9 ? 1 - 0.75 / run : 0.15);
@@ -462,17 +487,19 @@ const Squads = (() => {
       for (let i = 0; i < 3; i++) sleep(i * 0.05).then(() => Fx.slash(hp.clone().addScaledVector(rightOf(this.yaw), (i - 1) * 0.1), 0.9, 0.75, i === 1 ? 0x9e2418 : undefined));
       P.dust(B, 10, null, 0.3); Fx.Marks.cut(B, d);
       const dead = target.die('cut', d, 1.2, B);
+      const off = this.guard ? sleep(0.25).then(() => { this.guard.setPose('idle'); return this.escort(false, 0.35); }) : null;
       await tween(0.35, k => { m.pounceK = 1 - k; m.roarK = 1 - k; }, ease.in);
-      await dead;
+      await dead; await off;
       this.guardStay = false;
-      if (this.guard) this.guard.setPose('idle');
       await sleep(0.3);
     }
-    brace() { tween(0.3, k => { this.m.roarK = k * 0.8; }); if (this.guard) this.guard.setPose('cower'); }
+    brace() { tween(0.3, k => { this.m.roarK = k * 0.8; }); if (this.guard && this.gk > 0.5) this.guard.setPose('cower'); }
     async die(hit, dir, power, center) {
       const m = this.m, c = this.center(0.25);
-      const gd = this.guard ? this.guard.die(hit, dir, power, center) : null;
-      m.deadSide = Math.random() < 0.5 ? 1 : -1;
+      const gd = this.guard && this.gk > 0.5 ? this.guard.die(hit, dir, power, center) : null;
+      // 倒地时文臣和节杖倒向一侧（deadSide = 1 是倒向行进方向的左手边）：挑旁边那格没有子的一侧
+      { const R0 = rightOf(this.yaw), busy = sd => { const q = this.anchor.clone().addScaledVector(R0, -sd); for (const x of Board.pieces.values()) if (x.parent && Math.hypot(x.position.x - q.x, x.position.z - q.z) < 0.6) return true; return false; };
+        const sd = Math.random() < 0.5 ? 1 : -1; m.deadSide = !busy(sd) ? sd : !busy(-sd) ? -sd : sd; }
       tween(0.25, k => { m.roarK = k; }); snd('e', this.side).die();
       P.blood(c, 20, 1.0, dir, 1.1);
       if (hit === 'blast') P.fire(c, 16, 0.7);
@@ -1012,7 +1039,7 @@ const Squads = (() => {
     switch (t) {
       case 'p': return new Infantry(side, anchor, yaw, n);
       case 'a': return new Guards(side, anchor, yaw, n);
-      case 'e': return side === 'r' ? (TIGER ? new TigerRider(side, anchor, yaw, n) : new Crossbow(side, anchor, yaw, n)) : new Elephant(side, anchor, yaw, n >= 4);
+      case 'e': return side === 'r' ? (TIGER ? new TigerRider(side, anchor, yaw, n, role) : new Crossbow(side, anchor, yaw, n)) : new Elephant(side, anchor, yaw, n >= 4);
       case 'r': return new Chariot(side, anchor, yaw);
       case 'n': return new Cavalry(side, anchor, yaw, n);
       case 'c': return new Cannon(side, anchor, yaw, role === 'attack' ? 'battery' : role === 'defend' ? 'defend' : 'march', n);
@@ -1068,7 +1095,7 @@ const Squads = (() => {
   const dropSquad = sq => { try { if (sq.flags) for (const f of sq.flags) scene.remove(f.group); if (sq.guard) sq.guard.dispose(); sq.dispose(); } catch (e) { } };
   async function settleSquad(sq, m, pos) {
     if (!Stand.on || !m || !m.parent) return false;
-    try { if (sq.setPose && sq.troop) sq.setPose('idle'); await turnTo(sq, standYaw(m.userData.s), 0.26); } catch (e) { }
+    try { if (sq.setPose && sq.troop) sq.setPose('idle'); await Promise.all([turnTo(sq, standYaw(m.userData.s), 0.26), sq.escort ? sq.escort(false, 0.26) : null]); } catch (e) { }
     m.position.copy(pos); m.position.y = TOP; m.visible = true; m.scale.set(1, 1, 1);
     Stand.snap(m);
     dropSquad(sq);

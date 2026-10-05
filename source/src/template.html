@@ -5,8 +5,8 @@
 <meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,viewport-fit=cover">
 <meta name="theme-color" content="#1b1a19">
 <meta name="apple-mobile-web-app-capable" content="yes">
-<meta name="description" content="楚汉三维象棋：可与朋友联机、可人机对战的水墨风三维中国象棋">
-<title>楚汉·三维象棋</title>
+<meta name="description" content="技能新象棋：可与朋友联机、可人机对战的水墨风三维中国象棋">
+<title>技能新象棋</title>
 <style>
 @font-face{font-family:"XK";src:url(/*XKFONT*/) format("woff2");font-display:block}
 :root{
@@ -96,23 +96,8 @@ input.code{font-size:30px;letter-spacing:.4em;text-align:center;width:8.5em;max-
 .lv button.on:after{content:"選";position:absolute;top:-9px;right:-7px;background:var(--red);color:#f7ecd6;font-size:12px;padding:3px 4px;border-radius:2px;filter:url(#rough);transform:rotate(8deg)}
 
 /* 开场动画 */
-#lobby.intro .scroll{animation:unroll 1.25s cubic-bezier(.6,.05,.25,1) both}
-@keyframes unroll{from{clip-path:inset(calc(50% - 2px) -30px calc(50% - 2px) -30px)}to{clip-path:inset(-30px -30px -30px -30px)}}
-#lobby.intro .rod.t{animation:rodT 1.25s cubic-bezier(.6,.05,.25,1) both}
-#lobby.intro .rod.b{animation:rodB 1.25s cubic-bezier(.6,.05,.25,1) both}
-@keyframes rodT{from{top:calc(50% - 8px)}to{top:-9px}}
-@keyframes rodB{from{bottom:calc(50% - 8px)}to{bottom:-9px}}
-#lobby.intro .title .ttl{animation:inkbleed 1.7s .85s both}
 @keyframes inkbleed{from{opacity:0;filter:blur(16px);letter-spacing:.9em}to{opacity:1;filter:blur(0);letter-spacing:.28em}}
-#lobby.intro .title .seal{animation:stampIn .45s 2.0s both}
 @keyframes stampIn{0%{opacity:0;transform:scale(2.6) rotate(-14deg)}70%{opacity:1;transform:scale(.92) rotate(-4deg)}100%{opacity:1;transform:scale(1) rotate(-4deg)}}
-#lobby.intro .sub{animation:fadeUp .9s 2.2s both}
-#lobby.intro #pMain .menu>*{animation:fadeUp .6s both}
-#lobby.intro #pMain .menu>*:nth-child(1){animation-delay:2.45s}
-#lobby.intro #pMain .menu>*:nth-child(2){animation-delay:2.55s}
-#lobby.intro #pMain .menu>*:nth-child(3){animation-delay:2.65s}
-#lobby.intro #pMain .menu>*:nth-child(4){animation-delay:2.75s}
-#lobby.intro #pMain .row,#lobby.intro #pMain .note{animation:fadeUp .6s 2.9s both}
 @keyframes fadeUp{from{opacity:0;transform:translateY(10px)}to{opacity:1;transform:none}}
 .pane{animation:paneIn .35s ease both}
 /* 回到对局 */
@@ -123,7 +108,6 @@ input.code{font-size:30px;letter-spacing:.4em;text-align:center;width:8.5em;max-
 .resume small{letter-spacing:.05em!important}
 .resume .rx{position:absolute;top:50%;right:6px;transform:translateY(-50%);width:30px;height:30px;border:none;border-radius:50%;background:transparent;color:var(--ink3);font-size:19px;line-height:30px;padding:0;text-align:center;opacity:.65;z-index:2}
 .resume .rx:hover{color:var(--red);opacity:1;background:rgba(180,58,38,.08)}
-#lobby.intro .resume{animation:fadeUp .6s 2.35s both}
 @keyframes paneIn{from{opacity:0;transform:translateY(6px)}to{opacity:1;transform:none}}
 
 /* ---------- 对局界面 ---------- */
@@ -510,6 +494,489 @@ body.compact #log{width:164px;max-height:34vh}
   .tool{width:40px;height:40px;font-size:17px}#tools{gap:5px}
   .pcard{transform:scale(.86);transform-origin:left top}#cardMe{transform-origin:left bottom}
 }
+
+/* ================= 界面改版：E 棋盘（美术）=================
+   大厅各页 + 设置面板。电脑：朱红棋盘、圆棋子；手机竖屏（≤640 宽）：竖河、方格、底栏固定。
+   只在 #lobby 和 #mSet 里生效，别的弹窗和对局界面没动。 */
+@font-face{font-family:"EB";src:url(/*EBFONT*/) format("woff2");font-weight:900;font-display:swap}
+#lobby,#mSet{--g:#a8281c;--c:#f0e7d2;--k:#141311;
+  --ef:"EB","Noto Serif SC","Source Han Serif SC","Noto Serif CJK SC","Songti SC","STSong","SimSun",serif;
+  --es:"PingFang SC","Noto Sans SC","Noto Sans CJK SC","Microsoft YaHei",sans-serif}
+#lobby{display:block;padding:0;background:var(--g);color:var(--c);font-family:var(--ef);
+  --bw:min(1282px,100vw - 64px,(100dvh - 190px)*1.77);--bh:calc(var(--bw)*.1888);--pw:min(1282px,100vw - 64px)}
+#lobby .wrap{display:block;width:100%;height:100%;max-height:none}
+#lobby .wrap:after{display:none}
+#lobby .scroll{background:none;border:0;border-radius:0;box-shadow:none;padding:0;height:100%;max-height:none;text-align:left}
+#lobby .pane{position:relative;width:var(--bw);min-height:100%;margin:0 auto;padding:var(--safe-t) 0 28px;display:flex;flex-direction:column}
+#lobby .pane:not(#pMain){width:var(--pw)}
+#lobby .note,#lobby .lineinfo{color:var(--c);font-family:var(--es);letter-spacing:.06em}
+#lobby .spin{border-color:var(--c);border-top-color:transparent}
+
+/* 棋盘格、河界 */
+#lobby .e-grid{position:relative;height:var(--bh);flex:none;border-right:2px solid var(--c);border-bottom:2px solid var(--c);
+  background:linear-gradient(90deg,var(--c) 0 2px,transparent 2px) 0 0/12.5% 100%,linear-gradient(180deg,var(--c) 0 2px,transparent 2px) 0 0/100% 50%}
+#lobby .e-river{height:var(--bh);flex:none;border-left:2px solid var(--c);border-right:2px solid var(--c);display:flex;align-items:center;justify-content:space-between;padding:0 5.5%;
+  color:var(--k);font-weight:900;font-size:calc(var(--bh)*.545);line-height:1;letter-spacing:.3em;white-space:nowrap}
+#lobby .e-river span:last-child{margin-right:-.3em}
+#lobby .e-vr{display:none}
+
+/* 顶栏 */
+#lobby .e-top,#lobby .e-hd{height:80px;flex:none;display:flex;align-items:center;justify-content:space-between}
+#lobby .e-name{font-size:15px;letter-spacing:.6em;white-space:nowrap}
+#lobby .row.mini{margin:0;gap:34px;color:inherit;flex-wrap:nowrap}
+#lobby .link{min-height:44px;padding:0;border-radius:0;border-bottom:2px solid transparent;color:var(--c);font-family:var(--es);font-size:15px;letter-spacing:.3em;white-space:nowrap}
+#lobby .link:active{color:var(--k);border-bottom-color:var(--k)}
+#lobby .link:focus-visible{outline:2px solid var(--c);outline-offset:6px}
+#lobby .pane h3{margin:0;padding:0;font-size:32px;font-weight:900;letter-spacing:.3em;color:var(--k);white-space:nowrap}
+#lobby .e-body{flex:none;min-width:0}
+
+/* 圆棋子（主菜单三枚、难度三枚、底部的主操作、大厅右边两枚） */
+#pMain .menu .btn,#lobby .lv button,#lobby .e-bar .btn{all:unset;box-sizing:border-box;cursor:pointer;-webkit-tap-highlight-color:transparent;
+  --pb:var(--c);--pf:var(--k);width:var(--d);height:var(--d);border-radius:50%;display:flex;flex-direction:column;align-items:center;justify-content:center;
+  background:var(--pb);color:var(--pf);box-shadow:inset 0 0 0 calc(var(--d)*.04) var(--pb),inset 0 0 0 calc(var(--d)*.05) var(--pf);
+  font-family:var(--ef);font-weight:900;line-height:1.05;text-align:center;white-space:nowrap;transition:transform .16s,box-shadow .16s}
+#pMain .menu .btn.solid,#lobby .lv button.on,#lobby .e-bar .btn.solid{--pb:var(--k);--pf:var(--c)}
+#pMain .menu .btn:active,#lobby .lv button:active,#lobby .e-bar .btn:active{transform:translateY(3px) scale(.96);box-shadow:inset 0 0 0 calc(var(--d)*.04) var(--pb),inset 0 0 0 calc(var(--d)*.07) var(--pf)}
+#pMain .menu .btn:focus-visible,#lobby .lv button:focus-visible,#lobby .e-bar .btn:focus-visible{outline:3px solid var(--c);outline-offset:7px}
+#lobby .btn.off,#lobby .btn:disabled{opacity:.38}
+#lobby .btn b,#lobby .btn i{font-weight:900;font-style:normal}
+#pMain .menu{position:absolute;inset:0;display:block;max-width:none;margin:0}
+#pMain .menu .btn{--d:calc(var(--bh)*.826);position:absolute;top:50%;margin:calc(var(--d)/-2) 0 0 calc(var(--d)/-2);gap:.3vh}
+#pMain .menu .btn:nth-child(1){left:25%}#pMain .menu .btn:nth-child(2){left:50%}#pMain .menu .btn:nth-child(3){left:75%}
+#pMain .menu .btn b,#lobby .e-two .btn b{font-size:calc(var(--d)*.27);letter-spacing:.08em;padding-left:.08em}
+#pMain .menu .btn i,#lobby .e-two .btn i{font-size:calc(var(--d)*.1);letter-spacing:.5em;padding-left:.5em}
+#pMain .menu .btn small{position:absolute;left:50%;top:calc(100% + var(--bh)*.087 + 22px);transform:translateX(-50%);opacity:1;color:var(--c);font-family:var(--es);font-weight:400;font-size:14px;letter-spacing:.2em;white-space:nowrap}
+
+/* 回到对局 */
+#lobby .resume{position:absolute;left:50%;top:calc(var(--safe-t) + 80px + var(--bh)*.5);transform:translate(-50%,-50%);max-width:none;margin:0;z-index:2;display:flex}
+#lobby .resume .btn{width:auto;min-height:56px;padding:0 54px 0 26px;border:2px solid var(--k);border-radius:0;background:var(--c);color:var(--k);box-shadow:none;font-family:var(--ef);font-weight:900;font-size:20px;letter-spacing:.2em}
+#lobby .resume .btn b:before{background:var(--g);box-shadow:none}
+#lobby .resume .btn small{font-family:var(--es);font-weight:400;opacity:.8}
+#lobby .resume .rx{color:var(--k);opacity:.7}
+
+/* 难度 */
+#lobby .lv{display:block;margin:0 0 64px;gap:0}
+#lobby .lv button{--d:calc(var(--bh)*.7);position:absolute;top:50%;margin:calc(var(--d)/-2) 0 0 calc(var(--d)/-2);gap:calc(var(--d)*.04);min-height:0;padding:0}
+#lobby .lv button:nth-child(1){left:25%}#lobby .lv button:nth-child(2){left:50%}#lobby .lv button:nth-child(3){left:75%}
+#lobby .lv button:after{display:none}
+#lobby .lv .rk{font-size:calc(var(--d)*.27);letter-spacing:.08em;padding-left:.08em;color:inherit}
+#lobby .lv .st{font-size:calc(var(--d)*.085);letter-spacing:.3em;padding-left:.3em;color:inherit}
+#lobby .lv small{position:absolute;left:50%;top:calc(100% + var(--bh)*.15 + 22px);transform:translateX(-50%);color:var(--c);font-family:var(--es);font-weight:400;font-size:14px;letter-spacing:.2em;line-height:1.4;white-space:nowrap}
+
+/* 选项 */
+#lobby .e-opts{display:grid;grid-template-columns:1fr 1fr;column-gap:82px;border-top:2px solid var(--c)}
+#lobby .opt,#mSet .opt{min-height:64px;padding:8px 0;gap:14px;border-bottom:1px solid rgba(240,231,210,.45)}
+#lobby .opt .lbl,#mSet .opt .lbl{font-size:20px;font-weight:900;letter-spacing:.2em}
+#lobby .opt .lbl small,#mSet .opt .lbl small{margin-top:3px;color:var(--c);font-family:var(--es);font-weight:400;font-size:12px;letter-spacing:.06em;opacity:.9}
+#lobby .seg,#mSet .seg{gap:0;row-gap:6px;padding-left:2px}
+#lobby .seg button,#mSet .seg button{min-height:44px;margin-left:-2px;padding:0 16px;border:2px solid var(--c);border-radius:0;background:none;color:var(--c);font-family:var(--es);font-size:15px;white-space:nowrap}
+#lobby .seg button.on,#lobby .seg button.on.r,#mSet .seg button.on{background:var(--c);border-color:var(--c);color:var(--k);font-weight:500}
+#lobby .seg button:focus-visible,#mSet .seg button:focus-visible{outline:2px solid var(--c);outline-offset:3px}
+#lobby input:not([type=checkbox]):not(.code),#lobby select,#mSet input:not([type=range]){border:2px solid var(--c)!important;border-radius:0;background:none!important;color:var(--c);font-family:var(--es)!important;min-height:44px}
+#lobby select option{color:#141311}
+#lobby input::placeholder,#mSet input::placeholder{color:rgba(240,231,210,.6)}
+#lobby input[type=checkbox]{accent-color:var(--k)}
+
+/* 底部主操作 */
+#lobby .e-bar{flex:none;display:flex;justify-content:center;gap:56px;padding:34px 0 6px}
+#lobby .e-bar .btn{--d:calc(var(--bh)*.62);font-size:calc(var(--d)*.27);letter-spacing:.1em}
+@media (hover:hover){
+  #pMain .menu .btn:hover,#lobby .lv button:hover,#lobby .e-bar .btn:hover{transform:translateY(-8px);box-shadow:inset 0 0 0 calc(var(--d)*.04) var(--pb),inset 0 0 0 calc(var(--d)*.05) var(--pf),0 12px 0 rgba(20,19,17,.38)}
+  #lobby .link:hover{color:var(--c);border-bottom-color:var(--c)}
+}
+
+/* 一般按钮（等待房间等处） */
+#lobby .row{margin:16px 0 4px}
+#lobby .e-body .btn,#mSet .btn{min-height:48px;padding:0 18px;border:2px solid var(--c);border-radius:0;background:none;color:var(--c);box-shadow:none;font-family:var(--ef);font-weight:900;font-size:18px;letter-spacing:.2em}
+#lobby .e-body .btn.small,#mSet .btn.small{min-height:44px;font-size:16px;letter-spacing:.12em}
+#lobby .e-body .btn.solid,#mSet .btn.solid{background:var(--k);color:var(--c);border-color:var(--c)}
+#lobby .e-body .btn:active,#mSet .btn:active{background:var(--c);color:var(--k);transform:scale(.97)}
+@media (hover:hover){#lobby .e-body .btn:hover,#mSet .btn:hover{background:var(--c);color:var(--k)}}
+
+/* 联机大厅 */
+#pHall:not(.hidden){display:grid;grid-template-columns:minmax(0,1fr) 302px;grid-template-rows:80px minmax(0,1fr);column-gap:80px}
+#pHall .e-hd{grid-column:1/-1}
+#pHall #hallNote{min-height:44px;display:flex;align-items:center;font-size:14px;letter-spacing:.2em}
+#lobby #hallList{margin:0;max-height:calc(100dvh - 200px - var(--safe-t));border-top:2px solid var(--c)}
+#lobby #hallList li{min-height:84px;margin:0;padding:8px 4px;gap:18px;border:0;border-bottom:2px solid var(--c);border-radius:0;background:none}
+#lobby #hallList li .hv{width:44px;height:44px;border:2px solid var(--c);border-radius:0;background:none;color:var(--c);font-weight:900;font-size:20px}
+#lobby #hallList li .hv.bf{background:var(--k);border-color:var(--k)}#lobby #hallList li .hv.jq{background:var(--c);color:var(--k)}
+#lobby #hallList li .hi{font-size:18px;letter-spacing:.06em}
+#lobby #hallList li .hi b{font-size:22px;font-weight:900;color:var(--k);letter-spacing:.1em}
+#lobby #hallList li .hi small{margin-top:4px;color:var(--c);font-family:var(--es);font-size:13px;letter-spacing:.06em}
+#lobby #hallList li.play{opacity:.85}
+#lobby #hallList li .btn{min-width:96px;min-height:48px;padding:0 14px}
+#pHall .e-two{position:relative;align-self:start;flex-direction:column;align-items:center;justify-content:space-around;gap:0;height:calc(var(--bh)*2.6);padding:0;border:2px solid var(--c)}
+#pHall .e-two:before{content:"";position:absolute;left:0;right:0;top:50%;height:2px;margin-top:-1px;background:var(--c)}
+#pHall .e-two .btn{--d:calc(var(--bh)*.826);position:relative;gap:.3vh}
+
+/* 等待房间、加入房间 */
+#pWait .e-body,#pJoin .e-body{width:100%;max-width:640px;margin:0 auto;padding-top:12px;text-align:center}
+#pWait h3 .roomcode{color:var(--c);font-family:var(--num);font-weight:bold}
+#lobby .seat{border:2px solid var(--c);border-radius:0;background:none}
+#lobby .seat.empty{border-style:dashed}#lobby .seat.me{box-shadow:inset 0 0 0 3px var(--k)}
+#lobby .seat .sd{border-radius:0;background:var(--c);color:var(--g)}#lobby .seat.b .sd{background:var(--k);color:var(--c)}
+#lobby .seat small,#lobby .specs{color:var(--c);font-family:var(--es)}
+#lobby .specs i,#lobby .chip{border:1px solid var(--c);border-radius:0;background:none;color:var(--c);font-family:var(--es)}
+#lobby input.code{border:0;border-bottom:2px solid var(--c);background:none;color:var(--c)}
+#lobby input.code::placeholder{color:rgba(240,231,210,.4)}
+
+/* 开场：格线和河界淡入，棋子依次落下 */
+#lobby.intro .e-grid,#lobby.intro .e-river,#lobby.intro .e-vr,#lobby.intro .e-top{animation:eIn .8s both}
+#lobby.intro .e-river span,#lobby.intro .e-vr span{animation:eInk 1.1s .35s both}
+#lobby.intro #pMain .menu>*{animation:eDrop .45s both}
+#lobby.intro #pMain .menu>*:nth-child(1){animation-delay:1.1s}
+#lobby.intro #pMain .menu>*:nth-child(2){animation-delay:1.22s}
+#lobby.intro #pMain .menu>*:nth-child(3){animation-delay:1.34s}
+#lobby.intro .resume{animation:eIn .5s 1.6s both}
+@keyframes eIn{from{opacity:0}to{opacity:1}}
+@keyframes eInk{from{opacity:0;filter:blur(14px)}to{opacity:1;filter:blur(0)}}
+@keyframes eDrop{from{opacity:0;transform:translateY(-30px) scale(1.12)}to{opacity:1;transform:none}}
+@media (prefers-reduced-motion:reduce){#lobby.intro *{animation:none!important}}
+
+/* ---------- 设置面板 ---------- */
+#mSet{padding:0;background:rgba(20,19,17,.66);color:var(--c);font-family:var(--ef)}
+#mSet .rod,#mSet .wrap:after{display:none}
+#mSet .wrap{width:min(560px,100%);height:min(780px,100%);max-height:100%}
+#mSet .scroll{width:100%;height:100%;max-height:100%;padding:calc(24px + var(--safe-t)) 24px 0;border:0;border-radius:0;background:var(--g);box-shadow:0 30px 90px rgba(0,0,0,.5);text-align:left;
+  display:grid;grid-template-columns:58px minmax(0,1fr);grid-template-rows:1fr auto;align-content:start}
+#mSet h3,#lobby .e-band-t{margin:0;padding:22px 0;border:2px solid var(--c);color:var(--k);font-size:34px;font-weight:900;line-height:1;letter-spacing:.4em;writing-mode:vertical-rl;text-orientation:upright;display:flex;align-items:center;white-space:nowrap}
+#mSet h3{grid-column:1;grid-row:1}
+#mSet .e-body{grid-column:2;grid-row:1;margin-left:-2px;min-width:0}
+#mSet .tabs{display:grid;grid-template-columns:1fr 1fr 1.5fr;margin:0;border:0;padding-left:2px}
+#mSet .tabs button{height:52px;margin:0 0 0 -2px;padding:0;border:2px solid var(--c);border-radius:0;background:none;color:var(--c);font-family:var(--ef);font-weight:900;font-size:16px;letter-spacing:.2em;text-align:center}
+#mSet .tabs button.on{background:var(--c);color:var(--k);border-color:var(--c)}
+#mSet .tabp{min-height:0}
+#mSet .opt,#mSet .tabp .row{flex-direction:column;align-items:stretch;gap:8px;min-height:92px;margin:0;padding:10px 14px 12px;border:2px solid var(--c);border-top:0}
+#mSet .tabp .row{flex-direction:row;flex-wrap:wrap;align-items:center;justify-content:flex-start;min-height:0;padding:14px}
+#mSet .opt .lbl{font-size:15px}
+#mSet .opt .lbl small{display:inline;margin:0 0 0 10px;font-size:11px}
+#mSet .seg{flex-wrap:nowrap;justify-content:flex-start}
+#mSet .seg button{flex:1 1 auto;padding:0 6px;font-size:13px;text-align:center}
+#mSet .vol{justify-content:flex-start}#mSet .vol input{width:100%;accent-color:var(--k)}
+#mSet .note{color:var(--c);font-family:var(--es)}
+#mSet .e-bar{grid-column:1/-1;grid-row:2;position:sticky;bottom:0;z-index:2;display:flex;gap:12px;margin:22px -24px 0;padding:16px 24px calc(16px + var(--safe-b));border-top:2px solid var(--c);background:var(--g)}
+#mSet .e-bar .btn{height:60px;min-height:0;padding:0;white-space:nowrap}
+#mSet .e-bar #tExit{flex:0 0 132px;font-size:18px;letter-spacing:.2em}
+#mSet .e-bar #bSetClose{flex:1 1 0;font-size:28px;letter-spacing:.5em;padding-left:.5em}
+
+/* ---------- 对局界面：头像牌、状态条、工具、棋谱、技能栏、提示、复盘条、终局（只换皮：颜色、边框、字体；位置和大小不动） ---------- */
+:root{--g:#a8281c;--c:#f0e7d2;--k:#141311;--ef:"EB","Noto Serif SC","Source Han Serif SC","Noto Serif CJK SC","Songti SC","STSong","SimSun",serif;--es:"PingFang SC","Noto Sans SC","Noto Sans CJK SC","Microsoft YaHei",sans-serif}
+.pcard{border:0;border-radius:0;background:var(--c);color:var(--k);box-shadow:inset 0 0 0 3px var(--c),inset 0 0 0 5px var(--k),0 8px 22px rgba(20,19,17,.25)}
+.pcard:before,.pcard:after{display:none}
+.pcard.active{box-shadow:inset 0 0 0 3px var(--c),inset 0 0 0 5px var(--k),0 0 0 4px var(--g),0 10px 26px rgba(20,19,17,.3)}
+.por .trk{stroke:rgba(20,19,17,.15)}.por .arc{stroke:var(--k)}.por .arc.low{stroke:var(--g)}
+.por .face{border:2px solid var(--k);box-shadow:none}
+.por .seal{border-radius:0;transform:none;box-shadow:inset 0 0 0 1.5px var(--c);color:var(--c);font-family:var(--ef);font-weight:900}
+.pcard.r .seal{background:var(--g)}.pcard.b .seal{background:var(--k)}
+.pcard .who{font-family:var(--ef);font-weight:900;letter-spacing:.1em}
+.pcard .tag,.pcard .undo,.pcard .clk .stp,.pcard .clk.inf,.pcard .mer small{color:#5b564c;font-family:var(--es)}
+.pcard .clk,.pcard .clk .stp.solo{color:var(--k)}
+.pcard .clk.low,.pcard .clk .stp.low,.pcard.think .tag:after{color:var(--g)}
+.capp{border:1.5px solid var(--k);background:var(--c);box-shadow:none;font-family:var(--ef);font-weight:900}
+.capp.r{color:var(--g)}.capp.b{color:var(--k)}
+.pcard .mer{color:var(--k)}
+.pcard .mer b{border-radius:0;background:var(--k);color:var(--c);font-family:var(--ef);font-weight:900}
+.pcard .mer i{color:var(--k)}.pcard .mer i.pop{color:var(--g)}
+.pcard .fxs span{padding:2px 7px;border-radius:0;background:var(--k);color:var(--c);font-family:var(--es)}
+.pcard .fxs span.red{background:var(--g)}
+.pcard .fxs span.used{background:none;color:#5b564c;border:1px solid rgba(20,19,17,.35)}
+.pcard .fxs span.ok{background:none;color:var(--k);border:1px solid var(--k)}
+.pcard .fxs span.go{background:var(--g);color:var(--c);border:1px solid var(--g);box-shadow:0 0 0 2px var(--c),0 0 0 4px var(--g);animation:eGo 1.4s ease-in-out infinite}
+@keyframes eGo{50%{box-shadow:0 0 0 2px var(--c),0 0 0 6px rgba(168,40,28,.4)}}
+#status{padding:9px 24px 9px calc(24px + .2em);border:0;clip-path:none;background:var(--k);color:var(--c);box-shadow:inset 0 0 0 3px var(--k),inset 0 0 0 4px var(--c),0 6px 18px rgba(0,0,0,.25);font-family:var(--ef);font-weight:900;font-size:15px}
+#status.warn{background:var(--g);color:var(--c);box-shadow:inset 0 0 0 3px var(--g),inset 0 0 0 4px var(--c),0 6px 18px rgba(0,0,0,.25)}
+#status #specN{color:var(--c);font-family:var(--es);font-weight:400}
+#netbadge{border:1.5px solid var(--k);border-radius:0;background:var(--c);color:var(--k);font-family:var(--es)}
+#netbadge.bad{border-color:var(--c);background:var(--g);color:var(--c)}
+.tool{border-radius:50%;background:var(--k);color:var(--c);box-shadow:inset 0 0 0 3px var(--k),inset 0 0 0 4.5px var(--c),0 4px 12px rgba(0,0,0,.28);font-family:var(--ef);font-weight:900;font-size:20px}
+.tool.red{background:var(--g);color:var(--c);box-shadow:inset 0 0 0 3px var(--g),inset 0 0 0 4.5px var(--c),0 4px 12px rgba(0,0,0,.28)}
+.tool small{border:1.5px solid var(--k);background:var(--c);color:var(--k);box-shadow:none}
+.tool .lvl{border-radius:0;background:var(--c);color:var(--k)}
+#log{padding:12px 12px 10px;border:0;border-radius:0;background:var(--c);color:var(--k);box-shadow:inset 0 0 0 3px var(--c),inset 0 0 0 5px var(--k),0 8px 24px rgba(20,19,17,.25)}
+#log .lh{border-bottom:1.5px solid var(--k);color:var(--k);font-family:var(--ef);font-weight:900}
+#log #logExport{border:1.5px solid var(--k)!important;border-radius:0!important;background:none!important;font-family:var(--es)!important;font-weight:400}
+#logList .r{color:var(--g)}
+#logList .last{border-radius:0;background:rgba(20,19,17,.12)}
+#logList em.rv{background:var(--k);color:var(--c)}#logList .r em.rv{background:var(--g)}
+.bubble{border-radius:0;font-family:var(--ef);font-weight:900}
+.bubble b{font-family:var(--es);font-weight:400}
+#bubOpp{border-left:0;background:var(--k);color:var(--c);box-shadow:inset 0 0 0 3px var(--k),inset 0 0 0 4px var(--c),0 8px 24px rgba(0,0,0,.3)}
+#bubOpp:before{border-bottom-color:var(--k)}
+#bubMe{border:0;background:var(--c);color:var(--k);box-shadow:inset 0 0 0 3px var(--c),inset 0 0 0 5px var(--k),0 8px 24px rgba(20,19,17,.25)}
+#bubMe:after{border-top-color:var(--k)}
+.sk,.sk.ready,.sk.on{--sb:var(--k);--sf:var(--c);border-radius:0;background:var(--sb);color:var(--sf);box-shadow:inset 0 0 0 3px var(--sb),inset 0 0 0 4px var(--sf),0 4px 12px rgba(0,0,0,.28);font-family:var(--ef);font-weight:900}
+.sk small{color:inherit;font-weight:400;opacity:.85}
+.sk.up{--sb:var(--c);--sf:var(--k);background:var(--sb);color:var(--sf)}.sk.up small{color:inherit}
+.sk.art,.sk.ok{--sb:var(--g);--sf:var(--c);background:var(--sb);color:var(--sf);border-color:transparent}.sk.ok small{color:inherit}
+.sk.ult{--sb:var(--g);--sf:var(--c);background:var(--sb);box-shadow:inset 0 0 0 3px var(--sb),inset 0 0 0 4px var(--sf),inset 0 0 0 6px var(--sb),inset 0 0 0 7px var(--sf),0 4px 12px rgba(0,0,0,.28)}
+.sk.pas{background:var(--k);opacity:.75}
+.sk.on{outline:3px solid var(--c);outline-offset:2px}
+.sk.ready{outline:3px solid var(--g);outline-offset:2px;animation:eRdy 1.4s ease-in-out infinite}
+@keyframes eRdy{50%{outline-offset:5px}}
+.sk:disabled,.sk.off{opacity:.5;filter:none}
+.sk .cd{border-radius:0}
+.sk .cdn{border:1.5px solid var(--k);background:var(--c);color:var(--k)}
+#bfHint{border:0;border-radius:0;background:var(--k);color:var(--c);box-shadow:inset 0 0 0 1px var(--c);font-family:var(--es)}
+#bfBar.col #bfHint{border-radius:0}
+#skHint{border-radius:0;background:var(--g);color:var(--c);box-shadow:inset 0 0 0 3px var(--g),inset 0 0 0 4px var(--c),0 6px 18px rgba(0,0,0,.3);font-family:var(--ef);font-weight:900}
+#skHint small{color:var(--c);font-family:var(--es);font-weight:400}
+#skHint:before{border-radius:0;background:var(--c);box-shadow:none}
+#bfReport li{border-left:4px solid var(--c);border-radius:0;background:var(--k);color:var(--c);font-family:var(--es)}
+#bfReport li.r{border-left-color:var(--g)}
+#tip{border:0;border-radius:0;background:var(--k);color:var(--c);box-shadow:inset 0 0 0 3px var(--k),inset 0 0 0 4px var(--c),0 8px 24px rgba(0,0,0,.35);font-family:var(--es)}
+#tip b{color:#fff;font-family:var(--ef);font-weight:900}#tip small{color:rgba(240,231,210,.75)}
+#toast{padding:12px 24px;border-radius:0;background:var(--k);color:var(--c);box-shadow:inset 0 0 0 3px var(--k),inset 0 0 0 4px var(--c);font-family:var(--ef);font-weight:900}
+#skip{border:2px solid var(--c);border-radius:0;background:var(--k);color:var(--c);font-family:var(--ef);font-weight:900}
+#rpBar{padding:12px;border:0;border-radius:0;background:var(--k);box-shadow:inset 0 0 0 3px var(--k),inset 0 0 0 4px var(--c),0 8px 24px rgba(0,0,0,.35)}
+#rpBar button{border-radius:0;background:none;color:var(--c);box-shadow:inset 0 0 0 1.5px var(--c);font-family:var(--ef);font-weight:900}
+#rpBar button.pl{background:var(--g)}#rpBar button.x{box-shadow:inset 0 0 0 1.5px var(--c)}
+#rpInfo{color:var(--c)}
+#rpBar{width:max-content}
+#endcard{background:var(--g);color:var(--c);font-family:var(--ef)}
+#endcard:before{inset:18px;border:2px solid var(--c);box-shadow:none}
+#endcard .cols div{font-family:"Noto Serif SC","Source Han Serif SC","Noto Serif CJK SC","Songti SC","STSong","SimSun",serif;font-weight:bold}
+#endcard .cols div.big{color:var(--k)}
+#endcard .win{border-radius:0;background:var(--c);color:var(--k);filter:none;font-weight:900;box-shadow:inset 0 0 0 4px var(--c),inset 0 0 0 6px var(--k)}
+#endcard .mine{font-family:var(--es)}
+#endcard .btn{min-height:52px;border:2px solid var(--c);border-radius:0;background:none;color:var(--c);box-shadow:none;font-family:var(--ef);font-weight:900}
+#endcard .btn.solid{background:var(--k);color:var(--c);border-color:var(--c)}
+@media (hover:hover){#endcard .btn:hover{background:var(--c);color:var(--k)}}
+
+/* ---------- 其余弹窗：发言、导出、更新说明、玩法、选择、观战入席（和设置面板同一个骨架：左边竖条页名，底栏固定） ---------- */
+.e-m,.e-c,#pauseOv,#bfTip,#loading{--g:#a8281c;--c:#f0e7d2;--k:#141311;--ef:"EB","Noto Serif SC","Source Han Serif SC","Noto Serif CJK SC","Songti SC","STSong","SimSun",serif;--es:"PingFang SC","Noto Sans SC","Noto Sans CJK SC","Microsoft YaHei",sans-serif}
+.modal.e-m{padding:0;background:rgba(20,19,17,.66);color:var(--c);font-family:var(--ef)}
+.modal.e-m .rod,.modal.e-m .wrap:after{display:none}
+.modal.e-m .wrap{width:min(560px,100%)}
+.modal.e-m .scroll{width:100%;max-height:min(780px,100dvh);padding:calc(24px + var(--safe-t)) 24px 0;border:0;border-radius:0;background:var(--g);box-shadow:0 30px 90px rgba(0,0,0,.5);text-align:left;
+  display:grid;grid-template-columns:58px minmax(0,1fr);grid-template-rows:auto auto;align-content:start}
+.modal.e-m .scroll>h3{grid-column:1;grid-row:1;margin:0;padding:22px 0;border:2px solid var(--c);color:var(--k);font-size:34px;font-weight:900;line-height:1;letter-spacing:.4em;word-spacing:-.6em;writing-mode:vertical-rl;text-orientation:upright;display:flex;align-items:center;white-space:nowrap}
+.modal.e-m .e-body{grid-column:2;grid-row:1;margin-left:-2px;min-width:0;padding:16px 16px 18px;border:2px solid var(--c);font-family:var(--es);font-size:15px;line-height:1.8}
+.modal.e-m .e-bar{grid-column:1/-1;grid-row:2;position:sticky;bottom:0;z-index:2;display:flex;gap:12px;margin:22px -24px 0;padding:16px 24px calc(16px + var(--safe-b));border-top:2px solid var(--c);background:var(--g)}
+.modal.e-m .btn{min-height:48px;padding:0 18px;border:2px solid var(--c);border-radius:0;background:none;color:var(--c);box-shadow:none;font-family:var(--ef);font-weight:900;font-size:16px;letter-spacing:.12em;white-space:nowrap}
+.modal.e-m .btn.solid{background:var(--k);color:var(--c);border-color:var(--c)}
+.modal.e-m .btn:active{background:var(--c);color:var(--k);transform:scale(.97)}
+.modal.e-m .btn:disabled{opacity:.38}
+@media (hover:hover){.modal.e-m .btn:hover{background:var(--c);color:var(--k)}}
+.modal.e-m .e-bar .btn{flex:0 0 132px;height:60px;min-height:0;padding:0;font-size:18px;letter-spacing:.2em}
+.modal.e-m .e-bar .btn.solid,.modal.e-m .e-bar .btn:only-child{flex:1 1 0;font-size:26px;letter-spacing:.4em;padding-left:.4em}
+.modal.e-m .note,.modal.e-m p{margin:0 0 10px;color:var(--c);font-family:var(--es);font-size:15px;line-height:1.7}
+.modal.e-m .e-body h3{margin:22px 0 8px!important;padding:0;color:var(--k);font-family:var(--ef);font-weight:900;font-size:22px;letter-spacing:.3em;word-spacing:-.5em}
+.modal.e-m .help{font-size:15px!important;line-height:1.85!important;opacity:1!important}
+.modal.e-m .help b{color:#fff7e6}
+.modal.e-m .news{max-height:none;padding:0;color:var(--c);font-size:14px}
+.modal.e-m .news h4{margin:16px 0 4px;color:var(--k);font-family:var(--ef);font-weight:900;font-size:18px;letter-spacing:.1em}
+.modal.e-m .news h4:first-child{margin-top:0}
+.modal.e-m .news h4 small{color:var(--c);font-family:var(--es);opacity:.9}
+.modal.e-m input,.modal.e-m textarea{border:2px solid var(--c)!important;border-radius:0!important;background:rgba(20,19,17,.22)!important;color:var(--c)!important}
+.modal.e-m input::placeholder{color:rgba(240,231,210,.55)}
+.modal.e-m input.code{border-width:0 0 2px!important;background:none!important}
+#mExport #exportNote{color:var(--c)!important}
+#chat .phr button{min-height:48px;border:2px solid var(--c);border-radius:0;background:none;color:var(--c);font-family:var(--ef);font-weight:900;font-size:16px}
+#chat .phr button:active{background:var(--c);color:var(--k)}
+#chat .free .btn{min-width:64px}
+#chat #watchOpts .row{margin:0 0 12px!important}#chat #watchOpts .btn{width:100%;min-height:56px;font-size:20px}
+#mPick .chips{gap:8px;margin:6px 0 0}
+#mName .row{margin:8px 0 0}
+@media (max-width:640px){
+  .modal.e-m .wrap{width:100%;height:100%}
+  .modal.e-m .scroll{height:100%;max-height:none;box-shadow:none;grid-template-rows:auto 1fr}
+  .modal.e-m .e-bar{align-self:end}
+}
+/* 小卡片式弹窗（喊话、选择、观战入席、导出）：不占全屏，和规则速览一个样子 */
+.modal.e-c{padding:14px;background:rgba(20,19,17,.5);color:var(--c);font-family:var(--es)}
+.modal.e-c .rod,.modal.e-c .wrap:after{display:none}
+.modal.e-c .wrap{width:min(430px,100%)}
+.modal.e-c .scroll{width:100%;max-height:calc(100dvh - 28px);padding:22px 22px 18px;border:0;border-radius:0;background:var(--g);box-shadow:inset 0 0 0 5px var(--g),inset 0 0 0 7px var(--c),0 20px 60px rgba(0,0,0,.45);text-align:left}
+.modal.e-c .scroll>h3{margin:2px 0 12px;padding:0;color:var(--k);font-family:var(--ef);font-weight:900;font-size:22px;letter-spacing:.2em;word-spacing:-.4em}
+.modal.e-c .note,.modal.e-c p{margin:0 0 10px;color:var(--c);font-family:var(--es);font-size:14px;line-height:1.7}
+.modal.e-c .e-bar{display:flex;justify-content:flex-end;gap:10px;margin:16px 0 2px}
+.modal.e-c .btn{min-height:44px;padding:0 16px;border:2px solid var(--c);border-radius:0;background:none;color:var(--c);box-shadow:none;font-family:var(--ef);font-weight:900;font-size:15px;letter-spacing:.12em;white-space:nowrap}
+.modal.e-c .btn.solid{background:var(--k);color:var(--c);border-color:var(--c)}
+.modal.e-c .btn:active{background:var(--c);color:var(--k);transform:scale(.97)}
+.modal.e-c .btn:disabled{opacity:.38}
+@media (hover:hover){.modal.e-c .btn:hover{background:var(--c);color:var(--k)}}
+.modal.e-c input,.modal.e-c textarea{border:2px solid var(--c)!important;border-radius:0!important;background:rgba(20,19,17,.22)!important;color:var(--c)!important}
+.modal.e-c input::placeholder{color:rgba(240,231,210,.55)}
+.modal.e-c input.code{border-width:0 0 2px!important;background:none!important}
+#mExport textarea{height:min(38vh,300px)!important}
+/* ---------- 暂停 ---------- */
+#pauseOv{background:rgba(20,19,17,.72);font-family:var(--ef)}
+#pauseOv .pz{width:min(420px,calc(100vw - 48px));padding:30px 28px 26px;background:var(--g);color:var(--c);box-shadow:inset 0 0 0 5px var(--g),inset 0 0 0 7px var(--c),0 30px 90px rgba(0,0,0,.5)}
+#pauseOv .pzT{font-family:var(--ef);font-weight:900;font-size:60px;line-height:1.1;letter-spacing:.3em;padding-left:.3em;color:var(--k);text-shadow:none;animation:none}
+#pauseOv .pzI{margin:10px 0 4px;font-family:var(--es);font-size:14px;letter-spacing:.08em;opacity:1}
+#pauseOv .row{margin:18px 0 0;gap:10px;flex-wrap:nowrap}
+#pauseOv .btn{min-width:0;min-height:48px;padding:0 16px;border:2px solid var(--c);border-radius:0;background:none;color:var(--c);box-shadow:none;font-family:var(--ef);font-weight:900;font-size:16px;letter-spacing:.14em;white-space:nowrap}
+#pauseOv .btn.small{flex:1 1 0}
+#pauseOv #pzGo{--d:132px;width:var(--d);height:var(--d);padding:0;border:0;border-radius:50%;background:var(--k);color:var(--c);box-shadow:inset 0 0 0 5px var(--k),inset 0 0 0 7px var(--c);font-size:34px;letter-spacing:.08em;transition:transform .16s}
+#pauseOv .btn:active{transform:scale(.96)}
+@media (hover:hover){#pauseOv .btn.small:hover{background:var(--c);color:var(--k)}#pauseOv #pzGo:hover{transform:translateY(-6px);background:var(--k);color:var(--c)}}
+/* ---------- 规则速览 ---------- */
+#bfTip{padding:20px 22px 18px;border:0;border-radius:0;background:var(--g);color:var(--c);box-shadow:inset 0 0 0 5px var(--g),inset 0 0 0 7px var(--c),0 20px 60px rgba(0,0,0,.45);font-family:var(--es)}
+#bfTip h4{margin:4px 0 10px;text-align:left;color:var(--k);font-family:var(--ef);font-weight:900;font-size:22px;letter-spacing:.2em;word-spacing:-.4em}
+#bfTip ul{color:var(--c);font-size:14px;line-height:1.8}
+#bfTip li b{color:var(--k)}
+#bfTip .row{margin:14px 0 2px;justify-content:flex-end;gap:10px}
+#bfTip .btn{min-height:44px;padding:0 16px;border:2px solid var(--c);border-radius:0;background:none;color:var(--c);box-shadow:none;font-family:var(--ef);font-weight:900;font-size:15px;letter-spacing:.12em}
+#bfTip .btn.solid{background:var(--k)}
+/* ---------- 加载 ---------- */
+#loading{background:var(--g);color:var(--c)}
+#loading .big{color:var(--k);font-family:var(--ef);font-weight:900;font-size:min(72px,13vw);letter-spacing:.2em;padding-left:.2em;white-space:nowrap}
+#loading .bar{background:rgba(240,231,210,.25)}#loading .bar i{background:var(--c)}
+#loading .note{color:var(--c);font-family:var(--es)}
+
+/* ---------- 询问弹窗（悔棋、求和、退出对局的确认等共用） ---------- */
+#mAsk{--c:#f0e7d2;--k:#141311;--ef:"EB","Noto Serif SC","Source Han Serif SC","Noto Serif CJK SC","Songti SC","STSong","SimSun",serif;--es:"PingFang SC","Noto Sans SC","Noto Sans CJK SC","Microsoft YaHei",sans-serif;
+  padding:24px;background:rgba(20,19,17,.66)}
+#mAsk .rod,#mAsk .wrap:after{display:none}
+#mAsk .wrap{width:min(420px,100%)}
+#mAsk .scroll{padding:34px 28px 28px;border:0;border-radius:0;background:var(--c);color:var(--k);box-shadow:inset 0 0 0 5px var(--c),inset 0 0 0 7px var(--k),0 30px 90px rgba(0,0,0,.45);text-align:left;font-family:var(--es)}
+#mAsk h3{margin:0 0 12px;padding:0;font-family:var(--ef);font-weight:900;font-size:30px;line-height:1.25;letter-spacing:.16em}
+#mAsk p{margin:0 0 6px;font-size:15px;line-height:1.7;letter-spacing:.04em}
+#mAsk p:empty{display:none}
+#mAsk input{border:2px solid var(--k)!important;border-radius:0;background:none!important;color:var(--k)}
+#mAsk .row{flex-wrap:nowrap;flex-direction:row-reverse;gap:12px;margin:22px 0 0}
+#mAsk .btn{height:56px;min-height:0;padding:0;border:2px solid var(--k);border-radius:0;background:none;color:var(--k);box-shadow:none;font-family:var(--ef);font-weight:900;white-space:nowrap}
+#mAsk #askYes{flex:1 1 0;background:var(--k);color:var(--c);font-size:20px;letter-spacing:.24em}
+#mAsk #askNo{flex:0 0 118px;font-size:16px;letter-spacing:.14em}
+#mAsk .btn:active{transform:scale(.97)}
+/* 退出对局的确认：TD 打开时给 #mAsk 加 class e-stay，"留下"（askNo）变成大的主按钮 */
+#mAsk.e-stay #askNo{flex:1 1 0;background:var(--k);color:var(--c);font-size:20px;letter-spacing:.24em}
+#mAsk.e-stay #askYes{flex:0 0 118px;background:none;color:var(--k);font-size:16px;letter-spacing:.14em}
+#mAsk.e-stay .row{flex-direction:row}
+
+/* ---------- 电脑宽屏：房间设置、等待房间、加入房间撑满一屏（底部一条棋盘格，主操作的棋子落在正中） ---------- */
+@media (min-width:641px){
+  #pCreate .e-bar,#pJoin .e-bar{position:relative;height:var(--bh);margin-top:auto;padding:0;border-right:2px solid var(--c);border-bottom:2px solid var(--c);
+    background:linear-gradient(90deg,var(--c) 0 2px,transparent 2px) 0 0/12.5% 100%,linear-gradient(180deg,var(--c) 0 2px,transparent 2px) 0 0/100% 50%}
+  #pCreate .e-bar .btn,#pJoin .e-bar .btn{--d:calc(var(--bh)*.826);position:absolute;left:50%;top:50%;margin:calc(var(--d)/-2) 0 0 calc(var(--d)/-2)}
+  #pCreate .e-body{padding-bottom:28px}
+  #pCreate .opt{min-height:78px}
+  #pCreate .opt .lbl{font-size:23px}
+  #pCreate .opt .lbl small{font-size:13px}
+  #pCreate .seg button{min-height:50px;padding:0 20px;font-size:16px}
+  /* 加入房间：和主界面同一个构图——上面一条棋盘格，房间码写在河界里，「入局」落在下面棋盘格正中，说明文字在棋盘下面 */
+  #pJoin .e-body{display:contents}
+  #pJoin .e-hd{order:0}
+  #pJoin .e-body:before{content:"";order:1;flex:none;height:var(--bh);border-right:2px solid var(--c);border-bottom:2px solid var(--c);
+    background:linear-gradient(90deg,var(--c) 0 2px,transparent 2px) 0 0/12.5% 100%,linear-gradient(180deg,var(--c) 0 2px,transparent 2px) 0 0/100% 50%}
+  #pJoin .e-body .row{order:2;flex:none;height:var(--bh);margin:0;border-left:2px solid var(--c);border-right:2px solid var(--c)}
+  #pJoin .e-bar{order:3;margin-top:0}
+  #pJoin .e-body>.note:first-child{order:4;margin-top:22px;text-align:center;font-size:14px;letter-spacing:.2em}
+  #pJoin #joinNote{order:5;margin:8px 0 0;text-align:center;font-size:15px}
+  #pJoin #joinLine{order:6;text-align:center}
+  #lobby #pJoin input.code{width:100%;height:100%;padding:0 0 0 .5em;border:0;color:var(--k);font-weight:bold;font-size:calc(var(--bh)*.5);letter-spacing:.5em}
+  /* 等待房间：两个座位是棋盘格上对坐的两枚棋子 */
+  #pWait .e-body{max-width:none;padding-top:0}
+  #pWait .seats{position:relative;display:block;height:var(--bh);margin:0 0 26px;border-right:2px solid var(--c);border-bottom:2px solid var(--c);
+    background:linear-gradient(90deg,var(--c) 0 2px,transparent 2px) 0 0/12.5% 100%,linear-gradient(180deg,var(--c) 0 2px,transparent 2px) 0 0/100% 50%}
+  #pWait .seat{--d:calc(var(--bh)*.8);--pb:var(--c);--pf:var(--k);position:absolute;top:50%;left:37.5%;width:var(--d);height:var(--d);max-width:none;margin:calc(var(--d)/-2) 0 0 calc(var(--d)/-2);padding:0;
+    border:0;border-radius:50%;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:calc(var(--d)*.03);line-height:1.15;
+    background:var(--pb);color:var(--pf);box-shadow:inset 0 0 0 calc(var(--d)*.04) var(--pb),inset 0 0 0 calc(var(--d)*.05) var(--pf)}
+  #pWait .seat.b{left:62.5%;--pb:var(--k);--pf:var(--c)}
+  #pWait .seat.empty{background:var(--g);color:var(--c);border:2px dashed var(--c);box-shadow:none;opacity:1}
+  #pWait .seat.me{outline:3px solid var(--c);outline-offset:7px;box-shadow:inset 0 0 0 calc(var(--d)*.04) var(--pb),inset 0 0 0 calc(var(--d)*.05) var(--pf)}
+  #pWait .seat .sd{padding:0;background:none;color:inherit;font-size:calc(var(--d)*.085);font-weight:900;letter-spacing:.3em;padding-left:.3em}
+  #pWait .seat .who{margin:0;font-size:calc(var(--d)*.2);font-weight:900;letter-spacing:.06em;white-space:nowrap}
+  #pWait .seat small{color:inherit;font-size:calc(var(--d)*.07);letter-spacing:.06em;white-space:nowrap}
+  #pWait .specs{margin:0 0 12px;font-size:17px}
+  #pWait .chips{gap:10px;margin:14px 0}
+  #pWait .chip{padding:7px 16px;font-size:15px;letter-spacing:.1em}
+  #pWait .note{font-size:16px}
+  #pWait .row{gap:14px;margin:20px 0 4px}
+  #pWait .e-body .btn,#pWait .e-body .btn.small{min-height:58px;padding:0 28px;font-size:20px;letter-spacing:.2em}
+  #pWait select{min-height:58px;padding:0 12px!important;font-size:17px!important}
+}
+#lobby .seat small b{color:inherit!important;font-weight:900}
+
+/* ---------- 手机竖屏：竖河 ---------- */
+@media (max-width:640px){
+  #lobby{--bw:calc(100vw - 48px);--pw:calc(100vw - 48px)}
+  #lobby .pane{padding-bottom:0}
+  #lobby .e-top{height:84px}
+  #pMain .e-name{display:none}
+  #pMain .e-top{justify-content:flex-end}
+  #lobby .row.mini{gap:18px}
+  #lobby .link{font-size:14px;letter-spacing:.2em}
+  #pMain{padding-bottom:calc(44px + var(--safe-b))!important}
+  #pMain .e-top{order:0}#lobby .resume{order:1}#pMain .e-board{order:2}
+  #pMain .e-board{flex:1 1 auto;min-height:0;display:grid;grid-template-columns:29% minmax(0,1fr)}
+  #pMain .e-gt,#lobby .e-river{display:none}
+  #lobby .e-vr{display:flex;flex-direction:column;align-items:center;justify-content:space-between;padding:26px 0;border:2px solid var(--c);color:var(--k);font-weight:900;font-size:min(24vw,11dvh);line-height:1}
+  #pMain .e-gb{height:auto;margin-left:-2px;border:0;background:none}
+  #pMain .menu{position:static;display:grid;gap:0;grid-template-rows:repeat(3,minmax(0,1fr));height:100%}
+  #pMain .menu .btn{position:static;width:auto;height:auto;margin:0 0 -2px;padding:24px 22px 20px;border:2px solid var(--c);border-radius:0;box-shadow:none;background:none;color:var(--k);align-items:flex-start;justify-content:flex-start;gap:0;text-align:left;transition:none}
+  #pMain .menu .btn.solid{background:var(--k);color:var(--c)}
+  #pMain .menu .btn:active{transform:scale(.97);background:var(--c);color:var(--k);box-shadow:inset 0 0 0 5px var(--c),inset 0 0 0 7px var(--k)}
+  #pMain .menu .btn b{font-size:clamp(40px,15.4vw,64px);letter-spacing:.08em;padding:0}
+  #pMain .menu .btn i{margin-top:8px;font-size:22px;letter-spacing:.5em;padding:0}
+  #pMain .menu .btn small{position:static;transform:none;margin-top:auto;font-size:12px;letter-spacing:.1em}
+  #pMain .menu .btn:active small{color:var(--k)}
+  #lobby .resume{position:relative;left:auto;top:auto;transform:none;margin:0 0 12px}
+  #lobby .resume .btn{width:100%}
+
+  /* 二级页：左边竖条写页名，右边内容，底栏固定 */
+  #lobby .pane:not(#pMain):not(.hidden){display:grid;grid-template-columns:58px minmax(0,1fr);grid-template-rows:84px minmax(0,1fr) auto;column-gap:0;align-content:start}
+  #lobby .pane:not(#pMain):before{content:"技能新象棋";grid-column:1/-1;grid-row:1;align-self:center;font-size:13px;letter-spacing:.4em;white-space:nowrap}
+  #lobby .e-hd{display:contents}
+  #lobby .pane:not(#pMain) h3{grid-column:1;grid-row:2;padding:22px 0;border:2px solid var(--c);font-size:34px;line-height:1;letter-spacing:.4em;writing-mode:vertical-rl;text-orientation:upright;display:flex;align-items:center}
+  #lobby .e-back{position:absolute;right:0;top:calc(var(--safe-t) + 20px)}
+  #lobby .pane:not(#pMain) .e-body{grid-column:2;grid-row:2;margin-left:-2px;padding:0;max-width:none}
+  #lobby .pane:not(#pMain) .e-bar{grid-column:1/-1;grid-row:3;position:sticky;bottom:0;z-index:2;gap:12px;margin:22px -24px 0;padding:16px 24px calc(16px + var(--safe-b));border:0;border-top:2px solid var(--c);background:var(--g);height:auto}
+  #lobby .e-bar .btn{position:static;flex:1 1 0;width:auto;height:60px;margin:0;border:2px solid var(--c);border-radius:0;box-shadow:none;background:none;color:var(--c);font-size:28px;letter-spacing:.3em;padding-left:.3em;transition:none}
+  #lobby .e-bar .btn.solid{background:var(--k);color:var(--c)}
+  #lobby .e-bar .btn:active{transform:scale(.97);background:var(--c);color:var(--k);box-shadow:none}
+  /* 难度三格 */
+  #lobby .lv{position:relative;height:auto;margin:0;padding:0 0 40px;display:grid;grid-template-columns:repeat(3,minmax(0,1fr));background:none;border:2px solid var(--c);border-top:0}
+  #lobby .lv button{position:static;width:auto;height:112px;margin:0;border-radius:0;box-shadow:none;border:solid var(--c);border-width:2px 2px 2px 0;background:none;color:var(--k);gap:8px;transition:none}
+  #lobby .lv button:last-of-type{border-right-width:0}
+  #lobby .lv button.on{background:var(--k);color:var(--c)}
+  #lobby .lv button:active{transform:none;box-shadow:none;background:var(--c);color:var(--k)}
+  #lobby .lv .rk{font-size:26px;letter-spacing:.1em;padding-left:.1em}
+  #lobby .lv .st{font-size:12px;letter-spacing:.2em;color:var(--c)}
+  #lobby .lv button:active .st{color:var(--k)}
+  #lobby .lv small{display:none;left:0;right:0;top:auto;bottom:0;height:40px;transform:none;align-items:center;justify-content:center;font-size:12px;letter-spacing:.1em}
+  #lobby .lv button.on small{display:flex}
+  /* 选项 */
+  #lobby .e-opts{display:block;border:0}
+  #lobby .opt{flex-direction:column;align-items:stretch;gap:8px;min-height:92px;padding:10px 14px 12px;border:2px solid var(--c);border-top:0}
+  #lobby .e-body>.e-opts:first-child .opt:first-child{border-top:2px solid var(--c)}
+  #lobby .opt .lbl{font-size:15px}
+  #lobby .opt .lbl small{display:inline;margin:0 0 0 10px;font-size:11px}
+  #lobby .seg{flex-wrap:nowrap;justify-content:flex-start}
+  #lobby .seg button{flex:1 1 auto;padding:0 6px;font-size:13px;text-align:center}
+  #lobby #lockPw{max-width:none!important}
+  #lobby #optLock .lbl{white-space:normal}#lobby #optLock .lbl small{display:block;margin:4px 0 0}
+  /* 大厅 */
+  #pHall .e-hd{grid-column:auto}
+  #pHall #hallNote{padding:0 14px;border:2px solid var(--c);font-size:12px;letter-spacing:.1em}
+  #lobby #hallList{max-height:none;border:0}
+  #lobby #hallList li{min-height:92px;padding:8px 12px 8px 14px;gap:10px;border:2px solid var(--c);border-top:0}
+  #lobby #hallList li .hv{width:36px;height:36px;font-size:16px}
+  #lobby #hallList li .hi{font-size:14px}#lobby #hallList li .hi b{font-size:18px}
+  #lobby #hallList li .hi small{font-size:12px}
+  #lobby #hallList li .btn{min-width:68px;padding:0 6px;font-size:17px}
+  #pHall .e-two{height:auto;flex-direction:row;border:0;border-top:2px solid var(--c)}
+  #pHall .e-two:before{display:none}
+  #pHall .e-two .btn{height:96px;flex-direction:column;align-items:flex-start;justify-content:center;gap:8px;padding:0 18px;letter-spacing:0;text-align:left}
+  #pHall .e-two .btn b{font-size:32px;letter-spacing:.08em;padding:0}
+  #pHall .e-two .btn i{font-size:14px;letter-spacing:.4em;padding:0}
+  /* 等待房间、加入房间 */
+  #pWait .e-body,#pJoin .e-body{padding:16px 12px!important;border:2px solid var(--c)}
+  #lobby .seats{flex-direction:column;align-items:stretch}#lobby .seat{max-width:none}
+  /* 设置：占满全屏 */
+  #mSet .wrap{width:100%;height:100%}
+  #mSet .scroll{box-shadow:none}
+}
+/* 横着拿的手机（很矮的屏）：沿用电脑版排法，去掉棋子下面的小字 */
+@media (max-height:520px) and (min-width:641px){
+  #lobby{--bw:min(1282px,100vw - 64px,(100dvh - 96px)*1.77)}
+  #lobby .e-top,#lobby .e-hd{height:56px}
+  #pMain .menu .btn small{display:none}
+  #lobby .resume{top:calc(var(--safe-t) + 56px + var(--bh)*.5)}
+  #pHall:not(.hidden){grid-template-columns:minmax(0,1fr) 200px;grid-template-rows:56px minmax(0,1fr);column-gap:40px}
+  #lobby .lv{margin-bottom:52px}
+}
 </style>
 </head>
 <body>
@@ -518,7 +985,7 @@ body.compact #log{width:164px;max-height:34vh}
 <div id="paper"></div>
 <div id="vignette"></div>
 
-<div id="loading"><div class="big">楚漢</div><div class="bar"><i></i></div><div class="note" id="loadTxt">研墨铺纸…</div></div>
+<div id="loading"><div class="big">技能新象棋</div><div class="bar"><i></i></div><div class="note" id="loadTxt">研墨铺纸…</div></div>
 
 <!-- 对局界面 -->
 <div id="hud" class="hidden">
@@ -560,28 +1027,33 @@ body.compact #log{width:164px;max-height:34vh}
 
 <!-- 大厅 -->
 <div id="lobby" class="hidden intro">
-  <div class="wrap"><div class="rod t"></div><div class="rod b"></div>
+  <div class="wrap">
   <div class="scroll">
-    <div class="title"><span class="ttl">楚漢</span><span class="seal">三维<br>象棋</span></div>
-    <div class="sub">楚 河 漢 界 · 逐 鹿 中 原</div>
 
     <div id="pMain" class="pane">
-      <div id="resume" class="resume hidden"><button class="btn red" id="bResume"><b>回 到 对 局</b><small id="resumeInfo"></small></button><button class="rx" id="bResumeX" aria-label="不再显示" title="不再显示">×</button></div>
-      <div class="menu">
-        <button class="btn red solid" id="bHall"><b>联 机 大 厅</b><small>找对手 · 建房间 · 观战</small></button>
-        <button class="btn" id="bAI"><b>人 机 对 战</b><small>与霸王、汉王对弈</small></button>
-        <button class="btn" id="bLocal"><b>本 地 对 战</b><small>同屏两人对弈</small></button>
+      <div class="e-top"><div class="e-name">技能新象棋 · 逐鹿中原</div><div class="row mini"><button class="link" id="bSetL">设置</button><button class="link" id="bHelpL">玩法</button><button class="link" id="bNewsL">更新</button></div></div>
+      <div class="e-board">
+        <div class="e-grid e-gt"></div>
+        <div class="e-river"><span>楚河</span><span>漢界</span></div>
+        <div class="e-vr"><span>技</span><span>能</span><span>新</span><span>象</span><span>棋</span></div>
+        <div class="e-grid e-gb"><div class="menu">
+          <button class="btn red solid" id="bHall"><b>联机</b><i>大厅</i><small>找对手 · 建房间 · 观战</small></button>
+          <button class="btn" id="bAI"><b>人机</b><i>对战</i><small>与霸王、汉王对弈</small></button>
+          <button class="btn" id="bLocal"><b>本地</b><i>对战</i><small>同屏两人对弈</small></button>
+        </div></div>
       </div>
-      <div class="row mini"><button class="link" id="bSetL">设 置</button><span>·</span><button class="link" id="bHelpL">玩 法</button><span>·</span><button class="link" id="bNewsL">更 新</button></div>
+      <div id="resume" class="resume hidden"><button class="btn red" id="bResume"><b>回 到 对 局</b><small id="resumeInfo"></small></button><button class="rx" id="bResumeX" aria-label="不再显示" title="不再显示">×</button></div>
     </div>
 
     <div id="pAI" class="pane hidden">
-      <h3>人 机 对 战</h3>
-      <div class="lv" id="aiLv">
-        <button data-v="easy"><span class="rk">新兵</span><span class="st">★</span><small>初学乍练<br>偶有失误</small></button>
-        <button data-v="mid"><span class="rk">校尉</span><span class="st">★★</span><small>攻守有度<br>需用心应对</small></button>
-        <button data-v="hard"><span class="rk">霸王</span><span class="st">★★★</span><small>每步深算<br>极难战胜</small></button>
+      <div class="e-hd"><h3>人机对战</h3><button class="link e-back" id="bBack4">返回</button></div>
+      <div class="e-body">
+      <div class="lv e-grid" id="aiLv">
+        <button data-v="easy"><span class="rk">新兵</span><span class="st">★</span><small>初学乍练 · 偶有失误</small></button>
+        <button data-v="mid"><span class="rk">校尉</span><span class="st">★★</span><small>攻守有度 · 需用心应对</small></button>
+        <button data-v="hard"><span class="rk">霸王</span><span class="st">★★★</span><small>每步深算 · 极难战胜</small></button>
       </div>
+      <div class="e-opts">
       <div class="opt"><div class="lbl">玩法</div><div class="seg" data-a="bf"><button data-v="0">象棋</button><button data-v="1">技能模式</button></div></div>
       <div class="opt"><div class="lbl">执子</div><div class="seg" data-a="side"><button data-v="r" class="r">红·汉（先手）</button><button data-v="b">黑·楚</button><button data-v="x">随机</button></div></div>
       <div class="opt"><div class="lbl">悔棋<small>电脑总会同意</small></div><div class="seg" data-a="undo"><button data-v="0">不允许</button><button data-v="3">3 次</button><button data-v="99">不限</button></div></div>
@@ -589,19 +1061,23 @@ body.compact #log{width:164px;max-height:34vh}
       <div class="opt"><div class="lbl">每步时长<small>超时判负</small></div><div class="seg" data-a="step"><button data-v="0">不限</button><button data-v="30">30 秒</button><button data-v="60">1 分</button><button data-v="120">2 分</button></div></div>
       <div class="opt"><div class="lbl">棋子款式</div><div class="seg" data-a="skin"><button data-v="0">木</button><button data-v="2">银</button><button data-v="3">金</button><button data-v="4">玉</button></div></div>
       <div class="opt"><div class="lbl">显示可击杀的子</div><div class="seg" data-a="hints"><button data-v="1">开</button><button data-v="0">关</button></div></div>
-      <div class="row"><button class="btn red solid" id="bAIGo">开 战</button><button class="btn" id="bBack4">返 回</button></div>
+      </div>
+      </div>
+      <div class="e-bar"><button class="btn red solid" id="bAIGo">开战</button></div>
     </div>
 
     <div id="pHall" class="pane hidden">
-      <h3>联 机 大 厅</h3>
+      <div class="e-hd"><h3>联机大厅</h3><button class="link e-back" id="bBackH">返回</button></div>
+      <div class="e-body">
       <div class="note" id="hallNote"><span class="spin"></span>正在连接大厅…</div>
       <ul id="hallList"></ul>
-      <div class="row"><button class="btn red solid" id="bCreate">创 建 房 间</button><button class="btn" id="bJoinShow">输入房间码</button></div>
-      <div class="row"><button class="btn small" id="bBackH">返 回</button></div>
+      </div>
+      <div class="e-bar e-two"><button class="btn red solid" id="bCreate"><b>创建</b><i>房间</i></button><button class="btn" id="bJoinShow"><b>输入</b><i>房间码</i></button></div>
     </div>
 
     <div id="pCreate" class="pane hidden">
-      <h3 id="createTitle">房 间 设 置</h3>
+      <div class="e-hd"><h3 id="createTitle">房 间 设 置</h3><button class="link e-back" id="bBack1">返回</button></div>
+      <div class="e-body"><div class="e-opts">
       <div class="opt"><div class="lbl">玩法<small id="varNote">揭棋：十五子反扣，走动方知真身</small></div><div class="seg" data-k="v"><button data-v="std">象棋</button><button data-v="jq">揭棋</button><button data-v="bf">技能</button></div></div>
       <div class="opt" id="optPub"><div class="lbl">房间<small>公开的房间会出现在联机大厅里</small></div><div class="seg" data-k="pub"><button data-v="1">公开</button><button data-v="0">私密</button></div></div>
       <div class="opt" id="optLock"><div class="lbl"><label style="cursor:pointer"><input type="checkbox" id="lockOn" style="width:18px;height:18px;vertical-align:-3px;margin-right:6px">房间密码</label><small>勾选后，入座和观战都要输入密码</small></div><input id="lockPw" class="hidden" maxlength="12" placeholder="输入密码" autocomplete="off" style="flex:1;min-width:0;max-width:170px;font-size:16px;padding:6px 8px;border:1px solid #bba;background:rgba(255,255,255,.5)"></div>
@@ -611,11 +1087,13 @@ body.compact #log{width:164px;max-height:34vh}
       <div class="opt"><div class="lbl">每步时长<small>超时判负</small></div><div class="seg" data-k="step"><button data-v="0">不限</button><button data-v="30">30 秒</button><button data-v="60">1 分</button><button data-v="120">2 分</button></div></div>
       <div class="opt" id="optSkin"><div class="lbl">棋子款式<small>双方看到的一样</small></div><div class="seg" data-k="skin"><button data-v="0">木</button><button data-v="2">银</button><button data-v="3">金</button><button data-v="4">玉</button></div></div>
       <div class="opt"><div class="lbl">显示可击杀的子<small>选子时标出能吃的敌子</small></div><div class="seg" data-k="hints"><button data-v="1">开</button><button data-v="0">关</button></div></div>
-      <div class="row"><button class="btn red solid" id="bCreateGo">创 建</button><button class="btn" id="bBack1">返 回</button></div>
+      </div></div>
+      <div class="e-bar"><button class="btn red solid" id="bCreateGo">创 建</button></div>
     </div>
 
     <div id="pWait" class="pane hidden">
-      <h3>房 间 <span class="roomcode" id="roomCode" style="font-size:1em;display:inline;letter-spacing:.18em">·····</span> <span id="roomLock" class="hidden" title="有密码">🔒</span></h3>
+      <div class="e-hd"><h3>房间 <span class="roomcode" id="roomCode" style="font-size:1em;display:inline;letter-spacing:.18em">·····</span> <span id="roomLock" class="hidden" title="有密码">🔒</span></h3><button class="link e-back" id="bBack2">离开房间</button></div>
+      <div class="e-body">
       <div class="seats" id="roomSeats"></div>
       <div class="specs"><b>观战席</b><span id="roomSpecs">暂时没有观众</span></div>
       <div class="chips" id="waitChips"></div>
@@ -625,24 +1103,27 @@ body.compact #log{width:164px;max-height:34vh}
       <div id="qrWrap" class="hidden"><div id="qr"></div><div class="note">朋友用手机扫码即可入局</div></div>
       <div class="row" id="roomInvite"><button class="btn small solid" id="bShare">发送邀请链接</button><button class="btn small" id="bCopyCode">复制房间码</button></div>
       <div class="lineinfo" id="waitLine"></div>
-      <div class="row"><button class="btn small" id="bBack2">离开房间</button></div>
+      </div>
     </div>
 
     <div id="pJoin" class="pane hidden">
-      <h3>加 入 房 间</h3>
+      <div class="e-hd"><h3>加入房间</h3><button class="link e-back" id="bBack3">返回</button></div>
+      <div class="e-body">
       <div class="note">输入朋友给你的 5 位房间码</div>
       <div class="row"><input class="code" id="joinCode" maxlength="5" placeholder="ABCDE" autocomplete="off" autocorrect="off" autocapitalize="characters" spellcheck="false" inputmode="text" enterkeyhint="go"></div>
-      <div class="row"><button class="btn red solid" id="bJoin">入 局</button><button class="btn" id="bBack3">返 回</button></div>
       <p class="note" id="joinNote"></p>
       <div class="lineinfo" id="joinLine"></div>
+      </div>
+      <div class="e-bar"><button class="btn red solid" id="bJoin">入 局</button></div>
     </div>
   </div></div>
 </div>
 
 <!-- 设置 -->
 <div id="mSet" class="modal hidden"><div class="wrap"><div class="rod t"></div><div class="rod b"></div><div class="scroll">
-  <h3>设 置</h3>
-  <div class="tabs" id="setTabs"><button data-t="pic" class="on">画 面</button><button data-t="snd">声 音</button><button data-t="etc">对局与其他</button></div>
+  <h3>设置</h3>
+  <div class="e-body">
+  <div class="tabs" id="setTabs"><button data-t="pic" class="on">画面</button><button data-t="snd">声音</button><button data-t="etc">对局与其他</button></div>
   <div class="tabp" data-t="pic">
   <div class="opt"><div class="lbl">画面<small>镜头与战斗演出</small></div><div class="seg" data-s="vis"><button data-v="cine">完整电影镜头</button><button data-v="std">精简特效</button><button data-v="low">低特效</button></div></div>
   <div class="opt"><div class="lbl">棋子显示<small>用兵种模型代替棋子</small></div><div class="seg" data-s="models"><button data-v="0">棋子</button><button data-v="1">兵种模型</button></div></div>
@@ -660,23 +1141,26 @@ body.compact #log{width:164px;max-height:34vh}
   </div>
   <div class="tabp hidden" data-t="etc">
   <div class="opt" id="optServer"><div class="lbl">自定义线路<small>一般不用填</small></div><input id="oServer" placeholder="wss://…/mqtt" style="flex:1;min-width:0;font-size:14px;padding:6px;border:1px solid #bba;background:rgba(255,255,255,.5)"></div>
-  <div class="row hidden" id="setGame"><button class="btn small hidden" id="tDebug">调试摆子</button><button class="btn small" id="tExport">导出本局</button><button class="btn small red" id="tResign">认 输</button><button class="btn small" id="tExit">退出对局</button></div>
+  <div class="row hidden" id="setGame"><button class="btn small hidden" id="tDebug">调试摆子</button><button class="btn small" id="tExport">导出本局</button><button class="btn small red" id="tResign">认 输</button></div>
   <div class="row"><button class="btn small" id="bHelp">玩法说明</button><button class="btn small" id="bNews">更新说明</button></div>
   </div>
-  <div class="row"><button class="btn small solid" id="bSetClose">完 成</button></div>
   <p class="note" style="text-align:center;margin:6px 0 0;font-size:12px;opacity:.7"><span id="verTag"></span></p>
+  </div>
+  <div class="e-bar"><button class="btn small" id="tExit">返回大厅</button><button class="btn small solid" id="bSetClose">完成</button></div>
 </div></div></div>
 
 <!-- 发言 -->
-<div id="chat" class="modal hidden"><div class="wrap"><div class="rod t"></div><div class="rod b"></div><div class="scroll">
+<div id="chat" class="modal e-c hidden"><div class="wrap"><div class="rod t"></div><div class="rod b"></div><div class="scroll">
   <h3 id="chatT">阵 前 喊 话</h3>
+  <div class="e-body">
   <div id="watchOpts" class="hidden">
     <div class="opt"><div class="lbl">站队<small id="wName"></small></div><div class="seg" id="wSide"><button data-v="r" class="r">汉</button><button data-v="n">中立</button><button data-v="b">楚</button></div></div>
     <div class="row" style="margin:10px 0 6px"><button class="btn red solid wide" id="bLaugh">哈 哈 大 笑</button></div>
   </div>
   <div class="phr" id="phr"></div>
   <div class="free"><input id="chatIn" maxlength="24" placeholder="自己写一句（最多 24 字）" enterkeyhint="send"><button class="btn small solid" id="chatSend">发</button></div>
-  <div class="row"><button class="btn small" id="chatClose">关 闭</button></div>
+  </div>
+  <div class="e-bar"><button class="btn small" id="chatClose">关闭</button></div>
 </div></div></div>
 
 <!-- 通用确认框 -->
@@ -686,16 +1170,18 @@ body.compact #log{width:164px;max-height:34vh}
 </div></div></div>
 
 <!-- 更新说明 -->
-<div id="mExport" class="modal hidden"><div class="wrap"><div class="rod t"></div><div class="rod b"></div><div class="scroll">
-  <h3>导 出 本 局</h3>
+<div id="mExport" class="modal e-c hidden"><div class="wrap"><div class="rod t"></div><div class="rod b"></div><div class="scroll">
+  <h3>导出本局</h3>
+  <div class="e-body">
   <div id="exportNote" style="font-size:14px;color:var(--ink3);margin-bottom:8px"></div>
   <textarea id="exportText" readonly style="width:100%;height:38vh;font-size:12px;line-height:1.5;font-family:ui-monospace,Menlo,Consolas,monospace;border:1px solid #bba;background:rgba(255,255,255,.55);padding:8px;resize:none;user-select:text;-webkit-user-select:text"></textarea>
-  <div class="row"><button class="btn small solid" id="bExportCopy">复 制</button><button class="btn small" id="bExportClose">关 闭</button></div>
+  </div>
+  <div class="e-bar"><button class="btn small" id="bExportClose">关闭</button><button class="btn small solid" id="bExportCopy">复制</button></div>
 </div></div></div>
-<div id="mNews" class="modal hidden"><div class="wrap"><div class="rod t"></div><div class="rod b"></div><div class="scroll">
-  <h3>更 新 说 明</h3>
-  <div class="news" id="newsBody"></div>
-  <div class="row"><button class="btn small solid" id="bNewsClose">知道了</button></div>
+<div id="mNews" class="modal e-m hidden"><div class="wrap"><div class="rod t"></div><div class="rod b"></div><div class="scroll">
+  <h3>更新说明</h3>
+  <div class="e-body"><div class="news" id="newsBody"></div></div>
+  <div class="e-bar"><button class="btn small solid" id="bNewsClose">知道了</button></div>
 </div></div></div>
 
 <!-- 兵法规则速览 -->
@@ -703,14 +1189,15 @@ body.compact #log{width:164px;max-height:34vh}
 
 <!-- 暂停 -->
 <div id="pauseOv" class="hidden"><div class="pz">
-  <div class="pzT">暂 停</div>
+  <div class="pzT">暂停</div>
   <div class="pzI" id="pzInfo"></div>
   <div class="row"><button class="btn solid" id="pzGo">继 续</button></div>
-  <div class="row"><button class="btn small" id="pzSet">设 置</button><button class="btn small red" id="pzResign">认 输</button><button class="btn small" id="pzExit">退 出</button></div>
+  <div class="row"><button class="btn small" id="pzSet">设 置</button><button class="btn small red" id="pzResign">认 输</button><button class="btn small" id="pzExit">返回大厅</button></div>
 </div></div>
 
-<div id="mHelp" class="modal hidden"><div class="wrap"><div class="rod t"></div><div class="rod b"></div><div class="scroll">
-  <h3>玩 法</h3>
+<div id="mHelp" class="modal e-m hidden"><div class="wrap"><div class="rod t"></div><div class="rod b"></div><div class="scroll">
+  <h3>玩法</h3>
+  <div class="e-body">
   <div class="help">
   · 点己方棋子，棋子浮起并圈出；再点墨点落子，头顶有"殺"字的敌子即可吃。<br>
   · 拖动旋转视角，双指捏合或滚轮缩放；按住鼠标中键拖动（手机双指一起拖）平移画面，「視」闪烁时点一下归位。<br>
@@ -721,7 +1208,7 @@ body.compact #log{width:164px;max-height:34vh}
   · 终局后点「复盘」可从第一步起逐步回看整盘棋（前进、后退、自动播放）。<br>
   · 联机掉线会自动重连，续上原来的棋局；任何一方掉线时双方时钟暂停。页面关了也不要紧：大厅里点「回到对局」就能回到没下完的那一局（人机、本地对战同样可以）。<br>
   · 规则为标准中国象棋：将死或困毙即负，将帅不可照面；计时用完或单步超时判负（名牌上显示本步剩余时间，最后 10 秒屏幕中央倒数）。<br>
-  · 兵卒——步兵列阵；车——驷马战车；马——重甲骑兵；炮——铜炮齐射；相——谋士车驾与随护弩手；象——楚军战象；士——巨盾禁卫；帅将——主帅亲征。步兵与炮乘船渡河，车马涉水。<br>
+  · 兵卒——步兵列阵；车——驷马战车；马——重甲骑兵；炮——铜炮齐射；相——文臣持节、骑白虎；象——楚军战象；士——巨盾禁卫；帅将——主帅亲征。步兵与炮乘船渡河，车马涉水。<br>
   · 人机对战有新兵、校尉、霸王三档；霸王每步深算约五秒，极难战胜。
   </div>
   <h3 style="margin-top:14px">揭 棋</h3>
@@ -764,21 +1251,26 @@ body.compact #log{width:164px;max-height:34vh}
   · 炮响、爆炸取自 <a href="https://www.openclonk.org" target="_blank" rel="noopener" style="color:inherit;text-decoration:underline">OpenClonk</a>（作者 Benboncan、Checkmaty 等），按 <a href="https://creativecommons.org/licenses/by/3.0/" target="_blank" rel="noopener" style="color:inherit;text-decoration:underline">CC BY 3.0</a> 授权使用，做过降调和叠加。<br>
   · 其余音效是公共领域（CC0）素材或程序合成。
   </div>
-  <div class="row"><button class="btn small solid" id="bHelpClose">知道了</button></div>
+  </div>
+  <div class="e-bar"><button class="btn small solid" id="bHelpClose">知道了</button></div>
 </div></div></div>
 
-<div id="mPick" class="modal hidden"><div class="wrap"><div class="rod t"></div><div class="rod b"></div><div class="scroll">
+<div id="mPick" class="modal e-c hidden"><div class="wrap"><div class="rod t"></div><div class="rod b"></div><div class="scroll">
   <h3 id="pickT">选 择</h3>
+  <div class="e-body">
   <p class="note" id="pickP"></p>
   <div class="chips" id="pickList"></div>
-  <div class="row"><button class="btn small" id="pickNo">取 消</button></div>
+  </div>
+  <div class="e-bar"><button class="btn small" id="pickNo">取消</button></div>
 </div></div></div>
 
-<div id="mName" class="modal hidden"><div class="wrap"><div class="rod t"></div><div class="rod b"></div><div class="scroll">
-  <h3>观 战 入 席</h3>
+<div id="mName" class="modal e-c hidden"><div class="wrap"><div class="rod t"></div><div class="rod b"></div><div class="scroll">
+  <h3>观战入席</h3>
+  <div class="e-body">
   <p class="note" id="nameNote">这局已有两位棋手对弈，你将作为观众入席。</p>
   <div class="row"><input class="code" id="nameIn" maxlength="8" placeholder="留个名号" autocomplete="off" style="letter-spacing:.2em;font-family:var(--font);width:9em"></div>
-  <div class="row"><button class="btn small" id="nameRnd">换个名号</button><button class="btn red solid" id="nameGo">入 席</button></div>
+  </div>
+  <div class="e-bar"><button class="btn small" id="nameRnd">换个名号</button><button class="btn red solid" id="nameGo">入席</button></div>
 </div></div></div>
 
 <div id="veil"><i></i><b></b><u><em></em><span><strong></strong><small></small></span></u></div>

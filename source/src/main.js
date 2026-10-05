@@ -8,6 +8,10 @@
   // 更新说明（设置里、大厅底部点「更新」查看；最新的放最前）
   const NEWS = [
     ['第六版', '2026 年 10 月', [
+      '对局里的界面和其余弹窗也换成了新样子（头像牌、技能按钮、棋谱、喊话、玩法说明、暂停、终局卡片……），和大厅是一套',
+      '将帅话多了：帅和将每次走、每次吃子都会说一句，各添了新词。还藏了些彩蛋——连着两次想走“将帅照面”的棋、开局第一步就动帅、帅亲手吃车、连着三回合都在走帅、连点自己的帅五下……各有各的说法；技能模式里四级名将阵亡，主帅会哀叹一声',
+      '大厅、设置、询问弹窗换了新样子：朱红底的棋盘格、圆棋子按钮；手机竖屏主按钮固定在屏幕底部。「退出对局」改叫「返回大厅」，点了只问一句「退出本局？」，「继续对局」是大按钮，防误点。游戏现在叫「技能新象棋」',
+      '汉相换了新模样：一位朱袍文臣手持汉节，骑着白虎。吃子是虎扑上去咬，文臣端坐、节杖不动。技能模式里四级白虎披金甲；三、四级平时身边没有别人，行进和攻击时两侧才出弩手——攻击时弩手先放一轮箭，虎再扑出去。称号也换了：汉军相、驭虎长史、持节护军、白虎相国。新台词「白虎开道」「放虎！」在写实版配音里',
       '技能模式的数值改了一轮，两边更均势、车不再一家独大：车、马、炮、兵卒升到三级攻击变成 2（一下能吃掉 2 血的子）；车四级不再加血（3 血）；车升级变贵，10 / 12 / 20 功（原来 6 / 8 / 20）。刘邦的「召回良将」也改了：按兵种选，回来最多二级（死时一级的还是一级），可以放回这一兵种任意一个空着的原位（车放左角右角都行）；落位后可以马上花军功给它升一级，它第一次升级只要半价。改规则之前开的局接着下，还按原来的规则',
       '马、战象、步兵、炮的音效换成了真实录音：马蹄踏在土上、真马嘶、真象鸣、一队人行军的脚步、巨炮。兵种开口说话时，先台词、再脚步、最后一声嘶鸣；技能模式里等级越高，马蹄和脚步叠得越厚，一级炮用小一号的炮声',
       '配音多了一套「写实版」：项羽、刘邦、旁白、两军士兵全部重新配过，有语气、有情绪，楚军汉军嗓音不同。新装默认用写实版；想听原来那套，在 设置 → 声音 → 配音 里选「原版」',
@@ -131,6 +135,8 @@
   Core.start();
   let lobbySpin = true;
   Core.onFrame(dt => { if (lobbySpin && !Core.Cam.cine) Core.Cam.theta += dt * 0.04; });
+  // 大厅现在是整屏不透明的（美术 M3），后面的三维场景看不见：大厅开着时不画，省电、省发热。开头先画 90 帧，把着色器编译掉，免得开局第一帧卡
+  { const canDraw = Core.render; let warm = 90; if (canDraw) Core.onFrame(() => { if (warm > 0) warm--; Core.render = warm > 0 || $('lobby').classList.contains('hidden'); }); }
   setTimeout(() => { $('loading').style.opacity = 0; setTimeout(() => $('loading').remove(), 900); }, 500);
   // 首次触碰时解锁音频（iOS 必需）
   const unlock = () => { Sfx.init(); applySettings(); setTimeout(() => Voice.preload(['r_start', 'b_start', 'r_check', 'b_check', 'r_mate', 'b_mate']), 300); setTimeout(() => Voice.preload(Object.keys(Voice.LINES).filter(k => /_t\d|^ai_/.test(k))), 2500); setTimeout(() => Voice.preload(Object.keys(Voice.LINES).filter(k => /^u_/.test(k))), 4500); };
@@ -186,12 +192,13 @@
   function toast(msg, ms = 2200) { const t = $('toast'); t.innerHTML = msg; t.classList.add('on'); clearTimeout(toastT); toastT = setTimeout(() => t.classList.remove('on'), ms); }
   function banner(t, s, ms = 2600) { $('banner').classList.remove('lite'); $('bannerT').textContent = t; $('bannerS').textContent = s || ''; $('banner').classList.add('on'); setTimeout(() => $('banner').classList.remove('on'), ms); }
   let askTimer = null;
-  function ask(title, text, secs = 0, yes = '同 意', no = '拒 绝') {
+  function ask(title, text, secs = 0, yes = '同 意', no = '拒 绝', cls = '') {   // cls = 'e-stay'：退出确认，“留下”是大按钮（样式归美术）
     return new Promise(res => {
       $('askT').textContent = title; $('askP').textContent = text; $('askYes').textContent = yes; $('askNo').textContent = no;
+      $('mAsk').classList.toggle('e-stay', cls === 'e-stay');
       $('mAsk').classList.remove('hidden');
       let left = secs;
-      const fin = v => { clearInterval(askTimer); $('mAsk').classList.add('hidden'); res(v); };
+      const fin = v => { clearInterval(askTimer); $('mAsk').classList.add('hidden'); $('mAsk').classList.remove('e-stay'); res(v); };
       $('askYes').onclick = () => fin(true); $('askNo').onclick = () => fin(false);
       clearInterval(askTimer);
       $('askCd').textContent = secs ? `${left} 秒后自动拒绝` : '';
@@ -206,7 +213,7 @@
     return ask(title, text, 0, '确 定', '取 消').then(ok => { row.classList.add('hidden'); return ok ? inp.value.trim() : null; });
   }
   const pwHash = (code, pw) => { let h = 2166136261; for (const ch of code + ':' + pw) { h ^= ch.codePointAt(0); h = Math.imul(h, 16777619); } return (h >>> 0).toString(36); };
-  const closeAsk = () => { clearInterval(askTimer); $('mAsk').classList.add('hidden'); $('askInRow').classList.add('hidden'); };
+  const closeAsk = () => { clearInterval(askTimer); $('mAsk').classList.add('hidden'); $('mAsk').classList.remove('e-stay'); $('askInRow').classList.add('hidden'); };
 
   // ---------- 对局状态 ----------
   let mode = null, mySide = 'r', viewSide = 'r', opts = { ...ropts }, hostSide = 'r';
@@ -711,15 +718,68 @@
       if (!doMove({ from: r.move.from, to: r.move.to })) { console.warn('电脑着法非法', r.move); updateHud(); }
     }).catch(e => { console.error(e); aiThinking = false; });
   }
+  // ---------- 将帅的彩蛋台词（Ham 10-05 要的：主帅走子、吃子之外的“特殊”一类） ----------
+  // 每方一份：n 这一局动过几步；kRun 连着几回合在走帅；chk 连着几回合被将军；left 帅离开过原位；flee 上次说“走为上”是第几步；
+  //   said 一局只说一次的；poke 连着点了几下自己的帅；face 这一步里想走“将帅照面”的次数；cnt 上一步之后还剩多少子、几个车
+  const KT = {}, KHOME = { r: [4, 0], b: [4, 9] };
+  function ktReset(resumed) { Fx.state.kingLines.length = 0; for (const s of 'rb') KT[s] = { n: resumed ? 1 : 0, kRun: 0, chk: 0, left: false, flee: -9, said: new Set(), poke: 0, face: 0, faceAt: -1, cnt: null }; }
+  ktReset(false);
+  const ktCount = s => { let all = 0, rook = 0; for (const row of game.board) for (const q of row) if (q && q.s === s) { all++; if (q.t === 'r' && !q.h) rook++; } return { all, rook }; };
+  const ktInit = () => { if (KT.r) for (const s of 'rb') if (!KT[s].cnt) KT[s].cnt = ktCount(s); };   // 落子之前先数一遍场上的子（落子之后才好比较少了什么）
+  // 主帅开口：带字幕，走主帅那一路声音。这句还没有配音就不说
+  function kingSay(side, id, ms = 3400) { if (!Voice.has(id)) return null; bubble(side, Voice.text(id), ms); return Voice.play(id); }
+  Fx.state.onKingLine = (side, id) => { kingSay(side, id); };
+  // 落子之前：这一步要是主帅自己走，看看有没有彩蛋可说——登记给 Fx，演到这一步时由它说（代替普通的那句）
+  //   开局第一步就动帅 > 亲手吃车 > 连着三回合走帅 > 被将军时自己走开 > 走出去又坐回原位
+  function ktBefore(side, piece, from, to, cap, wasChk) {
+    const k = KT[side]; if (!k) return;
+    const first = k.n === 0; k.n++;
+    if (!piece || piece.t !== 'k') { k.kRun = 0; return; }
+    k.kRun++;
+    const H = KHOME[side], home = to[0] === H[0] && to[1] === H[1], fromHome = from[0] === H[0] && from[1] === H[1];
+    let id = null;
+    if (first) id = 'first';
+    else if (cap && cap.t === 'r' && !cap.h) id = 'eatr';
+    else if (k.kRun >= 3) { id = 'run'; k.kRun = 0; }
+    else if (wasChk && k.n - k.flee >= 3) { id = 'flee'; k.flee = k.n; }
+    else if (home && k.left) id = 'home';
+    if (fromHome) k.left = true;
+    if (id && Voice.has(`${side}_x_${id}`)) { const q = Fx.state.kingLines; q.push({ s: side, from: from.slice(), to: to.slice(), id: `${side}_x_${id}` }); if (q.length > 2) q.shift(); }
+  }
+  // 落子之后（演出放完）：四级名将阵亡的哀叹 > 只剩光杆一个帅 > 两个车都没了 > 连着三回合被将军。一步最多说一句；返回 [哪一方, 哪一句, 字幕留多久]
+  function ktAfter(info) {
+    if (!KT.r || !game) return null;
+    const mover = info.mover, opp = mover === 'r' ? 'b' : 'r';
+    if (info.check) KT[opp].chk++; else KT[opp].chk = 0;
+    let say = null;
+    for (const h of info.heroDead || []) { const id = `${h.s}_h_${h.t}${h.nm}`; if (!say && Voice.has(id)) say = [h.s, id, 5200]; }
+    for (const s of 'rb') {
+      const k = KT[s], was = k.cnt, now = ktCount(s); k.cnt = now;
+      if (!was || say) continue;
+      if (now.all === 1 && was.all > 1 && !k.said.has('alone')) { k.said.add('alone'); say = [s, `${s}_x_alone`, 3600]; }
+      else if (!game.jq && now.rook === 0 && was.rook > 0 && !k.said.has('norook')) { k.said.add('norook'); say = [s, `${s}_x_norook`, 3600]; }
+    }
+    if (KT[opp].chk >= 3) { KT[opp].chk = 0; if (!say) say = [opp, `${opp}_x_chk3`, 3000]; }
+    if (info.result || (say && !Voice.has(say[1]))) return null;
+    return say;
+  }
+  // 连着点自己的主帅 5 下
+  function ktPoke(p) {
+    const s = actor(), k = KT[s]; if (!k || !game) return;
+    const pc = p && game.at(p[0], p[1]);
+    if (pc && pc.s === s && pc.t === 'k' && !pc.h) { if (++k.poke >= 5) { k.poke = 0; const two = Voice.has(`${s}_x_poke2`) && (k.pokeAlt = !k.pokeAlt); kingSay(s, `${s}_x_poke${two ? 2 : ''}`); } } else k.poke = 0;   // 有两句的轮着说
+  }
   // 着法完成后的台词
   function afterMoveLines(info) {
     const mover = info.mover;
     let p = Promise.resolve();
+    const egg = ktAfter(info);
     if (info.result && info.result.reason === 'checkmate') { bubble(mover, '绝杀！', 2600); p = Voice.play(`${mover}_mate`); }
     else if (info.check) {
       bubble(mover, '将军！', 2400); p = Voice.play(`${mover}_check`);
-      if (vsAI() && mover === mySide && Math.random() < 0.55) p.then(() => { if (!ended) aiSay('checked'); });
+      if (!egg && vsAI() && mover === mySide && Math.random() < 0.55) p.then(() => { if (!ended) aiSay('checked'); });
     }
+    if (egg) { p.then(() => { if (!ended && started) kingSay(egg[0], egg[1], egg[2]); }); return; }
     if (!vsAI() || info.result) return;
     if (mover === aiSide() && info.captured && !info.check) { if ('rnc'.includes(info.captured.t) || Math.random() < 0.6) aiSay('cap'); }
     else if (mover === mySide && info.captured && !info.check && 'rnc'.includes(info.captured.t) && Math.random() < 0.6) aiSay('hurt');
@@ -784,8 +844,9 @@
       introSkip = null; if (!busy && !Ending.running) $('skip').classList.add('hidden');
     }
     if (mode !== m) return;
-    if (game.jq && !game.history.length && intro) { bubble('r', '十五子尽数扣下，翻开方知是何兵马！', 2600); await Core.sleep(1.2); }
-    if (game.bf && !game.history.length && intro) { bubble('b', '论兵法，你还嫩了些！', 2400); await Core.sleep(1.0); }
+    if (game.jq && !game.history.length && intro) { bubble('r', '十五子尽数扣下，翻开方知是何兵马！', 3200); if (Voice.has('r_jq_start')) Voice.play('r_jq_start'); await Core.sleep(1.2); }
+    if (game.bf && !game.history.length && intro) { bubble('b', '论兵法，你还嫩了些！', 3200); if (Voice.has('b_bf_start')) Voice.play('b_bf_start'); await Core.sleep(1.0); }
+    ktReset(!!(game.history && game.history.length));
     if (mode === m && game.bf && !game.entries.length && m !== 'watch') showBfTip(false);
     if (mode !== m) return;
     started = true; clock.last = performance.now(); clock.step = stepMax();
@@ -942,8 +1003,11 @@
     }
     const rv0 = (() => { const p = game.at(m.from[0], m.from[1]); return p && p.h ? (p.t !== '?' ? p.t : m.rv) : null; })();
     const note = noteOf(game.board, m, rv0);
+    ktInit();
+    const kt0 = { side: game.turn, pc: game.at(m.from[0], m.from[1]), cap: game.at(m.to[0], m.to[1]), chk: game.inCheck() };
     const info = game.play(m);
     if (!info) return false;
+    ktBefore(kt0.side, kt0.pc, m.from, m.to, kt0.cap, kt0.chk);
     jqLearn(game.history[game.history.length - 1]);
     if (info.captured && game.history[game.history.length - 1].cap) info.captured = { ...game.history[game.history.length - 1].cap };
     info.dt = capView(info);
@@ -1238,13 +1302,14 @@
     // 观众：点哪儿走到哪儿。棋手：点到站在棋盘上的观众就把他弹飞
     if (watching()) { if (!RP && !Ending.running) specGo(e.clientX, e.clientY); return; }
     if (online() && Spect.count) { const sid = Spect.pickOnBoard(e.clientX, e.clientY); if (sid && specFlick(sid, true)) return; }
-    if (game.bf && canAct()) { const p = Board.pick(e.clientX, e.clientY); dbgFreeTurn(p); bfClick(p); return; }
+    if (game.bf && canAct()) { const p = Board.pick(e.clientX, e.clientY); dbgFreeTurn(p); ktPoke(p); bfClick(p); return; }
     if (!canAct()) {
       if (started && !ended && !busy && online() && Net.connected && game.turn !== mySide) toast('还没轮到你');
       if (started && !ended && vsAI() && game.turn !== mySide) toast(`${NAME[aiSide()]}正在思考`);
       return;
     }
     const p = Board.pick(e.clientX, e.clientY);
+    ktPoke(p);
     if (!p) { Board.clearMoves(false); sel = null; selMoves = []; return; }
     const [f, r] = p;
     const mv = selMoves.find(m => m.to[0] === f && m.to[1] === r);
@@ -1283,6 +1348,8 @@
     badN++;
     toast(m.why === 'face' ? '不能送将：将帅不能照面' : '不能送将：这样走，自己的' + (actor() === 'r' ? '帅' : '将') + '会被吃', 2200);
     Sfx.select();
+    // 王不见王：这一步里第二次想走“将帅照面”的棋，自己的主帅开口（有这句配音才说）
+    if (m.why === 'face') { const k = KT[actor()]; if (k) { if (k.faceAt !== ply) { k.faceAt = ply; k.face = 0; } if (++k.face === 2 && kingSay(actor(), `${actor()}_face`)) return true; } }
     if (badN >= 6) { bubble(actor(), '愚蠢，庶子不可教也！', 3800); Voice.play(`${actor()}_bad6`); badN = 0; }          // 点到第六次：终极抱怨，然后从头数
     else if (badN > 2) {
       let i; do { i = Math.floor(Math.random() * BAD_SAY.length); } while (i === badSay);   // 第三次起调侃，不连着说同一句
@@ -1903,6 +1970,10 @@
   function doBF(e, remote = false, clk) {
     if (e.k === 'art' && e.steps) { Board.reconcile(game); Board.showStep(null); }
     const note = bfNote(game, e);
+    ktInit();
+    const kt0 = { side: game.turn, chk: game.inCheck(), heroes: [] };
+    for (const row of game.board) for (const q of row) if (q && q.nm != null) kt0.heroes.push({ id: q.id, s: q.s, t: q.t, nm: q.nm });
+    if (e.k === 'mv' && e.from && e.to) { kt0.pc = game.at(e.from[0], e.from[1]); kt0.cap = game.at(e.to[0], e.to[1]); }
     const info = game.apply(e);
     if (info && rvLanded != null && e.k === 'art' && e.id === rvLanded) info.landed = true;   // 界面已经先演过落位
     rvLanded = null;
@@ -1921,6 +1992,9 @@
     }
     notes.push((bfUpNote ? bfUpNote + ' ' : '') + note); bfUpNote = ''; renderLog();
     Fx.ply = game.history.length;
+    { const alive = new Set(); for (const row of game.board) for (const q of row) if (q) alive.add(q.id);
+      info.heroDead = kt0.heroes.filter(h => !alive.has(h.id));
+      if (e.k === 'mv' && kt0.pc) ktBefore(kt0.side, kt0.pc, e.from, e.to, kt0.cap && !alive.has(kt0.cap.id) ? kt0.cap : null, kt0.chk); else ktBefore(kt0.side, null); }
     if (remote && clk != null) clock[info.mover] = clk;
     clock.step = stepMax(); clock.oppStamp = 0;
     turnStartAt = 0;
@@ -2694,8 +2768,8 @@
   $('bRoomAI').onclick = () => { if (!room || !room.host || room.seated) return; room.ai = room.ai ? null : ($('roomAILv').value || 'mid'); if (!room.ai) room.ai2 = null; paintRoom(); try { Net.hallTouch(); } catch (e) { } };
   $('lockOn').onchange = () => { $('lockPw').classList.toggle('hidden', !$('lockOn').checked); if ($('lockOn').checked) $('lockPw').focus(); };
   $('bBackH').onclick = () => showPane('pMain');
-  $('bCreate').onclick = () => { createFor = 'host'; $('createTitle').textContent = '房 间 设 置'; $('bCreateGo').textContent = '创 建'; $('optPub').classList.remove('hidden'); $('optLock').classList.remove('hidden'); showPane('pCreate'); };
-  $('bLocal').onclick = () => { createFor = 'local'; $('optPub').classList.add('hidden'); $('optLock').classList.add('hidden'); $('createTitle').textContent = '本 地 对 战'; $('bCreateGo').textContent = '开 始'; showPane('pCreate'); };
+  $('bCreate').onclick = () => { createFor = 'host'; $('createTitle').textContent = '房间设置'; $('bCreateGo').textContent = '创建'; $('optPub').classList.remove('hidden'); $('optLock').classList.remove('hidden'); showPane('pCreate'); };
+  $('bLocal').onclick = () => { createFor = 'local'; $('optPub').classList.add('hidden'); $('optLock').classList.add('hidden'); $('createTitle').textContent = '本地对战'; $('bCreateGo').textContent = '开始'; showPane('pCreate'); };
   $('bJoinShow').onclick = () => { showPane('pJoin'); setTimeout(() => $('joinCode').focus(), 50); };
   $('bBack1').onclick = () => showPane(createFor === 'host' ? 'pHall' : 'pMain');
   const clearUrl = () => { try { history.replaceState(null, '', location.pathname); } catch (e) { } };
@@ -2828,8 +2902,8 @@
   }
   $('bShare').onclick = () => {
     const code = $('roomCode').textContent, url = inviteUrl(code);
-    const text = `来和我下一局《楚汉三维象棋》！房间码 ${code}`;
-    if (navigator.share) navigator.share({ title: '楚汉三维象棋', text, url }).catch(() => { });
+    const text = `来和我下一局《技能新象棋》！房间码 ${code}`;
+    if (navigator.share) navigator.share({ title: '技能新象棋', text, url }).catch(() => { });
     else copy(`${text}\n${url}`, '邀请链接已复制');
   };
   $('bCopyCode').onclick = () => copy($('roomCode').textContent, '房间码已复制');
@@ -2941,7 +3015,7 @@
   $('vSfx').oninput = e => { S.vSfx = +e.target.value; applySettings(); };
   $('vVoice').value = S.vVoice; $('vVoice').oninput = e => { S.vVoice = +e.target.value; applySettings(); };
   $('oServer').onchange = e => { S.server = e.target.value.trim(); applySettings(); };
-  const openSet = () => { repaintSegs($('mSet')); $('setGame').classList.toggle('hidden', !(mode && started)); $('tDebug').classList.toggle('hidden', !(mode === 'local' && started && game && game.bf)); $('tExit').textContent = watching() ? '离开观战席' : '退出对局'; $('mSet').classList.remove('hidden'); };
+  const openSet = () => { repaintSegs($('mSet')); $('setGame').classList.toggle('hidden', !(mode && started)); $('tDebug').classList.toggle('hidden', !(mode === 'local' && started && game && game.bf)); $('tExit').classList.toggle('hidden', !(mode && started)); $('mSet').classList.remove('hidden'); };
   $('tSet').onclick = $('bSetL').onclick = $('pzSet').onclick = openSet;
   $('bSetClose').onclick = () => $('mSet').classList.add('hidden');
   // 设置分三页：画面 / 声音 / 对局与其他
@@ -2974,7 +3048,7 @@
     }
     const who = mode === 'local' ? '同屏对战' : vsAI() ? (aiBoth() ? `电脑对电脑（汉 ${LV[aiLevel('r')]} / 楚 ${LV[aiLevel('b')]}）` : `人机：电脑执${SIDE_CN[aiSide()]} · ${LV[opts.level] || ''}`) : watching() ? '观战' : `联机：我执${SIDE_CN[mySide]}`;
     const res = G.result ? (G.result.winner ? `${SIDE_CN[G.result.winner]}胜 · ${REASON[G.result.reason] || G.result.reason}` : `和棋 · ${REASON[G.result.reason] || ''}`) : '未分胜负';
-    const lines = [`楚汉三维象棋 · 对局导出（版本 ${APPV}）`, `玩法：${KIND[kind]} · ${who} · 共 ${notes.length} 步 · ${res}`, '棋谱：'];
+    const lines = [`技能新象棋 · 对局导出（版本 ${APPV}）`, `玩法：${KIND[kind]} · ${who} · 共 ${notes.length} 步 · ${res}`, '棋谱：'];
     for (let i = 0; i < notes.length; i += 2) lines.push(`${i / 2 + 1}. ${noteText(notes[i])}${notes[i + 1] ? '  ' + noteText(notes[i + 1]) : ''}`);
     lines.push('---DATA---', JSON.stringify(o));
     return lines.join('\n');
@@ -3008,11 +3082,8 @@
   $('tExit').onclick = $('pzExit').onclick = async () => {
     if (!mode) return;
     $('mSet').classList.add('hidden');
-    let msg;
-    if (watching()) msg = '离开观战席，回到大厅？';
-    else if (mode === 'local' || vsAI()) msg = '退出本局、回到大厅？本局不计胜负。';
-    else msg = game.result ? '离开房间、回到大厅？' : '离开房间、回到大厅？本局不计胜负；对手会看到你已离开，用原邀请链接可以回来接着下。';
-    const ok = await ask(watching() ? '离 席' : '退 出', msg, 0, watching() ? '离 开' : '退 出', '再想想');
+    // Ham 定的（10-05）：按钮叫「返回大厅」，确认只问一句，不写说明；留下是大按钮，防误点
+    const ok = await ask(watching() ? '离开观战？' : '退出本局？', '', 0, '返回大厅', watching() ? '继续观战' : '继续对局', 'e-stay');
     if (ok) leaveGame();
   };
   $('tResign').onclick = $('pzResign').onclick = async () => {
