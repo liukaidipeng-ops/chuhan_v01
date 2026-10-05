@@ -1,0 +1,3 @@
+{ "args": "--games 1300 --seed 1000 --nodes mid=60000 --ai git:98dd206",
+  "env": {}, "chunks": 52,
+  "note": "第七轮（用户同意重跑）：dev 当前默认规则 = r6（Plan B + 车 10/12/20 + 召回最多二级 + 当回合可升级 + 第一次升级半价）+ Ham 新定的按兵种召回（reviveBest：等级取同兵种阵亡子里最高的；revivePlace：可放回同兵种任一空着的开局位置）；对照 r6-caphalf（同种子 1000–2299，49.8%）" }
