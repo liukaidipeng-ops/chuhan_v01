@@ -10,17 +10,19 @@
 //   --mode xe5：两边 30 功；楚象一级 6 血 1 攻、二级 1 血 1 攻（无视塞象眼、落地秒杀），升级 30 功、第 7 回合起才能升；汉车马炮攻击、血都从 2 起，每级 +1。
 //   --mode xe6：xe5 + 前 10 回合楚将无敌（不算被将军、不会被将死）。
 //   --mode xe7：xe6 + 象升到二级后两回合无敌。
+//   --mode xe8：见下面 XE8 的说明（先升满两个士拿回血才能赢）；--plan A|B|C 让楚的升级按固定打法走（A 升士、B 攒钱、C 升马），走子仍是电脑；
+//     --hanplan hunt 让汉“完美围剿”（每回合先升车再打象，打不到才交给电脑）——用来验证设定本身：A 应该稳赢、B / C 应该稳输。
 //   --normal：不开 XE2（现行规则），当对照——平常汉方打楚象有多早、多频繁。
 'use strict';
 process.env.ENGINE_REV = process.env.ENGINE_REV || '9aca810';
 const path = require('path'), fs = require('fs'), os = require('os');
 const { execFileSync } = require('child_process');
 const argv = process.argv.slice(2);
-const opt = { ai: 'src/bfai.js', games: 3, seed: 1000, nodes: 60000, normal: false, mode: 'xe2', json: null, maxRounds: 150 };
+const opt = { ai: 'src/bfai.js', games: 3, seed: 1000, nodes: 60000, normal: false, mode: 'xe2', plan: null, hanplan: null, json: null, maxRounds: 150 };
 for (let i = 0; i < argv.length; i++) {
   const k = argv[i], v = () => argv[++i];
   if (k === '--ai') opt.ai = v(); else if (k === '--games') opt.games = +v(); else if (k === '--seed') opt.seed = +v();
-  else if (k === '--nodes') opt.nodes = +v(); else if (k === '--normal') opt.normal = true; else if (k === '--mode') opt.mode = v(); else if (k === '--json') opt.json = v();
+  else if (k === '--nodes') opt.nodes = +v(); else if (k === '--normal') opt.normal = true; else if (k === '--mode') opt.mode = v(); else if (k === '--plan') opt.plan = v(); else if (k === '--hanplan') opt.hanplan = v(); else if (k === '--json') opt.json = v();
   else throw new Error('未知参数 ' + k);
 }
 const SRC = path.join(__dirname, '..', 'src');
@@ -45,8 +47,67 @@ const XE5 = () => {
 const XE6 = () => { XE5(); BF.CFG.kingShield = { side: 'b', untilRound: 10 }; };
 // XE7（用户再加一条）：XE6 + 象升到二级后两回合无敌（打不动、不掉血）
 const XE7 = () => { XE6(); BF.CFG.sideStats.b.e.invOnUp = { lv: 2, rounds: 2 }; };
-const START_MERIT = opt.normal ? null : ['xe3', 'xe5', 'xe6', 'xe7'].includes(opt.mode) ? { r: 30, b: 30 } : opt.mode === 'xe4' ? { r: 30, b: 10 } : null;
-if (!opt.normal) ({ xe7: XE7, xe6: XE6, xe5: XE5, xe3: XE3, xe4: XE3 }[opt.mode] || XE2)();
+// XE8（用户提、Code 定数值，“楚想赢只有一种方法：先把两个士升满拿回血”）：
+//   楚没有兵、车、炮；士 2/5/8/11 血、2/4/6/8 攻，每级 5 功，两个士都到四级后楚全队每回合末回 8 血（回不过满血）；
+//   马 50 血 0 攻，升一级（30 功）150 血 10 攻，只能往前直走一格；象一级 24 血 1 攻、不能动，第 9 回合起才能升（30 功），
+//   二级 1 血、落地秒杀全场、两回合无敌、无视塞象眼；楚将前 20 回合无敌、不能动、不会被将死。
+//   汉：兵、马、炮的位置都换成车（11 辆），车 5/7/9/11 血、2/4/6/8 攻，每级 2 功；帅仕相照旧。两边开局 30 功，第 10 回合末起每回合各加 30（上限仍是 30）。
+//   为什么象 24 血：汉一步就打得到象，每回合最多打一下（4、6、8、8……）。先升满士（A）第 6 回合末开始回血，回血 8 = 汉单打最多 8，
+//   活下来的那只象打不死，第 11 回合军功到账升象秒杀；攒钱等第 9 回合升象（B），汉第 7 回合就能打完两只象（48 血），差两回合；
+//   升马（C）挡不住象。象血在 22～33 之间 A 稳活，24 让 B 也稳输（30 的话 B 要第 9 回合才刚好打死第二只，汉浪费一步 B 就赢了）。
+const XE8 = () => {
+  const C = BF.CFG, J = C.skills.jianta;
+  J.onMove = true; J.level = 2; J.radius = 9; J.splashDamage = 99; J.moveCooldown = 0;
+  Object.assign(C.upgrade.cost, { e: [30, 30, 30], a: [5, 5, 5], n: [30, 30], r: [2, 2, 2] });
+  Object.assign(C.upgrade.maxLevel, { e: 2, a: 4, n: 2, r: 4 });
+  if (C.r6 && C.r6.cost) C.r6.cost.r = [2, 2, 2];   // r6 的车价表优先，一起改
+  C.sideStats = {
+    b: { e: { hp: [24, 1], atk: [1, 1], noLegFrom: 2, upFromRound: 9, invOnUp: { lv: 2, rounds: 2 }, immobileBelow: 2 },
+         a: { hp: [2, 5, 8, 11], atk: [2, 4, 6, 8] },
+         n: { hp: [50, 150], atk: [0, 10], fwdOnly: true } },
+    r: { r: { hp: [5, 7, 9, 11], atk: [2, 4, 6, 8] } },
+  };
+  C.kingShield = { side: 'b', untilRound: 20, immobile: true };
+  C.healAura = { side: 'b', t: 'a', lv: 4, count: 2, amount: 8 };
+  C.merit.autoIncomeFromRound = 11; C.merit.autoIncomePerRound = 30;   // 第 10 回合末起（之后每回合）两边各加 30
+};
+const setupXE8 = g => g.setup(T => {
+  for (let r = 0; r < 10; r++) for (let f = 0; f < 9; f++) {
+    const p = T.board[r][f]; if (!p) continue;
+    if (p.s === 'b' && (p.t === 'p' || p.t === 'r' || p.t === 'c')) T.board[r][f] = null;   // 楚：兵、车、炮拿掉
+    else if (p.s === 'b' && p.t === 'a') p.inv = 999;   // 楚士打不动：不然汉一下就打死一级的士（2 血），回血永远凑不齐，楚怎么走都输
+    else if (p.s === 'r' && (p.t === 'p' || p.t === 'n' || p.t === 'c')) { p.t = 'r'; p.lv = 1; p.hp = 5; }   // 汉：兵、马、炮的位置换成车
+  }
+});
+const START_MERIT = opt.normal ? null : ['xe3', 'xe5', 'xe6', 'xe7', 'xe8'].includes(opt.mode) ? { r: 30, b: 30 } : opt.mode === 'xe4' ? { r: 30, b: 10 } : null;
+if (!opt.normal) ({ xe8: XE8, xe7: XE7, xe6: XE6, xe5: XE5, xe3: XE3, xe4: XE3 }[opt.mode] || XE2)();
+// --plan A|B|C（只管楚的升级，走子仍是电脑）：A 先升满两个士；B 只攒钱；C 先升马。三套都是“象能升就升”，升完电脑自己走象。
+function planUp(S) {
+  if (S.upgraded) return null;
+  const find = t => { const o = []; for (let r = 0; r < 10; r++) for (let f = 0; f < 9; f++) { const p = S.board[r][f]; if (p && p.s === 'b' && p.t === t) o.push({ p, at: [f, r] }); } return o; };
+  const can = x => !!BF.ai.upgradeState(S, x.at);
+  const el = find('e').filter(can); if (el.length) return el[0].at;
+  if (opt.plan === 'A') { const a = find('a').filter(x => x.p.lv < 4 && can(x)).sort((x, y) => x.p.lv - y.p.lv)[0]; return a ? a.at : null; }
+  if (opt.plan === 'C') { const n = find('n').filter(x => x.p.lv < 2 && can(x))[0]; return n ? n.at : null; }
+  return null;
+}
+// --hanplan hunt（验证设定用的“完美围剿”）：汉每回合只要有车打得到楚象，就先把那辆车升一级再打（先打血少的那只）；打不到才交给电脑
+function huntSeq(S) {
+  const els = []; for (let r = 0; r < 10; r++) for (let f = 0; f < 9; f++) { const p = S.board[r][f]; if (p && p.s === 'b' && p.t === 'e') els.push({ p, at: [f, r] }); }
+  if (!els.length) return null;
+  els.sort((x, y) => x.p.hp - y.p.hp);
+  for (const t of els) {
+    let best = null;
+    for (let r = 0; r < 10; r++) for (let f = 0; f < 9; f++) {
+      const p = S.board[r][f]; if (!p || p.s !== 'r' || p.t !== 'r') continue;
+      if (!BF.ai.moveTargets(S, f, r).some(m => m.to[0] === t.at[0] && m.to[1] === t.at[1])) continue;
+      const a = { k: 'mv', from: [f, r], to: t.at.slice() }; if (!BF.attempt(S, a)) continue;
+      if (!best || p.lv > best.lv) best = { a, at: [f, r], lv: p.lv };
+    }
+    if (best) { const seq = []; if (!S.upgraded && best.lv < 4 && BF.ai.upgradeState(S, best.at)) seq.push({ k: 'up', at: best.at }); seq.push(best.a); return seq; }
+  }
+  return null;
+}
 function loadAI(spec) {
   if (!spec.startsWith('git:')) return require(path.resolve(path.join(__dirname, '..'), spec));
   const rev = spec.slice(4), file = path.join(os.tmpdir(), `bfai_${rev}_${process.pid}.js`);
@@ -60,19 +121,28 @@ const round = S => Math.floor((S.cnt.r + S.cnt.b) / 2) + 1;
 async function play(seed) {
   let a = seed >>> 0; Math.random = () => { a = (a * 1103515245 + 12345) % 2147483648; return a / 2147483648; };
   const g = new BF.Game();
+  if (opt.mode === 'xe8' && !opt.normal) setupXE8(g);
   if (START_MERIT) { g.S.merit.r = START_MERIT.r; g.S.merit.b = START_MERIT.b; }
   const chuE = new Set(); for (const row of g.S.board) for (const p of row) if (p && p.s === 'b' && p.t === 'e') chuE.add(p.id);
-  const R = { seed, winner: null, reason: null, rounds: 0, firstHit: null, hits: 0, kills: [], ups: [], autoups: [], maxLv: 1, wipes: [], note: '', meritB: {}, otherUpsB: 0 };
+  const R = { seed, winner: null, reason: null, rounds: 0, firstHit: null, hits: 0, kills: [], ups: [], autoups: [], maxLv: 1, wipes: [], note: '', meritB: {}, otherUpsB: 0, upsB: [], healFrom: null };
   while (!g.result) {
     if (round(g.S) > opt.maxRounds) { R.reason = 'cap'; break; }
     const side = g.S.turn;
-    const seq = await AI.think(BF.cloneState(g.S), 'mid');
+    let pre = [];
+    if (opt.plan && side === 'b') { const at = planUp(g.S); if (at) pre = [{ k: 'up', at }]; }   // 固定打法：楚的升级按计划来
+    let seq;
+    if (opt.hanplan === 'hunt' && side === 'r' && (seq = huntSeq(g.S))) { /* 完美围剿 */ }
+    else if (pre.length || (opt.plan && side === 'b')) {
+      const S1 = BF.cloneState(g.S); if (pre.length) { const U = BF.ai.upgradeState(S1, pre[0].at); if (U) { Object.assign(S1, U); } } S1.upgraded = true;   // 电脑只管走子
+      seq = pre.concat((await AI.think(S1, 'mid')).filter(a => a.k !== 'up'));
+    } else seq = await AI.think(BF.cloneState(g.S), 'mid');
     if (!seq || !seq.length) { R.note = '电脑没给着'; break; }
     for (const act of seq) {
       const rd = round(g.S);
       const pc = act.k === 'up' ? g.S.board[act.at[1]][act.at[0]] : null, lv0 = pc ? pc.lv : 0;   // apply 会原地改这枚子，先记下升级前几级
       const info = g.apply(act);
       if (!info) { R.note = '非法行动 ' + JSON.stringify(act); break; }
+      if (pc && pc.s === 'b') R.upsB.push({ round: rd, t: pc.t, to: lv0 + 1 });
       if (pc && chuE.has(pc.id)) R.ups.push({ round: rd, to: lv0 + 1 });
       else if (pc && pc.s === 'b') R.otherUpsB++;   // 楚把军功花在了别的子上
       let wipeKills = 0;
@@ -81,6 +151,7 @@ async function play(seed) {
         if (e.e === 'kill' && chuE.has(e.id)) { R.kills.push({ round: rd, how: e.how, by: side }); if (side === 'r' && R.firstHit == null) R.firstHit = rd; }
         if (e.e === 'autoup' && chuE.has(e.id)) R.autoups.push({ round: rd, lv: e.lv });
         if (e.e === 'kill' && e.how === 'jianta') wipeKills++;
+        if (e.e === 'heal' && R.healFrom == null) R.healFrom = rd;
       }
       if (wipeKills) R.wipes.push({ round: rd, kills: wipeKills });
       for (const row of g.S.board) for (const p of row) if (p && chuE.has(p.id) && p.lv > R.maxLv) R.maxLv = p.lv;
@@ -98,6 +169,11 @@ async function play(seed) {
   for (let i = 0; i < opt.games; i++) {
     const R = await play(opt.seed + i); out.push(R);
     const killedBy = R.kills.filter(k => k.by === 'r').map(k => '第' + k.round + '回合').join('、') || '无';
+    if (opt.mode === 'xe8') {
+      const ups = R.upsB.map(u => ({ a: '士', n: '马', e: '象' }[u.t] || u.t) + u.to + '@' + u.round).join(' ');
+      console.log(`种子 ${R.seed}：${R.winner === 'r' ? '汉胜' : R.winner === 'b' ? '楚胜' : '和/' + R.reason}（${R.reason}，${R.rounds} 回合）${R.note ? ' ' + R.note : ''}｜楚升级 ${ups || '无'}｜回血从第 ${R.healFrom == null ? '—' : R.healFrom} 回合｜象被汉打中 ${R.hits} 下，第一下第 ${R.firstHit == null ? '—' : R.firstHit} 回合，被杀 ${R.kills.filter(k => k.by === 'r').map(k => '第' + k.round + '回合').join('、') || '无'}｜秒杀 ${R.wipes.map(w => '第' + w.round + '回合踩死' + w.kills).join('、') || '无'}`);
+      continue;
+    }
     console.log(`种子 ${R.seed}：${R.winner === 'r' ? '汉胜' : R.winner === 'b' ? '楚胜' : '和/' + R.reason}（${R.reason}，${R.rounds} 回合）${R.note ? ' ' + R.note : ''}｜汉第一次打到楚象：${R.firstHit == null ? '没有' : '第 ' + R.firstHit + ' 回合'}，打中 ${R.hits} 下，杀死楚象：${killedBy}｜楚象最高 ${R.maxLv} 级，自己点升级 ${R.ups.map(u => '第' + u.round + '回合→' + u.to + '级').join('、') || '无'}，甲片自动 ${R.autoups.map(u => '第' + u.round + '回合→' + u.lv + '级').join('、') || '无'}｜秒杀全场 ${R.wipes.map(w => '第' + w.round + '回合踩死' + w.kills).join('、') || '无'}｜楚升别的子 ${R.otherUpsB} 次，楚军功 ${Object.entries(R.meritB).slice(0, 12).map(([k, v]) => k + '回合:' + v).join(' ')}`);
   }
   if (opt.json) fs.writeFileSync(opt.json, JSON.stringify(out));

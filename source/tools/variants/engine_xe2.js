@@ -57,6 +57,22 @@ function enginePath() {
   rep("    const A = atk(P);\n    if (T.hp <= A) {",
     "    if (isInv(S, T)) { ev.push({ e: 'repel', id: P.id, from: from.slice(), to: to.slice() }); return 'hit'; }   // 变体·xe2：打不动无敌的子，弹回原位\n" +
     "    const A = atk(P);\n    if (T.hp <= A) {");
+  // 极端诊断八（XE8，用户提、Code 定数值）：
+  //   · sideStats[方][兵种].immobileBelow = L：不到 L 级不能动（楚象一级不能动）；fwdOnly：只能往前直走一格（楚马）
+  //   · kingShield.immobile：无敌的那些回合里帅将也不能动
+  //   · CFG.healAura = { side, t, lv, count, amount }：这一方有 count 枚 t 兵种到了 lv 级，每回合结束（楚走完）时这一方全队（帅将除外）回 amount 血，回不过满血
+  rep("    if (!ignoreLeg && p.t === 'e') { const o = sideOv(p.s, 'e'); if (o && o.noLegFrom && p.lv >= o.noLegFrom) ignoreLeg = true; }   // 变体·xe2：几级起无视塞象眼\n",
+    "    if (!ignoreLeg && p.t === 'e') { const o = sideOv(p.s, 'e'); if (o && o.noLegFrom && p.lv >= o.noLegFrom) ignoreLeg = true; }   // 变体·xe2：几级起无视塞象眼\n" +
+    "    { const o = sideOv(p.s, p.t);   // 变体·xe2（XE8）：不能动的子、只能往前走一格的子、无敌期里不能动的帅将\n" +
+    "      if (o && o.immobileBelow && p.lv < o.immobileBelow) return [];\n" +
+    "      if (p.t === 'k') { const K = CFG_CUR.kingShield; if (K && K.immobile && K.side === p.s && Math.floor((S.cnt.r + S.cnt.b) / 2) + 1 <= K.untilRound) return []; }\n" +
+    "      if (o && o.fwdOnly) { const tr = r + (p.s === 'r' ? 1 : -1); if (!inBoard(f, tr)) return []; const q = S.board[tr][f]; if (q && (q.s === p.s || (q.t === 'k' && !S.final))) return []; return [{ from: [f, r], to: [f, tr] }]; } }\n");
+  rep("    if (side === 'b' && round(S) >= CFG_CUR.merit.autoIncomeFromRound) {",
+    "    if (side === 'b' && CFG_CUR.healAura) {   // 变体·xe2（XE8）：回血光环，每回合结束时\n" +
+    "      const H = CFG_CUR.healAura; let n = 0; for (const row of S.board) for (const q of row) if (q && q.s === H.side && q.t === H.t && q.lv >= H.lv) n++;\n" +
+    "      if (n >= H.count) for (const row of S.board) for (const q of row) if (q && q.s === H.side && q.t !== 'k') { const mx = hpOfS(q.s, q.t, q.lv); if (q.hp < mx) { q.hp = Math.min(mx, q.hp + H.amount); ev.push({ e: 'heal', id: q.id, hp: q.hp }); } }\n" +
+    "    }\n" +
+    "    if (side === 'b' && round(S) >= CFG_CUR.merit.autoIncomeFromRound) {");
   const file = path.join(os.tmpdir(), `bingfa_xe2_${process.pid}.js`);
   fs.writeFileSync(file, s);
   process.on('exit', () => { try { fs.unlinkSync(file); } catch (e) { } });
