@@ -233,6 +233,8 @@
   // 试行规则 r6（见 bingfa.js 的 CFG.r6）：默认关；网址带 ?r6=1 时，这台机器新开的技能模式对局用它（记在这一局的选项 opts.r6 里，联机双方、观众、接着下的局都看这个记号）
   const R6_NEW = /[?&]r6=1/.test(location.search) ? 1 : 0;
   const r6On = () => (BF.CFG.r6 && BF.CFG.r6.on ? BF.CFG.r6 : null);
+  // 汉相「虎骑」预览（?tiger=1）：称号跟着模型一起换
+  if (Models.TIGER && BF.TIGER_RANKS) BF.RANK_CN.r.e = BF.TIGER_RANKS.slice();
   let bfMode = null, bfUpNote = '', dbgOn = false, dbgPick = null, dbgSel = null, dbgLv = 1, dbgNoCd = false, dbgFree = false;
   let JK = null, JC = { cin: {}, cout: {}, used: { r: {}, b: {} } }, jqBad = 0, pendingJ = null, lastJx = null;
   const jqOn = () => game.jq && online();
