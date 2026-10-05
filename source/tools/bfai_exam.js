@@ -364,7 +364,7 @@ Q.push({
 {
   const file = path.join(__dirname, 'bfai_exam_games.json');
   if (require('fs').existsSync(file)) {
-    const { load } = require('./game_load.js');
+    const { load, detectRules, applyRules } = require('./game_load.js');
     const main = seq => seq[seq.length - 1];   // 电脑给的是 [升级?, 拒马?, 主行动]
     const same = (a, b) => JSON.stringify(a) === JSON.stringify(b);
     // survive 的裁判：当前电脑霸王档，按节点数深搜（结果可复现），看对方有没有必胜
@@ -377,15 +377,15 @@ Q.push({
       try { await judge.think(BF.cloneState(g.S), 'judge'); } finally { Math.random = saved; }
       return judge.think.last.v < 4500;   // 对方找不到必胜
     };
-    JSON.parse(require('fs').readFileSync(file, 'utf8')).forEach((it, i) => Q.push({
-      name: `实${i + 1} ${it.name}`, cat: '实战', desc: it.desc,
-      build: () => load(it.data, it.at).game,
+    JSON.parse(require('fs').readFileSync(file, 'utf8')).forEach((it, i) => { const rules = it.rules || detectRules(it.data); applyRules(null); Q.push({
+      name: `实${i + 1} ${it.name}`, cat: '实战', desc: it.desc, rules,   // rules：这局当时的规则（破釜时代的对局要关背水；见 game_load.js 的 detectRules）
+      build: () => load(it.data, it.at, rules).game,
       // same：主行动要和答案一样（答案里有升级的，升级也要一样）；avoid：别再走电脑原来那一步；survive：走完之后对方深搜找不到必胜
       check: (it.mode || (it.answer ? 'same' : 'avoid')) === 'survive'
         ? async (seq, g0) => { const g = play(g0, seq); return !!g && survives(g, it.side, it.judgeNodes); }
         : seq => ((it.mode || (it.answer ? 'same' : 'avoid')) === 'same' ? same(main(seq), main(it.answer)) && it.answer.filter(a => a.k === 'up').every(u => seq.some(a => same(a, u))) : !same(main(seq), main(it.bad))),
       answer: it.answer || undefined, bad: it.bad, adjudicated: it.adjudicated, disabled: it.disabled,
-    }));
+    }); });
   }
 }
 
@@ -661,6 +661,11 @@ Q.push({
 });
 
 // ---------- 自检：考题本身摆得对不对 ----------
+// 每道题按自己的规则出：实战题（rules）改全局 BF.CFG 的背水 / r6 开关，别的题先恢复现行默认
+{
+  const { applyRules } = require('./game_load.js');
+  for (const q of Q) { const b = q.build; q.build = () => { if (!q.rules) applyRules(null); return b(); }; }
+}
 async function lint() {
   let bad = 0;
   for (const q of Q) {
