@@ -230,6 +230,9 @@
   const mkGame = (o, layout) => (o && +o.bf ? new BF.Game() : o && +o.jq ? new XQ.Game({ jq: true, layout: layout || (mode === 'local' ? XQ.randomLayout() : null) }) : new XQ.Game());
   // 兵法：技能选择状态、升级记法、调试
   const BS_NEW = /[?&]beishui=0/.test(location.search) ? 0 : 1;
+  // 试行规则 r6（见 bingfa.js 的 CFG.r6）：默认关；网址带 ?r6=1 时，这台机器新开的技能模式对局用它（记在这一局的选项 opts.r6 里，联机双方、观众、接着下的局都看这个记号）
+  const R6_NEW = /[?&]r6=1/.test(location.search) ? 1 : 0;
+  const r6On = () => (BF.CFG.r6 && BF.CFG.r6.on ? BF.CFG.r6 : null);
   let bfMode = null, bfUpNote = '', dbgOn = false, dbgPick = null, dbgSel = null, dbgLv = 1, dbgNoCd = false, dbgFree = false;
   let JK = null, JC = { cin: {}, cout: {}, used: { r: {}, b: {} } }, jqBad = 0, pendingJ = null, lastJx = null;
   const jqOn = () => game.jq && online();
@@ -282,7 +285,7 @@
       if (sk === 'qishe') { const q = g.at(e.to[0], e.to[1]); return cn + '·' + (q ? PCH[q.s][q.t] : ''); }
       return cn + '·' + PCH[p.s][p.t];
     }
-    if (e.k === 'art') { if (g.turn === 'r') { const d = g.dead.r.find(x => x.id === e.id); return '召回·' + (d ? PCH.r[d.t] : ''); } return BF.ART_CN.b; }
+    if (e.k === 'art') { if (g.turn === 'r') { const d = g.dead.r.find(x => x.id === e.id); return '召回·' + (d ? PCH.r[d.t] : '') + (e.up ? '↑' : ''); } return BF.ART_CN.b; }
     if (e.k === 'ult') return g.turn === 'r' ? '四面楚歌' : '鴻門宴';
     if (e.k === 'sk' && !p) return '';
     if (e.k === 'pass') return '停著';
@@ -652,7 +655,7 @@
     const local = async () => { await waitIdle(); return BFAI.think(S, level, () => new Promise(r => setTimeout(r, 0))); };
     if (bfW === null) {
       try {
-        const src = document.getElementById('eng').textContent + '\nself.onmessage=async e=>{const d=e.data;try{if(d.cfg){Object.assign(BF.CFG.beishui,d.cfg.beishui);BF.CFG.generalArts.fromRound=d.cfg.fromRound;BF.CFG.attack=d.cfg.attack;}const seq=await BFAI.think(d.S,d.level);postMessage({id:d.id,seq:seq,stat:BFAI.think.last});}catch(err){postMessage({id:d.id,err:String(err&&err.stack||err)});}};';
+        const src = document.getElementById('eng').textContent + '\nself.onmessage=async e=>{const d=e.data;try{if(d.cfg){Object.assign(BF.CFG.beishui,d.cfg.beishui);if(d.cfg.r6)Object.assign(BF.CFG.r6,d.cfg.r6);BF.CFG.generalArts.fromRound=d.cfg.fromRound;BF.CFG.attack=d.cfg.attack;}const seq=await BFAI.think(d.S,d.level);postMessage({id:d.id,seq:seq,stat:BFAI.think.last});}catch(err){postMessage({id:d.id,err:String(err&&err.stack||err)});}};';
         bfW = new Worker(URL.createObjectURL(new Blob([src], { type: 'text/javascript' })));
         bfW.onmessage = e => { const w = bfWait.get(e.data.id); if (!w) return; bfWait.delete(e.data.id); if (e.data.err) w.rej(new Error(e.data.err)); else { bfThink.last = e.data.stat; w.res(e.data.seq); } };
         bfW.onerror = () => { bfW = false; for (const w of bfWait.values()) w.rej(new Error('worker')); bfWait.clear(); };
@@ -660,7 +663,7 @@
     }
     if (!bfW) return local();
     // 试验性的规则开关（背水一战等）也带给电脑线程：它那边有自己的一份配置
-    return new Promise((res, rej) => { const id = ++bfWSeq; bfWait.set(id, { res, rej }); bfW.postMessage({ id, S, level, cfg: { beishui: BF.CFG.beishui, fromRound: BF.CFG.generalArts.fromRound, attack: BF.CFG.attack } }); }).catch(e => { console.warn('电脑线程出错，改在主线程算', e); return local(); });
+    return new Promise((res, rej) => { const id = ++bfWSeq; bfWait.set(id, { res, rej }); bfW.postMessage({ id, S, level, cfg: { beishui: BF.CFG.beishui, r6: BF.CFG.r6, fromRound: BF.CFG.generalArts.fromRound, attack: BF.CFG.attack } }); }).catch(e => { console.warn('电脑线程出错，改在主线程算', e); return local(); });
   }
   function cancelAI() { aiSeq++; if (aiThinking) { try { AI.cancel(); } catch (e) { } } aiThinking = false; }
   function maybeAI() {
@@ -727,6 +730,10 @@
     // 技能模式的楚方主帅兵法用哪一套，记在这一局的选项里（bs = 1 背水一战）：新开的局用背水一战；
     //   没有这个记号的（改规则之前开的局接着下、房主还是旧版本、旧的复盘）照旧用破釜沉舟——联机双方、观众、接着下的局都看同一个记号，不会一边一套
     if (+opts.bf) { if (opts.bs == null && !state && (m === 'local' || m === 'ai' || m === 'host')) opts.bs = BS_NEW; BF.CFG.beishui.on = !!+opts.bs; }
+    // 试行规则同样记在这一局的选项里（r6 = 1）：只有网址带 ?r6=1 的机器新开的局才有；没有这个记号的一律照现行规则
+    if (+opts.bf) { if (opts.r6 == null && !state && (m === 'local' || m === 'ai' || m === 'host')) opts.r6 = R6_NEW; BF.CFG.r6.on = !!+opts.r6; } else BF.CFG.r6.on = false;
+    { const h = $('helpR6'); if (h) h.hidden = !BF.CFG.r6.on; }
+    if (BF.CFG.r6.on) setTimeout(() => { if (game && game.bf && BF.CFG.r6.on) toast('本局用试行规则 · 点右侧「法」看有哪些不同', 4200); }, 1800);
     if ((m === 'local' || m === 'ai') && !state) store.del('resume');
     resumeKey = '';
     game = mkGame(opts, state && state.layout); undoUsed = { r: 0, b: 0 }; pendingUndo = null; pauseUsed = { r: 0, b: 0 }; setPause(null);
@@ -1559,6 +1566,7 @@
       '<b>三级</b>解锁技能，<b>四级</b>成名将；棋身 木 → 银 → 金 → 玉',
       '打不死的目标头顶标 <b>-1</b>，能一击杀死才标<b>「殺」</b>',
       '<b>军功 20</b> 可发终极兵法；主帅兵法每局一次',
+      ...(r6On() ? ['<b>本局用试行规则</b>：车、马、炮、兵三级起<b>攻击 2</b>；车四级 3 血，升级 <b>10 / 12 / 20</b> 功', '<b>召回</b>：死时一级回来一级，二级以上回来<b>二级</b>；可以<b>当场花军功升一级</b>；它第一次升级<b>半价</b>'] : []),
       '<b>决战</b>：双方车马兵炮都死光后，象、士、帅将可过河进攻；帅将 3 血，打死为止',
     ].map(x => `<li>${x}</li>`).join('');
     $('bfTip').classList.remove('hidden');
@@ -1576,7 +1584,10 @@
     });
   }
   const escTip = t => String(t || '').replace(/&/g, '&amp;').replace(/"/g, '&quot;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
-  const ART_DESC = { get r() { const B = BF.CFG.beishui; return '复活一枚被吃的己方子，回到它的开局位置（一级）。每局一次。' + (B.on ? `汉军车马炮${B.maxLeft != null ? `最多还剩 ${B.maxLeft} 枚、而且` : ''}比楚军少时才能用。` : ''); },
+  const ART_DESC = { get r() {
+      const B = BF.CFG.beishui, R = r6On(), cond = B.on ? `汉军车马炮${B.maxLeft != null ? `最多还剩 ${B.maxLeft} 枚、而且` : ''}比楚军少时才能用。` : '';
+      if (R) return `复活一枚被吃的己方子，回到它的开局位置：死时一级的回来还是一级，二级以上的回来都是${LVCN[R.reviveLevel]}级，血回满。${R.reviveUp ? '召回的当回合可以花军功给它升一级；' : ''}${R.reviveHalf ? '它第一次升级只要半价。' : ''}召回占这一回合，它这回合不能动。每局一次。` + cond;
+      return '复活一枚被吃的己方子，回到它的开局位置（一级）。每局一次。' + cond; },
     get b() {
       const B = BF.CFG.beishui;
       if (!B.on) return '连走两步（不能用技能，第二步不能将军）。此后 3 回合楚军不能用兵种技能。每局一次。';
@@ -1601,9 +1612,10 @@
     const c = BF.CFG.skills[sk], lv = c.level || BF.CFG.skillLevel;
     return `<b>${BF.SKILL_CN[sk]}</b> <small>${skTag(sk)}</small><br>${BF.SKILL_DESC[sk]}`;
   }
+  const halfNow = p => !!(p && p.rh && r6On() && r6On().reviveHalf);   // 试行规则：召回的子第一次升级半价
   function upTip(p, cost, base) {
     const nx = p.lv + 1;
-    return `<b>升${LVCN[nx]}级 ·「${game.rankName(p, nx)}」</b><br>${lvGain(p, nx)}，回满血。<br>花 ${cost} 军功` + (base > cost ? `（甲片省 ${base - cost}）` : '') + `<br><small>甲片攒满 ${base} 片会自动升级，不花军功。</small>`;
+    return `<b>升${LVCN[nx]}级 ·「${game.rankName(p, nx)}」</b><br>${lvGain(p, nx)}，回满血。<br>花 ${cost} 军功` + (base > cost ? `（甲片省 ${base - cost}）` : '') + (halfNow(p) ? '<br><em>召回的子第一次升级半价</em>' : '') + `<br><small>甲片攒满 ${base} 片会自动升级，不花军功。</small>`;
   }
   // 棋子说明（悬停 / 长按棋子）：只说要紧的，一条一行
   function pieceTip(p) {
@@ -1623,7 +1635,7 @@
       const st = p.lv < lv ? `${LVCN[lv]}级解锁` : cd ? `冷却 ${cd}` : c.passive ? '被动' : '可用';
       h += `<br><b>「${BF.SKILL_CN[sk]}」</b><small>${st}</small> ${BF.SKILL_DESC[sk]}`;
     }
-    if (p.lv < mx) { const cost = game.upgradeCost(p), base = game.baseCost(p); h += `<br><b>下一级</b>「${game.rankName(p, p.lv + 1)}」${lvGain(p, p.lv + 1)} <small>${cost} 功，或攒满 ${base} 片甲</small>`; }
+    if (p.lv < mx) { const cost = game.upgradeCost(p), base = game.baseCost(p); h += `<br><b>下一级</b>「${game.rankName(p, p.lv + 1)}」${lvGain(p, p.lv + 1)} <small>${cost} 功，或攒满 ${base} 片甲${halfNow(p) ? '（召回后第一次升级半价）' : ''}</small>`; }
     if (game.jmActive(p)) h += '<br><em>拒马中：来犯者先挨 1 点</em>';
     if (game.frozen(p)) h += '<br><em>背水一战之后力竭：这一回合不能动（被将军时可以去吃掉将军的那枚子）</em>';
     if (p.s === 'b' && game.fx.sm) h += `<br><em>军心涣散：还有 ${game.fx.sm} 回合不能移动</em>`;
@@ -1716,7 +1728,7 @@
         if (a.p.t !== 'k') {
           if (a.cost != null) {
             const m = game.merit[a.p.s], save = a.base - a.cost;
-            B.push(btn('up', 'up', a.canUp, `升${LVCN[a.p.lv + 1]}级`, game.upgraded ? '本回合已升' : `${a.cost} 功` + (save ? `·省${save}` : ''), game.upgraded ? '每次行动最多升级一次，下次行动再升' : `升级需要 ${a.cost} 军功，现在只有 ${m}`, '', upTip(a.p, a.cost, a.base)));
+            B.push(btn('up', 'up', a.canUp, `升${LVCN[a.p.lv + 1]}级`, game.upgraded ? '本回合已升' : `${a.cost} 功` + (halfNow(a.p) ? '·半价' : '') + (save ? `·省${save}` : ''), game.upgraded ? '每次行动最多升级一次，下次行动再升' : `升级需要 ${a.cost} 军功，现在只有 ${m}`, '', upTip(a.p, a.cost, a.base)));
           }
           for (const k of a.skills) {
             const cn = BF.SKILL_CN[k.sk], skTip = skillTip(a.p, k.sk), C = BF.CFG.skills[k.sk];
@@ -1778,9 +1790,22 @@
     }
     if (a === 'art') {
       if (game.turn === 'r') {
-        const opts2 = game.reviveOptions();
-        const id = await pick('召 回 良 将', '复活一枚被吃的子，放回它的开局位置（一级）。', opts2.map(o => ({ v: o.id, label: XQ.NAMES.r[o.t], cls: 'r' })));
-        if (id != null && canAct()) doBF({ k: 'art', id: +id });
+        const opts2 = game.reviveOptions(), R = r6On();
+        if (!R) {
+          const id = await pick('召 回 良 将', '复活一枚被吃的子，放回它的开局位置（一级）。', opts2.map(o => ({ v: o.id, label: XQ.NAMES.r[o.t], cls: 'r' })));
+          if (id != null && canAct()) doBF({ k: 'art', id: +id });
+          return;
+        }
+        // 试行规则：每枚子写明回来几级；能当场升级的另给一个按钮，写明升到几级、要几点军功（已经是半价）
+        const sm = t => `<small style="display:block;font-size:12px;line-height:1.5;opacity:.85">${t}</small>`, items = [];
+        for (const o of opts2) {
+          const nm = XQ.NAMES.r[o.t];
+          if (items.length) items.push({ br: 1 });   // 一枚子一行：只召回 / 召回并当场升级
+          items.push({ v: o.id, label: nm + sm(`回来${LVCN[o.lv]}级`), cls: 'r', w: 96 });
+          if (o.upCost != null) items.push({ w: 236, v: o.id + 'u', label: nm + sm(`回来${LVCN[o.lv]}级，当场升${LVCN[o.upLv]}级 · ${o.upCost} 功` + (o.canUp ? '' : game.upgraded ? '（本回合已升过级）' : `（军功不够，现在 ${game.merit.r}）`)), cls: 'r', dis: !o.canUp });
+        }
+        const v = await pick('召 回 良 将', `复活一枚被吃的子，放回它的开局位置：死时一级的回来还是一级，二级以上的回来都是${LVCN[R.reviveLevel]}级。它第一次升级只要半价，可以当场就升。召回占这一回合，它这回合不能动。`, items);
+        if (v != null && canAct()) doBF(/u$/.test(v) ? { k: 'art', id: parseInt(v, 10), up: true } : { k: 'art', id: +v });
         return;
       }
       if (BF.CFG.beishui.on) {
@@ -1807,7 +1832,7 @@
   function pick(title, text, items) {
     return new Promise(res => {
       $('pickT').textContent = title; $('pickP').textContent = text;
-      $('pickList').innerHTML = items.map(i => `<button class="btn small ${i.cls || ''}" data-v="${i.v}">${i.label}</button>`).join('');
+      $('pickList').innerHTML = items.map(i => i.br ? '<i style="flex-basis:100%;height:0"></i>' : `<button class="btn small ${i.cls || ''}" data-v="${i.v}"${i.dis ? ' disabled' : ''} style="${i.w ? `width:${i.w}px;` : ''}${i.dis ? 'opacity:.45' : ''}">${i.label}</button>`).join('');
       $('mPick').classList.remove('hidden');
       const fin = v => { $('mPick').classList.add('hidden'); res(v); };
       $('pickList').querySelectorAll('button').forEach(b => b.onclick = () => fin(b.dataset.v));
@@ -1894,7 +1919,7 @@
       else if (sk === 'hujia') line = info.extra.rescue ? '樊哙闯帐：汉士护驾，鸿门宴破' : `${nm(s, P0.t)}护驾，与${s === 'r' ? '汉王' : '霸王'}换位`;
       else if (sk === 'chongzhen') line = foe.length >= 2 ? `${SIDE_ARMY[s]}车冲阵，连破${SIDE_ARMY[o]}两阵` : foe.length ? `${SIDE_ARMY[s]}车冲阵，击破${nm(o, foe[0].t)}` : `${SIDE_ARMY[s]}车冲阵受阻`;
       else line = `${nm(s, P0.t)}${cn}` + (foe.length ? `，击杀${foe.map(k => XQ.NAMES[o][k.t]).join('、')}` : '') + (hurt.length ? `，${hurt.length} 子负伤` : '');
-    } else if (info.k === 'art') line = s === 'r' ? `召回良将：${nm('r', (ev.find(x => x.e === 'revive') || {}).t || 'p')}重回阵前` : `项羽${BF.ART_CN.b}，楚军连进两步` + (kills.length ? `，击杀${kills.filter(k => k.s === o).map(k => XQ.NAMES[o][k.t]).join('、')}` : '');
+    } else if (info.k === 'art') line = s === 'r' ? (() => { const rv = ev.find(x => x.e === 'revive') || {}, ru = ev.find(x => x.e === 'reviveUp'); return `召回良将：${nm('r', rv.t || 'p')}重回阵前` + (rv.lv > 1 ? `（${LVCN[rv.lv]}级）` : '') + (ru ? `，当场晋升「${BF.rankName('r', ru.t, ru.lv)}」（${LVCN[ru.lv]}级），花 ${ru.cost} 功` : ''); })() : `项羽${BF.ART_CN.b}，楚军连进两步` + (kills.length ? `，击杀${kills.filter(k => k.s === o).map(k => XQ.NAMES[o][k.t]).join('、')}` : '');
     else if (info.k === 'ult') line = s === 'b' ? `鸿门宴：汉王 ${BF.CFG.ultimates.hongmen.rounds} 回合不得移动` : '四面楚歌：楚军军心涣散，动弹不得';
     else if (info.k === 'pass') line = `${SIDE_ARMY[s]}按兵不动`;
     if (info.k === 'mv' && info.extra && info.extra.via === 'shensu') line = `${nm(s, 'p')}神速营疾行` + (info.check ? '，将军！' : '');
@@ -1915,6 +1940,7 @@
     const sum = { r: 0, b: 0 }, why = { r: [], b: [] };
     for (const x of info.ev || []) if (x.e === 'merit') { sum[x.s] += x.n; if (!why[x.s].includes(x.why)) why[x.s].push(x.why); }
     if (info.k === 'up') sum[info.side] -= info.cost;
+    { const ru = (info.ev || []).find(x => x.e === 'reviveUp'); if (ru) sum.r -= ru.cost; }   // 试行规则：召回后当场升级花的军功
     if (info.k === 'ult') sum[info.side] -= BF.CFG.ultimates.cost;
     for (const s of ['r', 'b']) {
       if (!sum[s]) continue;

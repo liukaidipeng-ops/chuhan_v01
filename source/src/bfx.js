@@ -15,7 +15,7 @@ const BFX = (() => {
       else if (e.e === 'move') { b[e.to[1]][e.to[0]] = b[e.from[1]][e.from[0]]; b[e.from[1]][e.from[0]] = null; }
       else if (e.e === 'hit') { const p = b[e.at[1]][e.at[0]]; if (p) p.hp = e.hp; }
       else if (e.e === 'swap') { const x = b[e.pa[1]][e.pa[0]]; b[e.pa[1]][e.pa[0]] = b[e.pb[1]][e.pb[0]]; b[e.pb[1]][e.pb[0]] = x; }
-      else if (e.e === 'revive') b[e.at[1]][e.at[0]] = { s: 'r', t: e.t, id: e.id, lv: 1, hp: 1 };
+      else if (e.e === 'revive') b[e.at[1]][e.at[0]] = { s: 'r', t: e.t, id: e.id, lv: e.lv || 1, hp: BF.hpOf(e.t, e.lv || 1) };   // 试行规则里召回可能回来二级
     }
     return b;
   }
@@ -275,6 +275,8 @@ const BFX = (() => {
         if (B) for (let r = 0; r < 10 && !at; r++) for (let f = 0; f < 9; f++) if (B[r][f] && B[r][f].id === e.id) { at = [f, r]; break; }
         if (at) await levelUp({ id: e.id, t: e.t, side: e.s, at, lv: e.lv, nm: e.nm, auto: true });
       }
+      // 试行规则：召回后当场花军功升了一级——等它落定，再补上晋升的仪式
+      for (const e of ev.filter(x => x.e === 'reviveUp')) { const rv = ev.find(x => x.e === 'revive' && x.id === e.id); if (rv) await levelUp({ id: e.id, t: e.t, side: 'r', at: rv.at, lv: e.lv, nm: e.nm }); }
     } catch (e) { console.error(e); }
     if (info.k !== 'mv' && info.k !== 'up') {
       if (Cam.cine) await Cam.home(0.8);
@@ -532,7 +534,7 @@ const BFX = (() => {
       spiral(B, 0xffe2a0, 50, 0.55, 1.5); Sfx.B.whoosh(0.1, 0.6, 0.9); Sfx.B.hooves(0.3, 1.2, 1, 0.3);
       await sleep(0.55);
       // 良将自光中降下，落地一震
-      const m = Board.makePiece({ s: 'r', t: rv.t, id: rv.id, lv: 1, hp: 1 });
+      const m = Board.makePiece({ s: 'r', t: rv.t, id: rv.id, lv: rv.lv || 1, hp: BF.hpOf(rv.t, rv.lv || 1) });
       m.rotation.y = Board.viewSide === 'b' ? Math.PI : 0;
       Board.piecesRoot.add(m); Board.pieces.set(rv.id, m);
       const top = B.clone().setY(TOP + 4.2), yaw0 = m.rotation.y;
