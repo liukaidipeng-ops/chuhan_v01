@@ -402,7 +402,9 @@ const Squads = (() => {
     constructor(side, anchor, yaw, n = 0) {
       super('e', side, anchor, yaw);
       const gold = n >= 4;
-      this.m = Models.makeTigerRider(side, { gold }); this.m.group.scale.setScalar(TG);
+      // 高、中画质用精修模型（tiger.js），低画质退回简版（models.js）
+      const hd = Core.quality !== 'low';
+      this.m = hd ? TigerHD.make(side, { gold }) : Models.makeTigerRider(side, { gold }); this.m.group.scale.setScalar(hd ? 0.27 : TG);
       this.group.add(this.m.group);
       this.guard = n >= 3 ? new TroopSquad('e', side, anchor, yaw, gold ? 'xbowG' : 'xbow', [[0.4, -0.02], [-0.4, -0.02]], SC * (gold ? 1.08 : 1)) : null;
       this.updaters.push(dt => { this.m.update(dt); this.sync(); });
