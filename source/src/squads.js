@@ -402,12 +402,12 @@ const Squads = (() => {
   }
   // 汉相「虎骑」（预览中：网址带 ?tiger=1 才启用，线上仍是谋士车驾）
   // 平时只有一虎一人，吃子是虎扑；兵法三级起两名弩手随护（四级金甲大黄弩），只有发动「齐射」时才由弩手放箭
-  const TIGER = Models.TIGER, TG = 0.26;
+  const TIGER = Models.TIGER, TG = 0.27;
   class TigerRider extends Squad {
     constructor(side, anchor, yaw, n = 0) {
       super('e', side, anchor, yaw);
       const gold = n >= 4;
-      this.m = Models.makeTigerRider(side, { gold }); this.m.group.scale.setScalar(TG);
+      this.m = TigerHD.make(side, { gold }); this.m.group.scale.setScalar(TG);   // 美术的精修模型（tiger.js），各画质档它自己按 Core.quality 选面数
       this.group.add(this.m.group);
       this.guard = n >= 3 ? new TroopSquad('e', side, anchor, yaw, gold ? 'xbowG' : 'xbow', [[0.4, -0.02], [-0.4, -0.02]], SC * (gold ? 1.08 : 1)) : null;
       this.updaters.push(dt => { this.m.update(dt); this.sync(); });
@@ -472,7 +472,9 @@ const Squads = (() => {
     async die(hit, dir, power, center) {
       const m = this.m, c = this.center(0.25);
       const gd = this.guard ? this.guard.die(hit, dir, power, center) : null;
-      m.deadSide = Math.random() < 0.5 ? 1 : -1;
+      // 倒地时文臣和节杖倒向一侧（deadSide = 1 是倒向行进方向的左手边）：挑旁边那格没有子的一侧
+      { const R0 = rightOf(this.yaw), busy = sd => { const q = this.anchor.clone().addScaledVector(R0, -sd); for (const x of Board.pieces.values()) if (x.parent && Math.hypot(x.position.x - q.x, x.position.z - q.z) < 0.6) return true; return false; };
+        const sd = Math.random() < 0.5 ? 1 : -1; m.deadSide = !busy(sd) ? sd : !busy(-sd) ? -sd : sd; }
       tween(0.25, k => { m.roarK = k; }); snd('e', this.side).die();
       P.blood(c, 20, 1.0, dir, 1.1);
       if (hit === 'blast') P.fire(c, 16, 0.7);

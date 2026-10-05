@@ -955,7 +955,7 @@ const Fx = (() => {
     if (Models.TIGER && p.s === 'r' && p.t === 'e' && Voice.has('t_' + base + '1')) base = 't_' + base;   // 汉相换成虎骑时用虎骑的台词（白虎开道 / 谋定而后动 / 犯汉者，虎噬之 / 放虎）
     let id = `${base}${Math.random() < 0.5 ? 1 : 2}`;
     if (id === lastBark) id = `${base}${id.endsWith('1') ? 2 : 1}`;
-    if (!Voice.has(id)) return;
+    if (!Voice.has(id) || !Voice.playable(id)) return;   // 放不出来就当没有台词（脚步不用白等）
     lastBark = id;
     const pan = Math.max(-0.7, Math.min(0.7, c.A.x / 6)) * (Board.viewSide === 'b' ? -1 : 1);
     const delay = kill ? 0.35 : 0.1;
