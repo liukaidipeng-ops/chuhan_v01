@@ -1,0 +1,56 @@
+--- a/source/src/bfai.js
++++ b/source/src/bfai.js
+@@ -159,6 +159,7 @@
+     return best;
+   }
+   const killers = [];
++  let kdMe = null;   // 危险延伸只管“这一步是谁在想”的那一方（见 kdDanger）
+   let upPly = -1;   // 在第几层考虑“对方先升级再走”（-1 = 不考虑）
+   let pfPly = -1;   // 在第几层考虑“对方（楚）用破釜沉舟连走两步”（-1 = 不考虑）
+   const pfCache = new Map();   // 每个局面的破釜沉舟组合只算一次（逐层加深时重复用）
+@@ -233,12 +234,34 @@
+     pfCache.set(S, pf);
+     return pf;
+   }
+-  // 负极大值 + αβ（分数总是站在走子方看）
++  // 危险延伸（2026-10-05，用户报的笨棋“实3 马挡帅前喂三血卒”）：轮到 side 走、它的帅被堵死（一步合法的帅步都没有），
++  //   对方有砍不死的进攻子（血 > side 的帅、士里最高攻击）离帅不超过 2 步、而且那枚子下一步就能走到 / 吃到帅身边正将着帅。
++  //   这种局面里贴脸杀常常在第 5～6 层，三层的校尉看不到（实3：挡马和炮回中路三层同分，随机挑中挡马）；ab() 里这时多算一层。
++  //   只管电脑自己的帅（kdMe），去逼对方的帅时不延伸——两边都管、多算两层的版本网页里偶尔一步要 4～5 秒
++  function kdDanger(S, side) {
++    if (S.final) return false;
++    let k = null, dmax = 1; const near = [];
++    for (let r = 0; r < 10; r++) for (let f = 0; f < 9; f++) { const p = S.board[r][f]; if (!p) continue; if (p.s === side && (p.t === 'k' || p.t === 'a')) { if (p.t === 'k') k = [f, r]; dmax = Math.max(dmax, A.atk(p)); } }
++    if (!k) return false;
++    for (let r = Math.max(0, k[1] - 2); r <= Math.min(9, k[1] + 2); r++) for (let f = Math.max(0, k[0] - 2); f <= Math.min(8, k[0] + 2); f++) { const p = S.board[r][f]; if (p && p.s !== side && p.t !== 'k' && p.hp > dmax && Math.abs(f - k[0]) + Math.abs(r - k[1]) <= 2) near.push(p); }
++    if (!near.length) return false;
++    for (const m of A.moveTargets(S, k[0], k[1])) { const x = BF.attempt(S, { k: 'mv', from: m.from, to: m.to }); if (x && !x.free) return false; }   // 帅还有路走
++    // 对方下一步就能贴脸将军（砍不死的子走到 / 吃到帅身边，走完正将着帅）才算危险：换手看一眼（空着一手），只试这几枚子
++    const T = BF.cloneState(S); T.turn = side === 'r' ? 'b' : 'r'; T.upgraded = false; T.freeUsed = false; T.jmLock = null;
++    for (let r = Math.max(0, k[1] - 2); r <= Math.min(9, k[1] + 2); r++) for (let f = Math.max(0, k[0] - 2); f <= Math.min(8, k[0] + 2); f++) {
++      const p = S.board[r][f]; if (!p || p.s === side || p.t === 'k' || p.hp <= dmax || Math.abs(f - k[0]) + Math.abs(r - k[1]) > 2) continue;
++      for (const m of A.moveTargets(T, f, r)) {
++        if (Math.abs(m.to[0] - k[0]) + Math.abs(m.to[1] - k[1]) !== 1) continue;
++        const x = BF.attempt(T, { k: 'mv', from: m.from, to: m.to }); if (x && !x.free && A.inCheck(x.S, side)) return true;
++      }
++    }
++    return false;
++  }
+   function ab(S, depth, alpha, beta, ply, ext = 0) {
+     if (++nodes > nodeCap || ((nodes & 63) === 0 && now() > deadline)) throw TIMEOUT;
+     const side = S.turn, inChk = A.inCheck(S, side);
+     // 将军延伸：正被将军的一方应这一步不算层数（一条线上最多延伸 CX 次）——“贴脸将军、逃、再贴”这种连杀，三层的校尉也能算到底
+-    const extd = inChk && ext < CX && ply >= 1 ? 1 : 0;
++    const extd = ply >= 1 && ((inChk && ext < CX) || (!inChk && ext < CX + 1 && side === kdMe && kdDanger(S, side))) ? 1 : 0;   // 危险延伸：自己的帅被堵死、对方砍不死的子下一步就能贴脸将军时也延伸一层（见 kdDanger）
+     depth += extd; ext += extd;
+     if (depth <= 0) {
+       if (inChk && ply < 8) depth = 1;          // 被将军时不能“站着不动”估值：再往下应一步
+@@ -366,7 +389,7 @@
+     let L = tick ? { ...L0, budget: Math.min(L0.budget, 1400) } : L0;   // 在主线程里算（开不了 Worker）时少想一会儿，免得卡画面
+     let S = S0, last = now();
+     const breathe = async () => { if (tick && now() - last > 12) { await tick(); last = now(); } };
+-    nodes = 0; qMax = L.q; hist.clear(); killers.length = 0; upPly = -1; pfPly = -1; pfCache.clear(); upCache.clear(); pfAlias.clear(); pfUp.clear(); deadline = Infinity; nodeCap = Infinity;
++    kdMe = S0.turn; nodes = 0; qMax = L.q; hist.clear(); killers.length = 0; upPly = -1; pfPly = -1; pfCache.clear(); upCache.clear(); pfAlias.clear(); pfUp.clear(); deadline = Infinity; nodeCap = Infinity;
+     const fin0 = !!S0.final, chk0 = A.inCheck(S0, me);
+     if (PFD && me === 'r' && L.depth >= 3 && S0.cnt.b < (S0.fx.pf || 0)) L = { ...L, depth: L.depth + PFD };   // 楚方技能被封的反击窗口：多算一层
+     const byNodes = L.nodes > 0;   // 设了 nodes：按搜索量收手，完全不看时间（对打、考卷、漏着率用，机器快慢不影响结果）
