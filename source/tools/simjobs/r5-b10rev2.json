@@ -1,0 +1,3 @@
+{ "args": "--games 500 --seed 1000 --nodes mid=60000 --ai git:98dd206 --set beishui.on=true --set beishui.twoPieces=false --set attack.r=[1,1,2,2] --set attack.p=[1,1,2,2] --set attack.n=[1,1,2] --set attack.c=[1,1,2] --set hpByType.r=[1,2,3,3] --set upgrade.cost.r=[10,12,20] --set generalArts.xiaohe.reviveLevel=2",
+  "env": { "BFSIM_ENGINE": "tools/variants/engine_han.js", "ENGINE_REV": "98dd206" }, "chunks": 20,
+  "note": "第五轮（用户定）：B + 车 10/12/20 + 帮汉方①：召回的子回来就是二级" }
