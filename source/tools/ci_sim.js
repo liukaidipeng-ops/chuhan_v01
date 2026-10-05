@@ -33,7 +33,7 @@ if (cmd === 'plan') {
   let files = [];
   try { files = execFileSync('git', ['diff', '--name-only', '--diff-filter=AM', spec, '--', 'source/tools/simjobs/'], { cwd: REPO, encoding: 'utf8' }).split('\n').filter(f => f.endsWith('.json')); } catch (e) { console.error(e.message); }
   const include = [];
-  for (const f of files) { const j = load(f); if (/--match/.test(j.args)) throw new Error(f + '：对打暂不支持'); for (let c = 0; c < chunksOf(j); c++) if (range(j, c).hi > range(j, c).lo) include.push({ req: f, name: nameOf(f), chunk: c }); }
+  for (const f of files) { const j = load(f); if (/--match/.test(j.args)) throw new Error(f + '：对打暂不支持'); if (/--seedlist|--stop-after-revive/.test(j.args)) throw new Error(f + '：--seedlist / --stop-after-revive 是本机探针用的，GitHub 分段会把整串种子发给每一段（种子重复、合并失败），请改用 --seed + --games'); for (let c = 0; c < chunksOf(j); c++) if (range(j, c).hi > range(j, c).lo) include.push({ req: f, name: nameOf(f), chunk: c }); }
   console.log('matrix=' + JSON.stringify({ include }));
   console.log('any=' + (include.length ? 'true' : 'false'));
   console.error(`请求 ${files.length} 个：${files.join(' ')}；共 ${include.length} 段`);

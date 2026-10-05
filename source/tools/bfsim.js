@@ -169,7 +169,7 @@ function applyPatches(BF, names) {
   const reviveFrom = (names.map(n => /^revive-from(\d+)$/.exec(n)).find(Boolean) || [])[1];
   if (reviveFrom) applyReviveGate(BF, +reviveFrom);
   if (fromN) applyGateMate(BF, S => S.turn === 'b' && gated(S), a => isPofu(a));
-  if (has('revive-free')) applyReviveFree(BF);
+  if (has('revive-free')) { const xh = BF.CFG.generalArts.xiaohe; if ((xh.reviveLevel || 1) !== 1 || xh.reviveCap) throw new Error('revive-free 预设自己实现召回（回来一级），不认 reviveLevel / reviveCap，不能一起用'); applyReviveFree(BF); }
   // 反击变体（engine_counter）+ 方案 A：破釜封锁期里楚方被动也封，还手同样封住
   if (has('pofu-noup') && BF.CFG.counter) BF.CFG.counter.pfSeal = true;
 }
@@ -354,7 +354,7 @@ function parseArgs(argv) {
     else if (k === '--json') o.json = v();
     else if (k === '--quiet') o.quiet = true;
     else if (k === '--save-ult') o.saveUlt = true;
-    else if (k === '--seedlist') o.seedlist = v().split(',').filter(Boolean).map(Number);
+    else if (k === '--seedlist') { const raw = v(); o.seedlist = String(raw == null ? '' : raw).split(/[\s,]+/).filter(Boolean).map(Number); if (!o.seedlist.length || o.seedlist.some(x => !Number.isInteger(x))) throw new Error('--seedlist 要写成逗号分隔的整数种子，现在是：' + raw); }
     else if (k === '--stop-after-revive') o.stopAfterRevive = true;
     else if (k === '--ai') o.ai = v();
     else if (k === '--ai-r') o.aiR = v();
@@ -598,13 +598,14 @@ async function run(o) {
   let ais;
   if (o.match) {
     if (o.match.length !== 2) throw new Error('--match 要写成 新,旧');
+    if (o.seedlist || o.stopAfterRevive) throw new Error('--seedlist / --stop-after-revive 不能和 --match 一起用');
     ais = { A: resolveAI(o.match[0]), B: resolveAI(o.match[1]) };
     if (!o.sprt) o.sprt = [-30, 10];
     // 每个种子两局：A 执汉一局、A 执楚一局
     for (let i = 0; i < Math.ceil(o.games / 2); i++) for (const flip of [false, true]) jobs.push({ seed: o.seed + i, flip, aiR: flip ? 'B' : 'A', aiB: flip ? 'A' : 'B', red: o.red || o.level, black: o.black || o.level, maxRounds: o.maxRounds, open: o.open, saveUlt: o.saveUlt });
   } else {
     ais = { R: resolveAI(o.aiR || o.ai), B: resolveAI(o.aiB || o.ai) };
-    const seeds = o.seedlist && o.seedlist.length ? o.seedlist : Array.from({ length: o.games }, (_, i) => o.seed + i);
+    const seeds = o.seedlist || []; if (!o.seedlist) for (let i = 0; i < o.games; i++) seeds.push(o.seed + i);
     for (const seed of seeds) jobs.push({ seed, aiR: 'R', aiB: 'B', red: o.red || o.level, black: o.black || o.level, maxRounds: o.maxRounds, open: o.open, saveUlt: o.saveUlt, stopAfterRevive: !!o.stopAfterRevive });
   }
   const results = [], errors = [], warned = new Set();
@@ -761,7 +762,7 @@ function summarize(rs) {
   S.rescue = rs.filter(r => r.rescue).length;
   // 召回的子：兵种、死时几级、回来几级，以及按“死时一级 / 二级以上”分开的汉胜率
   { const g = rs.filter(r => r.rev); if (g.length) { const cnt = f => { const o = {}; for (const r of g) { const k = f(r); o[k] = (o[k] || 0) + 1; } return o; };
-    const lo = g.filter(r => r.rev.dl === 1), hi = g.filter(r => r.rev.dl != null && r.rev.dl >= 2);
+    const done = r => r.winner != null || r.reason !== 'probe', lo = g.filter(r => r.rev.dl === 1 && done(r)), hi = g.filter(r => r.rev.dl != null && r.rev.dl >= 2 && done(r));   // 探针局（召回后就停）没有胜负，不算胜率
     S.rev = { n: g.length, t: cnt(r => r.rev.t), dl: cnt(r => r.rev.dl == null ? '?' : r.rev.dl), rl: cnt(r => r.rev.rl == null ? '?' : r.rev.rl), lo: [lo.length, lo.filter(r => r.winner === 'r').length], hi: [hi.length, hi.filter(r => r.winner === 'r').length] }; } }
   // 翻盘：第 R 回合时局面分落后 ≥ T 的一方，最后赢了的比例
   S.comeback = {};
