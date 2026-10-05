@@ -80,7 +80,8 @@ const XE8 = () => {
 //   楚的车炮兵：用户“楚有炮车兵”——照常留着、数值照常（开局摆子里不拿掉）；用户为 XE8 加的“第 30 回合起楚可召回车”保留（只影响踩完后收尾）。旧的那版（24 / 17 血、没有车炮兵）留作 xe9old。
 const XE9old = () => { XE8(); const C = BF.CFG; C.sideStats.b.a.freeMove = [[1, 1], [1, -1], [-1, 1], [-1, -1], [1, 0], [-1, 0]]; C.healAura.adj = 'e'; };
 //   用户再定：“士的升级成长提上去每级加5。目的是唯一解法就是先把最近的士挡在象头上，然后一直升级，远处的士尽快赶过来，挡在侧面”→ 士血 2/7/12/17（攻击照旧每级 +2）。
-const XE9 = () => { XE9old(); const C = BF.CFG; C.sideStats.b.e.hp = [6, 1]; C.sideStats.b.a.hp = [2, 7, 12, 17]; };
+//   用户：“关掉冲阵”——车的三级技能冲阵（撞开前方第一枚子、落到它身后打那格）会跳过象头的士 / 象旁的马直接打象；XE9 里关掉（两边的车都没有）。
+const XE9 = () => { XE9old(); const C = BF.CFG; C.sideStats.b.e.hp = [6, 1]; C.sideStats.b.a.hp = [2, 7, 12, 17]; C.skills.chongzhen.level = 99; };
 const setupXE8 = g => g.setup(T => {
   for (let r = 0; r < 10; r++) for (let f = 0; f < 9; f++) {
     const p = T.board[r][f]; if (!p) continue;
