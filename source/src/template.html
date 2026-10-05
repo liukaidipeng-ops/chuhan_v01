@@ -639,7 +639,7 @@ body.compact #log{width:164px;max-height:34vh}
 #mSet .rod,#mSet .wrap:after{display:none}
 #mSet .wrap{width:min(560px,100%);height:min(780px,100%);max-height:100%}
 #mSet .scroll{width:100%;height:100%;max-height:100%;padding:calc(24px + var(--safe-t)) 24px 0;border:0;border-radius:0;background:var(--g);box-shadow:0 30px 90px rgba(0,0,0,.5);text-align:left;
-  display:grid;grid-template-columns:58px minmax(0,1fr);grid-template-rows:minmax(0,1fr) auto;align-content:start}
+  display:grid;grid-template-columns:58px minmax(0,1fr);grid-template-rows:1fr auto;align-content:start}
 #mSet h3,#lobby .e-band-t{margin:0;padding:22px 0;border:2px solid var(--c);color:var(--k);font-size:34px;font-weight:900;line-height:1;letter-spacing:.4em;writing-mode:vertical-rl;text-orientation:upright;display:flex;align-items:center;white-space:nowrap}
 #mSet h3{grid-column:1;grid-row:1}
 #mSet .e-body{grid-column:2;grid-row:1;margin-left:-2px;min-width:0}
@@ -744,12 +744,12 @@ body.compact #log{width:164px;max-height:34vh}
 @media (hover:hover){#endcard .btn:hover{background:var(--c);color:var(--k)}}
 
 /* ---------- 其余弹窗：发言、导出、更新说明、玩法、选择、观战入席（和设置面板同一个骨架：左边竖条页名，底栏固定） ---------- */
-.e-m,#pauseOv,#bfTip,#loading{--g:#a8281c;--c:#f0e7d2;--k:#141311;--ef:"EB","Noto Serif SC","Source Han Serif SC","Noto Serif CJK SC","Songti SC","STSong","SimSun",serif;--es:"PingFang SC","Noto Sans SC","Noto Sans CJK SC","Microsoft YaHei",sans-serif}
+.e-m,.e-c,#pauseOv,#bfTip,#loading{--g:#a8281c;--c:#f0e7d2;--k:#141311;--ef:"EB","Noto Serif SC","Source Han Serif SC","Noto Serif CJK SC","Songti SC","STSong","SimSun",serif;--es:"PingFang SC","Noto Sans SC","Noto Sans CJK SC","Microsoft YaHei",sans-serif}
 .modal.e-m{padding:0;background:rgba(20,19,17,.66);color:var(--c);font-family:var(--ef)}
 .modal.e-m .rod,.modal.e-m .wrap:after{display:none}
 .modal.e-m .wrap{width:min(560px,100%)}
 .modal.e-m .scroll{width:100%;max-height:min(780px,100dvh);padding:calc(24px + var(--safe-t)) 24px 0;border:0;border-radius:0;background:var(--g);box-shadow:0 30px 90px rgba(0,0,0,.5);text-align:left;
-  display:grid;grid-template-columns:58px minmax(0,1fr);grid-template-rows:minmax(0,auto) auto;align-content:start}
+  display:grid;grid-template-columns:58px minmax(0,1fr);grid-template-rows:auto auto;align-content:start}
 .modal.e-m .scroll>h3{grid-column:1;grid-row:1;margin:0;padding:22px 0;border:2px solid var(--c);color:var(--k);font-size:34px;font-weight:900;line-height:1;letter-spacing:.4em;word-spacing:-.6em;writing-mode:vertical-rl;text-orientation:upright;display:flex;align-items:center;white-space:nowrap}
 .modal.e-m .e-body{grid-column:2;grid-row:1;margin-left:-2px;min-width:0;padding:16px 16px 18px;border:2px solid var(--c);font-family:var(--es);font-size:15px;line-height:1.8}
 .modal.e-m .e-bar{grid-column:1/-1;grid-row:2;position:sticky;bottom:0;z-index:2;display:flex;gap:12px;margin:22px -24px 0;padding:16px 24px calc(16px + var(--safe-b));border-top:2px solid var(--c);background:var(--g)}
@@ -780,9 +780,26 @@ body.compact #log{width:164px;max-height:34vh}
 #mName .row{margin:8px 0 0}
 @media (max-width:640px){
   .modal.e-m .wrap{width:100%;height:100%}
-  .modal.e-m .scroll{height:100%;max-height:none;box-shadow:none;grid-template-rows:minmax(0,auto) 1fr}
+  .modal.e-m .scroll{height:100%;max-height:none;box-shadow:none;grid-template-rows:auto 1fr}
   .modal.e-m .e-bar{align-self:end}
 }
+/* 小卡片式弹窗（喊话、选择、观战入席、导出）：不占全屏，和规则速览一个样子 */
+.modal.e-c{padding:14px;background:rgba(20,19,17,.5);color:var(--c);font-family:var(--es)}
+.modal.e-c .rod,.modal.e-c .wrap:after{display:none}
+.modal.e-c .wrap{width:min(430px,100%)}
+.modal.e-c .scroll{width:100%;max-height:calc(100dvh - 28px);padding:22px 22px 18px;border:0;border-radius:0;background:var(--g);box-shadow:inset 0 0 0 5px var(--g),inset 0 0 0 7px var(--c),0 20px 60px rgba(0,0,0,.45);text-align:left}
+.modal.e-c .scroll>h3{margin:2px 0 12px;padding:0;color:var(--k);font-family:var(--ef);font-weight:900;font-size:22px;letter-spacing:.2em;word-spacing:-.4em}
+.modal.e-c .note,.modal.e-c p{margin:0 0 10px;color:var(--c);font-family:var(--es);font-size:14px;line-height:1.7}
+.modal.e-c .e-bar{display:flex;justify-content:flex-end;gap:10px;margin:16px 0 2px}
+.modal.e-c .btn{min-height:44px;padding:0 16px;border:2px solid var(--c);border-radius:0;background:none;color:var(--c);box-shadow:none;font-family:var(--ef);font-weight:900;font-size:15px;letter-spacing:.12em;white-space:nowrap}
+.modal.e-c .btn.solid{background:var(--k);color:var(--c);border-color:var(--c)}
+.modal.e-c .btn:active{background:var(--c);color:var(--k);transform:scale(.97)}
+.modal.e-c .btn:disabled{opacity:.38}
+@media (hover:hover){.modal.e-c .btn:hover{background:var(--c);color:var(--k)}}
+.modal.e-c input,.modal.e-c textarea{border:2px solid var(--c)!important;border-radius:0!important;background:rgba(20,19,17,.22)!important;color:var(--c)!important}
+.modal.e-c input::placeholder{color:rgba(240,231,210,.55)}
+.modal.e-c input.code{border-width:0 0 2px!important;background:none!important}
+#mExport textarea{height:min(38vh,300px)!important}
 /* ---------- 暂停 ---------- */
 #pauseOv{background:rgba(20,19,17,.72);font-family:var(--ef)}
 #pauseOv .pz{width:min(420px,calc(100vw - 48px));padding:30px 28px 26px;background:var(--g);color:var(--c);box-shadow:inset 0 0 0 5px var(--g),inset 0 0 0 7px var(--c),0 30px 90px rgba(0,0,0,.5)}
@@ -1133,7 +1150,7 @@ body.compact #log{width:164px;max-height:34vh}
 </div></div></div>
 
 <!-- 发言 -->
-<div id="chat" class="modal e-m hidden"><div class="wrap"><div class="rod t"></div><div class="rod b"></div><div class="scroll">
+<div id="chat" class="modal e-c hidden"><div class="wrap"><div class="rod t"></div><div class="rod b"></div><div class="scroll">
   <h3 id="chatT">阵 前 喊 话</h3>
   <div class="e-body">
   <div id="watchOpts" class="hidden">
@@ -1153,7 +1170,7 @@ body.compact #log{width:164px;max-height:34vh}
 </div></div></div>
 
 <!-- 更新说明 -->
-<div id="mExport" class="modal e-m hidden"><div class="wrap"><div class="rod t"></div><div class="rod b"></div><div class="scroll">
+<div id="mExport" class="modal e-c hidden"><div class="wrap"><div class="rod t"></div><div class="rod b"></div><div class="scroll">
   <h3>导出本局</h3>
   <div class="e-body">
   <div id="exportNote" style="font-size:14px;color:var(--ink3);margin-bottom:8px"></div>
@@ -1238,7 +1255,7 @@ body.compact #log{width:164px;max-height:34vh}
   <div class="e-bar"><button class="btn small solid" id="bHelpClose">知道了</button></div>
 </div></div></div>
 
-<div id="mPick" class="modal e-m hidden"><div class="wrap"><div class="rod t"></div><div class="rod b"></div><div class="scroll">
+<div id="mPick" class="modal e-c hidden"><div class="wrap"><div class="rod t"></div><div class="rod b"></div><div class="scroll">
   <h3 id="pickT">选 择</h3>
   <div class="e-body">
   <p class="note" id="pickP"></p>
@@ -1247,7 +1264,7 @@ body.compact #log{width:164px;max-height:34vh}
   <div class="e-bar"><button class="btn small" id="pickNo">取消</button></div>
 </div></div></div>
 
-<div id="mName" class="modal e-m hidden"><div class="wrap"><div class="rod t"></div><div class="rod b"></div><div class="scroll">
+<div id="mName" class="modal e-c hidden"><div class="wrap"><div class="rod t"></div><div class="rod b"></div><div class="scroll">
   <h3>观战入席</h3>
   <div class="e-body">
   <p class="note" id="nameNote">这局已有两位棋手对弈，你将作为观众入席。</p>

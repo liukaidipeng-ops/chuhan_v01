@@ -5,7 +5,7 @@ from playwright.sync_api import sync_playwright
 SRC = os.path.dirname(os.path.abspath(__file__)) + "/.."; ONLY = set(sys.argv[1].split(",")) if len(sys.argv) > 1 and sys.argv[1] else None
 OUT = SRC + '/shots/ui'; os.makedirs(OUT, exist_ok=True)
 url = pathlib.Path(SRC + '/dist/site/index.html').resolve().as_uri()
-VP = {'pc': (1440, 900, 1), 'm': (390, 844, 2)}
+VP = {'pc': (1440, 900, 1), 'm': (390, 844, 2), 'm360': (360, 640, 2)}
 G = "const $=id=>document.getElementById(id);const hideAll=()=>document.querySelectorAll('.modal').forEach(m=>m.classList.add('hidden'));"
 STEPS = [
     ('help', "$('bHelpL').click()", 1.2),
@@ -13,6 +13,7 @@ STEPS = [
     ('name', "hideAll();$('mName').classList.remove('hidden')", 1.0),
     ('pick', "hideAll();$('pickT').textContent='召 回 良 将';$('pickP').textContent='选一个兵种，回来的是其中等级最高的那枚。';$('pickList').innerHTML='<button class=\"btn small\">车 · 二级</button><button class=\"btn small\">马 · 一级</button><button class=\"btn small\" disabled style=\"opacity:.45\">炮 · 位置被占</button>';$('mPick').classList.remove('hidden')", 1.0),
     ('export', "hideAll();$('exportNote').textContent='把下面这段文字复制出去，可以贴给别人或贴给 Claude 分析。';$('exportText').value='# 技能新象棋 · 本地对战\\n1. 炮二平五 马8进7\\n2. 马二进三 车9平8\\n3. 车一平二 …';$('mExport').classList.remove('hidden')", 1.0),
+    ('set0', "hideAll();$('bSetL').click()", 1.5),
     ('start', "hideAll();$('bLocal').click();document.querySelector('#pCreate .seg[data-k=v] [data-v=bf]').click();document.querySelector('#pCreate .seg[data-k=total] [data-v=\"0\"]').click();document.querySelector('#pCreate .seg[data-k=step] [data-v=\"0\"]').click();$('bCreateGo').click()", 10),
     ('skip', "", 0.2),
     ('hud', "const k=$('skip');if(k&&!k.classList.contains('hidden'))k.click();const o=$('bfTipOk');if(o&&!$('bfTip').classList.contains('hidden'))o.click()", 6),
@@ -23,7 +24,10 @@ STEPS = [
     ('chat', "$('tLog').click();$('tChat').click()", 3.5),
     ('rule', "hideAll();$('tRule').click()", 1.2),
     ('toast', "$('bfTipOk').click();const t=$('toast');t.textContent='轮到红方（汉）走棋';t.classList.add('on');const b=$('bubOpp');b.querySelector('b').textContent='项羽';b.querySelector('span').textContent='竖子，不足与谋！';b.classList.add('on');const m=$('bubMe');m.querySelector('b').textContent='刘邦';m.querySelector('span').textContent='且慢，容我三思。';m.classList.add('on')", 1.0),
-    ('pause', "$('toast').classList.remove('on');$('bubOpp').classList.remove('on');$('bubMe').classList.remove('on');$('tPause').click()", 1.5),
+    ('pick2', "$('toast').classList.remove('on');$('bubOpp').classList.remove('on');$('bubMe').classList.remove('on');$('pickT').textContent='召 回 良 将';$('pickP').textContent='选一个兵种，回来的是其中等级最高的那枚。';$('pickList').innerHTML='<button class=\"btn small\">车 · 二级</button><button class=\"btn small\">马 · 一级</button><button class=\"btn small\" disabled style=\"opacity:.45\">炮 · 位置被占</button>';$('mPick').classList.remove('hidden')", 2.5),
+    ('name2', "hideAll();$('mName').classList.remove('hidden')", 2.5),
+    ('export2', "hideAll();$('exportNote').textContent='把下面这段文字复制出去，可以贴给别人或贴给 Claude 分析。';$('exportText').value='# 技能新象棋 · 本地对战\\n1. 炮二平五 马8进7\\n2. 马二进三 车9平8';$('mExport').classList.remove('hidden')", 2.5),
+    ('pause', "hideAll();$('toast').classList.remove('on');$('bubOpp').classList.remove('on');$('bubMe').classList.remove('on');$('tPause').click()", 1.5),
     ('set', "$('pzSet').click()", 1.5),
     ('exit', "$('tExit').click()", 1.2),
     ('resign', "$('askNo').click();$('tSet').click();$('tResign').click()", 1.2),
