@@ -16,6 +16,8 @@
 //                  而且那枚子下一步就能走到 / 吃到帅身边正将着帅时，
 //                  这一层不算层数（像被将军时的将军延伸；一条线上最多再多延伸 TXN 次，默认 2，环境变量 BFAI_TXN 改）。
 //                  实3 那步：挡马之后真正的杀在第 5～6 层，三层的校尉看不到；危险局面里多算两层就看得到。
+//   BFAI_TXME=1    危险延伸只管“电脑自己的帅”（这一步是谁在想，谁的帅被逼才延伸）；电脑去逼对方的帅时不延伸。
+//                  全开的 TX 在网页里偶尔一步要 4～5 秒（危险局面两边都延伸）；只看自己这边省掉大半，实3 照样修好。
 // 用法（在 source/ 下）：BFAI_QCHK=1 BFAI_QCHECKS=1 node tools/bfsim.js --ai tools/variants/bfai_kd.js ...
 'use strict';
 const fs = require('fs'), path = require('path'), os = require('os');
@@ -24,7 +26,7 @@ const ON = k => { const v = String(process.env[k] || '').toLowerCase(); return !
 const rev = process.env.BFAI_KD_BASE || '33942f1';
 let s = execFileSync('git', ['show', rev + ':source/src/bfai.js'], { cwd: path.join(__dirname, '..', '..'), encoding: 'utf8' });
 const rep = (a, b) => { const n = s.split(a).length - 1; if (n !== 1) throw new Error(`bfai_kd：锚点出现 ${n} 次（${rev} 的电脑改过了？）：${a.slice(0, 80)}`); s = s.replace(a, b); };
-const QCHK = ON('BFAI_QCHK'), QCHECKS = ON('BFAI_QCHECKS'), TX = ON('BFAI_TX'), TXN = process.env.BFAI_TXN != null ? +process.env.BFAI_TXN : 2;
+const QCHK = ON('BFAI_QCHK'), QCHECKS = ON('BFAI_QCHECKS'), TX = ON('BFAI_TX'), TXN = process.env.BFAI_TXN != null ? +process.env.BFAI_TXN : 2, TXME = ON('BFAI_TXME');
 if (TX) {
   // 危险：side 的帅被堵死，对方有砍不死的进攻子离帅不超过 2 步
   rep(`  function ab(S, depth, alpha, beta, ply, ext = 0) {`,
@@ -49,7 +51,9 @@ if (TX) {
   }
   function ab(S, depth, alpha, beta, ply, ext = 0) {`);
   rep(`    const extd = inChk && ext < CX && ply >= 1 ? 1 : 0;`,
-  `    const extd = ply >= 1 && ((inChk && ext < CX) || (!inChk && ext < CX + ${TXN} && kdDanger(S, side))) ? 1 : 0;   // 变体 TX：帅被堵死、对方砍不死的子逼近时也延伸`);
+  `    const extd = ply >= 1 && ((inChk && ext < CX) || (!inChk && ext < CX + ${TXN} && (!${TXME} || side === kdMe) && kdDanger(S, side))) ? 1 : 0;   // 变体 TX：帅被堵死、对方砍不死的子逼近时也延伸（TXME：只管电脑自己的帅）`);
+  rep(`  let upPly = -1;`, `  let kdMe = null;   // 变体 TXME：这一步是谁在想\n  let upPly = -1;`);
+  rep(`    nodes = 0; qMax = L.q; hist.clear();`, `    kdMe = S0.turn; nodes = 0; qMax = L.q; hist.clear();`);
 }
 if (QCHK || QCHECKS) {
   rep(`  function qs(S, alpha, beta, ply, qd) {
@@ -97,6 +101,6 @@ if (QCHECKS) {
   }
   const killers = [];`);
 }
-const out = path.join(os.tmpdir(), `bfai_kd_${rev}_${+QCHK}${+QCHECKS}${+TX}_${process.pid}.js`);
+const out = path.join(os.tmpdir(), `bfai_kd_${rev}_${+QCHK}${+QCHECKS}${+TX}${+TXME}_${process.pid}.js`);
 fs.writeFileSync(out, s);
 module.exports = require(out);
