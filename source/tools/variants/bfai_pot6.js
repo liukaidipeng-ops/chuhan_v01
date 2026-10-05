@@ -3,7 +3,8 @@
 //     这一方全升满以后，回血还是没有 → 逐枚子试“挪到它 BFAI_POTMVD（默认 3）步内走得到的空格”，回血有了就记下（回血最多、步数最少的那个）；
 //     再逐个兵种试“只升满它 + 挪这一步”，找出要升满的兵种（光挪不升也行就不升）。
 //   叶子上：这枚子离目标格还差几步（根上从目标格反着走一遍记下每格的步数）、开关兵种还差几级，凑齐那次行动起回血；
-//   开关每差一步（升一级或走一步）× POTCM。试回血时走的那一步挑离目标格最远的子走（取前 3 个不吃子的着里回得最多的），免得把阵自己走散。
+//   开关每差一步（升一级或走一步）× POTCM（第六版默认 0.9；0.7 时 9 步的阵折得太小，楚不动）。
+//   两种打算合起来 = 大的 + POTALT（默认 0.4）× 小的：0.9 时回血打算一开始就压过“直接升象”，汉打象只压低后者、合计不变 → 汉干脆不打；加上小的那份，汉压低哪条都有用。试回血时走的那一步挑离目标格最远的子走（取前 3 个不吃子的着里回得最多的），免得把阵自己走散。
 //   BFAI_POTMV=0：关掉挪子凑阵（= 第五版）。
 // 第五版的说明：
 //   “潜力估值”第五版 = 第四版（bfai_pot6.js）+ “活到兑现”（用户 2026-10-05：“先改设定，然后再做活到兑现估算”）。
@@ -55,7 +56,7 @@ rep('  // 局面分（站在 me 这一方看）：子力 + 位置（出子、过
   const num = (k, d) => (ENV[k] != null ? +ENV[k] : d);
   const POTW = num('BFAI_POTW', 1), POTD = num('BFAI_POTD', 0.9), POTC = num('BFAI_POTC', 60), POTUP = num('BFAI_POTUP', 0.8);
   const POTWAIT = num('BFAI_POTWAIT', 12), POTR0 = num('BFAI_POTR0', 0.5), POTOVL = num('BFAI_POTOVL', 0.15);
-  const POTSV = ENV.BFAI_POTSV == null || !/^(0|false|off)$/i.test(String(ENV.BFAI_POTSV)), POTK = num('BFAI_POTK', 0.5), POTCM = num('BFAI_POTCM', 0.7);
+  const POTSV = ENV.BFAI_POTSV == null || !/^(0|false|off)$/i.test(String(ENV.BFAI_POTSV)), POTK = num('BFAI_POTK', 0.5), POTCM = num('BFAI_POTCM', 0.9), POTALT = num('BFAI_POTALT', 0.4);
   const POTMV = ENV.BFAI_POTMV == null || !/^(0|false|off)$/i.test(String(ENV.BFAI_POTMV)), POTMVD = num('BFAI_POTMVD', 3);   // 第六版：挪子凑阵   // 第五版：活到兑现
   let SURV = { r: null, b: null };
   const HPCAP = new Map(), TB = new Map();
@@ -333,7 +334,8 @@ rep('  // 局面分（站在 me 这一方看）：子力 + 位置（出子、过
     const m = S.merit[side], rd = roundOf(S), healAt = Math.max(steps + own1, dMv, earnTurns(Math.max(0, costLeft - m), rd) + 1);
     const TH = x => (x.k && !x.k.cool ? Math.max(steps + own1 + x.k.dl, dMv + x.k.dl, x.k.dl + x.k.wd, earnTurns(Math.max(0, x.k.sd + costLeft - x.m), rd) + x.k.dl) : x.T);
     const vH = run(en.h, healAt, TH, x => (x.k && !x.k.cool ? Math.min(POTC, x.k.gain * Math.pow(POTD, TH(x)) * x.k.a) : x.raw));
-    return Math.max(vA, vH * Math.pow(POTCM, steps + dMv));   // 还没做的开关步数：每步 × POTCM（打算还没落实，对方也还没被逼着表态）
+    const vHc = vH * Math.pow(POTCM, steps + dMv);   // 还没做的开关步数（升级 + 挪子）：每步 × POTCM
+    return Math.max(vA, vHc) + POTALT * Math.min(vA, vHc);   // 第六版：两条路都在比只剩一条强——对方压低哪一条都有用（不然一边的打算看着拦不住，对方就干脆不拦）
   }
   const potMap = S => { const PA = new Map(); for (const row of S.board) for (const p of row) if (p) PA.set(p.id, p); return PA; };
   // 局面分（站在 me 这一方看）：子力 + 位置（出子、过河、对着对方主帅的压力）+ 军功 + 兵法 + 决战
@@ -349,6 +351,7 @@ rep('      const unlock = defender && !must && p.lv >= 2 && !(saving || hoard);\
   '      let ig = 0;   // 升完这一级当场能多赚多少（根上试算的 G[lv+1] − G[lv]）：当场就用得上的升级，潜力不涨也要进搜索比\n' +
   '      if (POTON && POT.size) { const PE = POT.get(p.id); if (PE) { const AL = new Set(); for (const row of S.board) for (const q of row) if (q) AL.add(q.id); pg = POTW * (potAt(PE, T.board[r][f], T, AL).v - potAt(PE, p, S, AL).v); if (PE.G[p.lv + 1] != null && PE.G[p.lv] != null) ig = PE.G[p.lv + 1] - PE.G[p.lv]; } }\n' +
   '      if (POTON && POT.size && (SURV.r || SURV.b)) { const P0 = potMap(S), P1 = potMap(T); const ps = POTW * ((potSide(T, me, P1, true) - potSide(T, other(me), P1, false)) - (potSide(S, me, P0, true) - potSide(S, other(me), P0, false))); if (ps > pg) pg = ps; }   // 第五版：双方潜力合计之差（回血开关这种升级本身没潜力）\n' +
+  '      if (POTON && SURV[other(me)] && SURV[other(me)].att.some(a => a.id === p.id && !a.d)) pg = Math.max(pg, POTUP);   // 第六版：打手（现在就打得到对方潜力子）升一级也进候选——“升了再打”的好处静态分看不出来\n' +
   '      const potUp = pg >= POTUP || ig >= POTUP; pg = Math.max(pg, ig);\n' +
   '      const unlock = defender && !must && p.lv >= 2 && !(saving || hoard);\n' +
   '      if (defender && !must && !unlock && !potUp && !(p.t === \'a\' && heavy && p.lv < 2)) continue;\n' +
@@ -359,7 +362,7 @@ rep('    if (ex) top.push(ex);\n    return top;',
 
 // ---- 调试：根上的升级候选（think.ups） ----
 rep('    let ups = upgradeCands(S, L);',
-  '    let ups = upgradeCands(S, L);\n    think.ups = ups.map(c => ({ at: c.at, gain: +c.gain.toFixed(2), must: !!c.must, unlock: !!c.unlock, pot: !!c.pot, pg: +(c.pg || 0).toFixed(2) }));   // 变体 bfai_pot6：调试用\n    think.surv = SURV; think.potSide = (S2, sd, fu) => potSide(S2, sd, potMap(S2), fu); think.potAll = POT;');
+  '    let ups = upgradeCands(S, L);\n    think.ups = ups.map(c => ({ at: c.at, gain: +c.gain.toFixed(2), must: !!c.must, unlock: !!c.unlock, pot: !!c.pot, pg: +(c.pg || 0).toFixed(2) }));   // 变体 bfai_pot6：调试用\n    think.surv = SURV; think.potSide = (S2, sd, fu) => potSide(S2, sd, potMap(S2), fu); think.potAll = POT; think.score = score;');
 
 // ---- 每回合开头先试算潜力 ----
 rep('nodes = 0; qMax = L.q; hist.clear();',
