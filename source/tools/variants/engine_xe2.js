@@ -44,6 +44,19 @@ function enginePath() {
     "  const inCheckS = (S, s) => (S.final || kingShielded(S, s) ? false :");
   rep("  const inCheckF = (S, s) => !S.final && inCheck(S.board, s);",
     "  const inCheckF = (S, s) => !S.final && !kingShielded(S, s) && inCheck(S.board, s);");
+  // 极端诊断七（XE7 = XE6 + 象升二级后两回合无敌）：sideStats[方][兵种].invOnUp = { lv, rounds }——这一方这一兵种升到 lv 级起，
+  //   从升级那一回合起再算 rounds 回合不掉血：扣血（damage）直接不扣，来攻它的子打不动、被弹回原位（strike 返回 'hit'）。
+  rep("    p.lv++; p.hp = CFG_CUR.upgrade.healOnUpgrade ? hpOfS(p.s, p.t, p.lv) : p.hp + 1;",
+    "    p.lv++; p.hp = CFG_CUR.upgrade.healOnUpgrade ? hpOfS(p.s, p.t, p.lv) : p.hp + 1;\n" +
+    "    { const o = sideOv(p.s, p.t); if (o && o.invOnUp && p.lv >= o.invOnUp.lv) p.inv = Math.floor((S.cnt.r + S.cnt.b) / 2) + 1 + o.invOnUp.rounds; }   // 变体·xe2：升级后几回合无敌");
+  rep("  const upLocked = (S, p) => {",
+    "  const isInv = (S, p) => !!(p && p.inv && Math.floor((S.cnt.r + S.cnt.b) / 2) + 1 <= p.inv);   // 变体·xe2：还在无敌期\n" +
+    "  const upLocked = (S, p) => {");
+  rep("    if (!v || v.t === 'k') return;\n    v.hp -= n;",
+    "    if (!v || v.t === 'k' || isInv(S, v)) return;   // 变体·xe2：无敌的子不掉血\n    v.hp -= n;");
+  rep("    const A = atk(P);\n    if (T.hp <= A) {",
+    "    if (isInv(S, T)) { ev.push({ e: 'repel', id: P.id, from: from.slice(), to: to.slice() }); return 'hit'; }   // 变体·xe2：打不动无敌的子，弹回原位\n" +
+    "    const A = atk(P);\n    if (T.hp <= A) {");
   const file = path.join(os.tmpdir(), `bingfa_xe2_${process.pid}.js`);
   fs.writeFileSync(file, s);
   process.on('exit', () => { try { fs.unlinkSync(file); } catch (e) { } });

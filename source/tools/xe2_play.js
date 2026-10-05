@@ -9,6 +9,7 @@
 //   --mode xe4：同 xe3，但楚开局只有 10 功（只够升到二级），给汉留出围剿的时间。
 //   --mode xe5：两边 30 功；楚象一级 6 血 1 攻、二级 1 血 1 攻（无视塞象眼、落地秒杀），升级 30 功、第 7 回合起才能升；汉车马炮攻击、血都从 2 起，每级 +1。
 //   --mode xe6：xe5 + 前 10 回合楚将无敌（不算被将军、不会被将死）。
+//   --mode xe7：xe6 + 象升到二级后两回合无敌。
 //   --normal：不开 XE2（现行规则），当对照——平常汉方打楚象有多早、多频繁。
 'use strict';
 process.env.ENGINE_REV = process.env.ENGINE_REV || '9aca810';
@@ -42,8 +43,10 @@ const XE5 = () => {
 };
 // XE6（用户再加一条）：XE5 + 前 10 回合楚将无敌（不算被将军、不会被将死；500 点血只在决战里有用，这里不设）
 const XE6 = () => { XE5(); BF.CFG.kingShield = { side: 'b', untilRound: 10 }; };
-const START_MERIT = opt.normal ? null : ['xe3', 'xe5', 'xe6'].includes(opt.mode) ? { r: 30, b: 30 } : opt.mode === 'xe4' ? { r: 30, b: 10 } : null;
-if (!opt.normal) (opt.mode === 'xe6' ? XE6 : opt.mode === 'xe5' ? XE5 : opt.mode === 'xe3' || opt.mode === 'xe4' ? XE3 : XE2)();
+// XE7（用户再加一条）：XE6 + 象升到二级后两回合无敌（打不动、不掉血）
+const XE7 = () => { XE6(); BF.CFG.sideStats.b.e.invOnUp = { lv: 2, rounds: 2 }; };
+const START_MERIT = opt.normal ? null : ['xe3', 'xe5', 'xe6', 'xe7'].includes(opt.mode) ? { r: 30, b: 30 } : opt.mode === 'xe4' ? { r: 30, b: 10 } : null;
+if (!opt.normal) ({ xe7: XE7, xe6: XE6, xe5: XE5, xe3: XE3, xe4: XE3 }[opt.mode] || XE2)();
 function loadAI(spec) {
   if (!spec.startsWith('git:')) return require(path.resolve(path.join(__dirname, '..'), spec));
   const rev = spec.slice(4), file = path.join(os.tmpdir(), `bfai_${rev}_${process.pid}.js`);
