@@ -11,7 +11,7 @@ HALL = """()=>{document.getElementById('hallNote').textContent='2 个房间在�
 const row=(o,g,n,c,lock,s,t)=>`<li class="${o?'open':'play'}"><span class="hv ${g}">${n[0]}</span><span class="hi"><b>${n}</b> · 房间 ${c}${lock?' 🔒':''}<small>${s} · ${t}</small></span><button class="btn small ${o?'red solid':''}" data-code="${c}">${o?'加 入':'观 战'}</button></li>`;
 document.getElementById('hallList').innerHTML=row(1,'bf','技能模式','KXQ7M',0,'房主执红（汉），你执黑（楚）','不限时')+row(1,'','象棋','B3TRA',1,'房主执黑（楚），你执红（汉）','每方 15 分 · 每步 1 分')+row(0,'jq','揭棋','HN52P',0,'对局中','每方 10 分')+row(0,'bf','技能模式','W8DLC',0,'对局中','不限时')+row(1,'','象棋','Q6FZE',0,'房主执红（汉），你执黑（楚）','每方 30 分')}"""
 WAIT = """()=>{document.getElementById('roomCode').textContent='KXQ7M';
-document.getElementById('roomSeats').innerHTML='<div class="seat r me"><span class="sd">红·汉</span><div class="who">你（房主）</div><small>已就座</small></div><div class="seat b empty"><span class="sd">黑·楚</span><div class="who">等待对手</div><small>空位</small></div>';
+document.getElementById('roomSeats').innerHTML='<div class="seat r me"><span class="sd">红·汉</span><div class="who">你</div><small>房主 · 先手</small></div><div class="seat b empty"><span class="sd">黑·楚</span><div class="who">空位</div><small>等待对手…</small></div>';
 document.getElementById('waitChips').innerHTML='<span class="chip">技能模式</span><span class="chip">公开</span><span class="chip">悔棋 3 次</span><span class="chip">不限时</span>';
 document.getElementById('waitNote').textContent='把房间码发给朋友，或等大厅里的人加入';
 document.getElementById('roomHostRow').classList.remove('hidden')}"""

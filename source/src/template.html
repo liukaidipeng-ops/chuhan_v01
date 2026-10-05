@@ -681,6 +681,45 @@ body.compact #log{width:164px;max-height:34vh}
 #mAsk.e-stay #askYes{flex:0 0 118px;background:none;color:var(--k);font-size:16px;letter-spacing:.14em}
 #mAsk.e-stay .row{flex-direction:row}
 
+/* ---------- 电脑宽屏：房间设置、等待房间、加入房间撑满一屏（底部一条棋盘格，主操作的棋子落在正中） ---------- */
+@media (min-width:641px){
+  #pCreate .e-bar,#pJoin .e-bar{position:relative;height:var(--bh);margin-top:auto;padding:0;border-right:2px solid var(--c);border-bottom:2px solid var(--c);
+    background:linear-gradient(90deg,var(--c) 0 2px,transparent 2px) 0 0/12.5% 100%,linear-gradient(180deg,var(--c) 0 2px,transparent 2px) 0 0/100% 50%}
+  #pCreate .e-bar .btn,#pJoin .e-bar .btn{--d:calc(var(--bh)*.74);position:absolute;left:50%;top:50%;margin:calc(var(--d)/-2) 0 0 calc(var(--d)/-2)}
+  #pCreate .e-body{padding-bottom:28px}
+  #pCreate .opt{min-height:78px}
+  #pCreate .opt .lbl{font-size:23px}
+  #pCreate .opt .lbl small{font-size:13px}
+  #pCreate .seg button{min-height:50px;padding:0 20px;font-size:16px}
+  /* 加入房间：房间码写在河界那一条里 */
+  #pJoin .e-body{max-width:none;padding:0 0 28px}
+  #pJoin .e-body>.note:first-child{min-height:56px;display:flex;align-items:center;justify-content:center;font-size:16px;letter-spacing:.3em;border:2px solid var(--c);border-bottom:0}
+  #pJoin .e-body .row{height:var(--bh);margin:0;border:2px solid var(--c)}
+  #lobby #pJoin input.code{width:100%;height:100%;padding:0 0 0 .5em;border:0;color:var(--k);font-weight:bold;font-size:calc(var(--bh)*.46);letter-spacing:.5em}
+  #pJoin #joinNote{margin:18px 0 0;font-size:16px}
+  /* 等待房间：两个座位是棋盘格上对坐的两枚棋子 */
+  #pWait .e-body{max-width:none;padding-top:0}
+  #pWait .seats{position:relative;display:block;height:var(--bh);margin:0 0 26px;border-right:2px solid var(--c);border-bottom:2px solid var(--c);
+    background:linear-gradient(90deg,var(--c) 0 2px,transparent 2px) 0 0/12.5% 100%,linear-gradient(180deg,var(--c) 0 2px,transparent 2px) 0 0/100% 50%}
+  #pWait .seat{--d:calc(var(--bh)*.8);--pb:var(--c);--pf:var(--k);position:absolute;top:50%;left:37.5%;width:var(--d);height:var(--d);max-width:none;margin:calc(var(--d)/-2) 0 0 calc(var(--d)/-2);padding:0;
+    border:0;border-radius:50%;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:calc(var(--d)*.03);line-height:1.15;
+    background:var(--pb);color:var(--pf);box-shadow:inset 0 0 0 calc(var(--d)*.04) var(--pb),inset 0 0 0 calc(var(--d)*.05) var(--pf)}
+  #pWait .seat.b{left:62.5%;--pb:var(--k);--pf:var(--c)}
+  #pWait .seat.empty{background:var(--g);color:var(--c);border:2px dashed var(--c);box-shadow:none;opacity:1}
+  #pWait .seat.me{outline:3px solid var(--c);outline-offset:7px;box-shadow:inset 0 0 0 calc(var(--d)*.04) var(--pb),inset 0 0 0 calc(var(--d)*.05) var(--pf)}
+  #pWait .seat .sd{padding:0;background:none;color:inherit;font-size:calc(var(--d)*.085);font-weight:900;letter-spacing:.3em;padding-left:.3em}
+  #pWait .seat .who{margin:0;font-size:calc(var(--d)*.2);font-weight:900;letter-spacing:.06em;white-space:nowrap}
+  #pWait .seat small{color:inherit;font-size:calc(var(--d)*.07);letter-spacing:.06em;white-space:nowrap}
+  #pWait .specs{margin:0 0 12px;font-size:17px}
+  #pWait .chips{gap:10px;margin:14px 0}
+  #pWait .chip{padding:7px 16px;font-size:15px;letter-spacing:.1em}
+  #pWait .note{font-size:16px}
+  #pWait .row{gap:14px;margin:20px 0 4px}
+  #pWait .e-body .btn,#pWait .e-body .btn.small{min-height:58px;padding:0 28px;font-size:20px;letter-spacing:.2em}
+  #pWait select{min-height:58px;padding:0 12px!important;font-size:17px!important}
+}
+#lobby .seat small b{color:inherit!important;font-weight:900}
+
 /* ---------- 手机竖屏：竖河 ---------- */
 @media (max-width:640px){
   #lobby{--bw:calc(100vw - 48px);--pw:calc(100vw - 48px)}
