@@ -27,7 +27,7 @@ for (let i = 0; i < argv.length; i++) {
 }
 if (!opt.file) { console.log('用法见文件开头的说明'); process.exit(1); }
 const text = fs.readFileSync(opt.file === '-' ? 0 : opt.file, 'utf8');
-const { game: full, data } = load(text);
+const { game: full, data, rules } = load(text);   // rules：这局用的规则（自动判断：现行 / 破釜时代 / r6），后面每次重放都照它
 if (data.kind !== 'bf') { console.log('这局不是技能模式（' + data.kind + '），考卷只收技能模式的局'); process.exit(1); }
 
 const N = { r: '车', n: '马', e: '相', a: '士', k: '帅', c: '炮', p: '兵' };
@@ -46,7 +46,7 @@ const desc = (S, a) => {
 const entries = data.entries || [];
 const turns = [];
 {
-  const g = load(data, 0).game;
+  const g = load(data, 0, rules).game;
   let start = 0, seq = [];
   for (let i = 0; i < entries.length; i++) {
     const side = g.turn;
@@ -73,13 +73,13 @@ function findTurn(spec) {
 (async () => {
   const aiInfo = data.ai ? Object.entries(data.ai).map(([s, l]) => SIDE[s] + '方是电脑（' + l + '）').join('、') : '没有电脑';
   if (!opt.turn) {
-    console.log(`版本 ${data.ver} · ${aiInfo} · 共 ${turns.length} 手 · ${data.result ? (data.result.winner ? SIDE[data.result.winner] + '胜 ' + data.result.reason : '和') : '未分胜负'}`);
+    console.log(`版本 ${data.ver} · 规则 ${require("./game_load.js").rulesText(rules)} · ${aiInfo} · 共 ${turns.length} 手 · ${data.result ? (data.result.winner ? SIDE[data.result.winner] + '胜 ' + data.result.reason : '和') : '未分胜负'}`);
     for (const t of turns) console.log(`第 ${String(t.round).padStart(2)} 回合 ${SIDE[t.side]}${t.ai ? '（电脑）' : '        '}：${t.text}`);
     console.log('\n看某一手：加 --turn 12楚（回合号 + 哪一方）');
     return;
   }
   const t = findTurn(opt.turn);
-  const g0 = load(data, t.from).game;
+  const g0 = load(data, t.from, rules).game;
   const played = entries.slice(t.from, t.to);
   console.log(`第 ${t.round} 回合 ${SIDE[t.side]}方${t.ai ? '（电脑）' : '（不是电脑走的！考卷一般只收电脑的着法）'}，走之前的局面：\n`);
   console.log(draw(g0));
@@ -96,14 +96,14 @@ function findTurn(spec) {
 
   if (!opt.name) throw new Error('--add 需要 --name');
   // 收题前检查：电脑那一手、标准答案在这个局面下都合法
-  const ok = seq => { const g = load(data, t.from).game; for (const x of seq) if (!g.apply(x)) return false; return true; };
+  const ok = seq => { const g = load(data, t.from, rules).game; for (const x of seq) if (!g.apply(x)) return false; return true; };
   if (!ok(played)) throw new Error('原局这一手在重建的局面里不合法（导出数据有问题？）');
   if (opt.answer && !ok(opt.answer)) throw new Error('--answer 在这个局面下不合法：' + JSON.stringify(opt.answer));
   const file = path.join(__dirname, 'bfai_exam_games.json');
   const list = fs.existsSync(file) ? JSON.parse(fs.readFileSync(file, 'utf8')) : [];
   const item = {
     name: opt.name, desc: opt.desc || `实战第 ${t.round} 回合${SIDE[t.side]}方：电脑走了 ${played.map(x => desc(g0.S, x)).join(' + ')}`,
-    added: new Date().toISOString().slice(0, 10), at: t.from, side: t.side, bad: played, answer: opt.answer || null, mode: opt.mode || (opt.answer ? 'same' : 'avoid'), judgeNodes: opt.mode === 'survive' ? opt.judgeNodes : undefined,
+    added: new Date().toISOString().slice(0, 10), rules, at: t.from, side: t.side, bad: played, answer: opt.answer || null, mode: opt.mode || (opt.answer ? 'same' : 'avoid'), judgeNodes: opt.mode === 'survive' ? opt.judgeNodes : undefined,
     deep: { seq: deep, v: +L.v.toFixed(2), depth: L.depth, ms: opt.verify }, data,
   };
   list.push(item);
