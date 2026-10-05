@@ -112,6 +112,7 @@
   - **H44 → C57**：TD 说 `test/bfai.policy.test.js` 的 H3 时过时不过。查明：校尉 3 层里车进 3 路将军 −1.54 比打马 −1.67 高，噪声一摇七成走将军（16aacba 起就这样，bee5741 时 40/40 打马）；霸王按时间收手，4 层以下也走将军。深算 5～8 层打马最好但差很小，不算弱点。给了测试补丁 `tools/variants/bfai_policy_test.patch`（按节点数 6 万、H3 只考霸王），新旧电脑各 20 遍全过；C56 补丁打上后 dev 7 组测试全过。
   - **H45 → C58 验收通过**：TD 打进 dev ecf1ddd（代码逐字节相同）；30 局逐局 30/30；网页 P90 1.0 / 1.0 秒，最长 2.3 / 3.7（楚帅被围那步 15.9 万节点，5 秒兜底内）。用户已跟 TD 说可以上线。工具待改：bfpage_timing 用 file:// 取不到 voice-real.bin。
   - **第八轮（等用户答拍板单）**：用户定四级车、终极兵法都不改；要把相齐射改成横竖两格、象践踏改成落地就触发 = 10-04 的 Plan C。拍板单加了 r8_rule / r8_level / r8_test（顺手关了早就答过的 r6_cap / r6_help / r6_up）。`engine_planc.js` 换底版 `ENGINE_REV=ecf1ddd`（现行规则）自测 94 项全过，答了就能跑。
+  - **第八轮已开跑**：用户选照 Plan C、三级、600 局（r8_rule a / r8_level b / r8_test a + “跑600局吧”）。任务 `simjobs/r8-planc.json`（engine_planc，ENGINE_REV=9aca810 = 第七轮的引擎，电脑 98dd206，种子 1000–1599，24 段）；对照 r7-revtype 前 600 局逐局比。电脑懂不懂的探针：`scratchpad/probe_planc.js`（P1–P6，两版电脑开 Plan C 全对、关 Plan C 照旧）。
 
 ## 1. 已确认的结论
 
