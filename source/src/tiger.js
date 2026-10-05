@@ -410,12 +410,12 @@ const TigerHD = (() => {
   }
 
   // 节杖：竹竿分节，三重旄，每重一圈垂穗，杖首铜帽
-  // gold：四级的金色权杖——杖身、竹节、旄顶、杖首全部鎏金，旄穗仍是朱红。bare：不带旄的纯金权杖（备选）
-  function makeStaff(side, len = 2.9, gold = false, bare = false) {
+  // gold：四级的金色权杖——杖身、竹节、旄顶、杖首全部鎏金，旄穗仍是朱红（Ham 定的款式）
+  function makeStaff(side, len = 2.9, gold = false) {
     const c = SIDE[side], strands = [], pole = gold ? 0xd6a43e : 0x8a6a3a, knot = gold ? 0xf7dc8c : 0x5a4424, capC = gold ? 0xd6a43e : 0xb0301f, trim = gold ? 0xf7dc8c : c.trim, k = gold ? 1.2 : 1;
     const parts = [P(new THREE.CylinderGeometry(0.022 * k, 0.026 * k, len, q(14, 6, 5, 4, 4, 3), 1, LOD >= 2), pole, 0, len / 2, 0)];
     if (upto(2)) { const ns = q([6, 16], [3, 6], [3, 4]); for (let y = 0.2; y < len - 0.1; y += q(0.27, 0.54, 0.9)) parts.push(P(new THREE.TorusGeometry(0.026 * k, 0.006 * k, ns[0], ns[1]), knot, 0, y, 0, PI / 2)); }
-    if (!bare) [len - 0.32, len - 0.68, len - 1.04].forEach((y, kk) => {
+    [len - 0.32, len - 0.68, len - 1.04].forEach((y, kk) => {
       const r0 = 0.085 - kk * 0.006;
       if (upto(3)) parts.push(P(SQ(r0, q([20, 12], [8, 3], [6, 2], [5, 2]), 0, PI * 2, 0, PI / 2), capC, 0, y, 0, 0, 0, 0, 1, 0.75, 1));
       if (upto(2)) { const gs = q([8, 20], [3, 8], [3, 5]); parts.push(P(new THREE.TorusGeometry(r0 * 0.55, 0.012, gs[0], gs[1]), trim, 0, y + r0 * 0.6, 0, PI / 2)); }
@@ -426,11 +426,10 @@ const TigerHD = (() => {
         }
       } else parts.push(P(new THREE.ConeGeometry(r0 * 1.3, 0.34, q(6, 6, 6, 6, 6, 5), 1, true), 0xb0301f, 0, y - 0.13, 0)); // 最低两档：整重旄并成一个喇叭形
     });
-    if (gold) { // 金杖的杖首：一颗金珠托在莲座上，顶上出尖；bare 款珠子更大，下面多三道箍
-      const R0 = bare ? 0.11 : 0.07, os = q([18, 14], [8, 6], [7, 5], [6, 4], [5, 3], [4, 2]);
+    if (gold) { // 金杖的杖首：一颗金珠托在莲座上，顶上出尖
+      const R0 = 0.07, os = q([18, 14], [8, 6], [7, 5], [6, 4], [5, 3], [4, 2]);
       parts.push(P(new THREE.ConeGeometry(R0 * 0.9, R0 * 1.2, q(12, 6, 6, 5, 4, 4), 1, true), 0xd6a43e, 0, len + R0 * 0.3, 0, PI));
       parts.push(P(SQ(R0, os), 0xf7dc8c, 0, len + R0 * 1.25, 0), P(new THREE.ConeGeometry(R0 * 0.34, R0 * 1.7, q(8, 4, 4, 4, 3), 1, true), 0xd6a43e, 0, len + R0 * 2.75, 0));
-      if (bare) { const bs = q([8, 20], [3, 8], [3, 6], [3, 6]); if (upto(3)) for (const y of [len - 0.12, len - 0.3, len - 0.48]) parts.push(P(new THREE.TorusGeometry(0.045, 0.016, bs[0], bs[1]), 0xf7dc8c, 0, y, 0, PI / 2)); parts.push(P(new THREE.ConeGeometry(0.04, 0.5, q(8, 5, 4, 4, 3), 1, true), 0xb0301f, 0, len - 0.78, 0)); }
     } else if (upto(1)) parts.push(P(new THREE.LatheGeometry([[0, 0], [0.036, 0], [0.04, 0.03], [0.026, 0.06], [0.03, 0.09], [0.012, 0.13], [0.018, 0.16], [0, 0.2]].map(p => new THREE.Vector2(p[0], p[1])), q(16, 6)), c.trim, 0, len - 0.02, 0));
     else parts.push(P(new THREE.ConeGeometry(0.036, 0.2, q(6, 6, 5, 4, 4, 3), 1, true), c.trim, 0, len + 0.08, 0));
     const g = inkedMerged(parts);
@@ -648,9 +647,9 @@ const TigerHD = (() => {
   const HAND = { x: 0.4, y: 0.92, z: 0.5 };                                // 文臣握杖的手（文臣坐标）
   function makeProwl(side = 'r', opt = {}) {
     LOD = Math.max(0, Math.min(5, opt.lod | 0)); GOLD = !!opt.gold;
-    try { return buildProwl(side, GOLD, opt.scepter === 'bare'); } finally { LOD = 0; GOLD = false; }
+    try { return buildProwl(side, GOLD); } finally { LOD = 0; GOLD = false; }
   }
-  function buildProwl(side, gold, bare) {
+  function buildProwl(side, gold) {
     const c = SIDE[side], t = makeTiger({ tail: 'low' });
     t.bodyPivot.add(saddleCloth(t, gold ? { base: '#c9962e', edge: '#8e1c12', line: '#f7dc8c', fringe: 0xb0301f, trim: 0xf7dc8c } : { base: '#2a2725', edge: '#1d1c1b', line: '#d9b45a', fringe: 0xb0301f, trim: c.trim }));
     if (gold) { // 金甲：贴着虎身的三块合成一个网格，颈甲单独一个（跟着脖子动）
@@ -666,7 +665,7 @@ const TigerHD = (() => {
     bridle(t, gold ? { ...c, cloth: 0x8e1c12, trim: 0xf7dc8c } : c, gold);
     mount(t, side, LOOK.zhu, fig => { // 节杖挂在一个以手为支点的组上，扑击时杖随手前倾
       const grip = new THREE.Group(); grip.name = 'staff'; grip.position.set(HAND.x, HAND.y, HAND.z); fig.add(grip);
-      const sf = makeStaff(side, 2.9, gold, bare); sf.position.set(0.42 - HAND.x, -0.72 - HAND.y, 0); sf.rotation.z = -0.07; grip.add(sf);
+      const sf = makeStaff(side, 2.9, gold); sf.position.set(0.42 - HAND.x, -0.72 - HAND.y, 0); sf.rotation.z = -0.07; grip.add(sf);
     });
     return t;
   }
