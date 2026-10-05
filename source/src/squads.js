@@ -392,6 +392,56 @@ const Squads = (() => {
     }
     brace() { this.setPose('cower'); }
   }
+  // 汉相「虎骑」（预览中：网址带 ?tiger=1 才启用，线上仍是谋士车驾）
+  const TIGER = /[?&]tiger=1/.test(location.search), TG = 0.26;
+  class TigerRider extends Squad {
+    constructor(side, anchor, yaw, gold = false) {
+      super('e', side, anchor, yaw);
+      this.m = Models.makeTigerRider(side, { gold }); this.m.group.scale.setScalar(TG);
+      this.group.add(this.m.group);
+      this.updaters.push(dt => { this.m.update(dt); this.sync(); });
+      this.sync();
+    }
+    sync() { const g = this.m.group; g.position.copy(this.anchor).addScaledVector(fwd(this.yaw), -0.1); g.position.y = gy(this.anchor); g.rotation.y = this.yaw - Math.PI / 2; }
+    async march(path, dur) {
+      this.m.speed = 0.8; let last = 0;
+      await walkPath(this, path, dur, k => { kick(this, 0.26, 0.3, 0.2, 2); if (k - last > 0.22) { last = k; Fx.Marks.foot(this.anchor.clone().addScaledVector(rightOf(this.yaw), R(-0.08, 0.08))); } });
+      this.m.speed = 0;
+    }
+    async attack(target, c) {
+      const { B, d } = c, m = this.m;
+      // 伏低 → 咆哮 → 窜出 → 腾身扑下
+      tween(0.35, k => { m.roarK = k; }); Sfx.B.trumpet(0, 0.2, true);
+      if (target.brace) target.brace();
+      await sleep(0.55);
+      tween(0.25, k => { m.roarK = 1 - k; });
+      m.speed = 1.4;
+      const start = this.anchor.clone(), end = B.clone().addScaledVector(d, -0.3), mid = start.clone().lerp(end, 0.72);
+      await tween(Math.max(0.3, start.distanceTo(mid) / 3.2), k => { this.anchor.lerpVectors(start, mid, k); if (Math.random() < 0.4) P.dust(this.center(0), 1, d, 0.2); }, ease.in);
+      m.speed = 0;
+      await tween(0.26, k => { this.anchor.lerpVectors(mid, end, k); m.pounceK = Math.sin(k * Math.PI * 0.5); m.roarK = k; m.group.position.y = gy(this.anchor) + Math.sin(k * Math.PI) * 0.12; });
+      Cam.shake(0.28); Fx.slowmo(0.3, 0.14);
+      const hp = B.clone(); hp.y = TOP + 0.25;
+      Fx.slash(hp, 1.0, 0.6); sleep(0.07).then(() => Fx.slash(hp, 1.0, -0.6, 0x9e2418));
+      P.dust(B, 10, null, 0.3); Fx.Marks.cut(B, d);
+      const dead = target.die('cut', d, 1.2, B);
+      await tween(0.3, k => { m.pounceK = 1 - k; m.roarK = 1 - k; }, ease.in);
+      await dead;
+      await sleep(0.3);
+    }
+    brace() { tween(0.3, k => { this.m.roarK = k * 0.8; }); }
+    async die(hit, dir, power) {
+      const m = this.m, c = this.center(0.25);
+      m.deadSide = Math.random() < 0.5 ? 1 : -1;
+      tween(0.25, k => { m.roarK = k; }); Sfx.B.trumpet(0, 0.22, true);
+      P.blood(c, 20, 1.0, dir, 1.1);
+      if (hit === 'blast') P.fire(c, 16, 0.7);
+      await sleep(0.15);
+      await tween(0.8, k => { m.dead = k; m.roarK = 1 - k; }, ease.in);
+      Cam.shake(0.15); P.dust(this.center(0), 10, null, 0.3); Sfx.B.thud(0, 0.7);
+      Fx.Marks.blood(this.center(0).addScaledVector(dir, 0.1), 1.0, dir);
+    }
+  }
   // 楚军战象（象）
   class Elephant extends Squad {
     constructor(side, anchor, yaw, gold = false) {
@@ -907,7 +957,7 @@ const Squads = (() => {
     const sq = make0(t, side, anchor, yaw, role, n);
     if (t === 'r' && n >= 4 && sq instanceof Chariot) { vanguard(sq); const d0 = sq.die; sq.die = (hit, dir, ...a) => { sq.echoesDie(dir || new V3(0, 0, 1)); return d0(hit, dir, ...a); }; return sq.rank ? sq.rank(lv) : sq; }
     if (n > 1) {
-      if (sq instanceof Elephant || sq instanceof Chariot) sq.addEchoes([sq.m.group], t === 'e' ? Math.min(3, n) : n, t === 'r' ? 0.36 : 0.4);   // 四级战象：三头黄金象，不再加数量
+      if (sq instanceof Elephant || sq instanceof TigerRider || sq instanceof Chariot) sq.addEchoes([sq.m.group], t === 'e' ? Math.min(3, n) : n, t === 'r' ? 0.36 : 0.4);   // 四级战象：三头黄金象，不再加数量
       else if (sq instanceof Cannon && sq.mode !== 'battery') sq.addEchoes([sq.gun.group].concat(sq.horse ? [sq.horse.group] : []), n, 0.42);
       if (sq.echoes) { const die = sq.die.bind(sq); sq.die = (hit, dir, ...a) => { sq.echoesDie(dir || new V3(0, 0, 1)); return die(hit, dir, ...a); }; }
     }
@@ -917,7 +967,7 @@ const Squads = (() => {
     switch (t) {
       case 'p': return new Infantry(side, anchor, yaw, n);
       case 'a': return new Guards(side, anchor, yaw, n);
-      case 'e': return side === 'r' ? new Crossbow(side, anchor, yaw, n) : new Elephant(side, anchor, yaw, n >= 4);
+      case 'e': return side === 'r' ? (TIGER ? new TigerRider(side, anchor, yaw, n >= 4) : new Crossbow(side, anchor, yaw, n)) : new Elephant(side, anchor, yaw, n >= 4);
       case 'r': return new Chariot(side, anchor, yaw);
       case 'n': return new Cavalry(side, anchor, yaw, n);
       case 'c': return new Cannon(side, anchor, yaw, role === 'attack' ? 'battery' : role === 'defend' ? 'defend' : 'march', n);
@@ -1270,8 +1320,8 @@ const Squads = (() => {
       if (sq.troop) { const u = sq.troop.units.find(x => !x.dead) || sq.troop.units[0]; return { p: u.p, yaw: u.yaw, h: 0.95 * sq.troop.scale, back: 0.035 }; }
       if (sq.riders) { const h = sq.riders[0].group; return { p: h.position, yaw: sq.yaw, h: 0.3, back: 0.05 }; }
       if (sq.crew) { const u = sq.crew.units[0]; return { p: u.p, yaw: u.yaw, h: 0.95 * sq.crew.scale, back: 0.035 }; }
-      const g = sq.m ? sq.m.group : sq.group, el = sq instanceof Elephant;
-      return { p: g.position, yaw: sq.yaw, h: el ? 0.42 : 0.24, back: el ? 0.12 : 0.02 };
+      const g = sq.m ? sq.m.group : sq.group, el = sq instanceof Elephant, tg = sq instanceof TigerRider;
+      return { p: g.position, yaw: sq.yaw, h: el ? 0.42 : tg ? 0.36 : 0.24, back: el ? 0.12 : tg ? 0.24 : 0.02 };
     }
     const vis = (st, k) => { st.sq.setVis(k); if (st.sq.guard) st.sq.guard.setVis(k); };
     function drop(m) {
@@ -1363,5 +1413,5 @@ const Squads = (() => {
     };
   })();
 
-  return { get finalMode() { return finalMode; }, set finalMode(v) { finalMode = !!v; }, Stand, move, capture, pieceBoat, heroDefeat, make, charge, retreat, hurtSquad, yawOf, knightCorner, Shade, Infantry, Guards, Crossbow, Elephant, Chariot, Cavalry, Cannon, General, killUnit, walkPath, turnTo, TroopSquad };
+  return { get finalMode() { return finalMode; }, set finalMode(v) { finalMode = !!v; }, Stand, move, capture, pieceBoat, heroDefeat, make, charge, retreat, hurtSquad, yawOf, knightCorner, Shade, Infantry, Guards, Crossbow, TigerRider, Elephant, Chariot, Cavalry, Cannon, General, killUnit, walkPath, turnTo, TroopSquad };
 })();

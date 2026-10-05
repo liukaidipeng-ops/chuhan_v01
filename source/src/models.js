@@ -704,6 +704,183 @@ const Models = (() => {
     const o = { group: g, wheels, horse, speed: 0, update(dt) { horse.speed = o.speed; horse.update(dt); for (const w of wheels) w.rotation.z -= o.speed * dt * 4; } };
     return o;
   }
+  // ======================================================================
+  //  汉相「虎骑」（面向 +X）：一头压低身子潜行的白虎，驮着一位宽袍高冠、手持汉节的文臣
+  //  虎：白底黑纹、额上一个「王」字，赤金鞍鞯；人：绛袍皂缘、进贤冠、长须，右手持节（三重红旄），左手捧虎符
+  // ======================================================================
+  function makeTigerRider(side = 'r', opt = {}) {
+    const c = SIDE[side], gold = !!opt.gold;
+    const fur = 0xefebe2, fur2 = 0xf8f5ee, ST = 0x1b1a19, trim = gold ? 0xf7dc8c : c.trim, red = gold ? 0x8e1c12 : c.cloth, hem = 0x221f1e;
+    const g = new THREE.Group();
+    const root = new THREE.Group(); g.add(root);       // 整体（扑击、倒地时转动）
+    const body = new THREE.Group(); root.add(body);
+    const WZ = 0.98;   // 身体左右的宽度比例
+    // 一道虎纹：跨过脊背的弧。R = 该处身体半径，arc = 弧长，skew = 斜度
+    const arcP = (x, cy, R, arc, skew, tube, w) => P(new THREE.TorusGeometry(R, tube, 4, 12, arc), ST, x, cy, 0, 0, Math.PI / 2 + skew, (Math.PI - arc) / 2, WZ, 1, w);
+    const stripe = (x, cy, R, arc, skew = 0) => [arcP(x, cy, R, arc, skew, 0.014, 1.5), arcP(x, cy, R + 0.004, arc * 0.62, skew, 0.026, 1.6)];
+    const ring = (r, y, tube = 0.024) => P(new THREE.TorusGeometry(r, tube, 4, 8), ST, 0, y, 0, Math.PI / 2, 0, 0, 1, 1, 1.5);
+    body.add(inkedMerged([
+      P(G.cyl(0.45, 0.52, 1.5, 12), fur, 0, 1.15, 0, 0, 0, Math.PI / 2, 1, 1, WZ),             // 腰身
+      P(G.sph(0.6, 12), fur, 0.72, 1.2, 0, 0, 0, 0, 1.0, 1.02, WZ),                             // 胸
+      P(G.sph(0.54, 12), fur, -0.75, 1.13, 0, 0, 0, 0, 1.05, 1, WZ),                            // 臀
+      P(G.sph(0.22, 8), fur, 0.62, 1.74, 0.24, 0, 0, 0, 1.4, 0.8, 0.85), P(G.sph(0.22, 8), fur, 0.62, 1.74, -0.24, 0, 0, 0, 1.4, 0.8, 0.85),   // 耸起的肩胛（潜行的大猫最显眼的一笔）
+      P(G.sph(0.3, 8), fur, 0.8, 1.0, 0.4, 0, 0, 0, 1.0, 1.3, 0.62), P(G.sph(0.3, 8), fur, 0.8, 1.0, -0.4, 0, 0, 0, 1.0, 1.3, 0.62),          // 肩头的肌肉
+      P(G.sph(0.33, 8), fur, -0.8, 1.02, 0.42, 0, 0, 0, 1.15, 1.3, 0.62), P(G.sph(0.33, 8), fur, -0.8, 1.02, -0.42, 0, 0, 0, 1.15, 1.3, 0.62), // 后腿根
+      P(G.sph(0.36, 8), fur2, 0.1, 0.82, 0, 0, 0, 0, 2.2, 0.5, 0.85),                           // 肚皮
+      // 虎纹：长短相间、微微斜向后，一直披到腹侧
+      ...[[1.1, 1.2, 0.47, 2.2], [0.98, 1.2, 0.55, 3.3], [0.86, 1.2, 0.595, 2.4], [0.74, 1.2, 0.612, 3.6], [0.62, 1.2, 0.603, 2.5], [0.5, 1.2, 0.575, 3.5],
+        [0.36, 1.15, 0.509, 2.4], [0.24, 1.15, 0.503, 3.5], [0.1, 1.15, 0.497, 2.3], [-0.03, 1.15, 0.491, 3.4], [-0.16, 1.15, 0.485, 2.4], [-0.29, 1.15, 0.479, 3.5],
+        [-0.42, 1.13, 0.5, 2.4], [-0.55, 1.13, 0.528, 3.5], [-0.68, 1.13, 0.544, 2.5], [-0.81, 1.13, 0.548, 3.6], [-0.94, 1.13, 0.53, 2.4], [-1.06, 1.13, 0.486, 3.2], [-1.17, 1.13, 0.41, 2.2],
+      ].flatMap(([x, cy, R, arc], i) => stripe(x, cy, R, arc, 0.1 + (i % 3) * 0.04)),
+      // 鞍鞯：赤毡金边，下角垂红缨；胸前一道金带
+      P(G.box(0.86, 0.06, 0.7), red, -0.12, 1.69, 0),
+      P(G.box(0.86, 0.46, 0.05), red, -0.12, 1.47, 0.47, -0.26), P(G.box(0.86, 0.46, 0.05), red, -0.12, 1.47, -0.47, 0.26),
+      P(G.box(0.9, 0.06, 0.07), trim, -0.12, 1.255, 0.53, -0.26), P(G.box(0.9, 0.06, 0.07), trim, -0.12, 1.255, -0.53, 0.26),
+      P(G.box(0.06, 0.46, 0.07), trim, 0.31, 1.47, 0.475, -0.26), P(G.box(0.06, 0.46, 0.07), trim, 0.31, 1.47, -0.475, 0.26),
+      P(G.box(0.06, 0.46, 0.07), trim, -0.55, 1.47, 0.475, -0.26), P(G.box(0.06, 0.46, 0.07), trim, -0.55, 1.47, -0.475, 0.26),
+      ...[0.3, -0.54].flatMap(x => [1, -1].map(s => P(G.cone(0.055, 0.24, 5), c.tassel, x, 1.1, 0.56 * s))),
+      P(new THREE.TorusGeometry(0.565, 0.042, 5, 16), trim, 0.47, 1.2, 0, 0, Math.PI / 2, 0, WZ, 1, 1),
+    ], 0.03));
+    // 颈与头：压低前探。头大、脸宽、吻短
+    const neck = new THREE.Group(); neck.position.set(1.05, 1.27, 0); body.add(neck);
+    const head = new THREE.Group(); head.position.set(0.72, -0.1, 0); neck.add(head);
+    neck.add(inkedMerged([
+      P(G.cyl(0.36, 0.46, 0.66, 10), fur, 0.26, -0.03, 0, 0, 0, -Math.PI / 2 - 0.12, 1, 1, 0.98),
+      P(new THREE.TorusGeometry(0.435, 0.045, 5, 14), trim, 0.12, -0.01, 0, 0, Math.PI / 2, 0, 0.98, 1, 1),   // 金项圈
+      P(G.cone(0.07, 0.3, 5), c.tassel, 0.12, -0.62, 0), P(G.sph(0.075, 6), trim, 0.12, -0.46, 0),               // 圈下铜铃、红缨
+      P(new THREE.TorusGeometry(0.405, 0.024, 4, 10, 2.6), ST, 0.34, -0.05, 0, 0, Math.PI / 2 + 0.1, (Math.PI - 2.6) / 2, 0.98, 1, 1.5), P(new THREE.TorusGeometry(0.385, 0.024, 4, 10, 2.0), ST, 0.46, -0.07, 0, 0, Math.PI / 2 + 0.1, (Math.PI - 2.0) / 2, 0.98, 1, 1.5),
+    ], 0.03));
+    head.add(inkedMerged([
+      P(G.sph(0.44, 12), fur, 0, 0, 0, 0, 0, 0, 0.95, 0.9, 1.1),
+      // 腮毛：两蓬外翻的白鬃，把脸撑宽
+      P(G.sph(0.3, 8), fur2, -0.1, -0.16, 0.38, 0, 0, 0, 0.8, 1.0, 0.62), P(G.sph(0.3, 8), fur2, -0.1, -0.16, -0.38, 0, 0, 0, 0.8, 1.0, 0.62),
+      P(G.cone(0.13, 0.34, 5), fur2, -0.14, -0.36, 0.44, 0.5, 0, 2.6), P(G.cone(0.13, 0.34, 5), fur2, -0.14, -0.36, -0.44, -0.5, 0, 2.6),
+      // 鼻梁与吻：短而宽
+      P(G.box(0.26, 0.15, 0.22), fur, 0.27, 0.03, 0, 0, 0, -0.35),
+      P(G.box(0.17, 0.19, 0.36), fur2, 0.36, -0.13, 0), P(G.sph(0.125, 7), fur2, 0.4, -0.14, 0.11), P(G.sph(0.125, 7), fur2, 0.4, -0.14, -0.11),
+      P(G.box(0.05, 0.07, 0.13), 0x5e2f2a, 0.455, -0.035, 0),                                                                                          // 鼻
+      P(G.box(0.2, 0.025, 0.38), ST, 0.35, -0.235, 0),                                                                                                // 嘴缝
+      P(G.cone(0.035, 0.15, 4), C.ivory, 0.4, -0.3, 0.13, Math.PI), P(G.cone(0.035, 0.15, 4), C.ivory, 0.4, -0.3, -0.13, Math.PI),                   // 上犬齿
+      ...[1, -1].flatMap(s => [0, 1, 2].map(i => P(G.box(0.02, 0.02, 0.02), ST, 0.44 - i * 0.045, -0.11 - (i % 2) * 0.04, 0.195 * s))),              // 须根的黑点
+      // 眼：琥珀色，上面压一道斜眉
+      P(G.sph(0.07, 6), 0xe9a92a, 0.3, 0.1, 0.235, 0, 0, 0, 1, 0.85, 1), P(G.sph(0.07, 6), 0xe9a92a, 0.3, 0.1, -0.235, 0, 0, 0, 1, 0.85, 1),
+      P(G.sph(0.036, 5), ST, 0.355, 0.1, 0.24), P(G.sph(0.036, 5), ST, 0.355, 0.1, -0.24),
+      P(G.box(0.26, 0.05, 0.07), ST, 0.26, 0.2, 0.235, 0, 0.5, -0.3), P(G.box(0.26, 0.05, 0.07), ST, 0.26, 0.2, -0.235, 0, -0.5, -0.3),
+      // 耳：正面白，背面黑
+      P(G.sph(0.16, 7), fur, -0.16, 0.38, 0.31, 0, 0, 0, 0.45, 1, 1), P(G.sph(0.16, 7), fur, -0.16, 0.38, -0.31, 0, 0, 0, 0.45, 1, 1),
+      P(G.sph(0.15, 7), ST, -0.21, 0.38, 0.31, 0, 0, 0, 0.4, 0.95, 0.95), P(G.sph(0.15, 7), ST, -0.21, 0.38, -0.31, 0, 0, 0, 0.4, 0.95, 0.95),
+      // 额上「王」字：三横一竖
+      P(G.box(0.07, 0.035, 0.34), ST, 0.17, 0.335, 0, 0, 0, -0.45), P(G.box(0.07, 0.035, 0.24), ST, 0.04, 0.378, 0, 0, 0, -0.15), P(G.box(0.07, 0.035, 0.34), ST, -0.09, 0.38, 0, 0, 0, 0.12),
+      P(G.box(0.33, 0.035, 0.07), ST, 0.04, 0.38, 0, 0, 0, -0.17),
+      // 头侧、腮上的斜纹
+      ...[1, -1].flatMap(s => [
+        P(G.box(0.24, 0.035, 0.06), ST, -0.0, 0.3, 0.29 * s, 0.5 * s, 0.5 * s, 0), P(G.box(0.22, 0.035, 0.06), ST, -0.17, 0.27, 0.22 * s, 0.4 * s, 0.4 * s, 0.1),
+        P(G.box(0.06, 0.3, 0.05), ST, -0.1, -0.1, 0.555 * s, 0.4 * s, 0, 0.5), P(G.box(0.06, 0.27, 0.05), ST, 0.04, -0.2, 0.52 * s, 0.5 * s, 0, 0.62), P(G.box(0.06, 0.22, 0.05), ST, -0.25, 0.0, 0.52 * s, 0.35 * s, 0, 0.4),
+        P(G.box(0.05, 0.16, 0.05), ST, 0.14, 0.02, 0.37 * s, 0.3 * s, 0, 0.9),
+      ]),
+    ], 0.028));
+    const jaw = new THREE.Group(); jaw.position.set(0.1, -0.27, 0); head.add(jaw);
+    jaw.add(inkedMerged([P(G.box(0.4, 0.1, 0.32), fur2, 0.2, -0.04, 0), P(G.box(0.3, 0.02, 0.24), 0x7a2a22, 0.17, 0.015, 0), P(G.cone(0.03, 0.1, 4), C.ivory, 0.37, 0.06, 0.1), P(G.cone(0.03, 0.1, 4), C.ivory, 0.37, 0.06, -0.1)], 0.02));
+    // 四条腿：上臂 / 大腿 → 前臂 / 小腿 → 厚掌（脚掌始终贴地）
+    const legs = [];
+    for (const [x, z, front, reach] of [[0.8, 0.36, 1, 1], [0.8, -0.36, 1, 0], [-0.8, 0.38, 0, 0], [-0.8, -0.38, 0, 1]]) {
+      const hip = new THREE.Group(); hip.position.set(x, front ? 1.0 : 0.98, z); root.add(hip);
+      const rt = front ? 0.24 : 0.27, rb = front ? 0.17 : 0.18, len2 = front ? 0.5 : 0.55;
+      hip.add(inkedMerged([P(G.cyl(rt, rb, 0.66, 8), fur, 0, -0.3, 0), ring(rt - 0.02, -0.12), ring((rt + rb) / 2 + 0.005, -0.3), ring(rb + 0.014, -0.48)], 0.025));
+      const knee = new THREE.Group(); knee.position.y = -0.6; hip.add(knee);
+      knee.add(inkedMerged([P(G.cyl(rb - 0.01, 0.14, len2 + 0.04, 8), fur, 0, -len2 / 2, 0), ring(0.158, -0.16, 0.02), ring(0.152, -0.32, 0.02)], 0.025));
+      const foot = new THREE.Group(); foot.position.y = -len2; knee.add(foot);
+      foot.add(inkedMerged([P(G.sph(0.2, 8), fur, 0.08, 0.01, 0, 0, 0, 0, 1.4, 0.6, 1.15), ...[-0.1, 0, 0.1].map(dz => P(G.box(0.09, 0.02, 0.014), ST, 0.3, 0.01, dz))], 0.025));
+      // 潜行的姿势：前肢屈肘、一只前掌探出；后肢蹲曲、蓄着劲
+      const base = front ? (reach ? [0.55, 0.1] : [-0.6, 1.1]) : (reach ? [0.82, -1.38] : [0.75, -1.3]);
+      legs.push({ hip, knee, foot, front, base, off: front ? (z > 0 ? 0 : 0.5) : (z > 0 ? 0.75 : 0.25) });
+    }
+    // 尾：长而有力，先垂后扬、末梢上卷，黑环黑尖
+    const tail = []; let par = body;
+    for (let i = 0; i < 8; i++) {
+      const seg = new THREE.Group(); seg.position.set(i === 0 ? -1.24 : 0, i === 0 ? 1.32 : -0.26, 0);
+      const r0 = 0.115 - i * 0.007;
+      seg.add(inkedMerged([P(G.cyl(r0, r0 - 0.007, 0.3, 7), i >= 6 ? ST : fur, 0, -0.13, 0), ...(i < 6 ? [ring(r0 + 0.004, -0.13, 0.026)] : [])], 0.02));
+      par.add(seg); tail.push(seg); par = seg;
+    }
+    // —— 骑在虎背上的文臣（“相”）——
+    const rider = new THREE.Group(); rider.position.set(-0.12, 1.7, 0); rider.scale.setScalar(0.88); body.add(rider);
+    rider.add(inkedMerged([
+      // 袍裾：从腰间铺开成一口钟，罩住虎背两侧；皂色下缘
+      P(G.cyl(0.27, 0.66, 0.66, 12), red, 0, 0.06, 0, 0, 0, 0, 0.92, 1, 1.02),
+      P(G.cyl(0.665, 0.69, 0.08, 12), hem, 0, -0.29, 0, 0, 0, 0, 0.92, 1, 1.02),
+      P(G.box(0.5, 0.05, 0.8), red, -0.56, -0.02, 0, 0, 0, 0.32), P(G.box(0.09, 0.06, 0.84), hem, -0.79, -0.1, 0, 0, 0, 0.32),   // 身后拖着的袍摆
+      // 上身：绛袍、皂色交领、金带
+      P(G.cyl(0.2, 0.3, 0.64, 8), red, 0, 0.62, 0),
+      P(G.cyl(0.305, 0.31, 0.09, 8), trim, 0, 0.36, 0), P(G.box(0.05, 0.16, 0.14), trim, 0.3, 0.3, 0),
+      P(G.box(0.05, 0.42, 0.11), hem, 0.2, 0.7, 0.06, 0.35, 0, -0.12), P(G.box(0.05, 0.42, 0.11), hem, 0.2, 0.7, -0.06, -0.35, 0, -0.12),
+      P(G.box(0.04, 0.2, 0.1), C.white, 0.205, 0.86, 0, 0, 0, -0.1),
+      P(G.sph(0.16, 7), red, 0, 0.88, 0.25, 0, 0, 0, 1, 0.8, 1), P(G.sph(0.16, 7), red, 0, 0.88, -0.25, 0, 0, 0, 1, 0.8, 1),
+      // 头：长须、进贤冠（前高后低，一根金簪）
+      P(G.sph(0.15, 8), C.skin, 0.02, 1.1, 0),
+      P(G.cone(0.075, 0.34, 5), C.dark, 0.14, 0.89, 0, 0, 0, Math.PI), P(G.box(0.06, 0.03, 0.2), C.dark, 0.14, 1.04, 0),
+      P(G.sph(0.12, 6), C.hair, -0.05, 1.18, 0),
+      P(G.box(0.24, 0.12, 0.2), hem, 0.0, 1.28, 0), P(G.box(0.05, 0.26, 0.18), hem, 0.1, 1.44, 0, 0, 0, 0.1), P(G.box(0.3, 0.04, 0.18), hem, -0.02, 1.47, 0, 0, 0, 0.72), P(G.box(0.05, 0.1, 0.18), hem, -0.12, 1.37, 0),
+      P(G.box(0.035, 0.035, 0.46), trim, 0.0, 1.29, 0),
+    ], 0.022));
+    const sleeve = (len) => [P(G.cyl(0.1, 0.25, len, 7), red, 0, -len / 2 + 0.01, 0, 0, 0, 0, 1, 1, 0.72), P(G.cyl(0.255, 0.26, 0.07, 7), hem, 0, -len + 0.01, 0, 0, 0, 0, 1, 1, 0.72), P(G.cyl(0.215, 0.215, 0.02, 7), 0x7e1e14, 0, -len - 0.03, 0, 0, 0, 0, 1, 1, 0.72)];
+    // 右臂：宽袖前伸，手里一根汉节——长杆、金顶、三重红旄
+    const armR = new THREE.Group(); armR.position.set(0.04, 0.86, 0.3); rider.add(armR);
+    armR.add(inkedMerged([...sleeve(0.56), P(G.sph(0.07, 6), C.skin, 0.02, -0.6, 0)], 0.02));
+    armR.rotation.z = 1.0;
+    const staff = new THREE.Group(); staff.position.set(0.02, -0.6, 0.02); armR.add(staff);
+    staff.add(inkedMerged([
+      P(G.cyl(0.028, 0.028, 3.4, 6), 0x5a3a22, 0, 0.8, 0),
+      P(G.sph(0.07, 7), trim, 0, 2.54, 0), P(G.cone(0.045, 0.16, 5), trim, 0, 2.66, 0),
+      ...[2.28, 1.98, 1.68].flatMap(y => [P(G.cyl(0.045, 0.13, 0.22, 8), 0xb0301f, 0, y, 0), P(G.cyl(0.13, 0.09, 0.06, 8), 0x7e1e14, 0, y - 0.14, 0), P(G.cyl(0.05, 0.05, 0.05, 6), trim, 0, y + 0.135, 0)]),
+    ], 0.02));
+    staff.rotation.z = -1.0 - 0.05;   // 抵消手臂的前伸，杆子竖直，略向前倾
+    // 左臂：袖手当胸，掌中一枚金虎符
+    const armL = new THREE.Group(); armL.position.set(0.04, 0.86, -0.3); rider.add(armL);
+    armL.add(inkedMerged([...sleeve(0.52), P(G.sph(0.065, 6), C.skin, 0.02, -0.56, 0), P(G.box(0.2, 0.11, 0.05), trim, 0.07, -0.62, 0, 0, 0, -0.8), P(G.sph(0.05, 5), trim, 0.17, -0.69, 0)], 0.02));
+    armL.rotation.set(-0.42, 0, 0.82);
+    const TH = -1.0, CURL = [0.1, 0.02, -0.22, -0.38, -0.46, -0.44, -0.3];
+    const o = {
+      group: g, root, body, neck, head, jaw, legs, tail, rider, armR, armL, staff,
+      t: rnd() * 5, speed: 0, pounceK: 0, roarK: 0, dead: 0, deadSide: 1,
+      update(dt) {
+        o.t += dt * (1 + o.speed);
+        const s = o.dead ? 0 : Math.min(1.4, o.speed), ph = o.t * 5.2, pk = o.pounceK, dk = o.dead;
+        for (const L of legs) {
+          const a = ph + L.off * Math.PI * 2, sw = Math.sin(a), lift = Math.max(0, Math.cos(a));
+          let hz = L.base[0] + s * sw * 0.5, kz = L.base[1] + s * lift * (L.front ? 0.55 : -0.5);
+          if (!s) hz += Math.sin(o.t * 1.1 + L.off * 6) * 0.012;
+          // 扑击：前肢前探张开，后肢蹬直
+          if (pk > 0) { const th = L.front ? 1.05 : -0.55, tk = L.front ? 0.15 : -0.15; hz += (th - hz) * pk; kz += (tk - kz) * pk; }
+          if (dk > 0) { hz += ((L.front ? 0.7 : -0.5) - hz) * dk; kz += ((L.front ? 0.3 : -0.4) - kz) * dk; }
+          L.hip.rotation.z = hz; L.knee.rotation.z = kz; L.foot.rotation.z = -(hz + kz) * (1 - Math.max(pk, dk) * 0.6);
+        }
+        // 身体：走动时肩胯交替起伏；扑击时以后爪为轴扬起前身
+        const th = pk * 0.55;
+        root.rotation.z = th; root.rotation.x = 0;
+        root.position.set(-0.8 + 0.8 * Math.cos(th), 0.8 * Math.sin(th) * 0.25 + s * Math.abs(Math.sin(ph)) * 0.04, 0);
+        body.rotation.z = s * Math.sin(ph * 2) * 0.012; body.position.y = -0.12 + (1 - s) * Math.sin(o.t * 1.7) * 0.012;
+        if (dk > 0) { root.rotation.x = o.deadSide * dk * 1.35; root.position.y = -dk * 0.42; }
+        // 头：平时低伏微晃；咆哮时昂起、张口
+        const rk = o.roarK;
+        neck.rotation.z = -0.2 + rk * 0.6 + pk * 0.25 + Math.sin(o.t * 1.3) * 0.025 - dk * 0.3;
+        head.rotation.z = 0.16 + rk * 0.22; head.rotation.y = (1 - rk) * (1 - s) * Math.sin(o.t * 0.6) * 0.12;
+        jaw.rotation.z = -rk * 0.62 - 0.02;
+        // 尾：根部垂下，末梢上卷，缓缓摆动；奔走、扑击时扬起
+        tail.forEach((sg, i) => {
+          if (i === 0) sg.rotation.z = TH - s * 0.25 - pk * 0.5 + dk * 0.4;
+          else sg.rotation.z = CURL[i - 1] * (1 - dk * 0.8) + Math.sin(o.t * 2.1 - i * 0.7) * 0.05;
+          sg.rotation.x = Math.sin(o.t * 1.4 - i * 0.55) * (0.09 + s * 0.05) * (1 - dk);
+        });
+        // 人：端坐，随虎步微微起伏；扑击时身子前俯
+        rider.rotation.z = -th * 0.6 + s * Math.sin(ph * 2 + 0.6) * 0.015 + dk * 0.5;
+        rider.position.y = 1.7 + s * Math.abs(Math.sin(ph)) * 0.02;
+        staff.rotation.x = Math.sin(o.t * 1.2) * 0.02;
+      },
+    };
+    o.update(0);
+    return o;
+  }
   function makeElephant(side = 'b', opt = {}) {
     // gold：兵法四级的黄金战象——通身鎏金甲，披挂换成金红
     const c = opt.gold ? { ...SIDE[side], cloth: 0x8e1c12, cloth2: 0xd6a43e, trim: 0xf7dc8c } : SIDE[side];
@@ -1178,7 +1355,7 @@ const Models = (() => {
 
   return {
     SIDE, C, G, P, inkedMerged, soldierPartGeos, soldierStatic, Troop, Army: Troop, PARTS, POSES,
-    makeHorse, makeRider, makeCavalry, cavalryStaticGeo, makeChariot, makeCannon, makeElephant, makeAdvisorCart, makeBoat, makeBoatman,
+    makeHorse, makeRider, makeCavalry, cavalryStaticGeo, makeChariot, makeCannon, makeElephant, makeAdvisorCart, makeTigerRider, makeBoat, makeBoatman,
     makeHero, makeXiangYu, makeWuzhui, makeLiuBang, makeBanner, vcMat, jiShape,
     soldierGeo: (side, kind) => soldierPartGeos(side, kind).body,
   };
