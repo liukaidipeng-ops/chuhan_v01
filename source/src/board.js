@@ -1195,6 +1195,24 @@ const Board = (() => {
   }
   const chainMat = new THREE.MeshStandardMaterial({ color: 0x565b63, metalness: 0.75, roughness: 0.4, emissive: 0x08090b });
   const chains = new Set(), chainBorn = new Map();
+  // 召回的金光：两道细金环交错着转，金星绕着飞
+  const auras = new Set();
+  const auraGeo = (() => { const g = new THREE.TorusGeometry(0.56, 0.012, 6, 72); g.rotateX(Math.PI / 2); g.userData.keep = true; return g; })();
+  Core.onFrame(() => {
+    if (!auras.size) return;
+    const t = performance.now() / 1000;
+    for (const g of auras) {
+      if (!g.parent || !g.parent.parent || !g.parent.parent.parent) { auras.delete(g); continue; }
+      const ph = g.userData.ph;
+      for (const c of g.children) {
+        if (c.userData.halo) { c.material.opacity = 0.4 + 0.2 * Math.sin(t * 2.4 + ph); continue; }
+        if (c.isSprite) { const a = t * 1.7 + ph + c.userData.k * 1.047, r = 0.6 + 0.05 * Math.sin(t * 3 + c.userData.k); c.position.set(Math.cos(a) * r, PH * 0.5 + 0.22 * Math.sin(t * 2.2 + c.userData.k * 2.1) + 0.12, Math.sin(a) * r); c.material.opacity = 0.55 + 0.4 * Math.sin(t * 5 + c.userData.k * 1.3); continue; }
+        const i = c.userData.i, dir = i ? -1 : 1;
+        c.rotation.set(0.5 * Math.sin(t * 1.3 * dir + ph + i * 1.6), t * 1.1 * dir, 0.5 * Math.cos(t * 1.3 * dir + ph + i * 1.6));
+        c.material.opacity = 0.6 + 0.3 * Math.sin(t * 3.1 + i * 2);
+      }
+    }
+  });
   Core.onFrame(() => {
     if (!chains.size) return;
     const t = performance.now() / 1000;
@@ -1252,11 +1270,26 @@ const Board = (() => {
       c.userData = { born: chainBorn.get(p.id), ph: (p.id * 1.7) % 6.28, dir: p.id % 2 ? 1 : -1 };
       c.castShadow = !LOWQ(); d.add(c); chains.add(c);
     } else chainBorn.delete(p.id);
+    if (o.gold) {
+      // 刚被召回的子：身边绕两圈金光、几点金星，脚下一圈金晕（这一回合它还不能动）
+      const g = new THREE.Group(); g.userData.ph = (p.id * 0.9) % 6.28;
+      for (let i = 0; i < 2; i++) {
+        const ring = new THREE.Mesh(auraGeo, new THREE.MeshBasicMaterial({ color: i ? 0xffe9a6 : 0xffc23a, transparent: true, opacity: 0.85, blending: THREE.AdditiveBlending, depthWrite: false, side: THREE.DoubleSide }));
+        ring.userData.i = i; ring.position.y = PH * 0.55; g.add(ring);
+      }
+      for (let i = 0; i < 6; i++) {
+        const sp = new THREE.Sprite(new THREE.SpriteMaterial({ map: glowTex, color: 0xffd76a, transparent: true, opacity: 0.9, blending: THREE.AdditiveBlending, depthWrite: false }));
+        sp.scale.set(0.16, 0.16, 1); sp.userData.k = i; g.add(sp);
+      }
+      const halo = new THREE.Mesh(flatGeo, new THREE.MeshBasicMaterial({ map: glowTex, color: 0xffc640, transparent: true, opacity: 0.55, blending: THREE.AdditiveBlending, depthWrite: false }));
+      halo.scale.set(1.9, 1, 1.9); halo.position.y = 0.006; halo.userData.halo = true; g.add(halo);
+      d.add(g); auras.add(g);
+    }
   }
   function decoOpts(game, p) {
     const fx = game.fx, hm = p.s === 'r' && p.t === 'k' && fx.hm > 0, sm = p.s === 'b' && p.t !== 'k' && fx.sm > 0;
     const bz = !!(game.frozen && game.frozen(p));   // 背水一战用过的子：下回合不能动，同样套上锁链
-    return { jm: game.jmActive(p), hm, dim: sm || bz, chain: hm || sm || bz };
+    return { jm: game.jmActive(p), hm, dim: sm || bz, chain: hm || sm || bz, gold: !!(game.revived && game.revived(p)) };
   }
   // 改质感参数后重建全部升级材质，并把棋盘上的子重新装扮一遍
   function skinTune(patch) {
@@ -1381,6 +1414,22 @@ const Board = (() => {
   //   被动技能的走法（兵法：神速营 / 回防 / 铁甲禁卫）用金色
   const HINT = { edge: 0x2f4d3a, core: 0xc4dfbb, belt: 0x4f7c5f, edgeV: 0x6e4f12, coreV: 0xf4d892, beltV: 0xb88a2c, edgeB: 0x7a1a10, coreB: 0xf2a08c, beltB: 0xb0301f };
   // 禁止符号（走了会送将的落点 / 目标头顶）：朱红圆圈加一道斜杠
+  // 技能的落点：四角金框（“这里可以放技能”）；选定的目标：转着的瞄准圈
+  const bracketTex = canvasTex(256, 256, (g, w) => {
+    g.clearRect(0, 0, w, w); g.lineCap = 'square';
+    const draw = (lw, col) => { g.strokeStyle = col; g.lineWidth = lw; const a = 30, L = 62; for (const [x, y, sx, sy] of [[a, a, 1, 1], [w - a, a, -1, 1], [a, w - a, 1, -1], [w - a, w - a, -1, -1]]) { g.beginPath(); g.moveTo(x + sx * L, y); g.lineTo(x, y); g.lineTo(x, y + sy * L); g.stroke(); } };
+    draw(26, 'rgba(30,18,6,.55)'); draw(15, '#fff');
+  });
+  const aimTex = canvasTex(512, 512, (g, w) => {
+    g.clearRect(0, 0, w, w); const c = w / 2; g.lineCap = 'butt';
+    const pass = (k, col) => {
+      g.strokeStyle = col;
+      g.lineWidth = 20 * k; for (let i = 0; i < 4; i++) { const a = i * Math.PI / 2 + 0.26; g.beginPath(); g.arc(c, c, 206, a, a + Math.PI / 2 - 0.52); g.stroke(); }   // 外圈四段弧
+      g.lineWidth = 8 * k; g.beginPath(); g.arc(c, c, 168, 0, 7); g.stroke();                                                                                      // 内圈细线
+      g.lineWidth = 22 * k; for (let i = 0; i < 4; i++) { const a = i * Math.PI / 2; g.beginPath(); g.moveTo(c + Math.cos(a) * 150, c + Math.sin(a) * 150); g.lineTo(c + Math.cos(a) * 246, c + Math.sin(a) * 246); g.stroke(); }   // 十字准星的四个短杠
+    };
+    pass(1.6, 'rgba(30,14,4,.55)'); pass(1, '#fff');
+  });
   const banTex = canvasTex(256, 256, (g, w) => {
     g.clearRect(0, 0, w, w);
     const c = w / 2, R = w * 0.3;
@@ -1474,7 +1523,7 @@ const Board = (() => {
   }
   let moveDots = [], belts = [];
   const DOT_E = 0.92, DOT_C = 0.56;
-  let selRing = null, selGlow = null, selShade = null, selCol = null, selHalo = null, selDrop = null, hovered = null, kills = [], killRings = [], hoverT = 0;
+  let selRing = null, selGlow = null, selShade = null, selCol = null, selHalo = null, selDrop = null, hovered = null, kills = [], killRings = [], hoverT = 0, brackets = [], aimMark = null, aimGlow = null;
   const dropping = new Set();
   function showMoves(sel, moves, hints = true) {
     clearMoves(false);
@@ -1511,6 +1560,7 @@ const Board = (() => {
         }
         continue;
       }
+      if (m.skill) { const bk = decal(bracketTex, 0xf0c04a, 1.02, X(f), Z(r), TOP + 0.0062, 0.95); bk.userData.ph = (f * 0.7 + r * 0.4) % 1; markRoot.add(bk); brackets.push(bk); }
       if (occupied) {
         if (!hints) continue;
         const d = decal(ringTex, m.dmg ? 0x8a6a2a : 0xb0301f, 1.14, X(f), Z(r), TOP + 0.006, 0.95);
@@ -1525,6 +1575,13 @@ const Board = (() => {
         e.rotation.y = rnd() * 6; c.rotation.y = rnd() * 6; e.userData.ph = c.userData.ph = (f * 0.7 + r * 0.4) % 1;
         markRoot.add(e, c); moveDots.push(e, c);
       }
+    }
+    // 选定的技能目标：一个转着的瞄准圈把它框住
+    if (moves.aim) {
+      const [f, r] = moves.aim;
+      aimMark = decal(aimTex, 0xffd257, 1.95, X(f), Z(r), TOP + 0.0095, 1); aimMark.renderOrder = 4; aimMark.userData.t0 = performance.now() / 1000;
+      aimGlow = decal(glowTex, 0xffb42a, 2.4, X(f), Z(r), TOP + 0.0052, 0.5);
+      markRoot.add(aimGlow, aimMark);
     }
     // 流动的墨带：顺着能走的方向指过去
     if (sel && moves.length && !moves.noBelt) {
@@ -1581,6 +1638,44 @@ const Board = (() => {
       else m.material.opacity = 0.55 + 0.35 * k;
     }
   });
+  // 背水一战走完的第一步：落点留一个虚影、头顶悬一个「一」，从出发点到落点留一条墨绿的路——提醒玩家第一步是哪枚子、怎么走的。传 null 清掉
+  const stepRoot = new THREE.Group(); root.add(stepRoot);
+  const STEP_COL = 0x3f8f6e;
+  let stepNumTex = null, stepGhost = null;
+  function showStep(o) {
+    stepRoot.traverse(m => { if (m.material && !m.userData.shared) m.material.dispose(); if (m.userData.own && m.geometry) m.geometry.dispose(); }); stepRoot.clear(); stepGhost = null;
+    if (!o) return;
+    const [ff, fr] = o.from, [tf, tr] = o.to;
+    // 路：出发点一个淡圈，沿走法铺一条流动的带子（马走日会拐弯）
+    const ring0 = decal(ringTex, STEP_COL, 0.98, X(ff), Z(fr), TOP + 0.0036, 0.75); ring0.userData.k = 'from'; stepRoot.add(ring0);
+    for (const b of beltPaths([ff, fr], [{ to: [tf, tr] }], () => false)) {
+      const mesh = new THREE.Mesh(ribbonGeo(b.pts, 0.46, TOP + 0.0044, 0.9), new THREE.MeshBasicMaterial({ map: flowTex, color: STEP_COL, transparent: true, opacity: 0.95, depthWrite: false, vertexColors: true, side: THREE.DoubleSide }));
+      mesh.userData.own = true; mesh.userData.k = 'belt'; mesh.renderOrder = 3; stepRoot.add(mesh);
+    }
+    // 虚影：照着那枚子的样子做一个半透明的壳，留在落点（子再走开，它还在）
+    const src = o.id != null ? pieces.get(o.id) : meshAt(tf, tr);
+    const gm = new THREE.MeshBasicMaterial({ color: 0x8fe0bd, transparent: true, opacity: 0.42, depthWrite: false, blending: THREE.AdditiveBlending });
+    const g = new THREE.Mesh(pieceGeo, gm); g.position.copy(pos(tf, tr)); g.scale.set(1.12, 1.25, 1.12); g.renderOrder = 5; g.userData.k = 'ghost';
+    if (src) g.rotation.y = src.rotation.y;
+    stepRoot.add(g); stepGhost = g;
+    const glow = decal(glowTex, STEP_COL, 1.9, X(tf), Z(tr), TOP + 0.0034, 0.55); glow.userData.k = 'glow'; stepRoot.add(glow);
+    // 头顶的「一」
+    if (!stepNumTex) stepNumTex = sealTex('一', '#2f7d5f');
+    const sp = new THREE.Sprite(new THREE.SpriteMaterial({ map: stepNumTex, transparent: true, depthWrite: false, depthTest: false }));
+    sp.material.userData = {}; sp.userData.shared = false; sp.userData.k = 'num'; sp.scale.set(0.5, 0.5, 1); sp.position.set(X(tf), TOP + PH + 0.72, Z(tr)); sp.renderOrder = 21; stepRoot.add(sp);
+  }
+  Core.onFrame(() => {
+    if (!stepRoot.children.length) return;
+    const t = performance.now() / 1000, k = 0.5 + 0.5 * Math.sin(t * 2.6);
+    flowTex.offset.x = -(t * 0.55) % 1;
+    for (const m of stepRoot.children) {
+      const kind = m.userData.k;
+      if (kind === 'ghost') m.material.opacity = 0.3 + 0.22 * k;
+      else if (kind === 'glow') m.material.opacity = 0.35 + 0.25 * k;
+      else if (kind === 'num') { m.position.y = TOP + PH + 0.7 + 0.05 * Math.sin(t * 2.1); }
+      else if (kind === 'belt') m.material.opacity = 0.75 + 0.25 * k;
+    }
+  });
   // 范围提示（四面楚歌：楚将周围 5×5）：淡朱底 + 虚线框，范围内的己方棋子套金圈；几秒后自动淡去
   let zoneG = null;
   function showZone(a, b, hits = []) {
@@ -1607,7 +1702,7 @@ const Board = (() => {
     }
     if (immediate) { for (const m of dropping) { m.position.y = TOP; m.rotation.x = m.rotation.z = 0; } dropping.clear(); }
     markRoot.traverse(o => { if (o.material && o.material !== goldM) o.material.dispose(); if (o.userData.own && o.geometry) o.geometry.dispose(); });
-    markRoot.clear(); selRing = selGlow = selShade = selCol = selHalo = selDrop = null; kills = []; killRings = []; moveDots = []; belts = [];
+    markRoot.clear(); selRing = selGlow = selShade = selCol = selHalo = selDrop = null; kills = []; killRings = []; moveDots = []; belts = []; brackets = []; aimMark = aimGlow = null;
   }
   Core.onFrame(dt => {
     hoverT += dt;
@@ -1662,6 +1757,12 @@ const Board = (() => {
       k.position.y = TOP + PH + 0.4 + e * 0.1;
     }
     for (const r of killRings) { const b = 0.5 + 0.5 * Math.sin(hoverT * 3.8); r.material.opacity = 0.55 + 0.45 * b; r.rotation.y -= dt * 0.5; }
+    for (const bk of brackets) { const b = 0.5 + 0.5 * Math.sin(hoverT * 4 - bk.userData.ph * 6.28), s = 1.02 - 0.07 * b; bk.scale.set(s, 1, s); bk.material.opacity = 0.7 + 0.3 * b; }
+    if (aimMark) {
+      const k = Math.min(1, (performance.now() / 1000 - aimMark.userData.t0) / 0.22), e = 1 - (1 - k) * (1 - k), b = 0.5 + 0.5 * Math.sin(hoverT * 5);
+      const s = 1.95 * (1.55 - 0.55 * e) * (1 + 0.03 * b); aimMark.scale.set(s, 1, s); aimMark.rotation.y += dt * 0.9; aimMark.material.opacity = 0.35 + 0.65 * e;
+      aimGlow.material.opacity = (0.3 + 0.25 * b) * e;
+    }
   });
   const lastRoot = new THREE.Group(); root.add(lastRoot);
   function showLast(from, to) {
@@ -1708,7 +1809,7 @@ const Board = (() => {
   })();
   return {
     root, TOP, PH, HALF, X, Z, pos, setPosition, syncPosition, pieces, piecesRoot, makePiece, faceViewer,
-    showMoves, clearMoves, showZone, showBad, setGlow, showLast, pick, meshAt, get hovered() { return hovered; }, ringTex, glowTex, wakes, water, waterMat, decal, flatGeo, pine, deco, FONT,
+    showMoves, clearMoves, showZone, showBad, showStep, setGlow, showLast, pick, meshAt, get hovered() { return hovered; }, ringTex, glowTex, wakes, water, waterMat, decal, flatGeo, pine, deco, FONT,
     viewSide: 'r', setSkin, dress, get lastGame() { return lastGame; }, skinTune, get SK() { return SK; }, pieceWood, RZ, BZ, BX, BRIDGE_X, faceTex, backTex, setFace, makeRiver, mtTex, decorate, decorateAll, reconcile, plateGeo, plateOn,
   };
 })();

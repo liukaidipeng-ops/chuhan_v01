@@ -1334,7 +1334,7 @@
   const pname = p => XQ.NAMES[p.s][p.t];
   function exitBfMode(repaint = true) {
     if (bfMode && bfMode.kind === 'pofu' && bfMode.m1) Board.reconcile(game);
-    if (bfMode && bfMode.bs) Board.showBad([]);
+    if (bfMode && bfMode.bs) { Board.showBad([]); Board.showStep(null); }
     bfMode = null;
     if (repaint) renderBar();
   }
@@ -1368,11 +1368,19 @@
     return null;
   }
   function bfAsk(a, from) {
-    const h = bfNeedConfirm(a);
+    // 点了目标的技能一律先“瞄准”：目标被瞄准圈框住，下方出现「确定」，点了才发动（会伤到谁照旧先标出来）
+    const aimed = a.k === 'sk' && !!a.to;
+    const h = bfNeedConfirm(a) || (aimed ? (bfHarm(a) || { list: [], ev: [] }) : null);
     if (!h) { doBF(a); return; }
     const marks = h.list.map(x => ({ from, to: x.at, dmg: x.kill ? 0 : x.dmg })); marks.noBelt = true;
-    if (!h.list.some(x => x.at[0] === a.to[0] && x.at[1] === a.to[1])) { marks.push({ from, to: a.to }); }
-    bfMode = { kind: 'confirm', a, hint: '预览：标「殺」的会阵亡，标 -1 的掉血 · 再点一次目标发动，点别处取消' };
+    if (!h.list.some(x => x.at[0] === a.to[0] && x.at[1] === a.to[1])) { marks.push({ from, to: a.to, skill: aimed }); }
+    if (aimed) {
+      // 发动之后自己会落到哪（冲阵越过去的那一格、踏营 / 飞越的落点）：也用金框标出来
+      const me = game.at(from[0], from[1]), mv = me && h.ev.filter(e => e.e === 'move' && e.id === me.id).pop();
+      if (mv && !(mv.to[0] === a.to[0] && mv.to[1] === a.to[1]) && !marks.some(x => x.to[0] === mv.to[0] && x.to[1] === mv.to[1])) marks.push({ from, to: mv.to, skill: true });
+    }
+    marks.aim = a.to;
+    bfMode = { kind: 'confirm', a, hint: (h.list.length ? '已瞄准：标「殺」的会阵亡，标 -1 的掉血' : '已瞄准') + ' · 点「确定」发动（再点一次目标也行），点别处取消' };
     Board.showMoves(from, marks, true); Sfx.select();
     renderBar();
   }
@@ -1440,7 +1448,7 @@
     kills: () => `背水一战合计最多吃 ${BF.CFG.beishui.maxKills} 个子`, long: '同一枚子不能一直将军', other: '这两步不合规则',
   };
   function bsStart() {
-    Board.showBad([]); Board.clearMoves(true); sel = null; selMoves = []; selBad = [];
+    Board.showBad([]); Board.showStep(null); Board.clearMoves(true); sel = null; selMoves = []; selBad = [];
     bfMode = { kind: 'pofu', bs: true, firsts: game.bsFree().list, hint: BS_HINT[0] };
     renderBar();
   }
@@ -1462,6 +1470,8 @@
       const pv = game.bsFree(M.m1);
       bsShow(pv.ev); M.board = pv.S.board; M.seconds = pv.list; M.sel = null;
       Board.clearMoves(true); Sfx.place();
+      { const me = game.at(hit.from[0], hit.from[1]), mv = me && pv.ev.filter(e => e.e === 'move' && e.id === me.id).pop();   // 第一步的落点留虚影、悬「一」、留路径（打不死被弹回的，虚影留在原地）
+        Board.showStep({ from: hit.from, to: mv ? mv.to : hit.from, aim: hit.to, id: me && me.id }); }
       M.hint = BS_HINT[1]; renderBar();
       return;
     }
@@ -1688,7 +1698,10 @@
     if (bfMode) {
       hint = bfMode.hint;
       if (bfMode.bs) { if (bfMode.m1 || bfMode.bad) B.push(`<button class="sk" data-a="bsRedo">重 走<small>棋子归位</small></button>`); }   // 背水一战发动后不能取消，只能把两步重走
-      else B.push(`<button class="sk" data-a="cancel">取消<small>换一着</small></button>`);
+      else {
+        if (bfMode.kind === 'confirm') B.push(`<button class="sk ready ok" data-a="ok">确 定<small>发动</small></button>`);
+        B.push(`<button class="sk" data-a="cancel">取消<small>换一着</small></button>`);
+      }
     } else {
       const a = bfAvail();
       // 按钮不可用时不用 disabled（点了没反应像坏了），改成灰色 + 点一下说明原因；所有按钮悬停 / 长按看说明
@@ -1746,6 +1759,7 @@
       return;
     }
     if (a === 'bsRedo') { if (bfMode && bfMode.bs) bsReset(); return; }
+    if (a === 'ok') { if (bfMode && bfMode.kind === 'confirm') { const act = bfMode.a; bfMode = null; doBF(act); } return; }
     if (a === 'cancel') { if (bfMode && bfMode.bs) return; exitBfMode(false); Board.clearMoves(false); if (sel) bfSelect(sel[0], sel[1]); renderBar(); return; }
     if (a === 'up' && sel) { doBF({ k: 'up', at: sel }); return; }
     if (a === 'sk' && sel) {
@@ -1754,7 +1768,7 @@
       const cn = BF.SKILL_CN[skn];
       if (k.targets.length === 1 && !k.targets[0].to) { doBF(k.targets[0]); return; }
       bfMode = { kind: 'sk', targets: k.targets, hint: `${cn}：点选目标（${{ chongzhen: '点前方第一枚子当跳板', taying: '无视马腿', pili: '炮击敌子', qishe: '斜线两格内' }[skn] || ''}）` };
-      Board.showMoves(sel, bfDmg(k.targets.map(t => ({ from: t.at, to: t.to, atk: true })), k.sk), true);
+      Board.showMoves(sel, bfDmg(k.targets.map(t => ({ from: t.at, to: t.to, atk: true, skill: true })), k.sk), true);   // 技能的落点都带金色四角框，和普通走子区分开
       renderBar(); return;
     }
     if (a === 'art') {
@@ -1797,7 +1811,7 @@
   }
   // 执行一条兵法行动（本地或对手发来）
   function doBF(e, remote = false, clk) {
-    if (e.k === 'art' && e.steps) Board.reconcile(game);
+    if (e.k === 'art' && e.steps) { Board.reconcile(game); Board.showStep(null); }
     const note = bfNote(game, e);
     const info = game.apply(e);
     if (!info) { if (!remote) toast('这一步不合法'); return false; }

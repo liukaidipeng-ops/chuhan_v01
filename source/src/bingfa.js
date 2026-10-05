@@ -128,6 +128,7 @@
   };
   // 背水一战：用过的子在冻结期里不能动（己方行动数还没到 p.bz）
   const frozen = (S, p) => !!(p && p.bz && S.cnt[p.s] < p.bz);
+  const revived = (S, p) => !!(p && p.rv && S.cnt.r === p.rv && S.turn === 'b');   // 刚召回、还没轮到汉方再走的那一回合
   const hmActive = S => S.cnt.r < S.fx.hm; // 鸿门宴：汉帅不能动
   const smActive = S => S.cnt.b < S.fx.sm; // 四面楚歌：楚军涣散
   const pfActive = S => S.cnt.b < S.fx.pf; // 破釜沉舟后楚方兵种技能封锁
@@ -410,7 +411,7 @@
         const d = S.dead.r[i], st = START[d.id];
         if (!st || at(S, st[0], st[1])) return null;
         S.dead.r.splice(i, 1);
-        S.board[st[1]][st[0]] = { s: 'r', t: d.t, id: d.id, lv: 1, hp: hpOf(d.t, 1), cd: 0, jm: 0, xp: 0, kills: 0 };
+        S.board[st[1]][st[0]] = { s: 'r', t: d.t, id: d.id, lv: 1, hp: hpOf(d.t, 1), cd: 0, jm: 0, xp: 0, kills: 0, rv: S.cnt.r + 1 };   // rv：刚被召回的记号（只给界面用：这一回合它还动不了，身上绕一圈金光）
         ev.push({ e: 'revive', id: d.id, t: d.t, at: st.slice() });
       } else {
         const steps = a.steps || [];
@@ -817,6 +818,7 @@
     pofuFirst() { return this.result ? [] : pofuFirst(this.S); }
     pofuSecond(m1) { return pofuSecond(this.S, m1); }
     pofuPreview(m1) { return pofuPreview(this.S, m1); }
+    revived(p) { return revived(this.S, p); }
     bsFree(m1) { CFG_CUR = this.cfg; return bsFree(this.S, m1); }
     bsJudge(steps) { CFG_CUR = this.cfg; return bsJudge(this.S, steps); }
     ultReady() { return !this.result && ultReady(this.S); }
