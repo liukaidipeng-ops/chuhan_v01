@@ -213,6 +213,9 @@ const Sfx = (() => {
       smp('breath', { t: t + 0.9, vol: v * 1.5, rate: 0.7 });
     },
     snort(t = 0, v = 0.2) { smp('breath', { t, vol: v, rate: R(0.6, 0.8) }); },
+    // 虎啸 / 低吼：有真实录音（tiger、tigergrowl）就用，没有就拿现成的兽吼压低了顶上
+    roar(t = 0, v = 0.6, fall = false) { if (has('tiger')) smp('tiger', { t, vol: v, rate: fall ? 0.86 : R(0.95, 1.05), rj: 0.02 }); else smp('roar', { t, vol: v, rate: fall ? 0.6 : 0.78 }); },
+    growl(t = 0, v = 0.3) { if (has('tigergrowl')) smp('tigergrowl', { t, vol: v, rate: R(0.92, 1.05) }); else smp('roar', { t, vol: v * 0.5, rate: 0.5, lp: 900 }); },
     wheels(t = 0, dur = 1.5, v = 0.4) { smp('rolling', { t, vol: v, loop: true, dur: dur + 0.2, rate: R(0.7, 0.9) }); nz({ t, dur, type: 'lowpass', f: 140, vol: v * 0.8, a: 0.2, hold: dur * 0.5 }); },
     whip(t = 0) { nz({ t, dur: 0.06, type: 'highpass', f: 2500, vol: 0.6 }); smp('swing', { t: t - 0.06, vol: 0.2, rate: 1.4 }); },
     horn(t = 0, dur = 2.2, f = 98, v = 0.2) { voiceOsc({ t, f, dur, vol: v, cut: 350, cut2: 1400, q: 2, a: 0.25, rel: 0.6, vib: 0.006, detune: 6, bend: 0.8 }); voiceOsc({ t, f: f / 2, dur, vol: v * 0.6, type: 'square', cut: 250, cut2: 600, a: 0.3, rel: 0.6, bend: 0.8 }); },
@@ -313,6 +316,14 @@ const Sfx = (() => {
       draw() { B.bowDraw(0); B.bowDraw(0.12); smp('metal', { t: 0.3, vol: 0.12, rate: 1.9 }); B.taiko(0, 0.4); },
       release() { B.twang(0, 8); B.arrows(0.06, 16); },
       impact() { B.thunks(0, 12); B.shout(0.1, 3, 0.06, 0.4); },
+    },
+    // 相（汉虎骑）：厚掌闷步 + 低吼；扑击：虎啸 + 破风 + 撕扯
+    tiger: {
+      move(dur = 1.2) { for (let k = 0; k * 0.42 < dur; k++) smp('soft', { t: k * 0.42, vol: 0.22, rate: R(0.5, 0.65) }); B.growl(0.15, 0.3); },
+      roar() { B.roar(0, 0.6); },
+      charge() { B.whoosh(0.05, 0.4, 0.4); },
+      impact() { B.stab(0, 0.55); B.thud(0.02, 0.5); smp('slash', { t: 0, vol: 0.4 }); },
+      die() { B.roar(0, 0.5, true); },
     },
     // 象（楚战象）：沉重低频脚步 + 象鸣；冲锋：象嘶 + 践踏 + 火把
     ele: {

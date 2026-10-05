@@ -14,7 +14,7 @@ const Squads = (() => {
   const yawOf = d => Math.atan2(d.x, d.z);
   const at = (anchor, yaw, x, z) => anchor.clone().addScaledVector(rightOf(yaw), x).addScaledVector(fwd(yaw), z);
   const gy = p => Fx.groundY(p);
-  const unitKey = (t, s) => ({ p: 'inf', r: 'chariot', n: 'cav', c: 'cannon', a: 'guard', e: s === 'r' ? 'xbow' : 'ele', k: s === 'r' ? 'liu' : 'xiang' }[t]);
+  const unitKey = (t, s) => ({ p: 'inf', r: 'chariot', n: 'cav', c: 'cannon', a: 'guard', e: s === 'r' ? (Models.TIGER ? 'tiger' : 'xbow') : 'ele', k: s === 'r' ? 'liu' : 'xiang' }[t]);
   const snd = (t, s) => Sfx.unit(unitKey(t, s));
 
   // ======================================================================
@@ -326,6 +326,29 @@ const Squads = (() => {
       return super.die(hit, dir, power, center);
     }
   }
+  // 一轮弩箭齐射：sq 是放箭的那队弩手（TroopSquad），n 支箭飞向 target
+  async function boltVolley(sq, target, n, dist) {
+    const X = Sfx.unit('xbow');
+    X.release();
+    sq.troop.actAll('shoot', 0.25, 0.1);
+    const us = sq.units.filter(u => !u.dead), bolts = [];
+    for (let i = 0; i < n && us.length; i++) {
+      const u = us[i % us.length];
+      const p0 = sq.troop.worldPos(u.i, 1.25);
+      const p1 = target.center(0.12).add(rv(0.35, 0, 0.35));
+      const b = new THREE.Mesh(boltGeo, Models.vcMat); b.scale.setScalar(0.8); scene.add(b); bolts.push({ b, p0, p1, d0: R(0, 0.1) });
+    }
+    const T = 0.28 + dist * 0.035;
+    await tween(T + 0.1, (k, raw) => {
+      for (const x of bolts) {
+        const q = Math.min(1, Math.max(0, (raw * (T + 0.1) - x.d0) / T));
+        x.b.position.lerpVectors(x.p0, x.p1, q); x.b.position.y += Math.sin(q * Math.PI) * 0.15 * dist * 0.2;
+        const dd = x.p1.clone().sub(x.p0); dd.y += Math.cos(q * Math.PI) * 0.15; x.b.quaternion.setFromUnitVectors(new V3(0, 1, 0), dd.normalize());
+      }
+    }, ease.linear);
+    for (const x of bolts) { if (Math.random() < 0.5) Fx.Marks.hole(x.p1); Fx.throwObj(x.b, new V3(), { life: 10, g: 0, w: new V3() }); Fx.bits[Fx.bits.length - 1].rest = true; }
+    X.impact();
+  }
   // 汉军弩手（相）
   // 汉相：谋士车驾——羽扇谋士立在华盖轺车上，弩手随护两侧（放箭的是弩手）
   class Crossbow extends TroopSquad {
@@ -360,27 +383,7 @@ const Squads = (() => {
       this.setPose('aim'); snd('e', 'r').draw();
       if (target.brace) target.brace();
       await sleep(0.45);
-      const volley = async (n) => {
-        snd('e', 'r').release();
-        this.troop.actAll('shoot', 0.25, 0.1);
-        const bolts = [];
-        for (let i = 0; i < n; i++) {
-          const u = this.units[i % this.units.length];
-          const p0 = this.troop.worldPos(u.i, 1.25);
-          const p1 = target.center(0.12).add(rv(0.35, 0, 0.35));
-          const b = new THREE.Mesh(boltGeo, Models.vcMat); b.scale.setScalar(0.8); scene.add(b); bolts.push({ b, p0, p1, d0: R(0, 0.1) });
-        }
-        const T = 0.28 + dist * 0.035;
-        await tween(T + 0.1, (k, raw) => {
-          for (const x of bolts) {
-            const q = Math.min(1, Math.max(0, (raw * (T + 0.1) - x.d0) / T));
-            x.b.position.lerpVectors(x.p0, x.p1, q); x.b.position.y += Math.sin(q * Math.PI) * 0.15 * dist * 0.2;
-            const dd = x.p1.clone().sub(x.p0); dd.y += Math.cos(q * Math.PI) * 0.15; x.b.quaternion.setFromUnitVectors(new V3(0, 1, 0), dd.normalize());
-          }
-        }, ease.linear);
-        for (const x of bolts) { if (Math.random() < 0.5) Fx.Marks.hole(x.p1); Fx.throwObj(x.b, new V3(), { life: 10, g: 0, w: new V3() }); Fx.bits[Fx.bits.length - 1].rest = true; }
-        snd('e', 'r').impact();
-      };
+      const volley = n => boltVolley(this, target, n, dist);
       await volley(12);
       const dead = target.die('bolts', d, 1, B);
       await sleep(0.25);
@@ -393,53 +396,86 @@ const Squads = (() => {
     brace() { this.setPose('cower'); }
   }
   // 汉相「虎骑」（预览中：网址带 ?tiger=1 才启用，线上仍是谋士车驾）
-  const TIGER = /[?&]tiger=1/.test(location.search), TG = 0.26;
+  // 平时只有一虎一人，吃子是虎扑；兵法三级起两名弩手随护（四级金甲大黄弩），只有发动「齐射」时才由弩手放箭
+  const TIGER = Models.TIGER, TG = 0.26;
   class TigerRider extends Squad {
-    constructor(side, anchor, yaw, gold = false) {
+    constructor(side, anchor, yaw, n = 0) {
       super('e', side, anchor, yaw);
+      const gold = n >= 4;
       this.m = Models.makeTigerRider(side, { gold }); this.m.group.scale.setScalar(TG);
       this.group.add(this.m.group);
+      this.guard = n >= 3 ? new TroopSquad('e', side, anchor, yaw, gold ? 'xbowG' : 'xbow', [[0.4, -0.02], [-0.4, -0.02]], SC * (gold ? 1.08 : 1)) : null;
       this.updaters.push(dt => { this.m.update(dt); this.sync(); });
       this.sync();
     }
-    sync() { const g = this.m.group; g.position.copy(this.anchor).addScaledVector(fwd(this.yaw), -0.1); g.position.y = gy(this.anchor); g.rotation.y = this.yaw - Math.PI / 2; }
+    sync() {
+      const g = this.m.group; g.position.copy(this.anchor).addScaledVector(fwd(this.yaw), -0.1); if (!this.air) g.position.y = gy(this.anchor); g.rotation.y = this.yaw - Math.PI / 2;
+      if (this.guard && !this.guardStay) { this.guard.anchor.copy(this.anchor); this.guard.yaw = this.yaw; }
+    }
+    appear() { return Promise.all([super.appear(), this.guard ? this.guard.appear() : null]); }
+    dissolve() { return Promise.all([super.dissolve(), this.guard ? this.guard.dissolve() : null]); }
     async march(path, dur) {
       this.m.speed = 0.8; let last = 0;
+      snd('e', this.side).move(dur || 1.2);
+      if (this.guard) this.guard.setPose('march');
       await walkPath(this, path, dur, k => { kick(this, 0.26, 0.3, 0.2, 2); if (k - last > 0.22) { last = k; Fx.Marks.foot(this.anchor.clone().addScaledVector(rightOf(this.yaw), R(-0.08, 0.08))); } });
       this.m.speed = 0;
+      if (this.guard) this.guard.setPose('idle');
     }
     async attack(target, c) {
-      const { B, d } = c, m = this.m;
-      // 伏低 → 咆哮 → 窜出 → 腾身扑下
-      tween(0.35, k => { m.roarK = k; }); Sfx.B.trumpet(0, 0.2, true);
+      const { B, d, dist } = c, m = this.m, S = snd('e', this.side);
+      // 兵法·齐射：虎伏着不动，两侧弩手放两轮箭
+      if (c.ranged && this.guard) {
+        this.guard.setPose('aim'); Sfx.unit('xbow').draw(); tween(0.3, k => { m.roarK = k * 0.5; });
+        if (target.brace) target.brace();
+        await sleep(0.45);
+        await boltVolley(this.guard, target, 10, dist);
+        const dead = target.die('bolts', d, 1, B);
+        await sleep(0.25);
+        this.guard.setPose('aim');
+        await boltVolley(this.guard, target, 6, dist);
+        await dead;
+        this.guard.setPose('idle'); tween(0.3, k => { m.roarK = 0.5 * (1 - k); });
+        await sleep(0.4);
+        return;
+      }
+      // 虎击：伏低咆哮 → 窜出 → 腾身扑下，一爪一口
+      if (this.guard) { this.guardStay = true; this.guard.setPose('ready'); }
+      tween(0.35, k => { m.roarK = k; }); S.roar();
       if (target.brace) target.brace();
-      await sleep(0.55);
-      tween(0.25, k => { m.roarK = 1 - k; });
-      m.speed = 1.4;
-      const start = this.anchor.clone(), end = B.clone().addScaledVector(d, -0.3), mid = start.clone().lerp(end, 0.72);
-      await tween(Math.max(0.3, start.distanceTo(mid) / 3.2), k => { this.anchor.lerpVectors(start, mid, k); if (Math.random() < 0.4) P.dust(this.center(0), 1, d, 0.2); }, ease.in);
-      m.speed = 0;
-      await tween(0.26, k => { this.anchor.lerpVectors(mid, end, k); m.pounceK = Math.sin(k * Math.PI * 0.5); m.roarK = k; m.group.position.y = gy(this.anchor) + Math.sin(k * Math.PI) * 0.12; });
-      Cam.shake(0.28); Fx.slowmo(0.3, 0.14);
+      await sleep(0.6);
+      tween(0.2, k => { m.roarK = 1 - k * 0.6; });
+      m.speed = 1.4; S.charge();
+      const start = this.anchor.clone(), end = B.clone().addScaledVector(d, -0.34), run = start.distanceTo(end), mid = start.clone().lerp(end, run > 0.9 ? 1 - 0.75 / run : 0.15);
+      await tween(Math.max(0.12, start.distanceTo(mid) / 3.4), k => { this.anchor.lerpVectors(start, mid, k); if (Math.random() < 0.4) P.dust(this.center(0), 1, d, 0.2); }, ease.in);
+      m.speed = 0; this.air = true;
+      await tween(0.3, k => { this.anchor.lerpVectors(mid, end, k); m.pounceK = Math.sin(Math.min(1, k * 1.25) * Math.PI * 0.5); m.roarK = 0.4 + 0.6 * k; m.group.position.y = gy(this.anchor) + Math.sin(k * Math.PI) * 0.2; });
+      this.air = false;
+      S.impact(); Cam.shake(0.3); Fx.slowmo(0.3, 0.14);
       const hp = B.clone(); hp.y = TOP + 0.25;
-      Fx.slash(hp, 1.0, 0.6); sleep(0.07).then(() => Fx.slash(hp, 1.0, -0.6, 0x9e2418));
+      for (let i = 0; i < 3; i++) sleep(i * 0.05).then(() => Fx.slash(hp.clone().addScaledVector(rightOf(this.yaw), (i - 1) * 0.1), 0.9, 0.75, i === 1 ? 0x9e2418 : undefined));
       P.dust(B, 10, null, 0.3); Fx.Marks.cut(B, d);
       const dead = target.die('cut', d, 1.2, B);
-      await tween(0.3, k => { m.pounceK = 1 - k; m.roarK = 1 - k; }, ease.in);
+      await tween(0.35, k => { m.pounceK = 1 - k; m.roarK = 1 - k; }, ease.in);
       await dead;
+      this.guardStay = false;
+      if (this.guard) this.guard.setPose('idle');
       await sleep(0.3);
     }
-    brace() { tween(0.3, k => { this.m.roarK = k * 0.8; }); }
-    async die(hit, dir, power) {
+    brace() { tween(0.3, k => { this.m.roarK = k * 0.8; }); if (this.guard) this.guard.setPose('cower'); }
+    async die(hit, dir, power, center) {
       const m = this.m, c = this.center(0.25);
+      const gd = this.guard ? this.guard.die(hit, dir, power, center) : null;
       m.deadSide = Math.random() < 0.5 ? 1 : -1;
-      tween(0.25, k => { m.roarK = k; }); Sfx.B.trumpet(0, 0.22, true);
+      tween(0.25, k => { m.roarK = k; }); snd('e', this.side).die();
       P.blood(c, 20, 1.0, dir, 1.1);
       if (hit === 'blast') P.fire(c, 16, 0.7);
+      if (hit === 'bolts') for (let i = 0; i < 6; i++) { const b = new THREE.Mesh(boltGeo, Models.vcMat); b.position.copy(c).add(rv(0.22, 0.12, 0.22)); b.quaternion.setFromUnitVectors(new V3(0, 1, 0), dir.clone().negate().add(rv(0.3, 0.3, 0.3)).normalize()); this.group.add(b); }
       await sleep(0.15);
       await tween(0.8, k => { m.dead = k; m.roarK = 1 - k; }, ease.in);
       Cam.shake(0.15); P.dust(this.center(0), 10, null, 0.3); Sfx.B.thud(0, 0.7);
       Fx.Marks.blood(this.center(0).addScaledVector(dir, 0.1), 1.0, dir);
+      await gd;
     }
   }
   // 楚军战象（象）
@@ -957,7 +993,7 @@ const Squads = (() => {
     const sq = make0(t, side, anchor, yaw, role, n);
     if (t === 'r' && n >= 4 && sq instanceof Chariot) { vanguard(sq); const d0 = sq.die; sq.die = (hit, dir, ...a) => { sq.echoesDie(dir || new V3(0, 0, 1)); return d0(hit, dir, ...a); }; return sq.rank ? sq.rank(lv) : sq; }
     if (n > 1) {
-      if (sq instanceof Elephant || sq instanceof TigerRider || sq instanceof Chariot) sq.addEchoes([sq.m.group], t === 'e' ? Math.min(3, n) : n, t === 'r' ? 0.36 : 0.4);   // 四级战象：三头黄金象，不再加数量
+      if (sq instanceof Elephant || sq instanceof Chariot) sq.addEchoes([sq.m.group], t === 'e' ? Math.min(3, n) : n, t === 'r' ? 0.36 : 0.4);   // 四级战象：三头黄金象，不再加数量
       else if (sq instanceof Cannon && sq.mode !== 'battery') sq.addEchoes([sq.gun.group].concat(sq.horse ? [sq.horse.group] : []), n, 0.42);
       if (sq.echoes) { const die = sq.die.bind(sq); sq.die = (hit, dir, ...a) => { sq.echoesDie(dir || new V3(0, 0, 1)); return die(hit, dir, ...a); }; }
     }
@@ -967,7 +1003,7 @@ const Squads = (() => {
     switch (t) {
       case 'p': return new Infantry(side, anchor, yaw, n);
       case 'a': return new Guards(side, anchor, yaw, n);
-      case 'e': return side === 'r' ? (TIGER ? new TigerRider(side, anchor, yaw, n >= 4) : new Crossbow(side, anchor, yaw, n)) : new Elephant(side, anchor, yaw, n >= 4);
+      case 'e': return side === 'r' ? (TIGER ? new TigerRider(side, anchor, yaw, n) : new Crossbow(side, anchor, yaw, n)) : new Elephant(side, anchor, yaw, n >= 4);
       case 'r': return new Chariot(side, anchor, yaw);
       case 'n': return new Cavalry(side, anchor, yaw, n);
       case 'c': return new Cannon(side, anchor, yaw, role === 'attack' ? 'battery' : role === 'defend' ? 'defend' : 'march', n);

@@ -1354,6 +1354,7 @@ const Models = (() => {
   }
 
   return {
+    TIGER: typeof location !== 'undefined' && /[?&]tiger=1/.test(location.search),   // 汉相「虎骑」预览开关
     SIDE, C, G, P, inkedMerged, soldierPartGeos, soldierStatic, Troop, Army: Troop, PARTS, POSES,
     makeHorse, makeRider, makeCavalry, cavalryStaticGeo, makeChariot, makeCannon, makeElephant, makeAdvisorCart, makeTigerRider, makeBoat, makeBoatman,
     makeHero, makeXiangYu, makeWuzhui, makeLiuBang, makeBanner, vcMat, jiShape,

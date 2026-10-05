@@ -552,7 +552,7 @@ const Fx = (() => {
       default: Marks.blood(g, 0.9, d); break;
     }
   }
-  const unitKey = (t, s) => ({ p: 'inf', r: 'chariot', n: 'cav', c: 'cannon', a: 'guard', e: s === 'r' ? 'xbow' : 'ele', k: s === 'r' ? 'liu' : 'xiang' })[t] || 'inf';
+  const unitKey = (t, s) => ({ p: 'inf', r: 'chariot', n: 'cav', c: 'cannon', a: 'guard', e: s === 'r' ? (Models.TIGER ? 'tiger' : 'xbow') : 'ele', k: s === 'r' ? 'liu' : 'xiang' })[t] || 'inf';
   async function lowCapture(c) {
     const { A, B, d, side, m, tgt, info } = c;
     const t = info.piece.t;
