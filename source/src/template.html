@@ -751,6 +751,8 @@ body.compact #log{width:164px;max-height:34vh}
    这里放一条专门给它取色的细条 #eTint：永远在最上层、贴着上边；颜色跟着当前画面走——大厅、整页式弹窗、终局卡片、加载页是朱，对局中是墨。
    高度取 min(14px, 安全区高度)：没有刘海的设备安全区是 0，这一条就不存在，不会多出一道色条。body 的背景色同步，作为取不到时的后备。 */
 #eTint{position:fixed;left:0;right:0;top:0;height:min(14px,var(--safe-t));z-index:100;pointer-events:none;background-color:#141311}
+/* 从主屏幕图标打开（独立窗口）时，状态栏是透明的，页面自己画到屏幕最顶上，不需要取色条——留着反而会在对局画面顶上多出一道墨线 */
+@media (display-mode:standalone){#eTint{display:none}}
 html,body{background-color:#141311}
 html:has(#lobby:not(.hidden)),html:has(#lobby:not(.hidden)) body,html:has(#lobby:not(.hidden)) #eTint,
 html:has(#loading),html:has(#loading) body,html:has(#loading) #eTint,
