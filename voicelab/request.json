@@ -1,378 +1,283 @@
 {
- "batch": "b11x",
+ "batch": "b12",
  "list_voices": false,
  "hosts": [
   "https://api.minimax.cn"
  ],
  "jobs": [
   {
-   "id": "real_u_b_p_k1_c",
+   "id": "real_u_b_p_k1_f",
    "voice": "Spanish_PowerfulVeteran",
    "text": "杀啊！！！<#0.5#>为了江东！！！",
    "emotion": "angry",
-   "speed": 0.82,
-   "vol": 2.4,
-   "pitch": 1,
+   "speed": 0.9,
+   "vol": 2.2,
    "modify": {
-    "intensity": -100,
-    "pitch": 10
+    "intensity": -100
    }
   },
   {
-   "id": "real_u_b_p_k1_d",
+   "id": "real_u_b_p_k1_g",
    "voice": "Spanish_PowerfulVeteran",
-   "text": "冲啊！！杀！！！<#0.5#>为了江东！！！",
+   "text": "弟兄们！冲啊！！！<#0.5#>为了江东！！！",
    "emotion": "angry",
-   "speed": 0.86,
-   "vol": 2.4,
-   "pitch": 2,
+   "speed": 0.8,
+   "vol": 2.2,
    "modify": {
-    "intensity": -100,
-    "pitch": 22
+    "intensity": -80
    }
   },
   {
-   "id": "real_u_b_p_k1_e",
+   "id": "real_u_b_p_k1_h",
+   "voice": "Spanish_PowerfulVeteran",
+   "text": "为了江东！！！<#0.5#>为了江东！！！",
+   "emotion": "angry",
+   "speed": 0.82,
+   "vol": 2.2,
+   "modify": {
+    "intensity": -100
+   }
+  },
+  {
+   "id": "real_u_b_p_k1_i",
+   "voice": "Spanish_PowerfulVeteran",
+   "text": "为了江东！！！",
+   "emotion": "angry",
+   "speed": 0.95,
+   "vol": 1.6,
+   "modify": {
+    "intensity": -60
+   }
+  },
+  {
+   "id": "real_u_b_p_k1_j",
    "voice": "Spanish_PowerfulVeteran",
    "text": "杀！！！<#0.5#>为了江东！！！",
    "emotion": "angry",
-   "speed": 0.78,
-   "vol": 2.4,
+   "speed": 0.95,
+   "vol": 1.6,
    "modify": {
-    "intensity": -100
+    "intensity": -60
    }
   },
   {
-   "id": "real_u_b_p_k2_c",
+   "id": "real_u_b_p_k2_f",
    "voice": "Spanish_PowerfulVeteran",
    "text": "杀啊！！！<#0.5#>楚军必胜！！！",
    "emotion": "angry",
-   "speed": 0.82,
-   "vol": 2.4,
-   "pitch": 1,
+   "speed": 0.9,
+   "vol": 2.2,
    "modify": {
-    "intensity": -100,
-    "pitch": 10
+    "intensity": -100
    }
   },
   {
-   "id": "real_u_b_p_k2_d",
+   "id": "real_u_b_p_k2_g",
    "voice": "Spanish_PowerfulVeteran",
-   "text": "冲啊！！杀！！！<#0.5#>楚军必胜！！！",
+   "text": "弟兄们！冲啊！！！<#0.5#>楚军必胜！！！",
    "emotion": "angry",
-   "speed": 0.86,
-   "vol": 2.4,
-   "pitch": 2,
+   "speed": 0.8,
+   "vol": 2.2,
    "modify": {
-    "intensity": -100,
-    "pitch": 22
+    "intensity": -80
    }
   },
   {
-   "id": "real_u_b_p_k2_e",
+   "id": "real_u_b_p_k2_h",
+   "voice": "Spanish_PowerfulVeteran",
+   "text": "楚军必胜！！！<#0.5#>楚军必胜！！！",
+   "emotion": "angry",
+   "speed": 0.82,
+   "vol": 2.2,
+   "modify": {
+    "intensity": -100
+   }
+  },
+  {
+   "id": "real_u_b_p_k2_i",
+   "voice": "Spanish_PowerfulVeteran",
+   "text": "楚军必胜！！！",
+   "emotion": "angry",
+   "speed": 0.95,
+   "vol": 1.6,
+   "modify": {
+    "intensity": -60
+   }
+  },
+  {
+   "id": "real_u_b_p_k2_j",
    "voice": "Spanish_PowerfulVeteran",
    "text": "杀！！！<#0.5#>楚军必胜！！！",
    "emotion": "angry",
-   "speed": 0.78,
-   "vol": 2.4,
+   "speed": 0.95,
+   "vol": 1.6,
    "modify": {
-    "intensity": -100
+    "intensity": -60
    }
   },
   {
-   "id": "real_u_b_r_k1_c",
+   "id": "real_u_b_r_k1_f",
    "voice": "Spanish_PowerfulVeteran",
    "text": "杀啊！！！<#0.5#>撞开敌阵！！！",
    "emotion": "angry",
-   "speed": 0.82,
-   "vol": 2.4,
-   "pitch": 1,
+   "speed": 0.9,
+   "vol": 2.2,
    "modify": {
-    "intensity": -100,
-    "pitch": 10
+    "intensity": -100
    }
   },
   {
-   "id": "real_u_b_r_k1_d",
+   "id": "real_u_b_r_k1_g",
    "voice": "Spanish_PowerfulVeteran",
-   "text": "冲啊！！杀！！！<#0.5#>撞开敌阵！！！",
+   "text": "弟兄们！冲啊！！！<#0.5#>撞开敌阵！！！",
    "emotion": "angry",
-   "speed": 0.86,
-   "vol": 2.4,
-   "pitch": 2,
+   "speed": 0.8,
+   "vol": 2.2,
    "modify": {
-    "intensity": -100,
-    "pitch": 22
+    "intensity": -80
    }
   },
   {
-   "id": "real_u_b_r_k1_e",
+   "id": "real_u_b_r_k1_h",
+   "voice": "Spanish_PowerfulVeteran",
+   "text": "撞开敌阵！！！<#0.5#>撞开敌阵！！！",
+   "emotion": "angry",
+   "speed": 0.82,
+   "vol": 2.2,
+   "modify": {
+    "intensity": -100
+   }
+  },
+  {
+   "id": "real_u_b_r_k1_i",
+   "voice": "Spanish_PowerfulVeteran",
+   "text": "撞开敌阵！！！",
+   "emotion": "angry",
+   "speed": 0.95,
+   "vol": 1.6,
+   "modify": {
+    "intensity": -60
+   }
+  },
+  {
+   "id": "real_u_b_r_k1_j",
    "voice": "Spanish_PowerfulVeteran",
    "text": "杀！！！<#0.5#>撞开敌阵！！！",
    "emotion": "angry",
-   "speed": 0.78,
-   "vol": 2.4,
+   "speed": 0.95,
+   "vol": 1.6,
    "modify": {
-    "intensity": -100
+    "intensity": -60
    }
   },
   {
-   "id": "real_u_b_r_k2_c",
-   "voice": "Spanish_PowerfulVeteran",
-   "text": "杀啊！！！<#0.5#>碾碎他们！！！",
-   "emotion": "angry",
-   "speed": 0.82,
-   "vol": 2.4,
-   "pitch": 1,
-   "modify": {
-    "intensity": -100,
-    "pitch": 10
-   }
-  },
-  {
-   "id": "real_u_b_r_k2_d",
-   "voice": "Spanish_PowerfulVeteran",
-   "text": "冲啊！！杀！！！<#0.5#>碾碎他们！！！",
-   "emotion": "angry",
-   "speed": 0.86,
-   "vol": 2.4,
-   "pitch": 2,
-   "modify": {
-    "intensity": -100,
-    "pitch": 22
-   }
-  },
-  {
-   "id": "real_u_b_r_k2_e",
-   "voice": "Spanish_PowerfulVeteran",
-   "text": "杀！！！<#0.5#>碾碎他们！！！",
-   "emotion": "angry",
-   "speed": 0.78,
-   "vol": 2.4,
-   "modify": {
-    "intensity": -100
-   }
-  },
-  {
-   "id": "real_u_b_n_k1_c",
+   "id": "real_u_b_n_k1_f",
    "voice": "Spanish_PowerfulVeteran",
    "text": "杀啊！！！<#0.5#>踏平汉营！！！",
    "emotion": "angry",
-   "speed": 0.82,
-   "vol": 2.4,
-   "pitch": 1,
+   "speed": 0.9,
+   "vol": 2.2,
    "modify": {
-    "intensity": -100,
-    "pitch": 10
+    "intensity": -100
    }
   },
   {
-   "id": "real_u_b_n_k1_d",
+   "id": "real_u_b_n_k1_g",
    "voice": "Spanish_PowerfulVeteran",
-   "text": "冲啊！！杀！！！<#0.5#>踏平汉营！！！",
+   "text": "弟兄们！冲啊！！！<#0.5#>踏平汉营！！！",
    "emotion": "angry",
-   "speed": 0.86,
-   "vol": 2.4,
-   "pitch": 2,
+   "speed": 0.8,
+   "vol": 2.2,
    "modify": {
-    "intensity": -100,
-    "pitch": 22
+    "intensity": -80
    }
   },
   {
-   "id": "real_u_b_n_k1_e",
+   "id": "real_u_b_n_k1_h",
+   "voice": "Spanish_PowerfulVeteran",
+   "text": "踏平汉营！！！<#0.5#>踏平汉营！！！",
+   "emotion": "angry",
+   "speed": 0.82,
+   "vol": 2.2,
+   "modify": {
+    "intensity": -100
+   }
+  },
+  {
+   "id": "real_u_b_n_k1_i",
+   "voice": "Spanish_PowerfulVeteran",
+   "text": "踏平汉营！！！",
+   "emotion": "angry",
+   "speed": 0.95,
+   "vol": 1.6,
+   "modify": {
+    "intensity": -60
+   }
+  },
+  {
+   "id": "real_u_b_n_k1_j",
    "voice": "Spanish_PowerfulVeteran",
    "text": "杀！！！<#0.5#>踏平汉营！！！",
    "emotion": "angry",
-   "speed": 0.78,
-   "vol": 2.4,
+   "speed": 0.95,
+   "vol": 1.6,
    "modify": {
-    "intensity": -100
+    "intensity": -60
    }
   },
   {
-   "id": "real_u_b_n_k2_c",
-   "voice": "Spanish_PowerfulVeteran",
-   "text": "杀啊！！！<#0.5#>楚骑天下无敌！！！",
-   "emotion": "angry",
-   "speed": 0.82,
-   "vol": 2.4,
-   "pitch": 1,
-   "modify": {
-    "intensity": -100,
-    "pitch": 10
-   }
-  },
-  {
-   "id": "real_u_b_n_k2_d",
-   "voice": "Spanish_PowerfulVeteran",
-   "text": "冲啊！！杀！！！<#0.5#>楚骑天下无敌！！！",
-   "emotion": "angry",
-   "speed": 0.86,
-   "vol": 2.4,
-   "pitch": 2,
-   "modify": {
-    "intensity": -100,
-    "pitch": 22
-   }
-  },
-  {
-   "id": "real_u_b_n_k2_e",
-   "voice": "Spanish_PowerfulVeteran",
-   "text": "杀！！！<#0.5#>楚骑天下无敌！！！",
-   "emotion": "angry",
-   "speed": 0.78,
-   "vol": 2.4,
-   "modify": {
-    "intensity": -100
-   }
-  },
-  {
-   "id": "real_u_b_c_k1_c",
+   "id": "real_u_b_c_k1_f",
    "voice": "Spanish_PowerfulVeteran",
    "text": "杀啊！！！<#0.5#>给我轰！！！",
    "emotion": "angry",
-   "speed": 0.82,
-   "vol": 2.4,
-   "pitch": 1,
+   "speed": 0.9,
+   "vol": 2.2,
    "modify": {
-    "intensity": -100,
-    "pitch": 10
+    "intensity": -100
    }
   },
   {
-   "id": "real_u_b_c_k1_d",
+   "id": "real_u_b_c_k1_g",
    "voice": "Spanish_PowerfulVeteran",
-   "text": "冲啊！！杀！！！<#0.5#>给我轰！！！",
+   "text": "弟兄们！冲啊！！！<#0.5#>给我轰！！！",
    "emotion": "angry",
-   "speed": 0.86,
-   "vol": 2.4,
-   "pitch": 2,
+   "speed": 0.8,
+   "vol": 2.2,
    "modify": {
-    "intensity": -100,
-    "pitch": 22
+    "intensity": -80
    }
   },
   {
-   "id": "real_u_b_c_k1_e",
+   "id": "real_u_b_c_k1_h",
+   "voice": "Spanish_PowerfulVeteran",
+   "text": "给我轰！！！<#0.5#>给我轰！！！",
+   "emotion": "angry",
+   "speed": 0.82,
+   "vol": 2.2,
+   "modify": {
+    "intensity": -100
+   }
+  },
+  {
+   "id": "real_u_b_c_k1_i",
+   "voice": "Spanish_PowerfulVeteran",
+   "text": "给我轰！！！",
+   "emotion": "angry",
+   "speed": 0.95,
+   "vol": 1.6,
+   "modify": {
+    "intensity": -60
+   }
+  },
+  {
+   "id": "real_u_b_c_k1_j",
    "voice": "Spanish_PowerfulVeteran",
    "text": "杀！！！<#0.5#>给我轰！！！",
    "emotion": "angry",
-   "speed": 0.78,
-   "vol": 2.4,
+   "speed": 0.95,
+   "vol": 1.6,
    "modify": {
-    "intensity": -100
-   }
-  },
-  {
-   "id": "real_u_b_c_k2_c",
-   "voice": "Spanish_PowerfulVeteran",
-   "text": "杀啊！！！<#0.5#>炸飞他们！！！",
-   "emotion": "angry",
-   "speed": 0.82,
-   "vol": 2.4,
-   "pitch": 1,
-   "modify": {
-    "intensity": -100,
-    "pitch": 10
-   }
-  },
-  {
-   "id": "real_u_b_c_k2_d",
-   "voice": "Spanish_PowerfulVeteran",
-   "text": "冲啊！！杀！！！<#0.5#>炸飞他们！！！",
-   "emotion": "angry",
-   "speed": 0.86,
-   "vol": 2.4,
-   "pitch": 2,
-   "modify": {
-    "intensity": -100,
-    "pitch": 22
-   }
-  },
-  {
-   "id": "real_u_b_c_k2_e",
-   "voice": "Spanish_PowerfulVeteran",
-   "text": "杀！！！<#0.5#>炸飞他们！！！",
-   "emotion": "angry",
-   "speed": 0.78,
-   "vol": 2.4,
-   "modify": {
-    "intensity": -100
-   }
-  },
-  {
-   "id": "real_u_b_e_k2_c",
-   "voice": "Spanish_PowerfulVeteran",
-   "text": "杀啊！！！<#0.5#>象阵冲锋！！！",
-   "emotion": "angry",
-   "speed": 0.82,
-   "vol": 2.4,
-   "pitch": 1,
-   "modify": {
-    "intensity": -100,
-    "pitch": 10
-   }
-  },
-  {
-   "id": "real_u_b_e_k2_d",
-   "voice": "Spanish_PowerfulVeteran",
-   "text": "冲啊！！杀！！！<#0.5#>象阵冲锋！！！",
-   "emotion": "angry",
-   "speed": 0.86,
-   "vol": 2.4,
-   "pitch": 2,
-   "modify": {
-    "intensity": -100,
-    "pitch": 22
-   }
-  },
-  {
-   "id": "real_u_b_e_k2_e",
-   "voice": "Spanish_PowerfulVeteran",
-   "text": "杀！！！<#0.5#>象阵冲锋！！！",
-   "emotion": "angry",
-   "speed": 0.78,
-   "vol": 2.4,
-   "modify": {
-    "intensity": -100
-   }
-  },
-  {
-   "id": "real_u_b_a_k2_c",
-   "voice": "Spanish_PowerfulVeteran",
-   "text": "杀啊！！！<#0.5#>护驾！斩！！！",
-   "emotion": "angry",
-   "speed": 0.82,
-   "vol": 2.4,
-   "pitch": 1,
-   "modify": {
-    "intensity": -100,
-    "pitch": 10
-   }
-  },
-  {
-   "id": "real_u_b_a_k2_d",
-   "voice": "Spanish_PowerfulVeteran",
-   "text": "冲啊！！杀！！！<#0.5#>护驾！斩！！！",
-   "emotion": "angry",
-   "speed": 0.86,
-   "vol": 2.4,
-   "pitch": 2,
-   "modify": {
-    "intensity": -100,
-    "pitch": 22
-   }
-  },
-  {
-   "id": "real_u_b_a_k2_e",
-   "voice": "Spanish_PowerfulVeteran",
-   "text": "杀！！！<#0.5#>护驾！斩！！！",
-   "emotion": "angry",
-   "speed": 0.78,
-   "vol": 2.4,
-   "modify": {
-    "intensity": -100
+    "intensity": -60
    }
   }
  ]
