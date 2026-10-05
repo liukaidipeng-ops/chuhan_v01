@@ -1,0 +1,244 @@
+{
+ "batch": "b12",
+ "key_present": true,
+ "key_len": 126,
+ "host": "https://api.minimax.cn",
+ "probe": [
+  {
+   "host": "https://api.minimax.cn",
+   "http": 200,
+   "code": 0,
+   "msg": "success"
+  }
+ ],
+ "jobs": [
+  {
+   "id": "real_u_b_p_k1_f",
+   "voice": "Spanish_PowerfulVeteran",
+   "voice_id": "Spanish_PowerfulVeteran",
+   "voice_name": null,
+   "ok": true,
+   "ms": 3384,
+   "chars": 25
+  },
+  {
+   "id": "real_u_b_p_k1_g",
+   "voice": "Spanish_PowerfulVeteran",
+   "voice_id": "Spanish_PowerfulVeteran",
+   "voice_name": null,
+   "ok": true,
+   "ms": 4716,
+   "chars": 32
+  },
+  {
+   "id": "real_u_b_p_k1_h",
+   "voice": "Spanish_PowerfulVeteran",
+   "voice_id": "Spanish_PowerfulVeteran",
+   "voice_name": null,
+   "ok": true,
+   "ms": 3744,
+   "chars": 29
+  },
+  {
+   "id": "real_u_b_p_k1_i",
+   "voice": "Spanish_PowerfulVeteran",
+   "voice_id": "Spanish_PowerfulVeteran",
+   "voice_name": null,
+   "ok": true,
+   "ms": 1512,
+   "chars": 11
+  },
+  {
+   "id": "real_u_b_p_k1_j",
+   "voice": "Spanish_PowerfulVeteran",
+   "voice_id": "Spanish_PowerfulVeteran",
+   "voice_name": null,
+   "ok": true,
+   "ms": 3240,
+   "chars": 23
+  },
+  {
+   "id": "real_u_b_p_k2_f",
+   "voice": "Spanish_PowerfulVeteran",
+   "voice_id": "Spanish_PowerfulVeteran",
+   "voice_name": null,
+   "ok": true,
+   "ms": 4176,
+   "chars": 25
+  },
+  {
+   "id": "real_u_b_p_k2_g",
+   "voice": "Spanish_PowerfulVeteran",
+   "voice_id": "Spanish_PowerfulVeteran",
+   "voice_name": null,
+   "ok": true,
+   "ms": 5076,
+   "chars": 32
+  },
+  {
+   "id": "real_u_b_p_k2_h",
+   "voice": "Spanish_PowerfulVeteran",
+   "voice_id": "Spanish_PowerfulVeteran",
+   "voice_name": null,
+   "ok": true,
+   "ms": 4788,
+   "chars": 29
+  },
+  {
+   "id": "real_u_b_p_k2_i",
+   "voice": "Spanish_PowerfulVeteran",
+   "voice_id": "Spanish_PowerfulVeteran",
+   "voice_name": null,
+   "ok": true,
+   "ms": 1872,
+   "chars": 11
+  },
+  {
+   "id": "real_u_b_p_k2_j",
+   "voice": "Spanish_PowerfulVeteran",
+   "voice_id": "Spanish_PowerfulVeteran",
+   "voice_name": null,
+   "ok": true,
+   "ms": 3564,
+   "chars": 23
+  },
+  {
+   "id": "real_u_b_r_k1_f",
+   "voice": "Spanish_PowerfulVeteran",
+   "voice_id": "Spanish_PowerfulVeteran",
+   "voice_name": null,
+   "ok": true,
+   "ms": 3600,
+   "chars": 25
+  },
+  {
+   "id": "real_u_b_r_k1_g",
+   "voice": "Spanish_PowerfulVeteran",
+   "voice_id": "Spanish_PowerfulVeteran",
+   "voice_name": null,
+   "ok": true,
+   "ms": 5040,
+   "chars": 32
+  },
+  {
+   "id": "real_u_b_r_k1_h",
+   "voice": "Spanish_PowerfulVeteran",
+   "voice_id": "Spanish_PowerfulVeteran",
+   "voice_name": null,
+   "ok": true,
+   "ms": 3744,
+   "chars": 29
+  },
+  {
+   "id": "real_u_b_r_k1_i",
+   "voice": "Spanish_PowerfulVeteran",
+   "voice_id": "Spanish_PowerfulVeteran",
+   "voice_name": null,
+   "ok": true,
+   "ms": 1584,
+   "chars": 11
+  },
+  {
+   "id": "real_u_b_r_k1_j",
+   "voice": "Spanish_PowerfulVeteran",
+   "voice_id": "Spanish_PowerfulVeteran",
+   "voice_name": null,
+   "ok": true,
+   "ms": 3492,
+   "chars": 23
+  },
+  {
+   "id": "real_u_b_n_k1_f",
+   "voice": "Spanish_PowerfulVeteran",
+   "voice_id": "Spanish_PowerfulVeteran",
+   "voice_name": null,
+   "ok": true,
+   "ms": 3816,
+   "chars": 25
+  },
+  {
+   "id": "real_u_b_n_k1_g",
+   "voice": "Spanish_PowerfulVeteran",
+   "voice_id": "Spanish_PowerfulVeteran",
+   "voice_name": null,
+   "ok": true,
+   "ms": 5292,
+   "chars": 32
+  },
+  {
+   "id": "real_u_b_n_k1_h",
+   "voice": "Spanish_PowerfulVeteran",
+   "voice_id": "Spanish_PowerfulVeteran",
+   "voice_name": null,
+   "ok": true,
+   "ms": 4500,
+   "chars": 29
+  },
+  {
+   "id": "real_u_b_n_k1_i",
+   "voice": "Spanish_PowerfulVeteran",
+   "voice_id": "Spanish_PowerfulVeteran",
+   "voice_name": null,
+   "ok": true,
+   "ms": 1656,
+   "chars": 11
+  },
+  {
+   "id": "real_u_b_n_k1_j",
+   "voice": "Spanish_PowerfulVeteran",
+   "voice_id": "Spanish_PowerfulVeteran",
+   "voice_name": null,
+   "ok": true,
+   "ms": 3384,
+   "chars": 23
+  },
+  {
+   "id": "real_u_b_c_k1_f",
+   "voice": "Spanish_PowerfulVeteran",
+   "voice_id": "Spanish_PowerfulVeteran",
+   "voice_name": null,
+   "ok": true,
+   "ms": 3420,
+   "chars": 23
+  },
+  {
+   "id": "real_u_b_c_k1_g",
+   "voice": "Spanish_PowerfulVeteran",
+   "voice_id": "Spanish_PowerfulVeteran",
+   "voice_name": null,
+   "ok": true,
+   "ms": 5004,
+   "chars": 30
+  },
+  {
+   "id": "real_u_b_c_k1_h",
+   "voice": "Spanish_PowerfulVeteran",
+   "voice_id": "Spanish_PowerfulVeteran",
+   "voice_name": null,
+   "ok": true,
+   "ms": 3672,
+   "chars": 25
+  },
+  {
+   "id": "real_u_b_c_k1_i",
+   "voice": "Spanish_PowerfulVeteran",
+   "voice_id": "Spanish_PowerfulVeteran",
+   "voice_name": null,
+   "ok": true,
+   "ms": 1800,
+   "chars": 9
+  },
+  {
+   "id": "real_u_b_c_k1_j",
+   "voice": "Spanish_PowerfulVeteran",
+   "voice_id": "Spanish_PowerfulVeteran",
+   "voice_name": null,
+   "ok": true,
+   "http": 200,
+   "code": 1002,
+   "msg": "rate limit exceeded(RPM)",
+   "ms": 2952,
+   "chars": 21
+  }
+ ]
+}
