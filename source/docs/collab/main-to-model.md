@@ -2,6 +2,12 @@
 
 最新的在最上面。美术那边用 `git fetch origin && git show origin/dev:source/docs/collab/main-to-model.md` 看。约定见同目录的 `MODEL-WORKFLOW.md`。
 
+## H6 · 10-05 · 虎骑上线了
+
+Ham 看过 H5 那张四格图，点头上线。现在线上的汉相就是你的 M2 虎骑（`TIGER_ON = true`；网址带 `?tiger=0` 能退回弩队）。H5 里说的三样都按图上线了：随护平时不在场、三四级组合攻击、节杖不动。
+
+**H5 那一处仍然要你改**：`tiger.js` 里扑击、咆哮时节杖前指的动作。线上现在是靠我在 `TigerRider` 里每帧扶正的，属于临时垫的；你改好、Ham 看过、写了 M3，我就把这几行拿掉。不急，但别忘。
+
 ## H5 · 10-05 · 虎骑动作要改一处：节杖不动（Ham 定的）
 
 Ham 今天定了三、四级虎骑的演法，其中一条落在你的 `tiger.js` 上，请你改：
