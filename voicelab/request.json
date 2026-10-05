@@ -1,153 +1,763 @@
 {
- "batch": "b15",
+ "batch": "b20",
  "list_voices": false,
  "hosts": [
   "https://api.minimax.cn"
  ],
  "jobs": [
   {
-   "id": "real_u_r_e_m1_s",
-   "voice": "Spanish_PowerfulSoldier",
-   "text": "白虎开道。",
-   "emotion": "angry",
+   "id": "real_r_jq_start",
+   "voice": "Chinese (Mandarin)_Reliable_Executive",
+   "text": "十五子，尽数扣下。<#0.12#>翻开，方知是何兵马！",
+   "pitch": -1,
+   "vol": 1.2,
    "speed": 0.95,
-   "vol": 1.6,
    "modify": {
-    "intensity": -60
-   }
+    "pitch": -12,
+    "timbre": -8
+   },
+   "emotion": "happy"
   },
   {
-   "id": "real_u_r_e_m1_z",
-   "voice": "Chinese (Mandarin)_Gentleman",
-   "text": "白虎开道。",
-   "emotion": "calm",
-   "speed": 0.9,
-   "vol": 1.3,
+   "id": "real_b_bf_start",
+   "voice": "Chinese (Mandarin)_Humorous_Elder",
+   "text": "(chuckle)论兵法，你还嫩了些！",
+   "pitch": -3,
+   "vol": 1.5,
+   "speed": 0.92,
+   "modify": {
+    "intensity": -80,
+    "pitch": -20,
+    "timbre": -30,
+    "sound_effects": "spacious_echo"
+   },
+   "emotion": "disgusted"
+  },
+  {
+   "id": "real_u_r_k_m3",
+   "voice": "Chinese (Mandarin)_Reliable_Executive",
+   "text": "老子换个地方坐坐。",
    "pitch": -1,
-   "modify": {
-    "intensity": -20,
-    "pitch": -10
-   }
-  },
-  {
-   "id": "real_u_r_e_m2_s",
-   "voice": "Spanish_PowerfulSoldier",
-   "text": "谋定而后动。",
-   "emotion": "angry",
+   "vol": 1.2,
    "speed": 0.95,
-   "vol": 1.6,
    "modify": {
-    "intensity": -60
-   }
+    "pitch": -12,
+    "timbre": -8
+   },
+   "emotion": "calm"
   },
   {
-   "id": "real_u_r_e_m2_z",
-   "voice": "Chinese (Mandarin)_Gentleman",
-   "text": "谋定而后动。",
-   "emotion": "calm",
+   "id": "real_u_r_k_m4",
+   "voice": "Chinese (Mandarin)_Reliable_Executive",
+   "text": "帅帐，<#0.08#>移营！",
+   "pitch": -1,
+   "vol": 1.5,
    "speed": 0.9,
+   "modify": {
+    "pitch": -12,
+    "timbre": -8,
+    "intensity": -80
+   },
+   "emotion": "angry"
+  },
+  {
+   "id": "real_u_r_k_k3",
+   "voice": "Chinese (Mandarin)_Reliable_Executive",
+   "text": "斩白蛇的剑，<#0.1#>还没钝！！",
+   "pitch": -1,
+   "vol": 2.2,
+   "speed": 0.9,
+   "modify": {
+    "pitch": -8,
+    "timbre": -8,
+    "intensity": -100
+   },
+   "emotion": "angry"
+  },
+  {
+   "id": "real_u_r_k_k4",
+   "voice": "Chinese (Mandarin)_Reliable_Executive",
+   "text": "老子亲自动手！！",
+   "pitch": -1,
+   "vol": 2.2,
+   "speed": 0.9,
+   "modify": {
+    "pitch": -8,
+    "timbre": -8,
+    "intensity": -100
+   },
+   "emotion": "angry"
+  },
+  {
+   "id": "real_u_b_k_m3",
+   "voice": "Chinese (Mandarin)_Humorous_Elder",
+   "text": "霸王在此，谁敢近前！",
+   "pitch": -3,
+   "vol": 1.8,
+   "speed": 0.86,
+   "modify": {
+    "intensity": -100,
+    "pitch": -20,
+    "timbre": -30,
+    "sound_effects": "spacious_echo"
+   },
+   "emotion": "angry"
+  },
+  {
+   "id": "real_u_b_k_m4",
+   "voice": "Chinese (Mandarin)_Humorous_Elder",
+   "text": "吾自有分寸。",
+   "pitch": -3,
+   "vol": 1.5,
+   "speed": 0.92,
+   "modify": {
+    "intensity": -80,
+    "pitch": -20,
+    "timbre": -30,
+    "sound_effects": "spacious_echo"
+   },
+   "emotion": "calm"
+  },
+  {
+   "id": "real_u_b_k_k3",
+   "voice": "Chinese (Mandarin)_Humorous_Elder",
+   "text": "吾一人，<#0.1#>可敌万人！！",
+   "pitch": -3,
+   "vol": 2.2,
+   "speed": 0.8,
+   "modify": {
+    "intensity": -100,
+    "pitch": -30,
+    "timbre": -40,
+    "sound_effects": "spacious_echo"
+   },
+   "emotion": "angry"
+  },
+  {
+   "id": "real_u_b_k_k4",
+   "voice": "Chinese (Mandarin)_Humorous_Elder",
+   "text": "霸王亲至，尔等授首！！",
+   "pitch": -3,
+   "vol": 2.2,
+   "speed": 0.8,
+   "modify": {
+    "intensity": -100,
+    "pitch": -30,
+    "timbre": -40,
+    "sound_effects": "spacious_echo"
+   },
+   "emotion": "angry"
+  },
+  {
+   "id": "real_r_face",
+   "voice": "Chinese (Mandarin)_Reliable_Executive",
+   "text": "王不见王，避其锋芒！",
+   "pitch": -1,
+   "vol": 1.5,
+   "speed": 0.9,
+   "modify": {
+    "pitch": -12,
+    "timbre": -8,
+    "intensity": -80
+   },
+   "emotion": "angry"
+  },
+  {
+   "id": "real_b_face",
+   "voice": "Chinese (Mandarin)_Humorous_Elder",
+   "text": "王不见王！<#0.15#>(snorts)且饶他一回。",
+   "pitch": -3,
+   "vol": 1.5,
+   "speed": 0.92,
+   "modify": {
+    "intensity": -80,
+    "pitch": -20,
+    "timbre": -30,
+    "sound_effects": "spacious_echo"
+   },
+   "emotion": "disgusted"
+  },
+  {
+   "id": "real_r_h_r0",
+   "voice": "Chinese (Mandarin)_Reliable_Executive",
+   "text": "(sighs)韩信啊韩信，没了你，谁替老子带兵！",
+   "pitch": -1,
    "vol": 1.3,
-   "pitch": -1,
-   "modify": {
-    "intensity": -20,
-    "pitch": -10
-   }
-  },
-  {
-   "id": "real_u_r_e_k1_s",
-   "voice": "Spanish_PowerfulSoldier",
-   "text": "白虎，扑！！",
-   "emotion": "angry",
-   "speed": 0.76,
-   "vol": 2.2,
-   "modify": {
-    "intensity": -100
-   }
-  },
-  {
-   "id": "real_u_r_e_k1_z",
-   "voice": "Chinese (Mandarin)_Gentleman",
-   "text": "白虎，扑！！",
-   "emotion": "angry",
    "speed": 0.88,
-   "vol": 2.0,
+   "modify": {
+    "pitch": -12,
+    "timbre": -8
+   },
+   "emotion": "sad"
+  },
+  {
+   "id": "real_r_h_r1",
+   "voice": "Chinese (Mandarin)_Reliable_Executive",
+   "text": "夏侯婴！老子的车，往后谁来赶！",
    "pitch": -1,
-   "modify": {
-    "intensity": -70,
-    "pitch": -10
-   }
-  },
-  {
-   "id": "real_u_r_e_k2_s",
-   "voice": "Spanish_PowerfulSoldier",
-   "text": "犯汉者，虎噬之！！",
-   "emotion": "angry",
-   "speed": 0.76,
-   "vol": 2.2,
-   "modify": {
-    "intensity": -100
-   }
-  },
-  {
-   "id": "real_u_r_e_k2_z",
-   "voice": "Chinese (Mandarin)_Gentleman",
-   "text": "犯汉者，虎噬之！！",
-   "emotion": "angry",
+   "vol": 1.3,
    "speed": 0.88,
-   "vol": 2.0,
-   "pitch": -1,
    "modify": {
-    "intensity": -70,
-    "pitch": -10
-   }
+    "pitch": -12,
+    "timbre": -8
+   },
+   "emotion": "sad"
   },
   {
-   "id": "real_u_r_e_m3_s",
-   "voice": "Spanish_PowerfulSoldier",
-   "text": "持节而行。",
+   "id": "real_r_h_p0",
+   "voice": "Chinese (Mandarin)_Reliable_Executive",
+   "text": "周勃！安刘氏者，本该是你啊！",
+   "pitch": -1,
+   "vol": 1.3,
+   "speed": 0.88,
+   "modify": {
+    "pitch": -12,
+    "timbre": -8
+   },
+   "emotion": "sad"
+  },
+  {
+   "id": "real_r_h_p1",
+   "voice": "Chinese (Mandarin)_Reliable_Executive",
+   "text": "曹参！身上七十处伤，<#0.1#>这回，没挺过去。",
+   "pitch": -1,
+   "vol": 1.3,
+   "speed": 0.88,
+   "modify": {
+    "pitch": -12,
+    "timbre": -8
+   },
+   "emotion": "sad",
+   "tone": [
+    "曹参/(cao2)(can1)"
+   ]
+  },
+  {
+   "id": "real_r_h_p2",
+   "voice": "Chinese (Mandarin)_Reliable_Executive",
+   "text": "王陵！你这直肠子，怎么就走了！",
+   "pitch": -1,
+   "vol": 1.3,
+   "speed": 0.88,
+   "modify": {
+    "pitch": -12,
+    "timbre": -8
+   },
+   "emotion": "sad"
+  },
+  {
+   "id": "real_r_h_p3",
+   "voice": "Chinese (Mandarin)_Reliable_Executive",
+   "text": "卢绾！你我同日生，说好了不同日死！",
+   "pitch": -1,
+   "vol": 1.3,
+   "speed": 0.88,
+   "modify": {
+    "pitch": -12,
+    "timbre": -8
+   },
+   "emotion": "sad",
+   "tone": [
+    "卢绾/(lu2)(wan3)"
+   ]
+  },
+  {
+   "id": "real_r_h_p4",
+   "voice": "Chinese (Mandarin)_Reliable_Executive",
+   "text": "傅宽！<#0.12#>好兄弟，走好。",
+   "pitch": -1,
+   "vol": 1.3,
+   "speed": 0.88,
+   "modify": {
+    "pitch": -12,
+    "timbre": -8
+   },
+   "emotion": "sad"
+  },
+  {
+   "id": "real_r_h_a0",
+   "voice": "Chinese (Mandarin)_Reliable_Executive",
+   "text": "樊哙！鸿门宴上，你救过老子的命啊！",
+   "pitch": -1,
+   "vol": 1.3,
+   "speed": 0.88,
+   "modify": {
+    "pitch": -12,
+    "timbre": -8
+   },
+   "emotion": "sad",
+   "tone": [
+    "樊哙/(fan2)(kuai4)"
+   ]
+  },
+  {
+   "id": "real_r_h_a1",
+   "voice": "Chinese (Mandarin)_Reliable_Executive",
+   "text": "纪信！你又替老子死了一回！",
+   "pitch": -1,
+   "vol": 1.3,
+   "speed": 0.88,
+   "modify": {
+    "pitch": -12,
+    "timbre": -8
+   },
+   "emotion": "sad"
+  },
+  {
+   "id": "real_r_h_e0",
+   "voice": "Chinese (Mandarin)_Reliable_Executive",
+   "text": "子房！没了你，谁替寡人运筹帷幄！",
+   "pitch": -1,
+   "vol": 1.3,
+   "speed": 0.88,
+   "modify": {
+    "pitch": -12,
+    "timbre": -8
+   },
+   "emotion": "sad"
+  },
+  {
+   "id": "real_r_h_e1",
+   "voice": "Chinese (Mandarin)_Reliable_Executive",
+   "text": "萧何没了，粮草谁管！<#0.15#>老萧啊！",
+   "pitch": -1,
+   "vol": 1.3,
+   "speed": 0.88,
+   "modify": {
+    "pitch": -12,
+    "timbre": -8
+   },
+   "emotion": "sad"
+  },
+  {
+   "id": "real_b_h_r0",
+   "voice": "Chinese (Mandarin)_Humorous_Elder",
+   "text": "龙且！吾之猛将，竟折于此！",
+   "pitch": -3,
+   "vol": 1.8,
+   "speed": 0.86,
+   "modify": {
+    "intensity": -100,
+    "pitch": -20,
+    "timbre": -30,
+    "sound_effects": "spacious_echo"
+   },
    "emotion": "angry",
+   "tone": [
+    "龙且/(long2)(ju1)"
+   ]
+  },
+  {
+   "id": "real_b_h_r1",
+   "voice": "Chinese (Mandarin)_Humorous_Elder",
+   "text": "钟离昧！<#0.12#>是吾，对不住你。",
+   "pitch": -3,
+   "vol": 1.5,
+   "speed": 0.85,
+   "modify": {
+    "intensity": -60,
+    "pitch": -20,
+    "timbre": -30,
+    "sound_effects": "spacious_echo"
+   },
+   "emotion": "sad",
+   "tone": [
+    "钟离昧/(zhong1)(li2)(mo4)"
+   ]
+  },
+  {
+   "id": "real_b_h_p0",
+   "voice": "Chinese (Mandarin)_Humorous_Elder",
+   "text": "季布！一诺千金的汉子，可惜了！",
+   "pitch": -3,
+   "vol": 1.5,
+   "speed": 0.85,
+   "modify": {
+    "intensity": -60,
+    "pitch": -20,
+    "timbre": -30,
+    "sound_effects": "spacious_echo"
+   },
+   "emotion": "sad"
+  },
+  {
+   "id": "real_b_h_p1",
+   "voice": "Chinese (Mandarin)_Humorous_Elder",
+   "text": "英布？<#0.1#>(snorts)反复之人，死不足惜。",
+   "pitch": -3,
+   "vol": 1.5,
+   "speed": 0.92,
+   "modify": {
+    "intensity": -80,
+    "pitch": -20,
+    "timbre": -30,
+    "sound_effects": "spacious_echo"
+   },
+   "emotion": "disgusted"
+  },
+  {
+   "id": "real_b_h_p2",
+   "voice": "Chinese (Mandarin)_Humorous_Elder",
+   "text": "子期！<#0.12#>吾，如何向虞姬交代。",
+   "pitch": -3,
+   "vol": 1.5,
+   "speed": 0.85,
+   "modify": {
+    "intensity": -60,
+    "pitch": -20,
+    "timbre": -30,
+    "sound_effects": "spacious_echo"
+   },
+   "emotion": "sad"
+  },
+  {
+   "id": "real_b_h_p3",
+   "voice": "Chinese (Mandarin)_Humorous_Elder",
+   "text": "桓楚！江东旧人，又少一个。",
+   "pitch": -3,
+   "vol": 1.5,
+   "speed": 0.85,
+   "modify": {
+    "intensity": -60,
+    "pitch": -20,
+    "timbre": -30,
+    "sound_effects": "spacious_echo"
+   },
+   "emotion": "sad"
+  },
+  {
+   "id": "real_b_h_p4",
+   "voice": "Chinese (Mandarin)_Humorous_Elder",
+   "text": "周殷！<#0.1#>也罢，总好过你降了汉。",
+   "pitch": -3,
+   "vol": 1.5,
+   "speed": 0.92,
+   "modify": {
+    "intensity": -80,
+    "pitch": -20,
+    "timbre": -30,
+    "sound_effects": "spacious_echo"
+   },
+   "emotion": "disgusted"
+  },
+  {
+   "id": "real_b_h_a0",
+   "voice": "Chinese (Mandarin)_Humorous_Elder",
+   "text": "项庄！你的剑，还没舞完啊！",
+   "pitch": -3,
+   "vol": 1.5,
+   "speed": 0.85,
+   "modify": {
+    "intensity": -60,
+    "pitch": -20,
+    "timbre": -30,
+    "sound_effects": "spacious_echo"
+   },
+   "emotion": "sad"
+  },
+  {
+   "id": "real_b_h_a1",
+   "voice": "Chinese (Mandarin)_Humorous_Elder",
+   "text": "叔父！<#0.25#>罢了。你的心，本就不在楚营。",
+   "pitch": -3,
+   "vol": 1.5,
+   "speed": 0.85,
+   "modify": {
+    "intensity": -60,
+    "pitch": -20,
+    "timbre": -30,
+    "sound_effects": "spacious_echo"
+   },
+   "emotion": "sad"
+  },
+  {
+   "id": "real_b_h_e0",
+   "voice": "Chinese (Mandarin)_Humorous_Elder",
+   "text": "亚父！<#0.12#>悔不听你的话啊！",
+   "pitch": -3,
+   "vol": 1.8,
+   "speed": 0.86,
+   "modify": {
+    "intensity": -100,
+    "pitch": -20,
+    "timbre": -30,
+    "sound_effects": "spacious_echo"
+   },
+   "emotion": "sad"
+  },
+  {
+   "id": "real_b_h_e1",
+   "voice": "Chinese (Mandarin)_Humorous_Elder",
+   "text": "项佗！项氏子弟，又折一人！",
+   "pitch": -3,
+   "vol": 1.8,
+   "speed": 0.86,
+   "modify": {
+    "intensity": -100,
+    "pitch": -20,
+    "timbre": -30,
+    "sound_effects": "spacious_echo"
+   },
+   "emotion": "angry",
+   "tone": [
+    "项佗/(xiang4)(tuo2)"
+   ]
+  },
+  {
+   "id": "real_r_x_poke",
+   "voice": "Chinese (Mandarin)_Reliable_Executive",
+   "text": "戳什么戳！老子的头也是你摸的？",
+   "pitch": -1,
+   "vol": 1.5,
+   "speed": 0.9,
+   "modify": {
+    "pitch": -12,
+    "timbre": -8,
+    "intensity": -80
+   },
+   "emotion": "angry"
+  },
+  {
+   "id": "real_b_x_poke",
+   "voice": "Chinese (Mandarin)_Humorous_Elder",
+   "text": "再戳，砍了你的手！",
+   "pitch": -3,
+   "vol": 1.8,
+   "speed": 0.86,
+   "modify": {
+    "intensity": -100,
+    "pitch": -20,
+    "timbre": -30,
+    "sound_effects": "spacious_echo"
+   },
+   "emotion": "angry"
+  },
+  {
+   "id": "real_r_x_flee",
+   "voice": "Chinese (Mandarin)_Reliable_Executive",
+   "text": "三十六计，走为上！",
+   "pitch": -1,
+   "vol": 1.2,
    "speed": 0.95,
-   "vol": 1.6,
    "modify": {
-    "intensity": -60
-   }
+    "pitch": -12,
+    "timbre": -8
+   },
+   "emotion": "happy"
   },
   {
-   "id": "real_u_r_e_m3_z",
-   "voice": "Chinese (Mandarin)_Gentleman",
-   "text": "持节而行。",
-   "emotion": "calm",
-   "speed": 0.9,
-   "vol": 1.3,
+   "id": "real_b_x_flee",
+   "voice": "Chinese (Mandarin)_Humorous_Elder",
+   "text": "(snorts)暂避一时。",
+   "pitch": -3,
+   "vol": 1.5,
+   "speed": 0.92,
+   "modify": {
+    "intensity": -80,
+    "pitch": -20,
+    "timbre": -30,
+    "sound_effects": "spacious_echo"
+   },
+   "emotion": "disgusted"
+  },
+  {
+   "id": "real_r_x_run",
+   "voice": "Chinese (Mandarin)_Reliable_Executive",
+   "text": "(laughs)论逃跑，老子天下第一！",
    "pitch": -1,
+   "vol": 1.2,
+   "speed": 0.95,
    "modify": {
-    "intensity": -20,
-    "pitch": -10
-   }
+    "pitch": -12,
+    "timbre": -8
+   },
+   "emotion": "happy"
   },
   {
-   "id": "real_u_r_e_k3_s",
-   "voice": "Spanish_PowerfulSoldier",
-   "text": "放虎！！",
-   "emotion": "angry",
-   "speed": 0.76,
+   "id": "real_b_x_run",
+   "voice": "Chinese (Mandarin)_Humorous_Elder",
+   "text": "吾乃霸王，岂能一退再退！",
+   "pitch": -3,
+   "vol": 1.8,
+   "speed": 0.86,
+   "modify": {
+    "intensity": -100,
+    "pitch": -20,
+    "timbre": -30,
+    "sound_effects": "spacious_echo"
+   },
+   "emotion": "angry"
+  },
+  {
+   "id": "real_r_x_alone",
+   "voice": "Chinese (Mandarin)_Reliable_Executive",
+   "text": "就剩老子一个了？",
+   "pitch": -1,
+   "vol": 1.2,
+   "speed": 0.95,
+   "modify": {
+    "pitch": -12,
+    "timbre": -8
+   },
+   "emotion": "surprised"
+  },
+  {
+   "id": "real_b_x_alone",
+   "voice": "Chinese (Mandarin)_Humorous_Elder",
+   "text": "江东子弟，<#0.15#>一个，都不剩了。",
+   "pitch": -3,
+   "vol": 1.5,
+   "speed": 0.85,
+   "modify": {
+    "intensity": -60,
+    "pitch": -20,
+    "timbre": -30,
+    "sound_effects": "spacious_echo"
+   },
+   "emotion": "sad"
+  },
+  {
+   "id": "real_r_x_eatr",
+   "voice": "Chinese (Mandarin)_Reliable_Executive",
+   "text": "连车都送到老子嘴边？<#0.1#>(chuckle)笑纳了！",
+   "pitch": -1,
+   "vol": 1.2,
+   "speed": 0.95,
+   "modify": {
+    "pitch": -12,
+    "timbre": -8
+   },
+   "emotion": "happy"
+  },
+  {
+   "id": "real_b_x_eatr",
+   "voice": "Chinese (Mandarin)_Humorous_Elder",
+   "text": "区区战车，也敢近吾身！",
+   "pitch": -3,
    "vol": 2.2,
+   "speed": 0.8,
    "modify": {
-    "intensity": -100
-   }
+    "intensity": -100,
+    "pitch": -30,
+    "timbre": -40,
+    "sound_effects": "spacious_echo"
+   },
+   "emotion": "angry"
   },
   {
-   "id": "real_u_r_e_k3_z",
-   "voice": "Chinese (Mandarin)_Gentleman",
-   "text": "放虎！！",
-   "emotion": "angry",
-   "speed": 0.88,
-   "vol": 2.0,
+   "id": "real_r_x_norook",
+   "voice": "Chinese (Mandarin)_Reliable_Executive",
+   "text": "两辆车都没了？这仗怎么打！",
    "pitch": -1,
+   "vol": 1.5,
+   "speed": 0.9,
    "modify": {
-    "intensity": -70,
-    "pitch": -10
-   }
+    "pitch": -12,
+    "timbre": -8,
+    "intensity": -80
+   },
+   "emotion": "surprised"
+  },
+  {
+   "id": "real_b_x_norook",
+   "voice": "Chinese (Mandarin)_Humorous_Elder",
+   "text": "无车又如何，吾一人足矣！",
+   "pitch": -3,
+   "vol": 1.8,
+   "speed": 0.86,
+   "modify": {
+    "intensity": -100,
+    "pitch": -20,
+    "timbre": -30,
+    "sound_effects": "spacious_echo"
+   },
+   "emotion": "angry"
+  },
+  {
+   "id": "real_r_x_chk3",
+   "voice": "Chinese (Mandarin)_Reliable_Executive",
+   "text": "没完没了了是吧！",
+   "pitch": -1,
+   "vol": 1.5,
+   "speed": 0.9,
+   "modify": {
+    "pitch": -12,
+    "timbre": -8,
+    "intensity": -80
+   },
+   "emotion": "angry"
+  },
+  {
+   "id": "real_b_x_chk3",
+   "voice": "Chinese (Mandarin)_Humorous_Elder",
+   "text": "欺人太甚！！",
+   "pitch": -3,
+   "vol": 2.2,
+   "speed": 0.8,
+   "modify": {
+    "intensity": -100,
+    "pitch": -30,
+    "timbre": -40,
+    "sound_effects": "spacious_echo"
+   },
+   "emotion": "angry"
+  },
+  {
+   "id": "real_r_x_first",
+   "voice": "Chinese (Mandarin)_Reliable_Executive",
+   "text": "开局就动老子？你会不会下棋！",
+   "pitch": -1,
+   "vol": 1.5,
+   "speed": 0.9,
+   "modify": {
+    "pitch": -12,
+    "timbre": -8,
+    "intensity": -80
+   },
+   "emotion": "angry"
+  },
+  {
+   "id": "real_b_x_first",
+   "voice": "Chinese (Mandarin)_Humorous_Elder",
+   "text": "未战先动帅？<#0.1#>荒唐！",
+   "pitch": -3,
+   "vol": 1.8,
+   "speed": 0.86,
+   "modify": {
+    "intensity": -100,
+    "pitch": -20,
+    "timbre": -30,
+    "sound_effects": "spacious_echo"
+   },
+   "emotion": "angry"
+  },
+  {
+   "id": "real_r_x_home",
+   "voice": "Chinese (Mandarin)_Reliable_Executive",
+   "text": "还是这儿坐着舒服。",
+   "pitch": -1,
+   "vol": 1.2,
+   "speed": 0.95,
+   "modify": {
+    "pitch": -12,
+    "timbre": -8
+   },
+   "emotion": "happy"
+  },
+  {
+   "id": "real_b_x_home",
+   "voice": "Chinese (Mandarin)_Humorous_Elder",
+   "text": "帅位，寸步不让。",
+   "pitch": -3,
+   "vol": 1.8,
+   "speed": 0.86,
+   "modify": {
+    "intensity": -100,
+    "pitch": -20,
+    "timbre": -30,
+    "sound_effects": "spacious_echo"
+   },
+   "emotion": "calm"
   }
  ]
 }
