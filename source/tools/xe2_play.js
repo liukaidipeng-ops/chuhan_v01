@@ -79,7 +79,8 @@ const XE8 = () => {
 //   现在照原题：象一级 6 血（二级 1 血）、士 2/5/8/11 血 2/4/6/8 攻；其余（马、象二级、楚将前 20 回合、提速、汉 11 车、两边 30 功）和 XE8 相同。
 //   楚的车炮兵：用户“楚有炮车兵”——照常留着、数值照常（开局摆子里不拿掉）；用户为 XE8 加的“第 30 回合起楚可召回车”保留（只影响踩完后收尾）。旧的那版（24 / 17 血、没有车炮兵）留作 xe9old。
 const XE9old = () => { XE8(); const C = BF.CFG; C.sideStats.b.a.freeMove = [[1, 1], [1, -1], [-1, 1], [-1, -1], [1, 0], [-1, 0]]; C.healAura.adj = 'e'; };
-const XE9 = () => { XE9old(); const C = BF.CFG; C.sideStats.b.e.hp = [6, 1]; C.sideStats.b.a.hp = [2, 5, 8, 11]; };
+//   用户再定：“士的升级成长提上去每级加5。目的是唯一解法就是先把最近的士挡在象头上，然后一直升级，远处的士尽快赶过来，挡在侧面”→ 士血 2/7/12/17（攻击照旧每级 +2）。
+const XE9 = () => { XE9old(); const C = BF.CFG; C.sideStats.b.e.hp = [6, 1]; C.sideStats.b.a.hp = [2, 7, 12, 17]; };
 const setupXE8 = g => g.setup(T => {
   for (let r = 0; r < 10; r++) for (let f = 0; f < 9; f++) {
     const p = T.board[r][f]; if (!p) continue;
@@ -95,31 +96,47 @@ function planUp(S) {
   const find = t => { const o = []; for (let r = 0; r < 10; r++) for (let f = 0; f < 9; f++) { const p = S.board[r][f]; if (p && p.s === 'b' && p.t === t) o.push({ p, at: [f, r] }); } return o; };
   const can = x => !!BF.ai.upgradeState(S, x.at);
   const el = find('e').filter(can); if (el.length) return el[0].at;
-  if (opt.plan === 'A' || opt.plan === 'AF') { const a = find('a').filter(x => x.p.lv < 4 && can(x)).sort((x, y) => x.p.lv - y.p.lv)[0]; return a ? a.at : null; }
+  if (opt.plan === 'AF') { const F = formTarget(S); const order = F ? [F.headA, F.sideA].filter(Boolean) : []; for (const x of order) if (x.p.lv < 4 && can(x)) return x.at; return null; }   // 象头那个士先升满
+  if (opt.plan === 'A' || opt.plan === 'AF2') { const a = find('a').filter(x => x.p.lv < 4 && can(x)).sort((x, y) => x.p.lv - y.p.lv)[0]; return a ? a.at : null; }
   if (opt.plan === 'C') { const n = find('n').filter(x => x.p.lv < 2 && can(x))[0]; return n ? n.at : null; }
   return null;
 }
-// XE9 固定打法 AF / F 的“摆阵”：选一只楚象（先选 (2,9) 那只，死了换另一只），两个士一回合走一步（最短路）走到它上下左右的空格；
-//   两个都贴上以后把这两个士、连同贴着这只象的马冻住（p.bz，引擎里背水一战冻结的记号）不再动，走子交给电脑
-function formStep(S) {
+// XE9 固定打法的“摆阵”（用户的解法）：选一只楚象（先选 (2,9) 那只，死了换另一只）；离它最近的士先走到象头（朝汉那一格），
+//   远处的士再走到象的侧面（左右两格里空着的那格，或者已经站着士的那格）；一回合走一步（最短路，绕开别的子）。
+//   两个都到位后把这两个士、连同贴着这只象的马冻住（p.bz，引擎里背水一战冻结的记号）不再动，走子交给电脑。
+//   升级：AF = 先把象头那个士一路升满，再升另一个；AF2 = 两个士轮流升（对照：看顺序要不要紧）；F = 不升士。
+function formTarget(S) {
   const all = t => { const o = []; for (let r = 0; r < 10; r++) for (let f = 0; f < 9; f++) { const p = S.board[r][f]; if (p && p.s === 'b' && p.t === t) o.push({ p, at: [f, r] }); } return o; };
   const els = all('e').sort((x, y) => (x.at[0] === 2 ? 0 : 1) - (y.at[0] === 2 ? 0 : 1)); if (!els.length) return null;
-  const E = els[0], nb = [[1, 0], [-1, 0], [0, 1], [0, -1]].map(([df, dr]) => [E.at[0] + df, E.at[1] + dr]).filter(([f, r]) => f >= 0 && f < 9 && r >= 5 && r <= 9);
-  const isNb = at => nb.some(q => q[0] === at[0] && q[1] === at[1]);
-  const advs = all('a'), adj = advs.filter(a => isNb(a.at));
-  if (adj.length >= 2) { const keep = adj.slice(0, 2); for (const t of ['n', 'a']) for (const x of all(t)) if (isNb(x.at) && !keep.includes(x)) keep.push(x); return { done: keep }; }   // 贴着这只象的马也一起冻住（“左士右马”）
-  for (const a of advs.filter(x => !isNb(x.at))) {   // 最短路（按引擎的走法、绕开别的子）
-    const key = q => q[0] + ',' + q[1], prev = new Map([[key(a.at), null]]), Q = [a.at];
-    const H = BF.cloneState(S); H.board[a.at[1]][a.at[0]] = null;
-    while (Q.length) {
-      const c = Q.shift();
-      if (isNb(c) && !S.board[c[1]][c[0]]) { let x = c, y = prev.get(key(c)); while (y && key(y) !== key(a.at)) { x = y; y = prev.get(key(y)); } return { mv: { k: 'mv', from: a.at.slice(), to: x.slice() } }; }
-      H.board[c[1]][c[0]] = a.p;
-      for (const m of BF.ai.moveTargets(H, c[0], c[1])) { const t = m.to; if (H.board[t[1]][t[0]] || prev.has(key(t))) continue; prev.set(key(t), c); Q.push(t); }
-      H.board[c[1]][c[0]] = null;
-    }
+  const E = els[0], head = [E.at[0], E.at[1] - 1], sides = [[E.at[0] - 1, E.at[1]], [E.at[0] + 1, E.at[1]]].filter(([f, r]) => f >= 0 && f < 9);
+  const advs = all('a'), same = (a, b) => a[0] === b[0] && a[1] === b[1];
+  const dist = a => Math.max(Math.abs(a.at[0] - head[0]), Math.abs(a.at[1] - head[1]));
+  const onHead = advs.find(a => same(a.at, head)) || null;
+  const headA = onHead || advs.slice().sort((x, y) => dist(x) - dist(y))[0] || null;
+  const sideA = advs.find(a => a !== headA) || null;
+  return { E, head, sides, advs, all, same, onHead, headA, sideA };
+}
+function bfsStep(S, a, targets) {   // a 这枚子走一步、朝 targets 里最近的空格（最短路）；已经在 targets 上返回 null
+  const key = q => q[0] + ',' + q[1], prev = new Map([[key(a.at), null]]), Q = [a.at];
+  const H = BF.cloneState(S); H.board[a.at[1]][a.at[0]] = null;
+  while (Q.length) {
+    const c = Q.shift();
+    if (targets.some(t => t[0] === c[0] && t[1] === c[1]) && (c === a.at || !S.board[c[1]][c[0]])) { if (c === a.at) return null; let x = c, y = prev.get(key(c)); while (y && key(y) !== key(a.at)) { x = y; y = prev.get(key(y)); } return { k: 'mv', from: a.at.slice(), to: x.slice() }; }
+    H.board[c[1]][c[0]] = a.p;
+    for (const m of BF.ai.moveTargets(H, c[0], c[1])) { const t = m.to; if (H.board[t[1]][t[0]] || prev.has(key(t))) continue; prev.set(key(t), c); Q.push(t); }
+    H.board[c[1]][c[0]] = null;
   }
   return null;
+}
+function formStep(S) {
+  const F = formTarget(S); if (!F || !F.headA) return null;
+  const { E, head, sides, all, same, headA, sideA } = F;
+  if (!same(headA.at, head)) { const mv = bfsStep(S, headA, [head]); return mv ? { mv } : null; }   // 先上象头
+  if (!sideA) return null;
+  const sideOk = sides.filter(([f, r]) => { const q = S.board[r][f]; return !q || (q.s === 'b' && q.t === 'a'); });
+  if (!sideOk.some(t => same(sideA.at, t))) { const mv = bfsStep(S, sideA, sideOk); return mv ? { mv } : null; }   // 远士再去侧面
+  const keep = [headA, sideA]; for (const x of all('n')) if (sides.some(t => same(x.at, t))) keep.push(x);   // 贴着这只象的马也冻住
+  return { done: keep };
 }
 // --hanplan hunt（验证设定用的“完美围剿”）：汉每回合只要有车打得到楚象，就先把那辆车升一级再打（先打血少的那只）；打不到才交给电脑
 // --hanplan huntA：先打士（拆回血光环），打不到士再打象
@@ -170,7 +187,7 @@ async function play(seed) {
     else if (pre.length || (opt.plan && side === 'b')) {
       const S1 = BF.cloneState(g.S); if (pre.length) { const U = BF.ai.upgradeState(S1, pre[0].at); if (U) { Object.assign(S1, U); } } S1.upgraded = true;   // 电脑只管走子
       let fm = null;
-      if (opt.plan === 'AF' || opt.plan === 'F') {
+      if (opt.plan === 'AF' || opt.plan === 'AF2' || opt.plan === 'F') {
         const fs1 = formStep(S1);
         if (fs1 && fs1.done) for (const x of fs1.done) { const q = g.S.board[x.at[1]][x.at[0]]; if (q && !q.bz) { q.bz = 1e9; const q1 = S1.board[x.at[1]][x.at[0]]; if (q1) q1.bz = 1e9; if (R.formAt == null) R.formAt = round(g.S); } }
         else if (fs1 && fs1.mv && BF.attempt(S1, fs1.mv)) fm = fs1.mv;
