@@ -1,11 +1,11 @@
-// engine_han.js 自测：默认关时和底版一样；reviveLevel、startBonus、reviveCap、reviveUp 生效
+// engine_han.js 自测：默认关时和底版一样；reviveLevel、startBonus、reviveCap、reviveUp、reviveHalf 生效
 'use strict';
 const assert = require('assert'), path = require('path');
 global.XQ = require(path.join(__dirname, '..', '..', 'src', 'rules.js'));
 const BF = global.BF = require(require('./engine_han.js').enginePath());
 let pass = 0; const ok = (c, m) => { assert.ok(c, m); pass++; console.log('  ✓ ' + m); };
 const B = BF.CFG;
-ok(B.generalArts.xiaohe.reviveLevel === 1 && B.generalArts.xiaohe.reviveCap === false && B.generalArts.xiaohe.reviveUp === false && B.merit.startBonus.r === 0 && B.merit.startBonus.b === 0, '默认：召回一级、不封顶、不能当场升级、没有开局加成');
+ok(B.generalArts.xiaohe.reviveLevel === 1 && B.generalArts.xiaohe.reviveCap === false && B.generalArts.xiaohe.reviveUp === false && B.generalArts.xiaohe.reviveHalf === false && B.merit.startBonus.r === 0 && B.merit.startBonus.b === 0, '默认：召回一级、不封顶、不能当场升级、没有开局加成');
 { const g = new BF.Game(); ok(g.merit.r === B.merit.start && g.merit.b === B.merit.start, '默认开局军功两边一样'); }
 B.merit.startBonus.r = 1; { const g = new BF.Game(); ok(g.merit.r === B.merit.start + 1 && g.merit.b === B.merit.start, 'startBonus.r=1：汉开局多 1 点'); } B.merit.startBonus.r = 0;
 // 召回：汉车 id 找开局位置空着、车马炮少于楚且最多 3 枚（背水开着时的条件）
@@ -95,6 +95,41 @@ B.generalArts.xiaohe.reviveLevel = 1; B.generalArts.xiaohe.reviveCap = false; B.
     ok(!hasUp(BF.ai.gen(g.S, false)), '升过级之后电脑的 gen 候选里也没有召回 + 升级');
     ok(!!g.apply({ k: 'art', id: 0 }), '升过别的子之后照样可以只召回'); }
   B.upgrade.cost.r = cost0; B.generalArts.xiaohe.reviveUp = false;
+}
+B.generalArts.xiaohe.reviveLevel = 1; B.generalArts.xiaohe.reviveCap = false; B.beishui.on = true;
+
+// 召回的子第一次升级半价（reviveHalf，用户 10/5 r6_up）：基础价减半（向上取整），甲片照常抵价；升过一次恢复原价
+{
+  const cost0 = B.upgrade.cost.r.slice(); B.upgrade.cost.r = [10, 12, 20];
+  const mk = (deadLv, merit, half, up) => {
+    B.beishui.on = true; B.generalArts.xiaohe.reviveLevel = 2; B.generalArts.xiaohe.reviveCap = true; B.generalArts.xiaohe.reviveUp = !!up; B.generalArts.xiaohe.reviveHalf = !!half;
+    const g = new BF.Game();
+    g.setup(T => { for (let r = 0; r < 10; r++) for (let f = 0; f < 9; f++) { const p = T.board[r][f]; if (p && p.s === 'r' && p.t !== 'k' && p.id !== 13) T.board[r][f] = null; }
+      T.dead.r = [{ id: 0, t: 'r', s: 'r', lv: deadLv }]; T.merit.r = merit; T.turn = 'r'; });
+    return g;
+  };
+  const rook = g => { for (const row of g.S.board) for (const q of row) if (q && q.id === 0) return q; return null; };
+  const passB = g => { const mv = BF.ai.expand(g.S).find(k => k.a.k === 'mv'); return !!(mv && g.apply(mv.a)); };   // 楚方随便走一步，轮回汉方
+  { const g = mk(1, 30, false); g.apply({ k: 'art', id: 0 }); ok(BF.ai.upCost(rook(g)) === 10 && !rook(g).rh, '开关关着：召回的一级车升二级照原价 10'); }
+  { const g = mk(1, 30, true); g.apply({ k: 'art', id: 0 }); const p = rook(g);
+    ok(p.rh === 1 && BF.ai.upCost(p) === 5, `召回一级车：第一次升级半价 ${BF.ai.upCost(p)}（原价 10）`);
+    ok(BF.ai.upCost(BF.cloneState(g.S).board[0][0]) === 5, '复制局面（电脑搜索用）时半价记号跟着走');
+    ok(passB(g) && g.S.turn === 'r', '楚走一步，轮回汉方');
+    const m0 = g.S.merit.r, info = g.apply({ k: 'up', at: [0, 0] }), q = rook(g);
+    ok(!!info && info.cost === 5 && g.S.merit.r === m0 - 5 && q.lv === 2 && !q.rh, `下一回合再升：花 ${info && info.cost}，升到 ${q.lv} 级，记号清掉`);
+    ok(BF.ai.upCost(q) === 12, '升过一次之后恢复原价（二升三 12）'); }
+  { const g = mk(2, 30, true); g.apply({ k: 'art', id: 0 }); ok(BF.ai.upCost(rook(g)) === 6, '召回二级车：第一次升级（二升三）半价 6（原价 12）'); }
+  { const g = mk(1, 5, true, true); const info = g.apply({ k: 'art', id: 0, up: true }), p = rook(g), up = info && info.ev.find(e => e.e === 'reviveUp');
+    ok(!!info && p.lv === 2 && !p.rh && g.S.merit.r === 0 && up && up.cost === 5, '和当场升级一起开：召回 + 当场升级只花 5（军功正好 5 也够）'); }
+  { const g = mk(1, 4, true, true); ok(!g.apply({ k: 'art', id: 0, up: true }), '军功 4 < 5：当场半价升级也不够'); }
+  // 甲片：召回的车吃了 3 个子（甲片 3）→ 半价 5 − 3 = 2；吃满 5 个直接自动晋升（门槛也减半）
+  { const g = mk(1, 30, true); g.apply({ k: 'art', id: 0 }); const p = rook(g); p.xp = 3; ok(BF.ai.upCost(p) === 2, '半价再减甲片：5 − 3 = 2'); }
+  { const g = mk(1, 30, true); g.setup(T => { T.board[2][0] = { s: 'b', t: 'p', id: 16, lv: 1, hp: 1, cd: 0, jm: 0, xp: 0, kills: 0 }; });
+    g.apply({ k: 'art', id: 0 }); rook(g).xp = 4;
+    const mv = BF.ai.expand(g.S).find(k => k.a.k === 'mv' && !(k.a.from[0] === 0 && k.a.from[1] === 2)); g.apply(mv.a);
+    const info = g.apply({ k: 'mv', from: [0, 0], to: [0, 2] }), q = rook(g), au = info && info.ev.find(e => e.e === 'autoup');
+    ok(!!info && au && q.lv === 2 && !q.rh && q.xp === 0, `甲片自动晋升的门槛也减半：吃到第 5 个就自动升二级（${q && q.lv} 级）`); }
+  B.upgrade.cost.r = cost0; B.generalArts.xiaohe.reviveUp = false; B.generalArts.xiaohe.reviveHalf = false;
 }
 B.generalArts.xiaohe.reviveLevel = 1; B.generalArts.xiaohe.reviveCap = false; B.beishui.on = true;
 console.log('通过', pass, '项');

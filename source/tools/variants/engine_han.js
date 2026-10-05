@@ -10,10 +10,14 @@
 //      （用户 10/3：“能，但是不能移动，这样做可以防止召回的棋子直接被秒”；第六轮拍板单 r6_help 选测）。照常扣军功（upCost）、每回合最多升一次
 //      （这回合已经升过别的子就不行）；召回本身占了这一回合，所以它这回合动不了。电脑的候选（expand / gen）在开关打开时多列这一种。
 //   召回事件里多记 lv（召回回来的等级，升级前）；升级另发 { e:'reviveUp', id, t, lv, cost } 事件（bfsim 统计用）。
+//   5. CFG.generalArts.xiaohe.reviveHalf（默认 false）：召回的子第一次升级半价（用户 10/5 在拍板单 r6_up 上写：“召回的棋子第一次升级只需要半价，
+//      一级升级只要半价，二级升级也只要半价”）。召回时给那枚子记 rh；它的升级基础价减半（单数向上取整），甲片照常抵价，甲片自动晋升的门槛同样减半；
+//      第一次升级（手动、当场、甲片自动都算）之后 rh 清掉，恢复原价。和 reviveUp 一起开时，当场升级也是半价。
 // 用法：BFSIM_ENGINE=tools/variants/engine_han.js ENGINE_REV=98dd206 node tools/bfsim.js ... --set generalArts.xiaohe.reviveLevel=2
 //       或 --set merit.startBonus.r=1
 //       召回最多二级：--set generalArts.xiaohe.reviveLevel=2 --set generalArts.xiaohe.reviveCap=true
 //       召回后当回合可以花军功升一级：再加 --set generalArts.xiaohe.reviveUp=true
+//       召回的子第一次升级半价：再加 --set generalArts.xiaohe.reviveHalf=true
 'use strict';
 const fs = require('fs'), path = require('path'), os = require('os');
 const { execFileSync } = require('child_process');
@@ -24,12 +28,18 @@ function enginePath() {
   let s = execFileSync('git', ['show', rev + ':source/src/bingfa.js'], { cwd: path.join(__dirname, '..', '..'), encoding: 'utf8' });
   const rep = (a, b) => { const n = s.split(a).length - 1; if (n !== 1) throw new Error(`engine_han：锚点出现 ${n} 次（${rev} 的引擎改过了？）：${a.slice(0, 80)}`); s = s.replace(a, b); };
   rep('      start: 3, cap: 30,', '      start: 3, startBonus: { r: 0, b: 0 }, cap: 30,');
-  rep('xiaohe: { usesPerGame: 1 }', 'xiaohe: { usesPerGame: 1, reviveLevel: 1, reviveCap: false, reviveUp: false }');
+  rep('xiaohe: { usesPerGame: 1 }', 'xiaohe: { usesPerGame: 1, reviveLevel: 1, reviveCap: false, reviveUp: false, reviveHalf: false }');
+  // 召回的子第一次升级半价（reviveHalf）：基础价、甲片自动晋升门槛都按 baseCostOf；晋升时清掉 rh
+  rep("const upCost = p => { const U = CFG_CUR.upgrade; if (!p || p.t === 'k' || p.lv >= maxLv(p.t)) return null; const base = U.cost[p.t][p.lv - 1]; return Math.max(U.minCost, base - (p.xp || 0) * U.killDiscount); };",
+      "const baseCostOf = p => { const b = CFG_CUR.upgrade.cost[p.t][p.lv - 1]; return p.rh && CFG_CUR.generalArts.xiaohe.reviveHalf ? Math.ceil(b / 2) : b; };   /* 变体·帮汉：召回的子第一次升级半价 */\n" +
+      "  const upCost = p => { const U = CFG_CUR.upgrade; if (!p || p.t === 'k' || p.lv >= maxLv(p.t)) return null; const base = baseCostOf(p); return Math.max(U.minCost, base - (p.xp || 0) * U.killDiscount); };");
+  rep("by.xp * U.killDiscount >= U.cost[by.t][by.lv - 1]", "by.xp * U.killDiscount >= baseCostOf(by)");
+  rep("function promote(S, p) {\n    p.lv++;", "function promote(S, p) {\n    if (p.rh) delete p.rh;   /* 变体·帮汉：召回的子第一次升级之后恢复原价 */\n    p.lv++;");
   rep('S.dead[v.s].push({ id: v.id, t: v.t, s: v.s });', 'S.dead[v.s].push({ id: v.id, t: v.t, s: v.s, lv: v.lv });   /* 变体·帮汉：记下死时的等级（召回封顶用） */');
   rep('merit: { r: cfg.merit.start, b: cfg.merit.start }',
       'merit: { r: cfg.merit.start + ((cfg.merit.startBonus && cfg.merit.startBonus.r) || 0), b: cfg.merit.start + ((cfg.merit.startBonus && cfg.merit.startBonus.b) || 0) }   /* 变体·帮汉：开局军功加成 */');
   rep("S.board[st[1]][st[0]] = { s: 'r', t: d.t, id: d.id, lv: 1, hp: hpOf(d.t, 1), cd: 0, jm: 0, xp: 0, kills: 0 };",
-      "const xh = CFG_CUR.generalArts.xiaohe, top = Math.max(1, Math.min(maxLv(d.t), xh.reviveLevel || 1));   // 变体·帮汉：召回的子回来就是 reviveLevel 级\n        const rlv = xh.reviveCap ? Math.max(1, Math.min(top, d.lv || 1)) : top;   // reviveCap：不超过死时的等级（死时一级回来还是一级）\n        S.board[st[1]][st[0]] = { s: 'r', t: d.t, id: d.id, lv: rlv, hp: hpOf(d.t, rlv), cd: 0, jm: 0, xp: 0, kills: 0 };");
+      "const xh = CFG_CUR.generalArts.xiaohe, top = Math.max(1, Math.min(maxLv(d.t), xh.reviveLevel || 1));   // 变体·帮汉：召回的子回来就是 reviveLevel 级\n        const rlv = xh.reviveCap ? Math.max(1, Math.min(top, d.lv || 1)) : top;   // reviveCap：不超过死时的等级（死时一级回来还是一级）\n        S.board[st[1]][st[0]] = { s: 'r', t: d.t, id: d.id, lv: rlv, hp: hpOf(d.t, rlv), cd: 0, jm: 0, xp: 0, kills: 0 };\n        if (xh.reviveHalf) S.board[st[1]][st[0]].rh = 1;   // 变体·帮汉：第一次升级半价的记号");
   rep("ev.push({ e: 'revive', id: d.id, t: d.t, at: st.slice() });",
       "ev.push({ e: 'revive', id: d.id, t: d.t, at: st.slice(), lv: rlv });\n" +
       "        if (a.up) {   // 变体·帮汉：召回后当回合花军功给它升一级（照常扣军功、每回合最多升一次；召回占了这一回合，所以它动不了）\n" +
