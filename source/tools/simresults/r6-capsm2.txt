@@ -1,0 +1,100 @@
+# r6-capsm2（GitHub Actions 运行 37270834903）
+# 请求：{"args":"--games 1300 --seed 1000 --nodes mid=60000 --ai git:98dd206 --set beishui.on=true --set beishui.twoPieces=false --set attack.r=[1,1,2,2] --set attack.p=[1,1,2,2] --set attack.n=[1,1,2] --set attack.c=[1,1,2] --set hpByType.r=[1,2,3,3] --set upgrade.cost.r=[10,12,20] --set generalArts.xiaohe.reviveLevel=2 --set generalArts.xiaohe.reviveCap=true --set ultimates.simian.minPiecesInRadius=2","env":{"BFSIM_ENGINE":"tools/variants/engine_han.js","ENGINE_REV":"98dd206"},"chunks":52,"note":"第六轮（用户在拍板单上定 r6_cap=a、r6_help=c）：B + 车 10/12/20 + 汉召回最多二级 + 四面楚歌放宽到 2 个子；种子 1000–2299，和 B10 的 1300 局同一批"}
+# 收到 52/52 段
+== beishui.on=true beishui.twoPieces=false attack.r=[1,1,2,2] attack.p=[1,1,2,2] attack.n=[1,1,2] attack.c=[1,1,2] hpByType.r=[1,2,3,3] upgrade.cost.r=[10,12,20] generalArts.xiaohe.reviveLevel=2 generalArts.xiaohe.reviveCap=true ultimates.simian.minPiecesInRadius=2 | mid vs mid  [汉 git:98dd206 | 楚 git:98dd206] | 1300 局 | 0s ==
+胜负：汉 613  楚 684  和/超时 3   汉方胜率（分胜负的局）47.3%  95%CI 45–50%
+结局：b:checkmate 684  r:checkmate 613  -:cap 3
+回合：平均 49.1  中位 48  P90 74  60 回合内结束 75.8%  进入决战 0.0%
+将死 1297 局：将军的子有 2 血以上 91.6%（其中贴在帅将身边 69.9%），双将 7.2%
+攻防指标：车参与的将死 60.4%（三级以上的车 42.9%）；贴脸将死 72.2%；被将死的一方开局 4 个士象，终局平均丢 1.73 个（丢 0/1/2/3/4 个的局：242/335/354/257/109）
+士象技能（两方合计，每局平均次数）：护驾 1.44，铁甲禁卫 0.48，飞越 0.20，齐射 0.01，践踏打中 0.00，反击 0.00
+行动（用过的局占比 / 每局平均次数）  汉 | 楚
+  破釜沉舟         0.0%   0.00 |  37.2%   0.37
+  召回良将        34.5%   0.35 |   0.0%   0.00
+  普通走子       100.0%  45.51 | 100.0%  44.83
+  停着           0.0%   0.00 |   1.8%   0.02
+  冲阵          17.5%   0.24 |  18.2%   0.24
+  飞越           7.6%   0.11 |   6.5%   0.09
+  护驾          38.8%   0.76 |  34.8%   0.68
+  拒马          49.7%   2.13 |  53.8%   2.43
+  霹雳          31.2%   0.42 |  30.8%   0.42
+  齐射           0.8%   0.01 |   0.0%   0.00
+  踏营          20.6%   0.51 |  25.8%   0.65
+  终极兵法         4.6%   0.05 |   5.4%   0.05
+  回防(被动)       5.9%   0.07 |   6.9%   0.12
+  铁甲禁卫(被动)    16.5%   0.25 |  14.6%   0.23
+  神速营(被动)     18.5%   0.34 |  22.2%   0.43
+升级（* = 甲片自动晋升）  汉 | 楚 （用过的局占比 / 每局平均）
+  a2     78.3%  1.30 |  75.5%  1.22
+  a2*     0.0%  0.00 |   0.1%  0.00
+  a3     55.6%  0.80 |  52.6%  0.74
+  a4     28.8%  0.36 |  28.5%  0.37
+  c2     92.8%  1.34 |  90.3%  1.26
+  c3     60.7%  0.74 |  61.4%  0.74
+  e2     41.2%  0.46 |  42.6%  0.49
+  e2*     0.8%  0.01 |   0.7%  0.01
+  e3     22.8%  0.25 |  20.8%  0.23
+  e4      6.0%  0.06 |   6.6%  0.07
+  n2     86.1%  1.31 |  88.4%  1.38
+  n3     51.5%  0.67 |  57.5%  0.77
+  p2     98.6%  2.81 |  98.8%  2.74
+  p2*     0.2%  0.00 |   0.0%  0.00
+  p3     70.2%  1.38 |  73.8%  1.44
+  p4     26.5%  0.39 |  30.9%  0.46
+  r2     73.5%  0.98 |  68.9%  0.85
+  r3     38.3%  0.43 |  38.6%  0.42
+  r4      7.3%  0.07 |   6.3%  0.06
+击杀来源（每局平均）  汉 | 楚
+  普通吃子         6.09 |   6.29
+  冲阵           0.13 |   0.11
+  飞越           0.00 |   0.00
+  践踏           0.00 |   0.00
+  拒马反伤         0.00 |   0.00
+  霹雳           0.31 |   0.30
+  齐射           0.00 |   0.00
+  踏营           0.08 |   0.11
+  回防(被动)       0.02 |   0.02
+  铁甲禁卫(被动)     0.03 |   0.03
+造成伤害但没打死（每局平均）  汉 | 楚
+  强攻           3.85 |   3.59
+  冲阵           0.16 |   0.17
+  飞越           0.01 |   0.01
+  践踏           0.00 |   0.00
+  霹雳           0.30 |   0.32
+  齐射           0.01 |   0.00
+  踏营           0.03 |   0.03
+军功来源（每局平均）  汉 | 楚
+  击杀       19.3 |   20.9
+  哀兵        6.8 |    6.6
+  回合       33.6 |   33.4
+  将军        7.5 |    7.3
+  过河        0.8 |    1.0
+终极兵法：汉用 60 局（平均第 71.3 回合，用了的局胜 73.3%）  楚用 70 局（第 67.5 回合，胜 92.9%）  护驾破鸿门宴 3 局
+主帅兵法：汉召回 449 局（第 34.6 回合，胜 27.8%）  楚背水 483 局（第 39.3 回合，胜 30.2%）
+召回的子（449 次）：炮 14、马 7、兵 1、车 427；死时 1 级 331、2 级 106、3 级 12；回来 1 级 331、2 级 118；死时一级的那些局汉胜 27.5%（331 局），二级以上 28.8%（118 局）
+少子才能用的主帅兵法（汉召回）：轮到自己时满足用的条件（车马炮比对方少；第三版还要至少丢了一半）过 694 局，第一次平均第 30.9 回合；真用了 449 局（胜 27.8%）
+少子才能用的主帅兵法（楚背水）：轮到自己时满足用的条件（车马炮比对方少；第三版还要至少丢了一半）过 648 局，第一次平均第 30.7 回合；真用了 483 局（胜 30.2%）
+车马炮持续落后（自己走完还少、到下回合还少）：汉 651 局（50.1%，第一次平均第 25.8 回合、平均落后 15.7 回合；这些局汉胜 30.9%；其中用了主帅兵法 371 局、胜 24.8%） | 楚 669 局（51.5%，第一次平均第 24.2 回合、平均落后 18.4 回合；这些局楚胜 37.2%；其中用了主帅兵法 449 局、胜 28.5%）
+手动升级时的血量（升级回满血，掉了血再升更划算）：汉 满血 90.7%、掉过血 9.3%（只剩 1 血 8.7%），共 17358 次 | 楚 满血 89.2%、掉过血 10.8%（只剩 1 血 10.0%），共 17222 次
+先有二级车的一方：两边都有的 610 局里先到的胜 54.9%；只有一方有的 532 局里有的一方胜 87.8%
+背水前后（483 局，分数 + 汉优；背水没有封锁期，这里的“之后”只是汉方紧接着的一手）：背水那一手汉方 -7.24 分（子力 -4.49）；汉方随后一手 +1.53 分；这些局汉胜 69.6%
+首次升到 N 级（平均回合 / 出现的局占比）  汉 | 楚
+  2 级  第 2.8 回合 100.0% | 第 2.5 回合 100.0%
+  3 级  第 23.1 回合 90.2% | 第 22.2 回合 91.5%
+  4 级  第 47.0 回合 45.3% | 第 45.6 回合 47.7%
+局面分随回合（汉方视角，正 = 汉优）/ 军功 / 等级总和
+  R5（1300 局在下）分 0.50  军功 汉 1.6 楚 1.6  等级 汉 0.9 楚 0.9
+  R10（1298 局在下）分 0.54  军功 汉 2.2 楚 2.1  等级 汉 1.5 楚 1.5
+  R15（1281 局在下）分 0.51  军功 汉 2.6 楚 2.5  等级 汉 2.2 楚 2.3
+  R20（1241 局在下）分 0.62  军功 汉 4.1 楚 3.9  等级 汉 3.8 楚 3.9
+  R30（1094 局在下）分 0.86  军功 汉 4.5 楚 4.5  等级 汉 6.9 楚 7.2
+  R40（870 局在下）分 0.56  军功 汉 5.3 楚 5.5  等级 汉 9.2 楚 9.6
+翻盘（某回合落后 ≥ T 分的一方最后赢了）
+  R10≥2：481 局，落后方赢 191（39.7%），和 1
+  R10≥4：230 局，落后方赢 79（34.3%），和 1
+  R20≥2：864 局，落后方赢 296（34.3%），和 2
+  R20≥4：551 局，落后方赢 163（29.6%），和 2
+  R30≥2：889 局，落后方赢 235（26.4%），和 2
+  R30≥4：718 局，落后方赢 159（22.1%），和 2
+每步平均 652ms
+（合并 52 份：/home/runner/work/chuhan_v01/chuhan_v01/parts/r6-capsm2-0.json、/home/runner/work/chuhan_v01/chuhan_v01/parts/r6-capsm2-1.json、/home/runner/work/chuhan_v01/chuhan_v01/parts/r6-capsm2-2.json、/home/runner/work/chuhan_v01/chuhan_v01/parts/r6-capsm2-3.json、/home/runner/work/chuhan_v01/chuhan_v01/parts/r6-capsm2-4.json、/home/runner/work/chuhan_v01/chuhan_v01/parts/r6-capsm2-5.json、/home/runner/work/chuhan_v01/chuhan_v01/parts/r6-capsm2-6.json、/home/runner/work/chuhan_v01/chuhan_v01/parts/r6-capsm2-7.json、/home/runner/work/chuhan_v01/chuhan_v01/parts/r6-capsm2-8.json、/home/runner/work/chuhan_v01/chuhan_v01/parts/r6-capsm2-9.json、/home/runner/work/chuhan_v01/chuhan_v01/parts/r6-capsm2-10.json、/home/runner/work/chuhan_v01/chuhan_v01/parts/r6-capsm2-11.json、/home/runner/work/chuhan_v01/chuhan_v01/parts/r6-capsm2-12.json、/home/runner/work/chuhan_v01/chuhan_v01/parts/r6-capsm2-13.json、/home/runner/work/chuhan_v01/chuhan_v01/parts/r6-capsm2-14.json、/home/runner/work/chuhan_v01/chuhan_v01/parts/r6-capsm2-15.json、/home/runner/work/chuhan_v01/chuhan_v01/parts/r6-capsm2-16.json、/home/runner/work/chuhan_v01/chuhan_v01/parts/r6-capsm2-17.json、/home/runner/work/chuhan_v01/chuhan_v01/parts/r6-capsm2-18.json、/home/runner/work/chuhan_v01/chuhan_v01/parts/r6-capsm2-19.json、/home/runner/work/chuhan_v01/chuhan_v01/parts/r6-capsm2-20.json、/home/runner/work/chuhan_v01/chuhan_v01/parts/r6-capsm2-21.json、/home/runner/work/chuhan_v01/chuhan_v01/parts/r6-capsm2-22.json、/home/runner/work/chuhan_v01/chuhan_v01/parts/r6-capsm2-23.json、/home/runner/work/chuhan_v01/chuhan_v01/parts/r6-capsm2-24.json、/home/runner/work/chuhan_v01/chuhan_v01/parts/r6-capsm2-25.json、/home/runner/work/chuhan_v01/chuhan_v01/parts/r6-capsm2-26.json、/home/runner/work/chuhan_v01/chuhan_v01/parts/r6-capsm2-27.json、/home/runner/work/chuhan_v01/chuhan_v01/parts/r6-capsm2-28.json、/home/runner/work/chuhan_v01/chuhan_v01/parts/r6-capsm2-29.json、/home/runner/work/chuhan_v01/chuhan_v01/parts/r6-capsm2-30.json、/home/runner/work/chuhan_v01/chuhan_v01/parts/r6-capsm2-31.json、/home/runner/work/chuhan_v01/chuhan_v01/parts/r6-capsm2-32.json、/home/runner/work/chuhan_v01/chuhan_v01/parts/r6-capsm2-33.json、/home/runner/work/chuhan_v01/chuhan_v01/parts/r6-capsm2-34.json、/home/runner/work/chuhan_v01/chuhan_v01/parts/r6-capsm2-35.json、/home/runner/work/chuhan_v01/chuhan_v01/parts/r6-capsm2-36.json、/home/runner/work/chuhan_v01/chuhan_v01/parts/r6-capsm2-37.json、/home/runner/work/chuhan_v01/chuhan_v01/parts/r6-capsm2-38.json、/home/runner/work/chuhan_v01/chuhan_v01/parts/r6-capsm2-39.json、/home/runner/work/chuhan_v01/chuhan_v01/parts/r6-capsm2-40.json、/home/runner/work/chuhan_v01/chuhan_v01/parts/r6-capsm2-41.json、/home/runner/work/chuhan_v01/chuhan_v01/parts/r6-capsm2-42.json、/home/runner/work/chuhan_v01/chuhan_v01/parts/r6-capsm2-43.json、/home/runner/work/chuhan_v01/chuhan_v01/parts/r6-capsm2-44.json、/home/runner/work/chuhan_v01/chuhan_v01/parts/r6-capsm2-45.json、/home/runner/work/chuhan_v01/chuhan_v01/parts/r6-capsm2-46.json、/home/runner/work/chuhan_v01/chuhan_v01/parts/r6-capsm2-47.json、/home/runner/work/chuhan_v01/chuhan_v01/parts/r6-capsm2-48.json、/home/runner/work/chuhan_v01/chuhan_v01/parts/r6-capsm2-49.json、/home/runner/work/chuhan_v01/chuhan_v01/parts/r6-capsm2-50.json、/home/runner/work/chuhan_v01/chuhan_v01/parts/r6-capsm2-51.json）
