@@ -9,9 +9,12 @@
 //      + 到了 merit.autoIncomeFromRound 之后每回合的固定收入（①：之前 1 功能值十几分，丢子换补偿反而加分）。
 //   2. 冷却：根上那一级也把冷却清零再量（同样的条件比），“技能冷却中”不再算成升级潜力（④）。
 //   3. 升上来的那一级不再归零：刚升上来、技能还在冷却，按“差一回合”给；打的目标已经不在了就不给（②：之前升到顶级反而扣分）。
-//   4. 同一方几枚子：潜力最大的那枚全算，其余的 × BFAI_POTSIDE（默认 0.25）（③：两只象共用一份军功、只能秒杀一次）。
+//   4. 同一方几枚子：按潜力从大到小，打的目标和前面重叠的部分只算 BFAI_POTOVL（默认 0.15），不重叠的全算（③：两只象共用一份军功、
+//      只能秒杀一次）。试过“最大的全算、其余 ×0.25 / ×0.7”：×0.7 时两只象的潜力合计（87）超过真秒杀打得出来的（68），
+//      电脑宁可攒着不动手（XE7 第 7 回合不升象）；按目标去重后合计不会超过真打得出来的。
 //   5. 根上被将军：这一方沿用上一步的潜力表（⑤：之前被将军那一步整方潜力变 0）。
-//   6. 升级候选：守子“解锁”名额照旧；潜力涨得最多的升级另给一个专用名额（⑥ + XE5：几个子被捉时保命升级占满名额，升象没进搜索）。
+//   6. 升级候选：守子“解锁”名额照旧；潜力涨得最多、或者升完当场就能多赚一大块的升级另给一个专用名额
+//      （⑥ + XE5：几个子被捉时保命升级占满名额，升象没进搜索；XE7：第 7 回合“马上能升、升完当场秒杀”时潜力不涨，升象反而进不了候选）。
 //   7. 血量：潜力 × 现在的血 / 这一级满血（XE5：汉要连打几下才能杀掉的子，打掉的血也要看得到——汉才会去围剿）。
 //   8. 军功远远够不着（攒钱要 40 回合以上）的级不试算（⑦）。
 // 用法（在 source/ 下）：node tools/bfsim.js --ai tools/variants/bfai_pot4.js …；调参：BFAI_POTW / POTD / POTC / POTUP / POTWAIT / POTR0 / POTSIDE。
@@ -29,7 +32,7 @@ rep('  // 局面分（站在 me 这一方看）：子力 + 位置（出子、过
   const POTON = ENV.BFAI_POT == null || !/^(0|false|off)$/i.test(String(ENV.BFAI_POT));
   const num = (k, d) => (ENV[k] != null ? +ENV[k] : d);
   const POTW = num('BFAI_POTW', 1), POTD = num('BFAI_POTD', 0.75), POTC = num('BFAI_POTC', 60), POTUP = num('BFAI_POTUP', 0.8);
-  const POTWAIT = num('BFAI_POTWAIT', 12), POTR0 = num('BFAI_POTR0', 0.5), POTSIDE = num('BFAI_POTSIDE', 0.25);
+  const POTWAIT = num('BFAI_POTWAIT', 12), POTR0 = num('BFAI_POTR0', 0.5), POTOVL = num('BFAI_POTOVL', 0.15);
   let POT = new Map(), lastPot = new Map(), potMs = 0;
   const matOf = (S, side) => { let v = 0; for (const row of S.board) for (const p of row) if (p && p.s === side && p.t !== 'k') v += baseVal(p, false); return v; };
   const findId = (S, id) => { for (let r = 0; r < 10; r++) for (let f = 0; f < 9; f++) { const p = S.board[r][f]; if (p && p.id === id) return { p, at: [f, r] }; } return null; };
@@ -100,22 +103,34 @@ rep('  // 局面分（站在 me 这一方看）：子力 + 位置（出子、过
   }
   // 叶子局面 S 上，这枚子（条目 e）的潜力。alive：S 上还在的子的 id
   function potAt(e, p, S, alive) {
-    const l = p.lv; if (l < e.lv0 || e.G[l] == null && l < e.top) return 0;
+    const l = p.lv; if (l < e.lv0 || e.G[l] == null && l < e.top) return { v: 0, tg: null };
     const m = Math.min(S.merit[e.side], e.m0), rd = Math.floor((S.cnt.r + S.cnt.b) / 2) + 1, base = e.G[e.lv0];
     const al = L => { const t = e.tg[L]; if (!t || !t.length) return 1; let n = 0; for (const id of t) if (alive.has(id)) n++; return n / t.length; };
-    let best = 0;
-    if (l > e.lv0 && e.G[l] != null) best = Math.max(0, e.G[l] - base) * POTD * al(l);   // 刚升上来、技能还在冷却：按差一回合给
+    let best = 0, btg = null;
+    if (l > e.lv0 && e.G[l] != null) { best = Math.max(0, e.G[l] - base) * POTD * al(l); btg = e.tg[l]; }   // 刚升上来、技能还在冷却：按差一回合给
     for (let L = l + 1; L <= e.top; L++) {
       if (e.G[L] == null) break;
       const gain = e.G[L] - base; if (!(gain > 0)) continue;
       const turns = (L - l) + ((e.wait[L] || 0) - (e.wait[l] || 0)) + earnTurns(Math.max(0, (e.spent[L] - e.spent[l]) - m), rd);
       const v = gain * Math.pow(POTD, turns) * al(L);
-      if (v > best) best = v;
+      if (v > best) { best = v; btg = e.tg[L]; }
     }
     const hpF = e.hpL[l] > 0 ? Math.min(1, p.hp / e.hpL[l]) : 1;   // 被打掉的血：它活到用上的机会小了
-    return Math.min(POTC, best * hpF);
+    return { v: Math.min(POTC, best * hpF), tg: btg };
   }
-  const potAgg = a => { if (!a.length) return 0; let m = 0, t = 0; for (const x of a) { t += x; if (x > m) m = x; } return m + POTSIDE * (t - m); };
+  // 同一方几枚子的潜力合计：从大到小，打的目标和前面重叠的那部分只算 POTOVL（同一批子只能被打掉一次），不重叠的照常全算。
+  //   这样合计永远不超过真打得出来的（两只象秒杀的是同一批子：一只全算、另一只只算一小截）
+  function potAgg(a) {
+    if (!a.length) return 0;
+    a.sort((x, y) => y.v - x.v);
+    const cov = new Set(); let t = 0;
+    for (const x of a) {
+      let nov = 1;
+      if (x.tg && x.tg.length) { let n = 0; for (const id of x.tg) if (!cov.has(id)) n++; nov = n / x.tg.length; for (const id of x.tg) cov.add(id); }
+      t += x.v * (nov + POTOVL * (1 - nov));
+    }
+    return t;
+  }
   // 局面分（站在 me 这一方看）：子力 + 位置（出子、过河、对着对方主帅的压力）+ 军功 + 兵法 + 决战
   function score(S, me) {`);
 
@@ -125,21 +140,26 @@ rep('    let dR = 1, dB = 1;\n',
 rep('      if (heavyAt(p, f, r)) { if (p.s === \'r\') hvR = true; else hvB = true; }',
   '      if (PA) PA.add(p.id);\n      if (heavyAt(p, f, r)) { if (p.s === \'r\') hvR = true; else hvB = true; }');
 rep('        if (p.jm && p.jm > S.cnt[other(s)]) x += 0.25;',
-  '        if (PA) { const e = POT.get(p.id); if (e) { const pv = potAt(e, p, S, PA); if (pv > 0) (s === \'r\' ? potR : potB).push(pv); } }   // 变体 bfai_pot4\n        if (p.jm && p.jm > S.cnt[other(s)]) x += 0.25;');
+  '        if (PA) { const e = POT.get(p.id); if (e) { const pv = potAt(e, p, S, PA); if (pv.v > 0) (s === \'r\' ? potR : potB).push(pv); } }   // 变体 bfai_pot4\n        if (p.jm && p.jm > S.cnt[other(s)]) x += 0.25;');
 rep('    v += 0.3 * (S.merit[me] - S.merit[other(me)]);',
-  '    if (PA) v += POTW * (me === \'r\' ? potAgg(potR) - potAgg(potB) : potAgg(potB) - potAgg(potR));   // 变体 bfai_pot4：同一方最大的全算、其余打折\n    v += 0.3 * (S.merit[me] - S.merit[other(me)]);');
+  '    if (PA) v += POTW * (me === \'r\' ? potAgg(potR) - potAgg(potB) : potAgg(potB) - potAgg(potR));   // 变体 bfai_pot4：同一方按目标去重合计\n    v += 0.3 * (S.merit[me] - S.merit[other(me)]);');
 
 // ---- 升级候选：守子“解锁”名额照旧；潜力涨得最多的升级另给一个专用名额 ----
 rep('      const unlock = defender && !must && p.lv >= 2 && !(saving || hoard);\n      if (defender && !must && !unlock && !(p.t === \'a\' && heavy && p.lv < 2)) continue;\n      if ((saving || hoard) && p.t !== \'r\' && !must) continue;\n      cand.push({ at: [f, r], S: T, gain: score(T, me) - base, must, unlock });',
   '      let pg = 0;   // 变体 bfai_pot4：升这一级潜力涨多少\n' +
-  '      if (POTON && POT.size) { const PE = POT.get(p.id); if (PE) { const AL = new Set(); for (const row of S.board) for (const q of row) if (q) AL.add(q.id); pg = POTW * (potAt(PE, T.board[r][f], T, AL) - potAt(PE, p, S, AL)); } }\n' +
-  '      const potUp = pg >= POTUP;\n' +
+  '      let ig = 0;   // 升完这一级当场能多赚多少（根上试算的 G[lv+1] − G[lv]）：当场就用得上的升级，潜力不涨也要进搜索比\n' +
+  '      if (POTON && POT.size) { const PE = POT.get(p.id); if (PE) { const AL = new Set(); for (const row of S.board) for (const q of row) if (q) AL.add(q.id); pg = POTW * (potAt(PE, T.board[r][f], T, AL).v - potAt(PE, p, S, AL).v); if (PE.G[p.lv + 1] != null && PE.G[p.lv] != null) ig = PE.G[p.lv + 1] - PE.G[p.lv]; } }\n' +
+  '      const potUp = pg >= POTUP || ig >= POTUP; pg = Math.max(pg, ig);\n' +
   '      const unlock = defender && !must && p.lv >= 2 && !(saving || hoard);\n' +
   '      if (defender && !must && !unlock && !potUp && !(p.t === \'a\' && heavy && p.lv < 2)) continue;\n' +
   '      if ((saving || hoard) && p.t !== \'r\' && !must && !potUp) continue;\n' +
   '      cand.push({ at: [f, r], S: T, gain: score(T, me) - base, must, unlock, pot: potUp, pg });');
 rep('    if (ex) top.push(ex);\n    return top;',
   '    if (ex) top.push(ex);\n    const px = cand.filter(c => c.pot && !top.includes(c)).sort((x, y) => y.pg - x.pg)[0];   // 变体 bfai_pot4：潜力升级的专用名额\n    if (px) top.push(px);\n    return top;');
+
+// ---- 调试：根上的升级候选（think.ups） ----
+rep('    let ups = upgradeCands(S, L);',
+  '    let ups = upgradeCands(S, L);\n    think.ups = ups.map(c => ({ at: c.at, gain: +c.gain.toFixed(2), must: !!c.must, unlock: !!c.unlock, pot: !!c.pot, pg: +(c.pg || 0).toFixed(2) }));   // 变体 bfai_pot4：调试用');
 
 // ---- 每回合开头先试算潜力 ----
 rep('nodes = 0; qMax = L.q; hist.clear();',
