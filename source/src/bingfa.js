@@ -52,7 +52,9 @@
     //   3. reviveLevel + reviveCap：召回的子回来的等级 = min(死时的等级, reviveLevel)，血按回来的等级回满（阵亡名单每项记着死时的等级 lv；没记的旧记录按一级）
     //   4. reviveUp：多一种行动 { k:'art', id, up:true }——召回之后当回合马上花军功给它升一级。照常扣军功、每回合最多升一次；召回占这一回合，所以它这回合动不了
     //   5. reviveHalf：召回的子第一次升级半价（单数向上取整）。召回时给它记 rh；甲片照常抵价，甲片攒够自动晋升的门槛也按半价；第一次晋升（手动、当场、甲片自动都算）之后清掉，恢复原价
-    r6: { on: false, attack: { r: [1, 1, 2, 2], p: [1, 1, 2, 2], n: [1, 1, 2], c: [1, 1, 2] }, hpByType: { r: [1, 2, 3, 3] }, cost: { r: [10, 12, 20] }, reviveLevel: 2, reviveCap: true, reviveUp: true, reviveHalf: true },
+    //   6.（Ham 2026-10-05 再定）召回按兵种算：reviveBest——回来的等级看这一兵种阵亡的子里最高的那个（再按第 3 条封顶）；
+    //      revivePlace——可以放回这一兵种任意一个空着的开局位置（行动里带 at；不带就是这枚子自己的原位）。两项都关 = Balance 第六轮模拟的那一版
+    r6: { on: true, attack: { r: [1, 1, 2, 2], p: [1, 1, 2, 2], n: [1, 1, 2], c: [1, 1, 2] }, hpByType: { r: [1, 2, 3, 3] }, cost: { r: [10, 12, 20] }, reviveLevel: 2, reviveCap: true, reviveUp: true, reviveHalf: true, reviveBest: true, revivePlace: true },
   };
   // 主技能（三级解锁）；SKILLS_OF 列出这一兵种全部技能（含四级的）
   const SKILL_OF = (t, s) => ({ p: 'juma', r: 'chongzhen', n: 'taying', c: 'pili', a: 'hujia', e: s === 'r' ? 'qishe' : 'jianta' })[t] || null;
@@ -98,7 +100,9 @@
   };
   // 每枚子的开局位置（复活用）
   const START = {};
-  (() => { const b = initialBoard(); for (let r = 0; r < 10; r++) for (let f = 0; f < 9; f++) if (b[r][f]) START[b[r][f].id] = [f, r]; })();
+  // START_R[兵种]：汉方这一兵种的全部开局位置（召回时可以放回同兵种的任一个空位）
+  const START_R = {};
+  (() => { const b = initialBoard(); for (let r = 0; r < 10; r++) for (let f = 0; f < 9; f++) if (b[r][f]) { START[b[r][f].id] = [f, r]; if (b[r][f].s === 'r') (START_R[b[r][f].t] = START_R[b[r][f].t] || []).push([f, r]); } })();
 
   // ---------- 状态 ----------
   function newState(cfg) {
@@ -151,6 +155,17 @@
   const inCheckF = (S, s) => !S.final && inCheck(S.board, s);
   const jmActive = (S, p) => p && p.t === 'p' && p.jm > S.cnt[other(p.s)];
   const maxLv = t => (t === 'k' ? 1 : CFG_CUR.upgrade.maxLevel[t] || CFG_CUR.upgrade.defaultMaxLevel);
+  // 召回：这一兵种阵亡的子里最高的等级 / 等级最高的那一枚（并列取先阵亡的）
+  const bestDeadLv = (S, t) => { let m = 1; for (const d of S.dead.r) if (d.t === t && (d.lv || 1) > m) m = d.lv || 1; return m; };
+  const bestDead = (S, t) => { let b = null; for (const d of S.dead.r) if (d.t === t && (!b || (d.lv || 1) > (b.lv || 1))) b = d; return b; };
+  // 召回的候选行动（电脑和界面共用）：revivePlace 开着时按兵种列——每个兵种、每个空着的开局位置一条，用等级最高的那枚；否则每枚阵亡的子一条（放回它自己的原位）
+  function reviveActs(S) {
+    const R = R6(), out = [], seen = new Set();
+    if (R && R.revivePlace) {
+      for (const d of S.dead.r) { if (seen.has(d.t)) continue; seen.add(d.t); const b = bestDead(S, d.t); for (const q of START_R[d.t] || []) if (!at(S, q[0], q[1])) out.push({ k: 'art', id: b.id, at: q.slice(), t: d.t }); }
+    } else for (const d of S.dead.r) { if (seen.has(d.id)) continue; seen.add(d.id); out.push({ k: 'art', id: d.id, t: d.t }); }
+    return out;
+  }
   // 试行规则 r6 开着就返回它的配置；攻击、血、升级价都先看它里面有没有这一兵种的表，没有再用平常的
   const R6 = (cfg = CFG_CUR) => (cfg.r6 && cfg.r6.on ? cfg.r6 : null);
   const atkTbl = (t, cfg = CFG_CUR) => { const R = R6(cfg); return (R && R.attack && R.attack[t]) || cfg.attack[t] || []; };
@@ -425,11 +440,15 @@
       if (side === 'b' && smActive(S)) return null;
       if (side === 'r') {
         const i = S.dead.r.findIndex(d => d.id === a.id); if (i < 0) return null;
-        const d = S.dead.r[i], st = START[d.id];
+        const d = S.dead.r[i], R = R6(), own = START[d.id];
+        // 放回哪里：不带 at 就是它自己的原位；带 at 必须是这一兵种的开局位置（r6 的 revivePlace 开着才能选别的空位）
+        const st = a.at ? (START_R[d.t] || []).find(q => q[0] === a.at[0] && q[1] === a.at[1]) : own;
         if (!st || at(S, st[0], st[1])) return null;
+        if (own && (st[0] !== own[0] || st[1] !== own[1]) && !(R && R.revivePlace)) return null;
+        // r6：回来的等级 = min(死时的等级, reviveLevel)；reviveBest 开着时“死时的等级”看这一兵种阵亡的子里最高的那个。平常一律一级
+        const lvDead = R && R.reviveBest ? bestDeadLv(S, d.t) : (d.lv || 1);
         S.dead.r.splice(i, 1);
-        // 试行规则：回来的等级 = min(死时的等级, reviveLevel)；平常一律一级
-        const R = R6(), top = R ? Math.max(1, Math.min(maxLv(d.t), R.reviveLevel || 1)) : 1, rlv = R && R.reviveCap ? Math.max(1, Math.min(top, d.lv || 1)) : top;
+        const top = R ? Math.max(1, Math.min(maxLv(d.t), R.reviveLevel || 1)) : 1, rlv = R && R.reviveCap ? Math.max(1, Math.min(top, lvDead)) : top;
         const pr = S.board[st[1]][st[0]] = { s: 'r', t: d.t, id: d.id, lv: rlv, hp: hpOf(d.t, rlv), cd: 0, jm: 0, xp: 0, kills: 0, rv: S.cnt.r + 1 };   // rv：刚被召回的记号（只给界面用：这一回合它还动不了，身上绕一圈金光）
         if (R && R.reviveHalf) pr.rh = 1;   // 第一次升级半价的记号
         ev.push({ e: 'revive', id: d.id, t: d.t, at: st.slice(), lv: rlv });
@@ -594,7 +613,7 @@
       }
     }
     if (!S.freeUsed) {
-      if (side === 'r' && artOpen(S) && S.used.art.r < CFG_CUR.generalArts.xiaohe.usesPerGame) { const seen = new Set(); for (const d of S.dead.r) { if (seen.has(d.id)) continue; seen.add(d.id); push({ k: 'art', id: d.id }); if (R6() && R6().reviveUp) push({ k: 'art', id: d.id, up: true }); } }   // 试行规则：召回 + 当回合升级
+      if (side === 'r' && artOpen(S) && S.used.art.r < CFG_CUR.generalArts.xiaohe.usesPerGame) { const up = R6() && R6().reviveUp; for (const { t, ...a } of reviveActs(S)) { push(a); if (up) push({ ...a, up: true }); } }   // r6：召回 + 当回合升级
       const U = CFG_CUR.ultimates;
       if (S.merit[side] >= U.cost && S.used.ult[side] < U[side === 'r' ? 'simian' : 'hongmen'].usesPerGame) push({ k: 'ult' });
     }
@@ -624,7 +643,7 @@
       }
     }
     if (!capsOnly && !S.freeUsed) {
-      if (side === 'r' && artOpen(S) && S.used.art.r < CFG_CUR.generalArts.xiaohe.usesPerGame) { const seen = new Set(); for (const d of S.dead.r) { if (seen.has(d.id)) continue; seen.add(d.id); out.push({ a: { k: 'art', id: d.id }, p: null, q: null, art: d.t }); if (R6() && R6().reviveUp && !S.upgraded) out.push({ a: { k: 'art', id: d.id, up: true }, p: null, q: null, art: d.t }); } }   // 试行规则：召回 + 当回合升级
+      if (side === 'r' && artOpen(S) && S.used.art.r < CFG_CUR.generalArts.xiaohe.usesPerGame) { const up = R6() && R6().reviveUp && !S.upgraded; for (const { t, ...a } of reviveActs(S)) { out.push({ a, p: null, q: null, art: t }); if (up) out.push({ a: { ...a, up: true }, p: null, q: null, art: t }); } }   // r6：召回 + 当回合升级
       const U = CFG_CUR.ultimates;
       if (S.merit[side] >= U.cost && S.used.ult[side] < U[side === 'r' ? 'simian' : 'hongmen'].usesPerGame) out.push({ a: { k: 'ult' }, p: null, q: null, ult: true });
     }
@@ -718,14 +737,19 @@
   function reviveOptions(S) {
     if (S.turn !== 'r' || S.freeUsed || !artOpen(S) || S.used.art.r >= CFG_CUR.generalArts.xiaohe.usesPerGame) return [];
     const seen = new Set(), out = [];
-    const R = R6();
-    for (const d of S.dead.r) {
-      if (seen.has(d.id)) continue; seen.add(d.id);
-      const a = { k: 'art', id: d.id }, T = attempt(S, a); if (!T) continue;
-      const st = START[d.id], pr = T.S.board[st[1]][st[0]], o = { ...a, t: d.t, at: st, lv: pr ? pr.lv : 1 };   // lv：回来是几级
-      // 试行规则：召回后当场升一级要几点军功（已经是半价）、现在升不升得起
-      if (R && R.reviveUp && pr) { const c = upCost(pr); if (c != null) { o.upCost = c; o.upLv = pr.lv + 1; o.canUp = !!attempt(S, { ...a, up: true }); } }
-      out.push(o);
+    // 每项：id / t / at（第一个能放的位置）/ squares（能放的全部位置）/ lv（回来几级）；r6 开着 reviveUp 时还有 upLv / upCost / canUp
+    const R = R6(), by = new Map();
+    for (const { t, ...a } of reviveActs(S)) {
+      const T = attempt(S, a); if (!T) continue;
+      const st = a.at || START[a.id], key = R && R.revivePlace ? t : a.id;
+      let o = by.get(key);
+      if (!o) {
+        const pr = T.S.board[st[1]][st[0]];
+        o = { k: 'art', id: a.id, t, at: st, squares: [], lv: pr ? pr.lv : 1 };
+        if (R && R.reviveUp && pr) { const c = upCost(pr); if (c != null) { o.upCost = c; o.upLv = pr.lv + 1; o.canUp = !!attempt(S, { ...a, up: true }); } }
+        by.set(key, o); out.push(o);
+      }
+      o.squares.push(st);
     }
     return out;
   }
@@ -848,7 +872,9 @@
     skillWhy(f, r, sk) { CFG_CUR = this.cfg; return skillWhy(this.S, f, r, sk); }
     rankName(p, lv) { return p ? rankName(p.s, p.t, lv || p.lv) : ''; }
     heroName(p) { return heroName(p); }
-    reviveOptions() { return this.result ? [] : reviveOptions(this.S); }
+    reviveOptions() { CFG_CUR = this.cfg; return this.result ? [] : reviveOptions(this.S); }
+    // 阵亡了、但现在放不回去的兵种（开局位置都被占着，或放回去己方仍被将军）：界面上灰着显示
+    reviveBlocked() { CFG_CUR = this.cfg; if (this.result) return []; const ok = new Set(reviveOptions(this.S).map(o => o.t)), out = []; for (const d of this.S.dead.r) if (!ok.has(d.t) && !out.includes(d.t)) out.push(d.t); return out; }
     pofuFirst() { return this.result ? [] : pofuFirst(this.S); }
     pofuSecond(m1) { return pofuSecond(this.S, m1); }
     pofuPreview(m1) { return pofuPreview(this.S, m1); }
@@ -1035,7 +1061,7 @@
       maxLv: t === 'k' ? 1 : (cfg.upgrade.maxLevel[t] || cfg.upgrade.defaultMaxLevel),
     };
   }
-  const BF = { Game, CFG, view, pofuPreview, SKILL_OF, SKILLS_OF, SKILL_CN, SKILL_DESC, ART_CN, ULT_CN, RANK_CN, TIGER_RANKS, HERO_CN, heroName, rankName, START, newState, cloneState, attempt, evaluate, levelInfo, maxLvOf: t => maxLv(t),
+  const BF = { Game, CFG, view, pofuPreview, SKILL_OF, SKILLS_OF, SKILL_CN, SKILL_DESC, ART_CN, ULT_CN, RANK_CN, TIGER_RANKS, HERO_CN, heroName, rankName, START, START_R, newState, cloneState, attempt, evaluate, levelInfo, maxLvOf: t => maxLv(t),
     // 电脑用（调用前会把配置指到默认值）
     // version：接口每加一个函数就 +1；只增不改，已有函数的参数和返回值不动
     ai: { version: 1, gen: (S, c) => { CFG_CUR = CFG; return gen(S, c); }, atk: p => { CFG_CUR = CFG; return atk(p); }, expand: S => { CFG_CUR = CFG; return expand(S); }, upgradeState: (S, a) => { CFG_CUR = CFG; return upgradeState(S, a); }, jumaState: (S, a) => { CFG_CUR = CFG; return jumaState(S, a); }, pofuPairs: (S, only, keep) => { CFG_CUR = CFG; return pofuPairs(S, only, keep); }, pofuPairsRef: (S, only, keep) => { CFG_CUR = CFG; return pofuPairsRef(S, only, keep); }, artReady: S => { CFG_CUR = CFG; const sd = S.turn; return !S.freeUsed && artOpen(S) && S.used.art[sd] < CFG.generalArts[sd === 'r' ? 'xiaohe' : 'pofu'].usesPerGame && !(sd === 'b' && smActive(S)); }, inCheck: (S, s) => inCheckS(S, s), upCost: p => { CFG_CUR = CFG; return upCost(p); }, moveTargets: (S, f, r) => { CFG_CUR = CFG; return moveTargets(S, f, r); } }, hpOf: (t, lv) => hpOf(t, lv, CFG) };

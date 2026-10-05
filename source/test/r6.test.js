@@ -7,7 +7,8 @@ const BF = global.BF = require('../src/bingfa.js');
 let pass = 0; const ok = (c, m) => { assert.ok(c, m); pass++; };
 const B = BF.CFG, R = B.r6, DEF = JSON.parse(JSON.stringify(R));
 const reset = () => { for (const k of Object.keys(R)) delete R[k]; Object.assign(R, JSON.parse(JSON.stringify(DEF))); };
-ok(R.on === false, '默认关');
+ok(R.on === true, '默认开（2026-10-05 起是正式规则）');
+R.on = false; DEF.on = false;   // 下面先核“关着照旧”，再一项项打开；reset() 回到关着
 ok(JSON.stringify(R.attack) === JSON.stringify({ r: [1, 1, 2, 2], p: [1, 1, 2, 2], n: [1, 1, 2], c: [1, 1, 2] }) && JSON.stringify(R.hpByType) === '{"r":[1,2,3,3]}' && JSON.stringify(R.cost) === '{"r":[10,12,20]}' && R.reviveLevel === 2 && R.reviveCap === true && R.reviveUp === true && R.reviveHalf === true, '开关里的五项数值');
 
 // ---------- 开关关着：一切照旧 ----------
@@ -55,7 +56,7 @@ reset();
 
 // ---------- 以下照 Balance 的自测（各项可以单独开关） ----------
 //   那份自测从“四项全关”开始、一项一项打开；这里先把 r6 里的四项拨到同样的起点
-R.on = true; R.reviveLevel = 1; R.reviveCap = false; R.reviveUp = false; R.reviveHalf = false;
+R.on = true; R.reviveLevel = 1; R.reviveCap = false; R.reviveUp = false; R.reviveHalf = false; R.reviveBest = false; R.revivePlace = false;
 // 召回：汉车 id 找开局位置空着、车马炮少于楚且最多 3 枚（背水开着时的条件）
 const setupRevive = lvl => {
   B.beishui.on = true; R.on = true; R.reviveLevel = lvl;
@@ -186,5 +187,56 @@ R.reviveLevel = 1; R.reviveCap = false; B.beishui.on = true;
   R.reviveUp = false; R.reviveHalf = false;
 }
 R.reviveLevel = 1; R.reviveCap = false; B.beishui.on = true;
-reset(); B.beishui.on = true;
+// ---------- 召回按兵种算（Ham 2026-10-05）：等级看这一兵种阵亡的子里最高的；可以放回这一兵种任意一个空着的开局位置 ----------
+{
+  reset(); R.on = true; B.beishui.on = true;
+  ok(R.reviveBest === true && R.revivePlace === true, '默认：reviveBest、revivePlace 都开着');
+  // 汉方只留帅和中兵（13）；两辆车阵亡：左车（0）死时一级，右车（8）死时三级；另有一枚一级兵（11）
+  const mk = (fn, merit = 30) => { const g = new BF.Game(); g.setup(T => { for (let r = 0; r < 10; r++) for (let f = 0; f < 9; f++) { const p = T.board[r][f]; if (p && p.s === 'r' && p.t !== 'k' && p.id !== 13) T.board[r][f] = null; }
+    T.dead.r = [{ id: 0, t: 'r', s: 'r', lv: 1 }, { id: 8, t: 'r', s: 'r', lv: 3 }, { id: 11, t: 'p', s: 'r', lv: 1 }]; T.merit.r = merit; T.turn = 'r'; if (fn) fn(T); }); return g; };
+  const blocker = id => ({ s: 'r', t: 'n', id, lv: 1, hp: 1, cd: 0, jm: 0, xp: 0, kills: 0 });
+  { const g = mk(), o = g.reviveOptions(), rk = o.find(x => x.t === 'r'), pw = o.find(x => x.t === 'p');
+    ok(o.length === 2 && rk && pw, '两辆车阵亡只列一项车，外加一项兵');
+    ok(rk.id === 8 && rk.lv === 2 && rk.squares.length === 2 && JSON.stringify(rk.squares) === '[[0,0],[8,0]]', '车：用死时三级的那枚（回来二级），两个角都能放');
+    ok(rk.upLv === 3 && rk.upCost === 6 && rk.canUp === true, '车：当场升三级半价 6');
+    ok(pw.lv === 1 && pw.squares.length === 4 && !pw.squares.some(q => q[0] === 4), '兵：四个空着的兵位都能放（中兵位有子）');
+    ok(g.reviveBlocked().length === 0, '没有放不回去的兵种'); }
+  { const g = mk(); ok(!!g.apply({ k: 'art', id: 8, at: [0, 0] }), '右车放到左角：合法'); const p = g.at(0, 0);
+    ok(p && p.id === 8 && p.t === 'r' && p.lv === 2 && p.hp === 2 && p.rh === 1 && !g.at(8, 0), '左角上是二级车（编号 8），右角空着');
+    ok(g.S.dead.r.length === 2 && g.S.dead.r.some(d => d.id === 0), '另一辆车还在阵亡名单里'); }
+  { const g = mk(); ok(!!g.apply({ k: 'art', id: 0, at: [8, 0] }) && g.at(8, 0).id === 0 && g.at(8, 0).lv === 2, '选死时一级的那枚：等级也按这一兵种最高的算（二级）'); }
+  { const g = mk(); ok(!!g.apply({ k: 'art', id: 8 }) && g.at(8, 0) && g.at(8, 0).id === 8, '不带 at：放回它自己的原位'); }
+  { const g = mk(); ok(!g.apply({ k: 'art', id: 8, at: [1, 0] }) && !g.apply({ k: 'art', id: 8, at: [4, 4] }) && !g.apply({ k: 'art', id: 11, at: [0, 0] }), '不是这一兵种的开局位置：不合法'); }
+  { const g = mk(T => { T.board[0][0] = blocker(1); }), rk = g.reviveOptions().find(x => x.t === 'r');
+    ok(rk && rk.squares.length === 1 && rk.squares[0][0] === 8 && !g.apply({ k: 'art', id: 8, at: [0, 0] }), '左角被占：只能放右角'); }
+  { const g = mk(T => { T.board[0][0] = blocker(1); T.board[0][8] = blocker(7); });
+    ok(!g.reviveOptions().some(x => x.t === 'r') && g.reviveBlocked().join() === 'r', '两个角都被占：车不能召回，列在“放不回去”里'); }
+  { const g = mk(), E = BF.ai.expand(g.S).filter(k => k.a.k === 'art').map(k => k.a), G = BF.ai.gen(g.S, false).filter(k => k.a.k === 'art').map(k => k.a);
+    ok(E.length === 12 && E.filter(a => a.up).length === 6 && E.every(a => a.at && (a.id === 8 || a.id === 11)), '电脑候选：车 2 个位置 + 兵 4 个位置，各带一条当场升级（共 12）');
+    ok(JSON.stringify(E) === JSON.stringify(G), 'expand 和 gen 列的一样'); }
+  { const g = mk(null, 6); const info = g.apply({ k: 'art', id: 8, at: [0, 0], up: true });
+    ok(!!info && g.at(0, 0).lv === 3 && g.S.merit.r === 0, '放到左角并当场升三级：花 6'); }
+  // 两项关掉 = Balance 第六轮模拟的那一版
+  { R.reviveBest = false; R.revivePlace = false; const g = mk(), o = g.reviveOptions();
+    ok(o.length === 3 && o.find(x => x.id === 0).lv === 1 && o.find(x => x.id === 8).lv === 2, '两项关掉：每枚阵亡的子各一项，等级看它自己');
+    ok(!g.apply({ k: 'art', id: 8, at: [0, 0] }) && !!g.apply({ k: 'art', id: 8, at: [8, 0] }), '两项关掉：只能放回自己的原位');
+    ok(BF.ai.expand(mk().S).filter(k => k.a.k === 'art').every(k => !k.a.at), '两项关掉：电脑候选不带 at'); }
+  // 旧规则（r6 关）：只能原位、一律一级
+  { reset(); R.on = false; const g = mk();
+    ok(!g.apply({ k: 'art', id: 8, at: [0, 0] }), '旧规则：不能放到别的位置');
+    ok(!!g.apply({ k: 'art', id: 8, at: [8, 0] }) && g.at(8, 0).lv === 1, '旧规则：原位、一级'); }
+}
+
+// Game.baseCost（界面“甲片省几 / 攒满几片自动升级”用）也按半价
+{
+  reset(); R.on = true; B.beishui.on = true;
+  const g = new BF.Game();
+  g.setup(T => { for (let r = 0; r < 10; r++) for (let f = 0; f < 9; f++) { const p = T.board[r][f]; if (p && p.s === 'r' && p.t !== 'k' && p.id !== 13) T.board[r][f] = null; } T.dead.r = [{ id: 0, t: 'r', s: 'r', lv: 1 }]; T.merit.r = 30; T.turn = 'r'; });
+  g.apply({ k: 'art', id: 0 }); const p = g.at(0, 0);
+  ok(p.rh === 1 && g.baseCost(p) === 5 && g.upgradeCost(p) === 5, 'Game.baseCost：召回的一级车半价 5');
+  p.xp = 2; ok(g.baseCost(p) === 5 && g.upgradeCost(p) === 3, 'Game.baseCost 不算甲片（5），upgradeCost 减甲片（3）'); p.xp = 0;
+  const mv = BF.ai.expand(g.S).find(k => k.a.k === 'mv'); g.apply(mv.a); g.apply({ k: 'up', at: [0, 0] });
+  ok(g.at(0, 0).lv === 2 && !g.at(0, 0).rh && g.baseCost(g.at(0, 0)) === 12, '升过一次之后 Game.baseCost 回到原价 12');
+}
+reset(); R.on = true; B.beishui.on = true;
 console.log('R6 OK', pass, '项');
