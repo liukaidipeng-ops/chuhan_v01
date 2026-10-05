@@ -1475,6 +1475,9 @@ const Squads = (() => {
         st.k = 1; vis(st, 1);
         const sq = st.sq; sq.anchor.x = m.position.x; sq.anchor.z = m.position.z; if (sq.guard) { sq.guard.anchor.x = m.position.x; sq.guard.anchor.z = m.position.z; }
         if (sq.sync) sq.sync();
+        // 步兵、禁卫这类一队人，每个人是“慢慢跟上”自己的位置的：棋子挪走的这段时间他们还留在出发的那一格。
+        //   不在这里一步摆到位，演出队伍交还的那一瞬间，立着的这一队会先在老地方现身、再滑过来——看着像走到位以后又往回抖了一下
+        for (const q of [sq, sq.guard]) if (q && q.place) { q.yaw = sq.yaw; q.place(1); }
       },
       set(v) {
         v = !!v; if (v === on) return; on = v;
