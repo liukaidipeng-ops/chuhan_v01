@@ -1,0 +1,3 @@
+{ "args": "--games 500 --seed 1000 --nodes mid=60000 --set beishui.on=true --set beishui.twoPieces=false --ai tools/variants/bfai_defup.js --set attack.e=[1,2,2,2]",
+  "env": { "BFSIM_ENGINE": "tools/variants/engine_at.js", "ENGINE_REV": "98dd206", "BFAI_DEFUP": "1", "BFAI_DGUARD": "1", "BFAI_DEFVAL": "1" }, "chunks": 20,
+  "note": "不压制升士象的电脑：象、相二级起攻击 2" }
