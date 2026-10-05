@@ -629,28 +629,43 @@ const Voice = (() => {
   const LINES = window.VOICE_LINES || {};
   const CLIPS = window.VOICE_CLIPS || {};
   const SPK = { narr: '', xiang: '项王', liu: '汉王', elder: '乌江亭长' };
+  // 两套配音：原版（内嵌在页面里）和写实版（单独一个包，选了才取；没取到之前先用原版顶着）
+  const REAL = window.VOICE_REAL || null;
   const bufs = new Map();
-  let enabled = true, cur = null, barkSrc = null;
+  let enabled = true, cur = null, barkSrc = null, mode = 'orig', pack = null, packP = null;
+  function loadPack() {
+    if (pack || !REAL) return Promise.resolve();
+    if (!packP) packP = fetch(REAL.url).then(r => { if (!r.ok) throw 0; return r.arrayBuffer(); }).then(b => { pack = b; }).catch(() => { packP = null; });
+    return packP;
+  }
+  const useReal = id => mode === 'real' && pack && REAL.idx[id];
   const barkCut = () => { if (barkSrc) { try { barkSrc.stop(); } catch (e) { } barkSrc = null; } };
   function b64ToBuf(b64) { const bin = atob(b64); const u = new Uint8Array(bin.length); for (let i = 0; i < bin.length; i++) u[i] = bin.charCodeAt(i); return u.buffer; }
   function decode(id) {
-    if (bufs.has(id)) return bufs.get(id);
+    const real = useReal(id), key = (real ? 'R:' : 'O:') + id;
+    if (bufs.has(key)) return bufs.get(key);
     const ctx = Sfx.ctx;
-    if (!ctx || !CLIPS[id]) return Promise.resolve(null);
-    const p = new Promise(res => { try { ctx.decodeAudioData(b64ToBuf(CLIPS[id]), b => res(b), () => res(null)); } catch (e) { res(null); } });
-    bufs.set(id, p);
+    if (!ctx || (!real && !CLIPS[id])) return Promise.resolve(null);
+    const raw = real ? pack.slice(real[0], real[0] + real[1]) : b64ToBuf(CLIPS[id]);
+    const p = new Promise(res => { try { ctx.decodeAudioData(raw, b => res(b), () => res(null)); } catch (e) { res(null); } });
+    bufs.set(key, p);
     return p;
   }
   return {
     LINES, SPK,
     get enabled() { return enabled; }, set enabled(v) { enabled = v; if (!v) this.cancel(); },
-    preload(ids) { (ids || Object.keys(CLIPS)).forEach(decode); },
+    // 配音风格：'real' 写实版 / 'orig' 原版
+    get mode() { return mode; }, set mode(v) { mode = v === 'real' && REAL ? 'real' : 'orig'; if (mode === 'real') loadPack(); },
+    get realReady() { return !!pack; },
+    preload(ids) { const go = () => (ids || Object.keys(CLIPS)).forEach(decode); if (mode === 'real' && !pack) loadPack().then(go); else go(); },
     has(id) { return !!LINES[id]; },
     speaker(id) { return SPK[(LINES[id] || {}).spk] ?? ''; },
-    text(id) { return (LINES[id] || {}).text || ''; },
+    text(id) { return (mode === 'real' && REAL.text[id]) || (LINES[id] || {}).text || ''; },
     async play(id, { onDur, minDur = 0, rate = 1 } = {}) {
       const est = Math.max(minDur, this.text(id).length * 0.24 + 0.6);
       if (!enabled || !Sfx.ctx) { onDur && onDur(est); return Core.sleep(est); }
+      // 写实版的包还在路上：主帅、旁白最多等它两秒半（免得一局里前一句原版、后一句写实），再不来就先用原版
+      if (mode === 'real' && !pack) await Promise.race([loadPack(), new Promise(r => setTimeout(r, 2500))]);
       const buf = await decode(id);
       if (!buf) { onDur && onDur(est); return Core.sleep(est); }
       const ctx = Sfx.ctx;
@@ -666,7 +681,7 @@ const Voice = (() => {
     cancel() { if (cur) { try { cur.stop(); } catch (e) { } cur = null; } barkCut(); },
     // 兵种台词：单独一路，不打断主帅/旁白，也不被它们打断；新的一句会接替上一句
     async bark(id, { vol = 0.9, pan = 0, skipIfBusy = false } = {}) {
-      if (!enabled || !Sfx.ctx || !CLIPS[id]) return;
+      if (!enabled || !Sfx.ctx || !(CLIPS[id] || useReal(id))) return;
       if (skipIfBusy && cur) return;
       const buf = await decode(id); if (!buf) return;
       const ctx = Sfx.ctx;

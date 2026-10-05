@@ -8,6 +8,7 @@
   // 更新说明（设置里、大厅底部点「更新」查看；最新的放最前）
   const NEWS = [
     ['第六版', '2026 年 10 月', [
+      '配音多了一套「写实版」：项羽、刘邦、旁白、两军士兵全部重新配过，有语气、有情绪，楚军汉军嗓音不同。新装默认用写实版；想听原来那套，在 设置 → 声音 → 配音 里选「原版」',
       '放技能更清楚了：能放的落点带金色四角框；选定目标后，一个瞄准圈把它框住，下方出现「确定」，点了才发动（再点一次目标也行）。背水一战走完第一步，落点会留下虚影、头顶悬一个「一」，并留下这一步的路径。刚被召回的子，那一回合身边绕着金光',
       '技能模式的主帅兵法改了，只给落了下风的一方用——己方车马炮最多还剩 3 枚、而且比对方少时才能用。项羽的「破釜沉舟」换成「背水一战」：连走两步（一枚子走两步，或两枚子各走一步），合计最多吃一个子；只看两步走完——楚将不被将军、也不将着汉帅就行；发动后不能取消，用过的子下一回合不能动，不再封技能。刘邦的「召回良将」也要落了下风才能用。改规则之前开的局接着下，还按原来的规则',
       '背水一战发动期间，屏幕四周泛起墨色晕染；两步走完不合规矩，四周变红、写明原因并标出是哪枚子的问题，点一下屏幕棋子归位重走',
@@ -85,11 +86,13 @@
     del(k) { try { localStorage.removeItem('xq3d-' + k); } catch (e) { } },
   };
   const S = {
-    music: store.get('music', 'zen'), vMusic: store.get('vMusic', 55), vSfx: store.get('vSfx', 90), vVoice: store.get('vVoice', 100), voice: store.get('voice', 1),
+    music: store.get('music', 'zen'), vMusic: store.get('vMusic', 55), vSfx: store.get('vSfx', 90), vVoice: store.get('vVoice', 100), voice: store.get('voice', 2),
     models: store.get('models', 0), debris: store.get('debris', 3),
     vis: store.get('vis', store.get('fx', 1) === 0 ? 'low' : 'cine'), gore: store.get('gore', 3), server: store.get('server', ''),
     speed: store.get('speed', 1.5), // 动画播放速度
   };
+  // 配音：2 = 写实版（新的默认），1 = 原版，0 = 关。老玩家存的是 1（开），头一回替他换到写实版，之后随他自己选
+  if (!store.get('vreal', 0)) { if (+S.voice === 1) S.voice = 2; store.set('vreal', 1); store.set('voice', S.voice); }
   if (![1, 1.5, 2, 3].includes(+S.speed)) S.speed = 1.5;
   if (!VIS.includes(S.vis)) S.vis = 'cine';
   let ropts = Object.assign({ side: 'r', undo: 3, total: 15, step: 60, hints: 1, jq: 0, pub: 1 }, store.get('ropts', {}));
@@ -97,7 +100,7 @@
   let aopts = Object.assign({ level: 'mid', side: 'r', undo: 3, total: 0, step: 0, hints: 1 }, store.get('aopts', {}));
 
   function applySettings() {
-    Fx.level = S.vis; Fx.gore = +S.gore; Voice.enabled = !!+S.voice;
+    Fx.level = S.vis; Fx.gore = +S.gore; Voice.enabled = !!+S.voice; Voice.mode = +S.voice === 2 ? 'real' : 'orig';
     Squads.Stand.set(!!+S.models); Fx.keep = +S.debris || 0;
     Core.Time.boost = +S.speed || 1.5;
     Sfx.setVol('music', S.vMusic / 100 * 0.9); Sfx.setVol('sfx', S.vSfx / 100); Sfx.setVol('voice', S.vVoice / 100);
