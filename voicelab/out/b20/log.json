@@ -1,0 +1,496 @@
+{
+ "batch": "b20",
+ "key_present": true,
+ "key_len": 126,
+ "host": "https://api.minimax.cn",
+ "probe": [
+  {
+   "host": "https://api.minimax.cn",
+   "http": 200,
+   "code": 0,
+   "msg": "success"
+  }
+ ],
+ "jobs": [
+  {
+   "id": "real_r_jq_start",
+   "voice": "Chinese (Mandarin)_Reliable_Executive",
+   "voice_id": "Chinese (Mandarin)_Reliable_Executive",
+   "voice_name": null,
+   "ok": true,
+   "ms": 5364,
+   "chars": 42
+  },
+  {
+   "id": "real_b_bf_start",
+   "voice": "Chinese (Mandarin)_Humorous_Elder",
+   "voice_id": "Chinese (Mandarin)_Humorous_Elder",
+   "voice_name": null,
+   "ok": true,
+   "ms": 4644,
+   "chars": 27
+  },
+  {
+   "id": "real_u_r_k_m3",
+   "voice": "Chinese (Mandarin)_Reliable_Executive",
+   "voice_id": "Chinese (Mandarin)_Reliable_Executive",
+   "voice_name": null,
+   "ok": true,
+   "ms": 2052,
+   "chars": 17
+  },
+  {
+   "id": "real_u_r_k_m4",
+   "voice": "Chinese (Mandarin)_Reliable_Executive",
+   "voice_id": "Chinese (Mandarin)_Reliable_Executive",
+   "voice_name": null,
+   "ok": true,
+   "ms": 2628,
+   "chars": 18
+  },
+  {
+   "id": "real_u_r_k_k3",
+   "voice": "Chinese (Mandarin)_Reliable_Executive",
+   "voice_id": "Chinese (Mandarin)_Reliable_Executive",
+   "voice_name": null,
+   "ok": true,
+   "ms": 3168,
+   "chars": 26
+  },
+  {
+   "id": "real_u_r_k_k4",
+   "voice": "Chinese (Mandarin)_Reliable_Executive",
+   "voice_id": "Chinese (Mandarin)_Reliable_Executive",
+   "voice_name": null,
+   "ok": true,
+   "ms": 1692,
+   "chars": 14
+  },
+  {
+   "id": "real_u_b_k_m3",
+   "voice": "Chinese (Mandarin)_Humorous_Elder",
+   "voice_id": "Chinese (Mandarin)_Humorous_Elder",
+   "voice_name": null,
+   "ok": true,
+   "ms": 3132,
+   "chars": 18
+  },
+  {
+   "id": "real_u_b_k_m4",
+   "voice": "Chinese (Mandarin)_Humorous_Elder",
+   "voice_id": "Chinese (Mandarin)_Humorous_Elder",
+   "voice_name": null,
+   "ok": true,
+   "ms": 2556,
+   "chars": 11
+  },
+  {
+   "id": "real_u_b_k_k3",
+   "voice": "Chinese (Mandarin)_Humorous_Elder",
+   "voice_id": "Chinese (Mandarin)_Humorous_Elder",
+   "voice_name": null,
+   "ok": true,
+   "ms": 3780,
+   "chars": 24
+  },
+  {
+   "id": "real_u_b_k_k4",
+   "voice": "Chinese (Mandarin)_Humorous_Elder",
+   "voice_id": "Chinese (Mandarin)_Humorous_Elder",
+   "voice_name": null,
+   "ok": true,
+   "ms": 3456,
+   "chars": 19
+  },
+  {
+   "id": "real_r_face",
+   "voice": "Chinese (Mandarin)_Reliable_Executive",
+   "voice_id": "Chinese (Mandarin)_Reliable_Executive",
+   "voice_name": null,
+   "ok": true,
+   "ms": 3060,
+   "chars": 18
+  },
+  {
+   "id": "real_b_face",
+   "voice": "Chinese (Mandarin)_Humorous_Elder",
+   "voice_id": "Chinese (Mandarin)_Humorous_Elder",
+   "voice_name": null,
+   "ok": true,
+   "ms": 4536,
+   "chars": 36
+  },
+  {
+   "id": "real_r_h_r0",
+   "voice": "Chinese (Mandarin)_Reliable_Executive",
+   "voice_id": "Chinese (Mandarin)_Reliable_Executive",
+   "voice_name": null,
+   "ok": true,
+   "ms": 7056,
+   "chars": 38
+  },
+  {
+   "id": "real_r_h_r1",
+   "voice": "Chinese (Mandarin)_Reliable_Executive",
+   "voice_id": "Chinese (Mandarin)_Reliable_Executive",
+   "voice_name": null,
+   "ok": true,
+   "ms": 5868,
+   "chars": 27
+  },
+  {
+   "id": "real_r_h_p0",
+   "voice": "Chinese (Mandarin)_Reliable_Executive",
+   "voice_id": "Chinese (Mandarin)_Reliable_Executive",
+   "voice_name": null,
+   "ok": true,
+   "ms": 5544,
+   "chars": 25
+  },
+  {
+   "id": "real_r_h_p1",
+   "voice": "Chinese (Mandarin)_Reliable_Executive",
+   "voice_id": "Chinese (Mandarin)_Reliable_Executive",
+   "voice_name": null,
+   "ok": true,
+   "ms": 6948,
+   "chars": 39
+  },
+  {
+   "id": "real_r_h_p2",
+   "voice": "Chinese (Mandarin)_Reliable_Executive",
+   "voice_id": "Chinese (Mandarin)_Reliable_Executive",
+   "voice_name": null,
+   "ok": true,
+   "ms": 5040,
+   "chars": 27
+  },
+  {
+   "id": "real_r_h_p3",
+   "voice": "Chinese (Mandarin)_Reliable_Executive",
+   "voice_id": "Chinese (Mandarin)_Reliable_Executive",
+   "voice_name": null,
+   "ok": true,
+   "ms": 6948,
+   "chars": 31
+  },
+  {
+   "id": "real_r_h_p4",
+   "voice": "Chinese (Mandarin)_Reliable_Executive",
+   "voice_id": "Chinese (Mandarin)_Reliable_Executive",
+   "voice_name": null,
+   "ok": true,
+   "ms": 3960,
+   "chars": 25
+  },
+  {
+   "id": "real_r_h_a0",
+   "voice": "Chinese (Mandarin)_Reliable_Executive",
+   "voice_id": "Chinese (Mandarin)_Reliable_Executive",
+   "voice_name": null,
+   "ok": true,
+   "ms": 5760,
+   "chars": 31
+  },
+  {
+   "id": "real_r_h_a1",
+   "voice": "Chinese (Mandarin)_Reliable_Executive",
+   "voice_id": "Chinese (Mandarin)_Reliable_Executive",
+   "voice_name": null,
+   "ok": true,
+   "ms": 4860,
+   "chars": 24
+  },
+  {
+   "id": "real_r_h_e0",
+   "voice": "Chinese (Mandarin)_Reliable_Executive",
+   "voice_id": "Chinese (Mandarin)_Reliable_Executive",
+   "voice_name": null,
+   "ok": true,
+   "ms": 6048,
+   "chars": 29
+  },
+  {
+   "id": "real_r_h_e1",
+   "voice": "Chinese (Mandarin)_Reliable_Executive",
+   "voice_id": "Chinese (Mandarin)_Reliable_Executive",
+   "voice_name": null,
+   "ok": true,
+   "ms": 5616,
+   "chars": 33
+  },
+  {
+   "id": "real_b_h_r0",
+   "voice": "Chinese (Mandarin)_Humorous_Elder",
+   "voice_id": "Chinese (Mandarin)_Humorous_Elder",
+   "voice_name": null,
+   "ok": true,
+   "ms": 4608,
+   "chars": 23
+  },
+  {
+   "id": "real_b_h_r1",
+   "voice": "Chinese (Mandarin)_Humorous_Elder",
+   "voice_id": "Chinese (Mandarin)_Humorous_Elder",
+   "voice_name": null,
+   "ok": true,
+   "ms": 4680,
+   "chars": 29
+  },
+  {
+   "id": "real_b_h_p0",
+   "voice": "Chinese (Mandarin)_Humorous_Elder",
+   "voice_id": "Chinese (Mandarin)_Humorous_Elder",
+   "voice_name": null,
+   "ok": true,
+   "ms": 5400,
+   "chars": 27
+  },
+  {
+   "id": "real_b_h_p1",
+   "voice": "Chinese (Mandarin)_Humorous_Elder",
+   "voice_id": "Chinese (Mandarin)_Humorous_Elder",
+   "voice_name": null,
+   "ok": true,
+   "ms": 6156,
+   "chars": 38
+  },
+  {
+   "id": "real_b_h_p2",
+   "voice": "Chinese (Mandarin)_Humorous_Elder",
+   "voice_id": "Chinese (Mandarin)_Humorous_Elder",
+   "voice_name": null,
+   "ok": true,
+   "ms": 6120,
+   "chars": 31
+  },
+  {
+   "id": "real_b_h_p3",
+   "voice": "Chinese (Mandarin)_Humorous_Elder",
+   "voice_id": "Chinese (Mandarin)_Humorous_Elder",
+   "voice_name": null,
+   "ok": true,
+   "ms": 6840,
+   "chars": 23
+  },
+  {
+   "id": "real_b_h_p4",
+   "voice": "Chinese (Mandarin)_Humorous_Elder",
+   "voice_id": "Chinese (Mandarin)_Humorous_Elder",
+   "voice_name": null,
+   "ok": true,
+   "ms": 4680,
+   "chars": 32
+  },
+  {
+   "id": "real_b_h_a0",
+   "voice": "Chinese (Mandarin)_Humorous_Elder",
+   "voice_id": "Chinese (Mandarin)_Humorous_Elder",
+   "voice_name": null,
+   "ok": true,
+   "ms": 5652,
+   "chars": 23
+  },
+  {
+   "id": "real_b_h_a1",
+   "voice": "Chinese (Mandarin)_Humorous_Elder",
+   "voice_id": "Chinese (Mandarin)_Humorous_Elder",
+   "voice_name": null,
+   "ok": true,
+   "ms": 7632,
+   "chars": 38
+  },
+  {
+   "id": "real_b_h_e0",
+   "voice": "Chinese (Mandarin)_Humorous_Elder",
+   "voice_id": "Chinese (Mandarin)_Humorous_Elder",
+   "voice_name": null,
+   "ok": true,
+   "ms": 5040,
+   "chars": 28
+  },
+  {
+   "id": "real_b_h_e1",
+   "voice": "Chinese (Mandarin)_Humorous_Elder",
+   "voice_id": "Chinese (Mandarin)_Humorous_Elder",
+   "voice_name": null,
+   "ok": true,
+   "ms": 5148,
+   "chars": 23
+  },
+  {
+   "id": "real_r_x_poke",
+   "voice": "Chinese (Mandarin)_Reliable_Executive",
+   "voice_id": "Chinese (Mandarin)_Reliable_Executive",
+   "voice_name": null,
+   "ok": true,
+   "ms": 3168,
+   "chars": 28
+  },
+  {
+   "id": "real_b_x_poke",
+   "voice": "Chinese (Mandarin)_Humorous_Elder",
+   "voice_id": "Chinese (Mandarin)_Humorous_Elder",
+   "voice_name": null,
+   "ok": true,
+   "ms": 3240,
+   "chars": 16
+  },
+  {
+   "id": "real_r_x_flee",
+   "voice": "Chinese (Mandarin)_Reliable_Executive",
+   "voice_id": "Chinese (Mandarin)_Reliable_Executive",
+   "voice_name": null,
+   "ok": true,
+   "ms": 2448,
+   "chars": 16
+  },
+  {
+   "id": "real_b_x_flee",
+   "voice": "Chinese (Mandarin)_Humorous_Elder",
+   "voice_id": "Chinese (Mandarin)_Humorous_Elder",
+   "voice_name": null,
+   "ok": true,
+   "http": 200,
+   "code": 1002,
+   "msg": "rate limit exceeded(RPM)",
+   "ms": 2592,
+   "chars": 17
+  },
+  {
+   "id": "real_r_x_run",
+   "voice": "Chinese (Mandarin)_Reliable_Executive",
+   "voice_id": "Chinese (Mandarin)_Reliable_Executive",
+   "voice_name": null,
+   "ok": true,
+   "ms": 3456,
+   "chars": 28
+  },
+  {
+   "id": "real_b_x_run",
+   "voice": "Chinese (Mandarin)_Humorous_Elder",
+   "voice_id": "Chinese (Mandarin)_Humorous_Elder",
+   "voice_name": null,
+   "ok": true,
+   "ms": 3240,
+   "chars": 22
+  },
+  {
+   "id": "real_r_x_alone",
+   "voice": "Chinese (Mandarin)_Reliable_Executive",
+   "voice_id": "Chinese (Mandarin)_Reliable_Executive",
+   "voice_name": null,
+   "ok": true,
+   "ms": 1836,
+   "chars": 15
+  },
+  {
+   "id": "real_b_x_alone",
+   "voice": "Chinese (Mandarin)_Humorous_Elder",
+   "voice_id": "Chinese (Mandarin)_Humorous_Elder",
+   "voice_name": null,
+   "ok": true,
+   "ms": 5148,
+   "chars": 31
+  },
+  {
+   "id": "real_r_x_eatr",
+   "voice": "Chinese (Mandarin)_Reliable_Executive",
+   "voice_id": "Chinese (Mandarin)_Reliable_Executive",
+   "voice_name": null,
+   "ok": true,
+   "http": 200,
+   "code": 1002,
+   "msg": "rate limit exceeded(RPM)",
+   "ms": 5112,
+   "chars": 42
+  },
+  {
+   "id": "real_b_x_eatr",
+   "voice": "Chinese (Mandarin)_Humorous_Elder",
+   "voice_id": "Chinese (Mandarin)_Humorous_Elder",
+   "voice_name": null,
+   "ok": true,
+   "ms": 3348,
+   "chars": 20
+  },
+  {
+   "id": "real_r_x_norook",
+   "voice": "Chinese (Mandarin)_Reliable_Executive",
+   "voice_id": "Chinese (Mandarin)_Reliable_Executive",
+   "voice_name": null,
+   "ok": true,
+   "ms": 3456,
+   "chars": 24
+  },
+  {
+   "id": "real_b_x_norook",
+   "voice": "Chinese (Mandarin)_Humorous_Elder",
+   "voice_id": "Chinese (Mandarin)_Humorous_Elder",
+   "voice_name": null,
+   "ok": true,
+   "ms": 3564,
+   "chars": 22
+  },
+  {
+   "id": "real_r_x_chk3",
+   "voice": "Chinese (Mandarin)_Reliable_Executive",
+   "voice_id": "Chinese (Mandarin)_Reliable_Executive",
+   "voice_name": null,
+   "ok": true,
+   "ms": 1836,
+   "chars": 15
+  },
+  {
+   "id": "real_b_x_chk3",
+   "voice": "Chinese (Mandarin)_Humorous_Elder",
+   "voice_id": "Chinese (Mandarin)_Humorous_Elder",
+   "voice_name": null,
+   "ok": true,
+   "ms": 2016,
+   "chars": 10
+  },
+  {
+   "id": "real_r_x_first",
+   "voice": "Chinese (Mandarin)_Reliable_Executive",
+   "voice_id": "Chinese (Mandarin)_Reliable_Executive",
+   "voice_name": null,
+   "ok": true,
+   "http": 200,
+   "code": 1002,
+   "msg": "rate limit exceeded(RPM)",
+   "ms": 3456,
+   "chars": 26
+  },
+  {
+   "id": "real_b_x_first",
+   "voice": "Chinese (Mandarin)_Humorous_Elder",
+   "voice_id": "Chinese (Mandarin)_Humorous_Elder",
+   "voice_name": null,
+   "ok": true,
+   "ms": 3420,
+   "chars": 23
+  },
+  {
+   "id": "real_r_x_home",
+   "voice": "Chinese (Mandarin)_Reliable_Executive",
+   "voice_id": "Chinese (Mandarin)_Reliable_Executive",
+   "voice_name": null,
+   "ok": true,
+   "ms": 1944,
+   "chars": 17
+  },
+  {
+   "id": "real_b_x_home",
+   "voice": "Chinese (Mandarin)_Humorous_Elder",
+   "voice_id": "Chinese (Mandarin)_Humorous_Elder",
+   "voice_name": null,
+   "ok": true,
+   "http": 200,
+   "code": 1002,
+   "msg": "rate limit exceeded(RPM)",
+   "ms": 2952,
+   "chars": 14
+  }
+ ]
+}
