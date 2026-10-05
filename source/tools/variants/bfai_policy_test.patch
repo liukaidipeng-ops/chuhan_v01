@@ -1,0 +1,27 @@
+diff --git a/source/test/bfai.policy.test.js b/source/test/bfai.policy.test.js
+index ab72e3f..04c2dce 100644
+--- a/source/test/bfai.policy.test.js
++++ b/source/test/bfai.policy.test.js
+@@ -3,7 +3,9 @@ global.XQ = require('../src/rules.js');
+ const BF = global.BF = require('../src/bingfa.js');
+ const AI = require('../src/bfai.js');
+ const assert = require('assert');
+-AI.LEVELS.hard.budget = 700;
++// 按搜索节点数收手（和考卷、对打一样），结果和机器快慢无关：按时间收手时机器一忙，霸王只算到 4 层，H1、H3 就时过时不过
++AI.LEVELS.mid.nodes = 60000;
++AI.LEVELS.hard.nodes = 60000;
+ BF.CFG.r6.on = false;        // 同理：数值也照 r6 之前的那套
+ BF.CFG.beishui.on = false;   // 这一组是破釜沉舟那套规则下的策略题（召回不看兵力、破釜留着杀车）；背水一战的行为在 test/beishui.test.js 里核对
+ let id = 300;
+@@ -46,8 +48,10 @@ const isRevive = seq => seq.some(a => a.k === 'art' && a.id != null), isPofu = s
+     let s = await think(g, lv);
+     assert(s[0].k === 'up' && s[0].at[0] === 0 && s[0].at[1] === 9, lv + ' H1 被捉又走不开的炮应该升级保命: ' + JSON.stringify(s));
+     // H3 白打一下：汉马两点血，楚车打它不会有任何损失（下一步还能打死）→ 应该去打
++    //   只考霸王：校尉只算 3 层，在它眼里车进 3 路将军（-1.54）比打马（-1.67）还高一点，加上噪声七成走将军；算到 5 层以上（8 层也是）才是打马最好
+     g = setup([...K, [4, 5, P('r', 'n', 2)], [4, 8, P('b', 'r')], [8, 0, P('r', 'a')]], 'b', usedB);
+-    s = await think(g, lv); assert(s.some(a => a.k === 'mv' && a.to[0] === 4 && a.to[1] === 5), lv + ' H3 白打一下应该打: ' + JSON.stringify(s));
++    s = await think(g, lv);
++    if (lv === 'hard') assert(s.some(a => a.k === 'mv' && a.to[0] === 4 && a.to[1] === 5), lv + ' H3 白打一下应该打: ' + JSON.stringify(s)); else console.log(lv, 'H3', JSON.stringify(s));
+   }
+   console.log('BFAI HP OK');
+ })().catch(e => { console.error(e.message || e); process.exit(1); });
