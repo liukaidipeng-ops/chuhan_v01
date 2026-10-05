@@ -2,6 +2,28 @@
 
 最新的在最上面，编号接着往下排（M1、M2…）。格式见同目录 `MODEL-WORKFLOW.md` 第 6 节。TD 用 `git show origin/model-lab:source/docs/collab/model-to-main.md` 看。
 
+## M7 · 10-06 · 交付 · 界面（轮到谁走的粗线）
+
+- 提交：model-lab 上带这张交付单的那次提交。交付前合过 `origin/dev`，`node build.js` 能过，`test/*.test.js` 八个全过。
+- Ham 确认：10-06 00:44 他提的需求——“轮到谁下的时候，他的头像框旁边会多一圈粗线。粗线不会一直存在，比如开局喊话，或结束时就会消失。倒计时时，粗线会随节奏闪烁，越来越快。”我出了三版（审批台 art-016，能动的演示页），他 01:26 选了「一 · 朱框」；做进游戏后的实机截图在 art-017，他 01:39 在聊天里说“提交吧”。
+- 改了什么（只有 `template.html` 里「对局界面」那段样式）：
+  1. `.pcard` 加了一圈透明的 `outline:5px`、`outline-offset:5px`；`.pcard.active` 时变成朱红，出现时有 0.28 秒从外往里收拢的动作（`@keyframes tlIn`）。
+  2. 原来 `.pcard.active` 紧贴着牌的那圈 4px 朱红 `box-shadow` 去掉了，换成上面这圈留缝的粗线。
+  3. 新加 `.pcard.active.hurry`：粗线按 `--beat`（秒）一亮一暗（`@keyframes tlBlink`，`steps(1)`，硬切不渐变）。不设 `--beat` 时一秒一下。
+  4. `prefers-reduced-motion` 时不收拢、不闪，只常亮。
+- 改了哪些文件：`source/src/template.html`、`source/docs/collab/ui-shots/m7_turnline.jpg`、本文件。没碰脚本。
+- `id`、`data-*`、class：没有删、没有改。新约定一个 class `hurry` 和一个变量 `--beat`，都加在头像牌 `.pcard` 上，由脚本设。
+- **需要 TD 做的**（脚本里，Ham 要的“倒计时闪、越来越快”现在还不会发生，接上才有）：
+  1. 读秒时给走棋那一方的牌加 `hurry`，其余时候去掉。建议直接跟 `updateHud` 里现成的 `urgent` 走：`c.classList.toggle('hurry', !!urgent && urgent.side === s)`——这样暂停、演出中、断线时也自动不闪，和中间的大字一致。
+  2. 同时设节拍：`c.style.setProperty('--beat', (0.26 + 0.074 * urgent.sec).toFixed(2) + 's')`。这是 Ham 在演示页上看过的节奏：剩 10 秒时 1.00 秒一下，剩 5 秒 0.63 秒，剩 1 秒 0.33 秒。每秒改一次 `--beat` 会让动画从头起一拍，我在演示页上就是这么做的，看着是正常的加速。
+  3. “开局喊话时不显示”：现在 `active` 的条件是 `started && !game.result && game.turn === s`，我实机看过开场喊话时两张牌都没有 `active`，终局后也没有，所以这两条不用改。**但对局中途的演出**（技能演出、将军、终局演出开始到 `game.result` 落定之间）粗线现在是亮着的。Ham 的原话只举了“开局喊话、结束时”两个例子，中途要不要灭我没问他；你觉得该灭的话，在 `active` 的条件里加上 `!busy && !Ending.running` 之类，或者问他一句。
+  4. 合并、部署；上线等 Ham 在你那边点头。
+- 我看过的：本地技能模式，电脑 1440×900、手机 390×844——开场喊话（无粗线）、轮到红方（常亮）、手动加 `hurry` 后暗下去的一瞬。图：`ui-shots/m7_turnline.jpg`（左电脑，中手机常亮，右手机闪烁暗的一瞬）。
+- 没看的：联机、观战、人机思考中、横屏矮屏（`.pcard` 有 `transform:scale(.86)`，粗线会跟着缩）、对手那张牌亮起来的样子、真实读秒。
+- 已告诉 Ham 的两处挤：牌离屏幕边 12px，粗线伸出去 10px，离边只剩 2px；手机上「我方」牌的粗线下沿贴近底下那排工具按钮。他看图后没提意见。
+- 测试：`test/*.test.js` 八个全过（`bfai.test.js` 在我这台机器上要跑两三分钟）。
+- 想让 Ham 定的：上面第 3 条里“对局中途的演出要不要灭”。
+
 ## M6 · 10-06 · 交付 · 界面（iPhone 适配）
 
 - 提交：model-lab 上带这张交付单的那次提交。交付前合过 `origin/dev`，`node build.js` 能过，`test/*.test.js` 八个全过。
