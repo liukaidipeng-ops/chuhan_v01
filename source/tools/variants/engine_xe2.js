@@ -79,6 +79,28 @@ function enginePath() {
     "    const ck = S.final || (side === 'b' && smActive(S)) || kingShielded(S, opp) ? [] : checkers(S.board, side);   // 变体·xe2：无敌的帅将不记长将");
   rep("        const ck = side === 'b' && smActive(T) ? [] : checkers(T.board, side);",
     "        const ck = side === 'b' && smActive(T) || kingShielded(T, other(side)) ? [] : checkers(T.board, side);   // 变体·xe2");
+  // XE8 补充（用户 2026-10-05：“楚可以在第 30 回合后无限制使用召回，可以强制召回车，每回合都能用”）：
+  //   CFG.chuRecall = { side, fromRound, t, at: [[f, r], …] }——这一方从第 fromRound 回合起，每回合都可以用这一回合的行动“召回”一枚 t（楚开局没有车，所以是凭空召回），
+  //   放到 at 里任一个空格，一级、血按这一方这一兵种的一级血；不限次数、不花军功。行动是 { k: 'rc', at }；电脑的 expand / gen 都列出来，判将死时也算一种行动。
+  rep("  const upLocked = (S, p) => {",
+    "  const rcOk = S => { const C = CFG_CUR.chuRecall; return !!(C && S.turn === C.side && Math.floor((S.cnt.r + S.cnt.b) / 2) + 1 >= C.fromRound && !S.freeUsed); };   // 变体·xe2（XE8）：楚方召回车\n" +
+    "  const upLocked = (S, p) => {");
+  rep("    } else if (a.k === 'art') {\n      if (!artOpen(S)",
+    "    } else if (a.k === 'rc') {   // 变体·xe2（XE8）：召回车（凭空放一枚一级的到指定空格，占这一回合）\n" +
+    "      const C = CFG_CUR.chuRecall; if (!rcOk(S) || !a.at || !C.at.some(q => q[0] === a.at[0] && q[1] === a.at[1]) || at(S, a.at[0], a.at[1])) return null;\n" +
+    "      let id = 900; for (const row of S.board) for (const q of row) if (q && q.id > id) id = q.id; for (const s2 of ['r', 'b']) for (const d of S.dead[s2]) if (d.id > id) id = d.id; id++;\n" +
+    "      S.board[a.at[1]][a.at[0]] = { s: side, t: C.t, id, lv: 1, hp: hpOfS(side, C.t, 1), cd: 0, jm: 0, xp: 0, kills: 0 };\n" +
+    "      ev.push({ e: 'revive', id, t: C.t, at: a.at.slice(), lv: 1 });\n" +
+    "    } else if (a.k === 'art') {\n      if (!artOpen(S)");
+  rep("for (const { t, ...a } of reviveActs(S)) { push(a); if (up) push({ ...a, up: true }); } }   // r6：召回 + 当回合升级\n",
+    "for (const { t, ...a } of reviveActs(S)) { push(a); if (up) push({ ...a, up: true }); } }   // r6：召回 + 当回合升级\n" +
+    "      if (rcOk(S)) for (const q of CFG_CUR.chuRecall.at) push({ k: 'rc', at: q.slice() });   // 变体·xe2（XE8）\n");
+  rep("for (const { t, ...a } of reviveActs(S)) { out.push({ a, p: null, q: null, art: t }); if (up) out.push({ a: { ...a, up: true }, p: null, q: null, art: t }); } }   // r6：召回 + 当回合升级\n",
+    "for (const { t, ...a } of reviveActs(S)) { out.push({ a, p: null, q: null, art: t }); if (up) out.push({ a: { ...a, up: true }, p: null, q: null, art: t }); } }   // r6：召回 + 当回合升级\n" +
+    "      if (rcOk(S)) for (const q of CFG_CUR.chuRecall.at) if (!at(S, q[0], q[1])) out.push({ a: { k: 'rc', at: q.slice() }, p: null, q: null, art: CFG_CUR.chuRecall.t });   // 变体·xe2（XE8）\n");
+  rep("    if (reviveOptions(S).length || pofuFirst(S).length || ultReady(S)) return true;",
+    "    if (reviveOptions(S).length || pofuFirst(S).length || ultReady(S)) return true;\n" +
+    "    if (rcOk(S) && CFG_CUR.chuRecall.at.some(q => !at(S, q[0], q[1]) && attempt(S, { k: 'rc', at: q }))) return true;   // 变体·xe2（XE8）");
   const file = path.join(os.tmpdir(), `bingfa_xe2_${process.pid}.js`);
   fs.writeFileSync(file, s);
   process.on('exit', () => { try { fs.unlinkSync(file); } catch (e) { } });
