@@ -96,14 +96,14 @@ function planUp(S) {
   return null;
 }
 // XE9 固定打法 AF / F 的“摆阵”：选一只楚象（先选 (2,9) 那只，死了换另一只），两个士一回合走一步（最短路）走到它上下左右的空格；
-//   两个都贴上以后把这两个士冻住（p.bz，引擎里背水一战冻结的记号）不再动，走子交给电脑
+//   两个都贴上以后把这两个士、连同贴着这只象的马冻住（p.bz，引擎里背水一战冻结的记号）不再动，走子交给电脑
 function formStep(S) {
   const all = t => { const o = []; for (let r = 0; r < 10; r++) for (let f = 0; f < 9; f++) { const p = S.board[r][f]; if (p && p.s === 'b' && p.t === t) o.push({ p, at: [f, r] }); } return o; };
   const els = all('e').sort((x, y) => (x.at[0] === 2 ? 0 : 1) - (y.at[0] === 2 ? 0 : 1)); if (!els.length) return null;
   const E = els[0], nb = [[1, 0], [-1, 0], [0, 1], [0, -1]].map(([df, dr]) => [E.at[0] + df, E.at[1] + dr]).filter(([f, r]) => f >= 0 && f < 9 && r >= 5 && r <= 9);
   const isNb = at => nb.some(q => q[0] === at[0] && q[1] === at[1]);
   const advs = all('a'), adj = advs.filter(a => isNb(a.at));
-  if (adj.length >= 2) return { done: adj.slice(0, 2) };
+  if (adj.length >= 2) { const keep = adj.slice(0, 2); for (const t of ['n', 'a']) for (const x of all(t)) if (isNb(x.at) && !keep.includes(x)) keep.push(x); return { done: keep }; }   // 贴着这只象的马也一起冻住（“左士右马”）
   for (const a of advs.filter(x => !isNb(x.at))) {   // 最短路（按引擎的走法、绕开别的子）
     const key = q => q[0] + ',' + q[1], prev = new Map([[key(a.at), null]]), Q = [a.at];
     const H = BF.cloneState(S); H.board[a.at[1]][a.at[0]] = null;
