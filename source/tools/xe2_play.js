@@ -6,6 +6,7 @@
 //   汉方车马炮攻击至少 2。引擎：tools/variants/engine_xe2.js（底版 ENGINE_REV，默认 9aca810 = 第七轮的引擎）。
 // 用法（在 source/ 下）：node tools/xe2_play.js [--ai src/bfai.js | git:提交号] [--games 3] [--seed 1000] [--nodes 60000] [--mode xe2|xe3] [--normal] [--json 文件]
 //   --mode xe3：再加码——两边开局各 30 功、楚象升级每级 10 功、汉方车马炮一级攻击 2 每升一级 +1（升级价照旧）。
+//   --mode xe4：同 xe3，但楚开局只有 10 功（只够升到二级），给汉留出围剿的时间。
 //   --normal：不开 XE2（现行规则），当对照——平常汉方打楚象有多早、多频繁。
 'use strict';
 process.env.ENGINE_REV = process.env.ENGINE_REV || '9aca810';
@@ -30,8 +31,9 @@ const XE2 = () => {
 };
 // XE3（用户 2026-10-05 再加码）：两边开局各 30 功；楚象升级每级 10 功；汉方车马炮一级攻击 2、每升一级 +1（升级价照旧）
 const XE3 = () => { XE2(); const C = BF.CFG; C.upgrade.cost.e = [10, 10, 10]; C.sideStats.r = { r: { atk: [2, 3, 4, 5] }, n: { atk: [2, 3, 4] }, c: { atk: [2, 3, 4] } }; };
-const START_MERIT = !opt.normal && opt.mode === 'xe3' ? 30 : null;
-if (!opt.normal) (opt.mode === 'xe3' ? XE3 : XE2)();
+// XE4（测汉会不会围剿）：同 XE3，但楚开局只有 10 功——只够把象升到二级（2 血），再攒 10 功才能秒杀；这几回合里汉该去杀象、楚该护象
+const START_MERIT = opt.normal ? null : opt.mode === 'xe3' ? { r: 30, b: 30 } : opt.mode === 'xe4' ? { r: 30, b: 10 } : null;
+if (!opt.normal) (opt.mode === 'xe3' || opt.mode === 'xe4' ? XE3 : XE2)();
 function loadAI(spec) {
   if (!spec.startsWith('git:')) return require(path.resolve(path.join(__dirname, '..'), spec));
   const rev = spec.slice(4), file = path.join(os.tmpdir(), `bfai_${rev}_${process.pid}.js`);
@@ -45,7 +47,7 @@ const round = S => Math.floor((S.cnt.r + S.cnt.b) / 2) + 1;
 async function play(seed) {
   let a = seed >>> 0; Math.random = () => { a = (a * 1103515245 + 12345) % 2147483648; return a / 2147483648; };
   const g = new BF.Game();
-  if (START_MERIT != null) { g.S.merit.r = START_MERIT; g.S.merit.b = START_MERIT; }
+  if (START_MERIT) { g.S.merit.r = START_MERIT.r; g.S.merit.b = START_MERIT.b; }
   const chuE = new Set(); for (const row of g.S.board) for (const p of row) if (p && p.s === 'b' && p.t === 'e') chuE.add(p.id);
   const R = { seed, winner: null, reason: null, rounds: 0, firstHit: null, hits: 0, kills: [], ups: [], autoups: [], maxLv: 1, wipes: [], note: '' };
   while (!g.result) {
