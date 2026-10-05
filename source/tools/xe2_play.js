@@ -7,6 +7,7 @@
 // 用法（在 source/ 下）：node tools/xe2_play.js [--ai src/bfai.js | git:提交号] [--games 3] [--seed 1000] [--nodes 60000] [--mode xe2|xe3] [--normal] [--json 文件]
 //   --mode xe3：再加码——两边开局各 30 功、楚象升级每级 10 功、汉方车马炮一级攻击 2 每升一级 +1（升级价照旧）。
 //   --mode xe4：同 xe3，但楚开局只有 10 功（只够升到二级），给汉留出围剿的时间。
+//   --mode xe5：两边 30 功；楚象一级 6 血 1 攻、二级 1 血 1 攻（无视塞象眼、落地秒杀），升级 30 功、第 7 回合起才能升；汉车马炮攻击、血都从 2 起，每级 +1。
 //   --normal：不开 XE2（现行规则），当对照——平常汉方打楚象有多早、多频繁。
 'use strict';
 process.env.ENGINE_REV = process.env.ENGINE_REV || '9aca810';
@@ -32,8 +33,14 @@ const XE2 = () => {
 // XE3（用户 2026-10-05 再加码）：两边开局各 30 功；楚象升级每级 10 功；汉方车马炮一级攻击 2、每升一级 +1（升级价照旧）
 const XE3 = () => { XE2(); const C = BF.CFG; C.upgrade.cost.e = [10, 10, 10]; C.sideStats.r = { r: { atk: [2, 3, 4, 5] }, n: { atk: [2, 3, 4] }, c: { atk: [2, 3, 4] } }; };
 // XE4（测汉会不会围剿）：同 XE3，但楚开局只有 10 功——只够把象升到二级（2 血），再攒 10 功才能秒杀；这几回合里汉该去杀象、楚该护象
-const START_MERIT = opt.normal ? null : opt.mode === 'xe3' ? { r: 30, b: 30 } : opt.mode === 'xe4' ? { r: 30, b: 10 } : null;
-if (!opt.normal) (opt.mode === 'xe3' || opt.mode === 'xe4' ? XE3 : XE2)();
+// XE5（用户 2026-10-05 再加码，“看电脑会不会存钱”）：两边开局 30 功（军功上限也是 30）；楚象一级 6 血 1 攻，二级 1 血 1 攻、无视塞象眼、落地秒杀全场；
+//   象升级 30 功，第 7 回合起（“6 回合以后”）才能升；汉车马炮一级攻击 2、血 2，每升一级攻击、血各 +1（升级价照旧）
+const XE5 = () => {
+  XE2(); const C = BF.CFG; C.skills.jianta.level = 2; C.upgrade.cost.e = [30, 30, 30]; C.upgrade.maxLevel.e = 2;
+  C.sideStats = { b: { e: { hp: [6, 1], atk: [1, 1], noLegFrom: 2, upFromRound: 7 } }, r: { r: { atk: [2, 3, 4, 5], hp: [2, 3, 4, 5] }, n: { atk: [2, 3, 4], hp: [2, 3, 4] }, c: { atk: [2, 3, 4], hp: [2, 3, 4] } } };
+};
+const START_MERIT = opt.normal ? null : opt.mode === 'xe3' || opt.mode === 'xe5' ? { r: 30, b: 30 } : opt.mode === 'xe4' ? { r: 30, b: 10 } : null;
+if (!opt.normal) (opt.mode === 'xe5' ? XE5 : opt.mode === 'xe3' || opt.mode === 'xe4' ? XE3 : XE2)();
 function loadAI(spec) {
   if (!spec.startsWith('git:')) return require(path.resolve(path.join(__dirname, '..'), spec));
   const rev = spec.slice(4), file = path.join(os.tmpdir(), `bfai_${rev}_${process.pid}.js`);
@@ -74,7 +81,7 @@ async function play(seed) {
       if (g.result) break;
     }
     if (R.note) break;
-    const rr = round(g.S); if (rr % 5 === 0 && R.meritB[rr] == null) R.meritB[rr] = g.S.merit.b;   // 楚的军功走势（每 5 回合记一次）
+    const rr = round(g.S); if ((rr <= 10 || rr % 5 === 0) && R.meritB[rr] == null) R.meritB[rr] = g.S.merit.b;   // 楚的军功走势（前 10 回合每回合、之后每 5 回合记一次）
   }
   R.rounds = round(g.S);
   if (g.result) { R.winner = g.result.winner; R.reason = g.result.reason; }
@@ -85,7 +92,7 @@ async function play(seed) {
   for (let i = 0; i < opt.games; i++) {
     const R = await play(opt.seed + i); out.push(R);
     const killedBy = R.kills.filter(k => k.by === 'r').map(k => '第' + k.round + '回合').join('、') || '无';
-    console.log(`种子 ${R.seed}：${R.winner === 'r' ? '汉胜' : R.winner === 'b' ? '楚胜' : '和/' + R.reason}（${R.reason}，${R.rounds} 回合）${R.note ? ' ' + R.note : ''}｜汉第一次打到楚象：${R.firstHit == null ? '没有' : '第 ' + R.firstHit + ' 回合'}，打中 ${R.hits} 下，杀死楚象：${killedBy}｜楚象最高 ${R.maxLv} 级，自己点升级 ${R.ups.map(u => '第' + u.round + '回合→' + u.to + '级').join('、') || '无'}，甲片自动 ${R.autoups.map(u => '第' + u.round + '回合→' + u.lv + '级').join('、') || '无'}｜秒杀全场 ${R.wipes.map(w => '第' + w.round + '回合踩死' + w.kills).join('、') || '无'}｜楚升别的子 ${R.otherUpsB} 次，楚军功 ${Object.entries(R.meritB).slice(0, 6).map(([k, v]) => k + '回合:' + v).join(' ')}`);
+    console.log(`种子 ${R.seed}：${R.winner === 'r' ? '汉胜' : R.winner === 'b' ? '楚胜' : '和/' + R.reason}（${R.reason}，${R.rounds} 回合）${R.note ? ' ' + R.note : ''}｜汉第一次打到楚象：${R.firstHit == null ? '没有' : '第 ' + R.firstHit + ' 回合'}，打中 ${R.hits} 下，杀死楚象：${killedBy}｜楚象最高 ${R.maxLv} 级，自己点升级 ${R.ups.map(u => '第' + u.round + '回合→' + u.to + '级').join('、') || '无'}，甲片自动 ${R.autoups.map(u => '第' + u.round + '回合→' + u.lv + '级').join('、') || '无'}｜秒杀全场 ${R.wipes.map(w => '第' + w.round + '回合踩死' + w.kills).join('、') || '无'}｜楚升别的子 ${R.otherUpsB} 次，楚军功 ${Object.entries(R.meritB).slice(0, 12).map(([k, v]) => k + '回合:' + v).join(' ')}`);
   }
   if (opt.json) fs.writeFileSync(opt.json, JSON.stringify(out));
 })();

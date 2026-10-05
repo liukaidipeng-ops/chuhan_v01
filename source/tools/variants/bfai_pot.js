@@ -15,7 +15,8 @@
 //   于是：自己的子潜力大 → 更值钱、要护着、升级会涨分；对方的子潜力大 → 先吃掉它最划算（吃掉它，它的潜力就没了）。
 //   升级候选：潜力涨得多的升级（潜力涨 × POTW ≥ BFAI_POTUP，默认 0.8）也进根节点的搜索，不受“一级士象没被捉不升”“给车攒军功”这些老规矩挡。
 //   对方“先升级再应”那一层（upsOf）本来就按局面分挑，潜力进了局面分，它也跟着懂了。
-// 第 2 版（默认，BFAI_POTV=1 回到第 1 版）：潜力按当时军功现算、按“还要几回合”打折（升级回合 + 攒钱回合），见 potAt()。
+// 第 2 版（BFAI_POTV=2）：潜力按当时军功现算、按“还要几回合”打折（升级回合 + 攒钱回合），见 potAt()。
+// 第 3 版（默认）：再加上“规则几回合后才开放”的等待（引擎说现在不能升，就把回合往后拨着问），见 computePot()。BFAI_POTV=1 / 2 回到前两版。
 // 只算“打掉多少”：进攻类技能、升级后攻击力 / 血量变化带来的吃子都算得到；护驾、铁甲禁卫、拒马、神速营这类防守 / 走位的价值第一版不算。
 // 用法（在 source/ 下）：node tools/bfsim.js --ai tools/variants/bfai_pot.js …；调参：BFAI_POTW / BFAI_POTD / BFAI_POTC / BFAI_POTUP。
 // 调试：电脑模块上 think.pot = 这一步算出的潜力表（Map：id → 按等级的潜力），think.last.potMs = 试算花的毫秒。
@@ -34,7 +35,10 @@ rep('  // 局面分（站在 me 这一方看）：子力 + 位置（出子、过
   // 第 2 版（默认）：只在根上试算“每级能多赚多少、累计要花多少”，潜力在局面分里按当时的军功现算——
   //   还要几回合 = 差几级 + 攒够军功要几回合（每回合约 BFAI_POTR 功，默认 1），每晚一回合 × BFAI_POTD（默认 0.75），封顶 60。
   //   钱花在别处，潜力就跌（电脑会为了大招攒钱）；对方军功越攒越多，它那枚子的威胁也越来越大。
-  const POTV = ENV.BFAI_POTV != null ? +ENV.BFAI_POTV : 2;
+  // 第 3 版（默认）：第 2 版 + 规则里“几回合后才能升”这类时间限制——引擎说现在不能升时，把回合往后拨着再问（最多 BFAI_POTWAIT 回合，默认 12），
+  //   问出最早哪回合能升，等待的回合也算进打折。不针对哪条规则：任何“到第几回合才开放 / 封锁几回合”的规则都这样问出来。
+  const POTV = ENV.BFAI_POTV != null ? +ENV.BFAI_POTV : 3;
+  const POTWAIT = ENV.BFAI_POTWAIT != null ? +ENV.BFAI_POTWAIT : 12;
   const POTW = ENV.BFAI_POTW != null ? +ENV.BFAI_POTW : 1, POTD = ENV.BFAI_POTD != null ? +ENV.BFAI_POTD : POTV === 1 ? 0.5 : 0.75;
   const POTC = ENV.BFAI_POTC != null ? +ENV.BFAI_POTC : POTV === 1 ? 30 : 60, POTUP = ENV.BFAI_POTUP != null ? +ENV.BFAI_POTUP : 0.8;
   const POTR = ENV.BFAI_POTR != null ? +ENV.BFAI_POTR : 1;
@@ -63,23 +67,28 @@ rep('  // 局面分（站在 me 这一方看）：子力 + 位置（出子、过
       for (let r = 0; r < 10; r++) for (let f = 0; f < 9; f++) {
         const p0 = S0.board[r][f]; if (!p0 || p0.s !== side || p0.t === 'k') continue;
         const maxL = BF.maxLvOf(p0.t); if (p0.lv >= maxL) continue;
-        const G = [], spent = [];
+        const G = [], spent = [], wait = [];
         let H = H0, lv = p0.lv, cum = 0;
-        G[lv] = bestGain(H, p0.id, side); spent[lv] = 0;
+        G[lv] = bestGain(H, p0.id, side); spent[lv] = 0; wait[lv] = 0;
         while (lv < maxL) {
           const x = findId(H, p0.id); if (!x) break;
           const c = A.upCost(x.p); if (c == null) break;
           const H1 = BF.cloneState(H); H1.merit = { ...H1.merit, [side]: 999 }; H1.upgraded = false;
-          const T = A.upgradeState(H1, x.at); if (!T) break;
+          let T = A.upgradeState(H1, x.at), w = 0;
+          if (!T && POTV >= 3) for (let k = 1; k <= POTWAIT; k++) {   // 现在不能升：问问过几回合能不能（规则的时间限制）
+            const H2 = BF.cloneState(H1); H2.cnt = { r: H1.cnt.r + k, b: H1.cnt.b + k };
+            T = A.upgradeState(H2, x.at); if (T) { w = k; break; }
+          }
+          if (!T) break;
           T.merit = { ...T.merit, [side]: H.merit[side] }; T.upgraded = false; T.turn = side;
           const y = findId(T, p0.id); if (y) { y.p.cd = 0; for (const k of Object.keys(y.p)) if (k.startsWith('c_')) y.p[k] = 0; }   // 刚解锁的技能当作已经能用
           cum += c; lv++;
-          G[lv] = bestGain(T, p0.id, side); spent[lv] = cum;
+          G[lv] = bestGain(T, p0.id, side); spent[lv] = cum; wait[lv] = wait[lv - 1] + w;
           H = T;
         }
         let any = false; for (let l = p0.lv; l < lv; l++) for (let L = l + 1; L <= lv; L++) if (G[L] > G[l] + 0.05) any = true;   // 浮点误差不算
         if (!any) continue;   // 升上去也多赚不到什么：不记
-        const e = { side, lv0: p0.lv, top: lv, G, spent };
+        const e = { side, lv0: p0.lv, top: lv, G, spent, wait };
         if (POTV === 1) {
           e.P = [];
           for (let l = p0.lv; l <= lv; l++) {
@@ -104,7 +113,7 @@ rep('  // 局面分（站在 me 这一方看）：子力 + 位置（出子、过
     let best = 0;
     for (let L = l + 1; L <= e.top; L++) {
       const gain = e.G[L] - e.G[l]; if (!(gain > 0)) continue;
-      const need = e.spent[L] - e.spent[l], turns = (L - l) + Math.ceil(Math.max(0, need - m) / POTR);
+      const need = e.spent[L] - e.spent[l], turns = (L - l) + (e.wait ? (e.wait[L] || 0) - (e.wait[l] || 0) : 0) + Math.ceil(Math.max(0, need - m) / POTR);   // 升级回合 + 等规则开放的回合 + 攒钱回合
       const v = gain * Math.pow(POTD, turns);
       if (v > best) best = v;
     }
