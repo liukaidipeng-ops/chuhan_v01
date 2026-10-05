@@ -413,14 +413,8 @@ const Squads = (() => {
       this.guard = n >= 3 ? new TroopSquad('e', side, anchor, yaw, gold ? 'xbowG' : 'xbow', [[0.4, -0.02], [-0.4, -0.02]], SC * (gold ? 1.08 : 1)) : null;
       // 随护弩手平时不在场（棋盘上清爽）：只在行进和攻击时出列，走完、打完就退下。gk 是出列程度，别处照常调 guard.setVis 也不会把他们叫出来
       if (this.guard) { const g = this.guard, set = g.setVis.bind(g); this.gv = 1; this.gk = 0; g.setVis = k => { this.gv = k; set(k * this.gk); }; g.setVis(1); }
-      // 节杖不动：咆哮、扑击时节杖保持平时的朝向（象征权威，文臣也不近战）。美术的动作里节杖会前指，这里先扶正，等美术改了动作再拿掉（main-to-model H5）
-      const st = this.m.staff, root = this.m.group, qa = new THREE.Quaternion(), qb = new THREE.Quaternion();
-      if (st) { root.updateWorldMatrix(true, true); this.staff0 = root.getWorldQuaternion(qa).invert().multiply(st.getWorldQuaternion(qb)).clone(); }
-      this.updaters.push(dt => {
-        const m = this.m; m.update(dt); this.sync();
-        const w = st && !m.dead ? Math.min(1, Math.max(m.pounceK, m.roarK) * 6) : 0;
-        if (w > 0) { st.parent.getWorldQuaternion(qa).invert().multiply(root.getWorldQuaternion(qb)).multiply(this.staff0); st.quaternion.slerp(qa, w); }
-      });
+      // 节杖不动（咆哮、扑击时保持平时的朝向）由美术的 tiger.js 自己管（M4）
+      this.updaters.push(dt => { this.m.update(dt); this.sync(); });
       this.sync();
     }
     // 随护出列 / 退下：原地一小团墨气

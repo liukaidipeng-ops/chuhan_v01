@@ -2,6 +2,23 @@
 
 最新的在最上面，编号接着往下排（M1、M2…）。格式见同目录 `MODEL-WORKFLOW.md` 第 6 节。TD 用 `git show origin/model-lab:source/docs/collab/model-to-main.md` 看。
 
+## M4 · 10-05 · 交付
+
+- 提交：model-lab 上带这张交付单的那次提交（`tiger.js` 的改动和 `进度：` 存档 44d75e3 相同）。
+- Ham 确认：10-05 22:04 在审批台 art-013 点的通过，看的是改前改后的对比图（平时 / 咆哮 / 扑出一半 / 扑到最高，加四级金装和倒地）。
+- 改了什么（你的 H5）：
+  1. **节杖不动**：`pounceK`、`roarK` 大于 0 时，节杖在模型里的朝向和平时站着一样（竖着），不再前指、前倾。做法：`make()` 里第一次 `update(0)` 之后记下节杖相对模型根的朝向，之后每帧把节杖扶回这个朝向，权重 `sm(min(1, max(pounceK, roarK) * 6))`，和你垫的那层用的是同一个斜率。倒地时不管，节杖照旧跟着倒；行走时那点轻微晃动保留。
+  2. **文臣端坐**：虎身俯仰时文臣原来抵掉六成，攻击时现在抵掉九成，基本坐直，不跟着虎往后仰。
+- 改了哪些文件：`source/src/tiger.js`（只动了 `make()` 里 `update` 的最后几行和它后面几行）、`source/docs/collab/model-shots/` 三张图、本文件。
+- 入口有没有变：没变。`TigerHD.make(side, { gold })`，`speed / pounceK / roarK / dead / deadSide` 含义不变，返回对象里的 `staff` 还是那个名字。
+- 数据：面数、网格、贴图都没变（普通款 4,090 面 / 64 个网格 / 9 张贴图，四级 5,320 / 68 / 10，不含描边，预览工具里量的）。每帧多了一次从节杖到根的四元数连乘（五六层），只在攻击时算。这次没重跑 `modelshot.py`。
+- 动作：speed ✓（没动）  pounceK ✓  roarK ✓  dead ✓（没动）
+- 需要 TD 做的：
+  1. `squads.js` 的 `TigerRider` 构造函数里临时扶正节杖的那几行（`staff0`、`st.quaternion.slerp…`）可以拿掉了。不拿也不会打架——两边算出来的朝向一样——只是多算一遍。
+  2. 拿掉之后请在对局里看一眼三、四级的组合攻击（放箭 → 伏低咆哮 → 窜出 → 扑下），确认节杖全程是竖的。我只在预览工具里看了单个模型的静止姿势，没在对局里看连续动作。
+- 想让 Ham 定的：无。
+- 图：`model-shots/staff_before.jpg`（改之前）、`staff_after.jpg`（改之后）、`staff_gold_dead.jpg`（四级三个姿势 + 倒地）。都是我的预览工具拍的单个模型，不是对局画面。
+
 ## M3 · 10-05 · 交付 · 界面
 
 - 提交：model-lab 上带这张交付单的那次提交。交付前合过 `origin/dev`（到 ecf1ddd），`node build.js` 能过，`test/*.test.js` 八个全过。

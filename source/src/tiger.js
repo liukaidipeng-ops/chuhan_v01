@@ -709,11 +709,21 @@ const TigerHD = (() => {
         o.gaitK = dt > 0 ? o.gaitK + (want - o.gaitK) * Math.min(1, dt * 9) : want;      // 起步、收步有个过渡，不是一帧切过去
         S.t = o.t; S.s = o.gaitK; S.sp = sp; S.pk = o.pounceK; S.rk = o.roarK; S.dk = o.dead; S.side = o.deadSide;
         const th = applyPose(R, S), s = S.s, ph = o.t * 5.4, pk = S.pk, d1 = sm(S.dk / 0.45);
-        if (fig) { fig.rotation.z = -(th - STANCE.pitch) * 0.6 + s * Math.sin(ph * 2 + 0.6) * 0.014 + d1 * 0.12; fig.rotation.x = -s * Math.sin(ph) * 0.02; fig.position.y = FIG_Y + s * Math.abs(Math.sin(ph)) * 0.012; }
-        if (staff) { staff.rotation.z = -pk * 0.62 - S.rk * 0.1 * (1 - pk) + s * Math.sin(ph * 2) * 0.02 - d1 * 0.25; staff.rotation.x = s * Math.sin(ph) * 0.03; } // 扑击时节杖前指，咆哮时微微前倾
+        // 扑击、咆哮时文臣端坐：虎身俯仰他只跟一点（平时抵掉六成，攻击时抵掉九成），不像在打仗
+        const act = o.dead ? 0 : sm(Math.min(1, Math.max(pk, S.rk) * 6));
+        if (fig) { fig.rotation.z = -(th - STANCE.pitch) * (0.6 + 0.3 * act) + s * Math.sin(ph * 2 + 0.6) * 0.014 + d1 * 0.12; fig.rotation.x = -s * Math.sin(ph) * 0.02; fig.position.y = FIG_Y + s * Math.abs(Math.sin(ph)) * 0.012; }
+        if (staff) {
+          staff.rotation.set(s * Math.sin(ph) * 0.03, 0, s * Math.sin(ph * 2) * 0.02 - d1 * 0.25);   // 行走时轻微晃动，倒地时跟着倒
+          // 节杖不动（Ham 定的，H5）：扑击、咆哮时节杖在世界里的朝向和平时站着一样——虎怎么俯冲腾起都行，文臣不出手
+          if (act > 0 && staff0) { relQ(staff.parent, qA).invert().multiply(staff0); staff.quaternion.slerp(qA, act); }
+        }
       },
     };
+    // 节杖相对模型根的朝向：从节杖一路乘到根
+    const qA = new THREE.Quaternion(), relQ = (n, q) => { q.identity(); for (; n && n !== g; n = n.parent) q.premultiply(n.quaternion); return q; };
+    let staff0 = null;
     o.update(0);
+    if (staff) staff0 = relQ(staff, new THREE.Quaternion()).clone();
     return o;
   }
   return { make, makeTiger, makeProwl, loft, STANCE, FACES, QLOD };
