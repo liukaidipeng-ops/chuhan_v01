@@ -951,14 +951,15 @@ const Fx = (() => {
     if (typeof Voice === 'undefined' || !Voice.enabled) return;
     const p = info.piece, kill = !!c.tgt;
     if (!kill && (Math.random() > 0.55 || Voice.busy)) return;
-    const base = `u_${p.s}_${p.t}_${kill ? 'k' : 'm'}`;
+    let base = `u_${p.s}_${p.t}_${kill ? 'k' : 'm'}`;
+    if (Models.TIGER && p.s === 'r' && p.t === 'e' && Voice.has('t_' + base + '1')) base = 't_' + base;   // 汉相换成虎骑时用虎骑的台词（白虎开道 / 谋定而后动 / 犯汉者，虎噬之 / 放虎）
     let id = `${base}${Math.random() < 0.5 ? 1 : 2}`;
     if (id === lastBark) id = `${base}${id.endsWith('1') ? 2 : 1}`;
     if (!Voice.has(id)) return;
     lastBark = id;
     const pan = Math.max(-0.7, Math.min(0.7, c.A.x / 6)) * (Board.viewSide === 'b' ? -1 : 1);
     const delay = kill ? 0.35 : 0.1;
-    Sfx.line(delay, Voice.dur(id));
+    Sfx.line(delay / (Time.boost || 1), Voice.dur(id));   // sleep 走的是演出时间，换成真实秒数
     sleep(delay).then(() => Voice.bark(id, { vol: kill ? 1 : 0.8, pan, skipIfBusy: !kill }));
   }
 

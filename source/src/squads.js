@@ -16,8 +16,11 @@ const Squads = (() => {
   const gy = p => Fx.groundY(p);
   const unitKey = (t, s) => ({ p: 'inf', r: 'chariot', n: 'cav', c: 'cannon', a: 'guard', e: s === 'r' ? (Models.TIGER ? 'tiger' : 'xbow') : 'ele', k: s === 'r' ? 'liu' : 'xiang' }[t]);
   const snd = (t, s) => Sfx.unit(unitKey(t, s));
-  // 行军声：马、象、虎、炮是“台词 → 脚步 → 叫声”，脚步要等台词快说完才起；这里等到脚步起了队伍再动，画面和声音才对得上（最多等 0.9 秒）
-  const stepOff = async (t, s, dur, n) => { const w = snd(t, s).move(dur, n); if (w > 0.05) await sleep(Math.min(w, 0.9)); };
+  // 声音按真实时间走，演出按“动画速度”走（默认 1.5 倍）：real = 演出里的 d 秒实际是几秒；wait = 实打实等 sec 秒
+  const boost = () => Core.Time.boost || 1, real = d => d / boost(), wait = sec => sleep(sec * boost());
+  // 行军声：马、象、虎、炮是“台词 → 脚步 → 叫声”，脚步要等台词快说完才起；这里等到脚步起了队伍再动，画面和声音才对得上
+  //   最多等 0.9 秒；动画速度调到 2 倍、3 倍的人要的是快，等得更短（0.68 / 0.45 秒）
+  const stepOff = async (t, s, dur, n) => { const w = snd(t, s).move(real(dur), n); if (w > 0.05) await wait(Math.min(w, 0.9, 1.35 / boost())); };
 
   // ======================================================================
   //  基类
@@ -269,7 +272,7 @@ const Squads = (() => {
     }
     async attack(target, c) {
       const { B, d } = c;
-      this.setPose('ready'); snd('p', this.side).charge(1.4, this.sndN);
+      this.setPose('ready'); snd('p', this.side).charge(real(1.4), this.sndN);
       await sleep(0.25);
       this.setPose('charge');
       const start = this.anchor.clone(), end = B.clone().addScaledVector(d, -0.45);
@@ -503,7 +506,7 @@ const Squads = (() => {
       const { B, d } = c;
       const s = snd('e', 'b');
       const start = this.anchor.clone(), end = B.clone().addScaledVector(d, -0.25), run = Math.max(0.5, start.distanceTo(end) / 1.8);
-      tween(0.4, k => { this.m.trumpetK = k; }); s.charge(0.5 + run); this.m.fire = 1;   // 奔踏声垫在台词下面
+      tween(0.4, k => { this.m.trumpetK = k; }); s.charge(real(0.5 + run)); this.m.fire = 1;   // 奔踏声垫在台词下面
       if (target.brace) target.brace();
       await sleep(0.5);
       tween(0.3, k => { this.m.trumpetK = 1 - k; });
@@ -652,7 +655,7 @@ const Squads = (() => {
     async attack(target, c) {
       const { B, d, info } = c;
       const s = snd('n', this.side);
-      s.charge(1.6, this.sndN);
+      s.charge(real(1.6), this.sndN);
       this.riders.forEach(h => tween(0.3, k => { h.rider.arm.rotation.z = 0.9 + k * 1.6; }));
       // 揭棋里骑兵可能是按别的位置走法出阵的（直线冲锋）
       const corner = c.mt === 'n' ? knightCorner(info) : this.anchor.clone().lerp(B, 0.3);
@@ -792,7 +795,7 @@ const Squads = (() => {
         for (let k = 0; k < (big ? 10 : 4); k++) { const o = new THREE.Mesh(new THREE.DodecahedronGeometry(0.07), Core.toon(0x5d554a)); o.position.copy(tp).add(new V3(0, 0.1, 0)); scene.add(o); Fx.throwObj(o, new V3(R(-2, 2), R(2, 5), R(-2, 2)), { life: R(0.8, 1.4) }); }
         if (big) { Fx.slowmo(0.3, 0.15); dead = target.die('blast', d, 1.6, tp); }
       };
-      { const L = Sfx.lineLeft(); if (L > 0.05) await sleep(Math.min(L, 1.2)); }   // 台词说完直接点火
+      { const L = Sfx.lineLeft(); if (L > 0.05) await wait(Math.min(L, 1.2)); }   // 台词说完直接点火
       const shots = this.guns.map((g, i) => sleep(i * 0.28).then(() => fire(g, i)));
       await sleep(0.55);
       Fx.shot(tc.clone().addScaledVector(side, 3.4).addScaledVector(d, -2.0).add(new V3(0, 1.7, 0)), tc.clone().add(new V3(0, 0.3, 0)), flight * 0.75);
@@ -1049,7 +1052,7 @@ const Squads = (() => {
     if (sq.march && t === 'n') await sq.march(L ? [A, knightCorner(info), B] : [A, A.clone().lerp(B, 0.35), B]);
     else if (sq.march) await sq.march(L ? [A, knightCorner(info), B] : [A, B], dur);
     else {
-      sq.setPose('march'); snd(t, s).move(dur, sq.sndN);
+      sq.setPose('march'); snd(t, s).move(real(dur), sq.sndN);
       await walkPath(sq, L ? [A, knightCorner(info), B] : [A, B], dur, k => { if (sq.units && Math.random() < 0.2) Fx.Marks.foot(sq.units[Math.floor(Math.random() * sq.units.length)].p); });
       sq.setPose('idle');
     }

@@ -9,7 +9,7 @@
 - **Ham**：定方向、看图确认、在两边之间传一句“那边交了 / 那边回了”。
 
 Ham 的两条硬规矩，两边都守：
-1. 涉及视觉的改动，先出图给他确认，确认后才往下做、才上线。
+1. 涉及视觉的改动，先出图给他确认，确认后才往下做、才上线。所以美术是**先出图给 Ham、他点头后再交付**（第 6 节）。
 2. 上线只走 TD。美术不碰 `dev` 和 `main`。
 
 ---
@@ -56,7 +56,7 @@ const m = TigerHD.make('r', { gold: false });
 
 | 字段 | 说明 |
 |---|---|
-| `group` | `THREE.Group`。**头朝 +X，脚底在 y = 0，原点在身体正下方的地面上**。不要自己缩放，缩放由小队设（虎骑现在是 0.27） |
+| `group` | `THREE.Group`。**头朝 +X，脚底在 y = 0，原点在身体正下方的地面上**。不要自己缩放，缩放由小队设（`model-lab` 上精修虎骑是 0.27，`dev` 上的简版是 0.26） |
 | `update(dt)` | 每帧调用一次，按下面的状态量摆姿势 |
 | `speed` | 0 = 站着；0.8 = 行军；1.4 = 冲刺。走动的步幅、步频跟着它 |
 | `pounceK` | 0→1：扑击（前身扬起、前肢前探）。腾空的那段弧线由小队抬 `group`，模型只管姿势 |
@@ -105,15 +105,21 @@ const m = TigerHD.make('r', { gold: false });
 - 低画质档（`Core.quality === 'low'`）现在不用精修模型，退回 `models.js` 里的简版 `makeTigerRider`。如果美术愿意给一个 ≤ 12,000 面的低模，就在 `make` 里按画质分支，并在交付单里说一声。
 - `update(dt)` 里不要每帧 `new` 对象、不要每帧改几何体顶点（旗帜那种顶点动画除外，要做先在交付单里商量）。
 
-## 6. 交付：一次提交 + 一张交付单
+## 6. 交付：先出图给 Ham，他点头之后再交
 
-1. 在 `model-lab` 上提交、推送。
-2. 跑 `modelshot.py`（高、中各一次），挑最多 6 张图，转成 JPG（每张 ≤ 300 KB），放到 `source/docs/collab/model-shots/`，**文件名固定、每次覆盖**：`side.jpg`、`front34.jpg`、`line_play.jpg`、`rank.jpg`，外加两张你想让人看的。
-3. 在 `source/docs/collab/model-to-main.md` **最上面**加一条，编号接着往下排（M1、M2…）：
+顺序是 **出图 → Ham 点头 → 推送交付**，不是先推上来再等人看。
+
+1. 做好之后，先在自己这边跑 `modelshot.py`（高、中各一次），把图**直接发给 Ham**：近景、和车马象并排、棋盘视角，动了动作的再加动作抽帧。这一步不经过 TD。
+2. Ham 说要改就接着改，改完再出图，直到他点头。
+3. **Ham 点头之后**才交付：
+   - 在 `model-lab` 上提交、推送。
+   - 把给 Ham 看过的图挑最多 6 张，转成 JPG（每张 ≤ 300 KB），放到 `source/docs/collab/model-shots/`，**文件名固定、每次覆盖**：`side.jpg`、`front34.jpg`、`line_play.jpg`、`rank.jpg`，外加两张你想让人看的。
+   - 在 `source/docs/collab/model-to-main.md` **最上面**加一条交付单，编号接着往下排（M1、M2…）：
 
 ```
 ## M3 · 10-06 · 交付
 - 提交：model-lab @ abc1234
+- Ham 确认：10-06 看图点头（看的是 model-shots/ 里这 6 张）
 - 改了什么：（两三句人话）
 - 改了哪些文件：
 - 入口有没有变：没变 / 变了（怎么变的）
@@ -124,16 +130,20 @@ const m = TigerHD.make('r', { gold: false });
 - 图：model-shots/ 里的 6 张
 ```
 
-只是提问、不交东西，也加一条，标题写「提问」。
-
 4. 告诉 Ham 一句“美术交了 M3”。他转告 TD。
+
+两条补充：
+
+- **进度存档可以随时推。**Ham 还没点头的半成品，也可以推到 `model-lab` 存着，免得丢——提交说明以「进度：」开头，不写交付单。TD 只认交付单：没有交付单的提交不会去合。
+- 只是提问、不交东西，也在 `model-to-main.md` 加一条，标题写「提问」，不需要 Ham 确认那一行。
 
 ## 7. TD 收到之后
 
-1. 拉 `model-lab`，自己再跑一遍 `modelshot.py`（高、中），在真实对局里走一遍：行军、吃子、被吃、技能模式三级和四级、模型模式。
+1. 拉 `model-lab`，自己再跑一遍 `modelshot.py`（高、中）核数据，在真实对局里走一遍：行军、吃子、被吃、技能模式三级和四级、模型模式。
 2. 把美术管的那几个文件合进 `dev`，接好需要配合的地方。
-3. 出图给 Ham 确认（近景、和车马象并排、棋盘视角）。**Ham 点头之后才部署。**
-4. 在 `dev` 分支的 `source/docs/collab/main-to-model.md` 最上面回一条（H1、H2…）：收下了 / 哪里要改 / 提问的答复 / 上线了没有。美术那边用 `git fetch origin && git show origin/dev:source/docs/collab/main-to-model.md` 看。
+3. 造型 Ham 已经看过，TD **不再让他重看一遍**。只有两种情况 TD 另外出图给 Ham：接进游戏以后和美术给他看的图对不上（缩放、站位、和别的兵种的相对大小、降画质档之后的样子）；或者 TD 这边为了接入动了别的视觉效果。
+4. 上线由 Ham 定：TD 接好后告诉 Ham“可以上线了”，附一张游戏里的实拍；**Ham 点头之后才部署。**
+5. 在 `dev` 分支的 `source/docs/collab/main-to-model.md` 最上面回一条（H1、H2…）：收下了 / 哪里要改 / 提问的答复 / 上线了没有。美术那边用 `git fetch origin && git show origin/dev:source/docs/collab/main-to-model.md` 看。
 
 ## 8. 已经定下来的事（不用再问 Ham）
 

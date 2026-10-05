@@ -667,7 +667,7 @@ const Voice = (() => {
     get mode() { return mode; }, set mode(v) { mode = v === 'real' && REAL ? 'real' : 'orig'; if (mode === 'real') loadPack(); },
     get realReady() { return !!pack; },
     preload(ids) { const go = () => (ids || Object.keys(CLIPS)).forEach(decode); if (mode === 'real' && !pack) loadPack().then(go); else go(); },
-    has(id) { return !!LINES[id]; },
+    has(id) { return !!LINES[id] || !!(REAL && REAL.idx[id]); },   // 写实版里单独有的句子（比如虎骑的台词）也算
     speaker(id) { return SPK[(LINES[id] || {}).spk] ?? ''; },
     text(id) { return (mode === 'real' && REAL.text[id]) || (LINES[id] || {}).text || ''; },
     async play(id, { onDur, minDur = 0, rate = 1 } = {}) {
