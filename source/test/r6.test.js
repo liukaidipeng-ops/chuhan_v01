@@ -7,7 +7,8 @@ const BF = global.BF = require('../src/bingfa.js');
 let pass = 0; const ok = (c, m) => { assert.ok(c, m); pass++; };
 const B = BF.CFG, R = B.r6, DEF = JSON.parse(JSON.stringify(R));
 const reset = () => { for (const k of Object.keys(R)) delete R[k]; Object.assign(R, JSON.parse(JSON.stringify(DEF))); };
-ok(R.on === false, '默认关');
+ok(R.on === true, '默认开（2026-10-05 起是正式规则）');
+R.on = false; DEF.on = false;   // 下面先核“关着照旧”，再一项项打开；reset() 回到关着
 ok(JSON.stringify(R.attack) === JSON.stringify({ r: [1, 1, 2, 2], p: [1, 1, 2, 2], n: [1, 1, 2], c: [1, 1, 2] }) && JSON.stringify(R.hpByType) === '{"r":[1,2,3,3]}' && JSON.stringify(R.cost) === '{"r":[10,12,20]}' && R.reviveLevel === 2 && R.reviveCap === true && R.reviveUp === true && R.reviveHalf === true, '开关里的五项数值');
 
 // ---------- 开关关着：一切照旧 ----------
@@ -186,5 +187,16 @@ R.reviveLevel = 1; R.reviveCap = false; B.beishui.on = true;
   R.reviveUp = false; R.reviveHalf = false;
 }
 R.reviveLevel = 1; R.reviveCap = false; B.beishui.on = true;
-reset(); B.beishui.on = true;
+// Game.baseCost（界面“甲片省几 / 攒满几片自动升级”用）也按半价
+{
+  reset(); R.on = true; B.beishui.on = true;
+  const g = new BF.Game();
+  g.setup(T => { for (let r = 0; r < 10; r++) for (let f = 0; f < 9; f++) { const p = T.board[r][f]; if (p && p.s === 'r' && p.t !== 'k' && p.id !== 13) T.board[r][f] = null; } T.dead.r = [{ id: 0, t: 'r', s: 'r', lv: 1 }]; T.merit.r = 30; T.turn = 'r'; });
+  g.apply({ k: 'art', id: 0 }); const p = g.at(0, 0);
+  ok(p.rh === 1 && g.baseCost(p) === 5 && g.upgradeCost(p) === 5, 'Game.baseCost：召回的一级车半价 5');
+  p.xp = 2; ok(g.baseCost(p) === 5 && g.upgradeCost(p) === 3, 'Game.baseCost 不算甲片（5），upgradeCost 减甲片（3）'); p.xp = 0;
+  const mv = BF.ai.expand(g.S).find(k => k.a.k === 'mv'); g.apply(mv.a); g.apply({ k: 'up', at: [0, 0] });
+  ok(g.at(0, 0).lv === 2 && !g.at(0, 0).rh && g.baseCost(g.at(0, 0)) === 12, '升过一次之后 Game.baseCost 回到原价 12');
+}
+reset(); R.on = true; B.beishui.on = true;
 console.log('R6 OK', pass, '项');

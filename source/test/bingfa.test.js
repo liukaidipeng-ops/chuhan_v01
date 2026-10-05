@@ -2,6 +2,7 @@
 global.XQ = require('../src/rules.js');
 const BF = require('../src/bingfa.js');
 const assert = require('assert');
+BF.CFG.r6.on = false;   // 这一组核的是引擎的基本机制，数值照 r6 之前的那套写的（车四级 4 血、车价 6/8/20、攻击都是 1）；r6 的数值和召回新规矩在 test/r6.test.js 里核
 let id = 200;
 const P = (s, t, lv = 1, extra = {}) => ({ s, t, id: id++, lv, hp: BF.hpOf(t, lv), cd: 0, jm: 0, xp: 0, kills: 0, ...extra });
 // 摆局面：pieces = [[f, r, piece]...]

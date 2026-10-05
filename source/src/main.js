@@ -8,6 +8,7 @@
   // 更新说明（设置里、大厅底部点「更新」查看；最新的放最前）
   const NEWS = [
     ['第六版', '2026 年 10 月', [
+      '技能模式的数值改了一轮，两边更均势、车不再一家独大：车、马、炮、兵卒升到三级攻击变成 2（一下能吃掉 2 血的子）；车四级不再加血（3 血）；车升级变贵，10 / 12 / 20 功（原来 6 / 8 / 20）。刘邦的「召回良将」也改了：死时一级的回来还是一级，二级以上的回来都是二级；召回的当回合可以花军功给它升一级；它第一次升级只要半价。改规则之前开的局接着下，还按原来的规则',
       '马、战象、步兵、炮的音效换成了真实录音：马蹄踏在土上、真马嘶、真象鸣、一队人行军的脚步、巨炮。兵种开口说话时，先台词、再脚步、最后一声嘶鸣；技能模式里等级越高，马蹄和脚步叠得越厚，一级炮用小一号的炮声',
       '配音多了一套「写实版」：项羽、刘邦、旁白、两军士兵全部重新配过，有语气、有情绪，楚军汉军嗓音不同。新装默认用写实版；想听原来那套，在 设置 → 声音 → 配音 里选「原版」',
       '放技能更清楚了：能放的落点带金色四角框；选定目标后，一个瞄准圈把它框住，下方出现「确定」，点了才发动（再点一次目标也行）。背水一战走完第一步，落点会留下虚影、头顶悬一个「一」，并留下这一步的路径。刚被召回的子，那一回合身边绕着金光',
@@ -230,8 +231,10 @@
   const mkGame = (o, layout) => (o && +o.bf ? new BF.Game() : o && +o.jq ? new XQ.Game({ jq: true, layout: layout || (mode === 'local' ? XQ.randomLayout() : null) }) : new XQ.Game());
   // 兵法：技能选择状态、升级记法、调试
   const BS_NEW = /[?&]beishui=0/.test(location.search) ? 0 : 1;
-  // 试行规则 r6（见 bingfa.js 的 CFG.r6）：默认关；网址带 ?r6=1 时，这台机器新开的技能模式对局用它（记在这一局的选项 opts.r6 里，联机双方、观众、接着下的局都看这个记号）
-  const R6_NEW = /[?&]r6=1/.test(location.search) ? 1 : 0;
+  // 规则 r6（见 bingfa.js 的 CFG.r6）：2026-10-05 起是正式规则，新开的技能模式对局默认用它（记在这一局的选项 opts.r6 里，联机双方、观众、接着下的局都看这个记号；没有记号的局照旧规则）。
+  //   网址带 ?r6=0：这台设备新开的局回到旧规则，并且记住（刷新、回大厅、建房改了网址都还在）；带 ?r6=1 换回来
+  { const q6 = /[?&]r6=([01])\b/.exec(location.search); if (q6) store.set('r6', +q6[1]); }
+  const R6_NEW = +store.get('r6', 1) ? 1 : 0;
   const r6On = () => (BF.CFG.r6 && BF.CFG.r6.on ? BF.CFG.r6 : null);
   // 汉相「虎骑」预览（?tiger=1）：称号跟着模型一起换
   if (Models.TIGER && BF.TIGER_RANKS) BF.RANK_CN.r.e = BF.TIGER_RANKS.slice();
@@ -733,9 +736,9 @@
     //   没有这个记号的（改规则之前开的局接着下、房主还是旧版本、旧的复盘）照旧用破釜沉舟——联机双方、观众、接着下的局都看同一个记号，不会一边一套
     if (+opts.bf) { if (opts.bs == null && !state && (m === 'local' || m === 'ai' || m === 'host')) opts.bs = BS_NEW; BF.CFG.beishui.on = !!+opts.bs; }
     // 试行规则同样记在这一局的选项里（r6 = 1）：只有网址带 ?r6=1 的机器新开的局才有；没有这个记号的一律照现行规则
-    if (+opts.bf) { if (opts.r6 == null && !state && (m === 'local' || m === 'ai' || m === 'host')) opts.r6 = R6_NEW; BF.CFG.r6.on = !!+opts.r6; } else BF.CFG.r6.on = false;
-    { const h = $('helpR6'); if (h) h.hidden = !BF.CFG.r6.on; }
-    if (BF.CFG.r6.on) setTimeout(() => { if (game && game.bf && BF.CFG.r6.on) toast('本局用试行规则 · 点右侧「法」看有哪些不同', 4200); }, 1800);
+    //   自己新开的局（本地、人机、房主）每次都按这台设备现在的选择定；跟着别人的（客人、观众）和接着下的局看带来的记号
+    if (+opts.bf) { if (!state && (m === 'local' || m === 'ai' || m === 'host')) opts.r6 = R6_NEW; BF.CFG.r6.on = !!+opts.r6; } else BF.CFG.r6.on = false;
+    if (+opts.bf && !BF.CFG.r6.on && !state && !R6_NEW) setTimeout(() => { if (game && game.bf && !BF.CFG.r6.on) toast('这台设备选的是旧规则 · 网址带 ?r6=1 换回新规则', 4200); }, 1800);
     if ((m === 'local' || m === 'ai') && !state) store.del('resume');
     resumeKey = '';
     game = mkGame(opts, state && state.layout); undoUsed = { r: 0, b: 0 }; pendingUndo = null; pauseUsed = { r: 0, b: 0 }; setPause(null);
@@ -1083,7 +1086,7 @@
   function restart(state) {
     if (RP) exitReplay(true);
     Ending.hideCard(); Core.Time.skip = false; pendingJ = null;
-    startGame(mode, mySide, watching() && state && state.opts ? state.opts : opts, { state, intro: true });
+    startGame(mode, mySide, mode !== 'host' && state && state.opts ? state.opts : opts, { state, intro: true });   // 再来一局：客人、观众都用房主带来的选项（规则记号在里面）
     if (mode === 'host') publish();
   }
   // ---------- 复盘：终局后从第一步起逐步回看整盘棋（各模式通用） ----------
@@ -1568,7 +1571,7 @@
       '<b>三级</b>解锁技能，<b>四级</b>成名将；棋身 木 → 银 → 金 → 玉',
       '打不死的目标头顶标 <b>-1</b>，能一击杀死才标<b>「殺」</b>',
       '<b>军功 20</b> 可发终极兵法；主帅兵法每局一次',
-      ...(r6On() ? ['<b>本局用试行规则</b>：车、马、炮、兵三级起<b>攻击 2</b>；车四级 3 血，升级 <b>10 / 12 / 20</b> 功', '<b>召回</b>：死时一级回来一级，二级以上回来<b>二级</b>；可以<b>当场花军功升一级</b>；它第一次升级<b>半价</b>'] : []),
+      ...(r6On() ? ['车、马、炮、兵<b>三级起攻击 2</b>；车升级贵：<b>10 / 12 / 20</b> 功', '<b>召回</b>：死时一级回来一级，二级以上回来<b>二级</b>；可以<b>当场花军功升一级</b>，第一次升级<b>半价</b>'] : ['<b>这一局用的是旧规则</b>：攻击都是 1，车升级 6 / 8 / 20，召回回来一级']),
       '<b>决战</b>：双方车马兵炮都死光后，象、士、帅将可过河进攻；帅将 3 血，打死为止',
     ].map(x => `<li>${x}</li>`).join('');
     $('bfTip').classList.remove('hidden');
@@ -1798,15 +1801,17 @@
           if (id != null && canAct()) doBF({ k: 'art', id: +id });
           return;
         }
-        // 试行规则：每枚子写明回来几级；能当场升级的另给一个按钮，写明升到几级、要几点军功（已经是半价）
+        // 每枚子一行，写明回来几级；能当场升级的另给一个按钮，写明升到几级、要几点军功（已经是半价）。同兵种的两枚用左 / 右分开
         const sm = t => `<small style="display:block;font-size:12px;line-height:1.5;opacity:.85">${t}</small>`, items = [];
+        const same = t => opts2.filter(x => x.t === t).length > 1;
+        const where = o => { const f = o.at[0]; return o.t === 'p' ? ['左边', '', '左二', '', '中', '', '右二', '', '右边'][f] : f < 4 ? '左' : '右'; };
         for (const o of opts2) {
-          const nm = XQ.NAMES.r[o.t];
-          if (items.length) items.push({ br: 1 });   // 一枚子一行：只召回 / 召回并当场升级
-          items.push({ v: o.id, label: nm + sm(`回来${LVCN[o.lv]}级`), cls: 'r', w: 96 });
-          if (o.upCost != null) items.push({ w: 236, v: o.id + 'u', label: nm + sm(`回来${LVCN[o.lv]}级，当场升${LVCN[o.upLv]}级 · ${o.upCost} 功` + (o.canUp ? '' : game.upgraded ? '（本回合已升过级）' : `（军功不够，现在 ${game.merit.r}）`)), cls: 'r', dis: !o.canUp });
+          const nm = (same(o.t) ? where(o) : '') + XQ.NAMES.r[o.t];
+          if (items.length) items.push({ br: 1 });
+          items.push({ v: o.id, label: nm + sm(`回来${LVCN[o.lv]}级`), cls: 'r', w: o.upCost != null ? '31%' : '60%' });
+          if (o.upCost != null) items.push({ w: '65%', v: o.id + 'u', label: `并当场升${LVCN[o.upLv]}级` + sm(`${o.upCost} 功${R.reviveHalf ? ' · 半价' : ''}` + (o.canUp ? '' : game.upgraded ? ' · 本回合已升过级' : ` · 军功不够（现在 ${game.merit.r}）`)), cls: 'r', dis: !o.canUp });
         }
-        const v = await pick('召 回 良 将', `复活一枚被吃的子，放回它的开局位置：死时一级的回来还是一级，二级以上的回来都是${LVCN[R.reviveLevel]}级。它第一次升级只要半价，可以当场就升。召回占这一回合，它这回合不能动。`, items);
+        const v = await pick('召 回 良 将', `复活一枚被吃的子，放回它的开局位置：死时一级的回来还是一级，二级以上的回来都是${LVCN[R.reviveLevel]}级。` + (R.reviveHalf ? '它第一次升级只要半价' + (R.reviveUp ? '，可以当场就升。' : '。') : R.reviveUp ? '可以当场花军功给它升一级。' : '') + '召回占这一回合，它这回合不能动。', items);
         if (v != null && canAct()) doBF(/u$/.test(v) ? { k: 'art', id: parseInt(v, 10), up: true } : { k: 'art', id: +v });
         return;
       }
@@ -1834,7 +1839,7 @@
   function pick(title, text, items) {
     return new Promise(res => {
       $('pickT').textContent = title; $('pickP').textContent = text;
-      $('pickList').innerHTML = items.map(i => i.br ? '<i style="flex-basis:100%;height:0"></i>' : `<button class="btn small ${i.cls || ''}" data-v="${i.v}"${i.dis ? ' disabled' : ''} style="${i.w ? `width:${i.w}px;` : ''}${i.dis ? 'opacity:.45' : ''}">${i.label}</button>`).join('');
+      $('pickList').innerHTML = items.map(i => i.br ? '<i style="flex-basis:100%;height:0"></i>' : `<button class="btn small ${i.cls || ''}" data-v="${i.v}"${i.dis ? ' disabled' : ''} style="${i.w ? `width:${i.w};max-width:260px;padding-left:4px;padding-right:4px;` : ''}${i.dis ? 'opacity:.45' : ''}">${i.label}</button>`).join('');
       $('mPick').classList.remove('hidden');
       const fin = v => { $('mPick').classList.add('hidden'); res(v); };
       $('pickList').querySelectorAll('button').forEach(b => b.onclick = () => fin(b.dataset.v));
@@ -2705,6 +2710,8 @@
   }
   const closeRoom = () => { if (room) { clearInterval(room.timer); room = null; } };
   function hostRoom(code, o, side, resumeState) {
+    // 建房时就把这一局用哪套规则写进选项：还没开始就进来的观众、客人拿到的房间信息里就有，不会按旧规则看
+    if (!resumeState && +o.bf) { if (o.bs == null) o.bs = BS_NEW; o.r6 = R6_NEW; }
     opts = o; hostSide = side; mySide = side; resetClocks();
     showPane('pWait'); $('lobby').classList.remove('hidden');
     $('roomCode').textContent = code;
@@ -2884,7 +2891,7 @@
   $('bSetClose').onclick = () => $('mSet').classList.add('hidden');
   // 设置分三页：画面 / 声音 / 对局与其他
   $('setTabs').querySelectorAll('button').forEach(b => b.onclick = () => { $('setTabs').querySelectorAll('button').forEach(x => x.classList.toggle('on', x === b)); $('mSet').querySelectorAll('.tabp').forEach(p => p.classList.toggle('hidden', p.dataset.t !== b.dataset.t)); });
-  $('bHelp').onclick = $('bHelpL').onclick = () => $('mHelp').classList.remove('hidden');
+  $('bHelp').onclick = $('bHelpL').onclick = () => { const h = $('helpOld'); if (h) h.hidden = !(started && game && game.bf && !BF.CFG.r6.on); $('mHelp').classList.remove('hidden'); };   // 只有正在下一局旧规则的技能模式时，才显示“这一局用的是旧规则”那段
   $('bHelpClose').onclick = () => $('mHelp').classList.add('hidden');
   $('bNews').onclick = $('bNewsL').onclick = () => {
     $('newsBody').innerHTML = NEWS.map(([v, d, items]) => `<h4>${v}<small>${d}</small></h4><ul>${items.map(x => `<li>${x}</li>`).join('')}</ul>`).join('');
@@ -2899,6 +2906,7 @@
     const o = { app: 'chuhan3d', ver: APPV, when: new Date().toISOString(), kind, mode, me: mode === 'local' ? null : mySide };
     if (vsAI()) o.ai = aiBoth() ? { r: aiLevel('r'), b: aiLevel('b') } : { [aiSide()]: opts.level };
     o.opts = { undo: opts.undo, total: opts.total, step: opts.step };
+    if (G.bf) { o.opts.bs = +opts.bs ? 1 : 0; o.opts.r6 = +opts.r6 ? 1 : 0; }   // 这一局用的哪套规则（重放要用）
     o.cfg = {};   // 调过的规则配置（游戏里没有调配置的入口，恒为空；留着给模拟工具对齐格式）
     o.result = G.result || null;
     if (G.bf) {

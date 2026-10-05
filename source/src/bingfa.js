@@ -52,7 +52,7 @@
     //   3. reviveLevel + reviveCap：召回的子回来的等级 = min(死时的等级, reviveLevel)，血按回来的等级回满（阵亡名单每项记着死时的等级 lv；没记的旧记录按一级）
     //   4. reviveUp：多一种行动 { k:'art', id, up:true }——召回之后当回合马上花军功给它升一级。照常扣军功、每回合最多升一次；召回占这一回合，所以它这回合动不了
     //   5. reviveHalf：召回的子第一次升级半价（单数向上取整）。召回时给它记 rh；甲片照常抵价，甲片攒够自动晋升的门槛也按半价；第一次晋升（手动、当场、甲片自动都算）之后清掉，恢复原价
-    r6: { on: false, attack: { r: [1, 1, 2, 2], p: [1, 1, 2, 2], n: [1, 1, 2], c: [1, 1, 2] }, hpByType: { r: [1, 2, 3, 3] }, cost: { r: [10, 12, 20] }, reviveLevel: 2, reviveCap: true, reviveUp: true, reviveHalf: true },
+    r6: { on: true, attack: { r: [1, 1, 2, 2], p: [1, 1, 2, 2], n: [1, 1, 2], c: [1, 1, 2] }, hpByType: { r: [1, 2, 3, 3] }, cost: { r: [10, 12, 20] }, reviveLevel: 2, reviveCap: true, reviveUp: true, reviveHalf: true },
   };
   // 主技能（三级解锁）；SKILLS_OF 列出这一兵种全部技能（含四级的）
   const SKILL_OF = (t, s) => ({ p: 'juma', r: 'chongzhen', n: 'taying', c: 'pili', a: 'hujia', e: s === 'r' ? 'qishe' : 'jianta' })[t] || null;
