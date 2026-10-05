@@ -129,6 +129,12 @@ B.generalArts.xiaohe.reviveLevel = 1; B.generalArts.xiaohe.reviveCap = false; B.
     const mv = BF.ai.expand(g.S).find(k => k.a.k === 'mv' && !(k.a.from[0] === 0 && k.a.from[1] === 2)); g.apply(mv.a);
     const info = g.apply({ k: 'mv', from: [0, 0], to: [0, 2] }), q = rook(g), au = info && info.ev.find(e => e.e === 'autoup');
     ok(!!info && au && q.lv === 2 && !q.rh && q.xp === 0, `甲片自动晋升的门槛也减半：吃到第 5 个就自动升二级（${q && q.lv} 级）`); }
+  // 单数价向上取整：召回的一级兵（升二级原价 3）第一次升级 2
+  { B.beishui.on = true; B.generalArts.xiaohe.reviveLevel = 2; B.generalArts.xiaohe.reviveCap = true; B.generalArts.xiaohe.reviveHalf = true;
+    const g = new BF.Game(); g.setup(T => { for (let r = 0; r < 10; r++) for (let f = 0; f < 9; f++) { const p = T.board[r][f]; if (p && p.s === 'r' && p.t !== 'k' && p.id !== 13) T.board[r][f] = null; }
+      T.dead.r = [{ id: 11, t: 'p', s: 'r', lv: 1 }]; T.merit.r = 30; T.turn = 'r'; });
+    g.apply({ k: 'art', id: 11 }); let p = null; for (const row of g.S.board) for (const q of row) if (q && q.id === 11) p = q;
+    ok(p && BF.ai.upCost(p) === Math.ceil(B.upgrade.cost.p[0] / 2), `单数价向上取整：兵原价 ${B.upgrade.cost.p[0]} → 半价 ${p && BF.ai.upCost(p)}`); }
   B.upgrade.cost.r = cost0; B.generalArts.xiaohe.reviveUp = false; B.generalArts.xiaohe.reviveHalf = false;
 }
 B.generalArts.xiaohe.reviveLevel = 1; B.generalArts.xiaohe.reviveCap = false; B.beishui.on = true;
