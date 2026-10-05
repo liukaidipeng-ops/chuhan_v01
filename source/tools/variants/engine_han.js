@@ -3,8 +3,12 @@
 //   1. CFG.generalArts.xiaohe.reviveLevel（默认 1）：汉方召回良将，召回的子回来就是这个等级（血按这个等级；不超过该兵种最高级）。
 //      二级不解锁技能（技能三级起），所以不涉及“刚解锁的技能先冷却”。
 //   2. CFG.merit.startBonus = { r: 0, b: 0 }：开局军功在 merit.start 之外再加多少（只影响开局那一下）。
+//   3. CFG.generalArts.xiaohe.reviveCap（默认 false）：true 时召回的子回来是 min(阵亡时的等级, reviveLevel) 级
+//      （用户 2026-10-05：“最多召回二级，死的是初级召回还是初级，死的二级三级四级回来都是二级”= reviveLevel 2 + reviveCap true）。
+//      为此阵亡名单的每一项多记一个 lv（死时的等级）；电脑的局面键只看棋盘（posKey），不看阵亡名单，所以默认关时着法不变。
 // 用法：BFSIM_ENGINE=tools/variants/engine_han.js ENGINE_REV=98dd206 node tools/bfsim.js ... --set generalArts.xiaohe.reviveLevel=2
 //       或 --set merit.startBonus.r=1
+//       召回最多二级：--set generalArts.xiaohe.reviveLevel=2 --set generalArts.xiaohe.reviveCap=true
 'use strict';
 const fs = require('fs'), path = require('path'), os = require('os');
 const { execFileSync } = require('child_process');
@@ -15,11 +19,12 @@ function enginePath() {
   let s = execFileSync('git', ['show', rev + ':source/src/bingfa.js'], { cwd: path.join(__dirname, '..', '..'), encoding: 'utf8' });
   const rep = (a, b) => { const n = s.split(a).length - 1; if (n !== 1) throw new Error(`engine_han：锚点出现 ${n} 次（${rev} 的引擎改过了？）：${a.slice(0, 80)}`); s = s.replace(a, b); };
   rep('      start: 3, cap: 30,', '      start: 3, startBonus: { r: 0, b: 0 }, cap: 30,');
-  rep('xiaohe: { usesPerGame: 1 }', 'xiaohe: { usesPerGame: 1, reviveLevel: 1 }');
+  rep('xiaohe: { usesPerGame: 1 }', 'xiaohe: { usesPerGame: 1, reviveLevel: 1, reviveCap: false }');
+  rep('S.dead[v.s].push({ id: v.id, t: v.t, s: v.s });', 'S.dead[v.s].push({ id: v.id, t: v.t, s: v.s, lv: v.lv });   /* 变体·帮汉：记下死时的等级（召回封顶用） */');
   rep('merit: { r: cfg.merit.start, b: cfg.merit.start }',
       'merit: { r: cfg.merit.start + ((cfg.merit.startBonus && cfg.merit.startBonus.r) || 0), b: cfg.merit.start + ((cfg.merit.startBonus && cfg.merit.startBonus.b) || 0) }   /* 变体·帮汉：开局军功加成 */');
   rep("S.board[st[1]][st[0]] = { s: 'r', t: d.t, id: d.id, lv: 1, hp: hpOf(d.t, 1), cd: 0, jm: 0, xp: 0, kills: 0 };",
-      "const rlv = Math.max(1, Math.min(maxLv(d.t), CFG_CUR.generalArts.xiaohe.reviveLevel || 1));   // 变体·帮汉：召回的子回来就是 reviveLevel 级\n        S.board[st[1]][st[0]] = { s: 'r', t: d.t, id: d.id, lv: rlv, hp: hpOf(d.t, rlv), cd: 0, jm: 0, xp: 0, kills: 0 };");
+      "const xh = CFG_CUR.generalArts.xiaohe, top = Math.max(1, Math.min(maxLv(d.t), xh.reviveLevel || 1));   // 变体·帮汉：召回的子回来就是 reviveLevel 级\n        const rlv = xh.reviveCap ? Math.max(1, Math.min(top, d.lv || 1)) : top;   // reviveCap：不超过死时的等级（死时一级回来还是一级）\n        S.board[st[1]][st[0]] = { s: 'r', t: d.t, id: d.id, lv: rlv, hp: hpOf(d.t, rlv), cd: 0, jm: 0, xp: 0, kills: 0 };");
   built = path.join(os.tmpdir(), `bingfa_han_${rev.replace(/[^\w.-]/g, '_')}_${process.pid}.js`);
   fs.writeFileSync(built, s);
   return built;

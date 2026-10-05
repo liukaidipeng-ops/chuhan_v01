@@ -18,6 +18,8 @@
 //   --set PATH=JSON  覆盖单个配置项，如 --set skills.jianta.splashMinLevel=2（可多次）
 //   --save-ult       军功离终极兵法差 7 以内时不再升级、攒着放大招（霸王档本来就这样；校尉 / 新兵默认不攒）
 //   --json FILE      把每局明细写到 FILE
+//   --seedlist A,B,… 只下这几个种子（复查 / 探针用；代替 --seed + --games）
+//   --stop-after-revive  探针：汉方召回之后就停这局（不分胜负，只看召回那一刻；配 --seedlist 重放已有对局用）
 //   --quiet          只输出汇总
 //
 // 对打（新旧电脑比强弱）：node tools/bfsim.js --match 新,旧 [--games 上限] [--sprt e0,e1] [--nodes N]
@@ -352,6 +354,8 @@ function parseArgs(argv) {
     else if (k === '--json') o.json = v();
     else if (k === '--quiet') o.quiet = true;
     else if (k === '--save-ult') o.saveUlt = true;
+    else if (k === '--seedlist') o.seedlist = v().split(',').filter(Boolean).map(Number);
+    else if (k === '--stop-after-revive') o.stopAfterRevive = true;
     else if (k === '--ai') o.ai = v();
     else if (k === '--ai-r') o.aiR = v();
     else if (k === '--ai-b') o.aiB = v();
@@ -411,7 +415,9 @@ function worker() {
       fewEnd: {}, sus: {}, susN: { r: 0, b: 0 },   // 车马炮“持续落后”：自己走完还比对方少、到下回合轮到自己时还少（第一次的回合、持续了几回合）
       bs: !!(BF.CFG.beishui && BF.CFG.beishui.on),   // 背水一战变体（统计里“破釜”改叫“背水”）
       firstR2: {},   // 各方第一次有二级车的回合（用户：“一旦二血车先获得主动权，战场局面就几乎一边倒了”）
+      rev: null,     // 汉方召回：{ t 兵种, dl 死时等级, rl 回来的等级, round }（用户 2026-10-05：召回最多二级，死时一级回来还是一级）
     };
+    const deathLv = {};   // 每枚子最近一次阵亡时的等级（从吃子事件里读，只观察、不影响对局）
     let lastRound = 0, guard = 0;
     const sample = () => {
       const rd = g.round;
@@ -439,6 +445,7 @@ function worker() {
       const via = info.extra && info.extra.via;
       for (const e of info.ev || []) {
         if (e.e === 'kill') {
+          if (e.lv != null) deathLv[e.id] = e.lv;
           const killer = e.friendly ? e.s : other(e.s);
           let how = e.how || 'capture';
           if (how === 'capture' && via) how = 'via_' + via;
@@ -449,6 +456,7 @@ function worker() {
         else if (e.e === 'autoup') { r2(e.t, e.lv, e.s); inc(R.up[e.s], e.t + e.lv + '*'); if (R.firstLv[e.s][e.lv] == null) R.firstLv[e.s][e.lv] = g.round; }
         else if (e.e === 'final' && !R.final) { R.final = true; R.finalRound = g.round; }
         else if (e.e === 'rescue') R.rescue++;
+        else if (e.e === 'revive' && !R.rev) { const q = e.at && g.S.board[e.at[1]] && g.S.board[e.at[1]][e.at[0]]; R.rev = { t: e.t, dl: deathLv[e.id] != null ? deathLv[e.id] : null, rl: q && q.id === e.id ? q.lv : null, round: g.round }; }
         else if (e.e === 'counter') inc(R.jumaCounter[other(side)], 'hit');
         else if (e.e === 'fanji') inc(R.jumaCounter[other(side)], 'fanji');   // 变体：士 / 象还手（记在还手的一方）
         else if (e.e === 'heal') inc(R.jumaCounter[side], 'heal');
@@ -490,6 +498,7 @@ function worker() {
         if (!info) throw new Error('非法行动 ' + JSON.stringify(a) + ' seed=' + job.seed);
         record(a, info, side);
       }
+      if (job.stopAfterRevive && R.rev) { R.reason = 'probe'; R.plies++; break; }   // 探针：召回那一刻就停
       { const c = atkCount(g.S), o = side === 'r' ? 'b' : 'r'; R.fewEnd[side] = c[side] < c[o]; }
       if (pre && seq.some(a => a.k === 'art' && a.steps)) R.pf = { round: g.round, s0: pre.s, m0: pre.m, s1: +neutral(g.S).toFixed(2), m1: matDiff(g.S), lockTo: g.S.fx.pf };
       R.plies++;
@@ -595,7 +604,8 @@ async function run(o) {
     for (let i = 0; i < Math.ceil(o.games / 2); i++) for (const flip of [false, true]) jobs.push({ seed: o.seed + i, flip, aiR: flip ? 'B' : 'A', aiB: flip ? 'A' : 'B', red: o.red || o.level, black: o.black || o.level, maxRounds: o.maxRounds, open: o.open, saveUlt: o.saveUlt });
   } else {
     ais = { R: resolveAI(o.aiR || o.ai), B: resolveAI(o.aiB || o.ai) };
-    for (let i = 0; i < o.games; i++) jobs.push({ seed: o.seed + i, aiR: 'R', aiB: 'B', red: o.red || o.level, black: o.black || o.level, maxRounds: o.maxRounds, open: o.open, saveUlt: o.saveUlt });
+    const seeds = o.seedlist && o.seedlist.length ? o.seedlist : Array.from({ length: o.games }, (_, i) => o.seed + i);
+    for (const seed of seeds) jobs.push({ seed, aiR: 'R', aiB: 'B', red: o.red || o.level, black: o.black || o.level, maxRounds: o.maxRounds, open: o.open, saveUlt: o.saveUlt, stopAfterRevive: !!o.stopAfterRevive });
   }
   const results = [], errors = [], warned = new Set();
   let next = 0, done = 0, stopped = null;
@@ -749,6 +759,10 @@ function summarize(rs) {
   S.ult = { used: usedWin(r => r.ultRound), round: { r: mean(rs.filter(r => r.ultRound.r != null).map(r => r.ultRound.r)), b: mean(rs.filter(r => r.ultRound.b != null).map(r => r.ultRound.b)) } };
   S.art = { used: usedWin(r => r.artRound), round: { r: mean(rs.filter(r => r.artRound.r != null).map(r => r.artRound.r)), b: mean(rs.filter(r => r.artRound.b != null).map(r => r.artRound.b)) } };
   S.rescue = rs.filter(r => r.rescue).length;
+  // 召回的子：兵种、死时几级、回来几级，以及按“死时一级 / 二级以上”分开的汉胜率
+  { const g = rs.filter(r => r.rev); if (g.length) { const cnt = f => { const o = {}; for (const r of g) { const k = f(r); o[k] = (o[k] || 0) + 1; } return o; };
+    const lo = g.filter(r => r.rev.dl === 1), hi = g.filter(r => r.rev.dl != null && r.rev.dl >= 2);
+    S.rev = { n: g.length, t: cnt(r => r.rev.t), dl: cnt(r => r.rev.dl == null ? '?' : r.rev.dl), rl: cnt(r => r.rev.rl == null ? '?' : r.rev.rl), lo: [lo.length, lo.filter(r => r.winner === 'r').length], hi: [hi.length, hi.filter(r => r.winner === 'r').length] }; } }
   // 翻盘：第 R 回合时局面分落后 ≥ T 的一方，最后赢了的比例
   S.comeback = {};
   for (const rd of [10, 20, 30]) for (const T of [2, 4]) {
@@ -801,6 +815,8 @@ function print(S, o) {
   const ur = S.ult.used, ar = S.art.used;
   L.push(`终极兵法：汉用 ${ur.r[0]} 局（平均第 ${S.ult.round.r.toFixed(1)} 回合，用了的局胜 ${ur.r[0] ? pct(ur.r[1] / ur.r[0]) : '-'}）  楚用 ${ur.b[0]} 局（第 ${S.ult.round.b.toFixed(1)} 回合，胜 ${ur.b[0] ? pct(ur.b[1] / ur.b[0]) : '-'}）  护驾破鸿门宴 ${S.rescue} 局`);
   L.push(`主帅兵法：汉召回 ${ar.r[0]} 局（第 ${S.art.round.r.toFixed(1)} 回合，胜 ${ar.r[0] ? pct(ar.r[1] / ar.r[0]) : '-'}）  楚${S.bs ? '背水' : '破釜'} ${ar.b[0]} 局（第 ${S.art.round.b.toFixed(1)} 回合，胜 ${ar.b[0] ? pct(ar.b[1] / ar.b[0]) : '-'}）`);
+  if (S.rev) { const TN = { r: '车', n: '马', c: '炮', p: '兵', a: '士', e: '象' }, j = o => Object.entries(o).sort().map(([k, v]) => `${TN[k] || k} ${v}`).join('、'), jl = o => Object.entries(o).sort().map(([k, v]) => `${k} 级 ${v}`).join('、');
+    L.push(`召回的子（${S.rev.n} 次）：${j(S.rev.t)}；死时 ${jl(S.rev.dl)}；回来 ${jl(S.rev.rl)}；死时一级的那些局汉胜 ${S.rev.lo[0] ? pct(S.rev.lo[1] / S.rev.lo[0]) : '-'}（${S.rev.lo[0]} 局），二级以上 ${S.rev.hi[0] ? pct(S.rev.hi[1] / S.rev.hi[0]) : '-'}（${S.rev.hi[0]} 局）`); }
   for (const s of ['r', 'b']) { const A = S.avail && S.avail[s]; if (A) L.push(`少子才能用的主帅兵法（${s === 'r' ? '汉召回' : '楚背水'}）：轮到自己时满足用的条件（车马炮比对方少；第三版还要至少丢了一半）过 ${A.n} 局，第一次平均第 ${A.round.toFixed(1)} 回合；真用了 ${A.used} 局（胜 ${A.used ? pct(A.usedWin / A.used) : '-'}）`); }
   if (S.sus && (S.sus.r || S.sus.b)) L.push('车马炮持续落后（自己走完还少、到下回合还少）：' + ['r', 'b'].map(s => { const A = S.sus[s]; return `${s === 'r' ? '汉' : '楚'} ${A ? `${A.n} 局（${pct(A.n / S.n)}，第一次平均第 ${A.round.toFixed(1)} 回合、平均落后 ${A.turns.toFixed(1)} 回合；这些局${s === 'r' ? '汉' : '楚'}胜 ${pct(A.win / A.n)}；其中用了主帅兵法 ${A.used} 局、胜 ${A.used ? pct(A.usedWin / A.used) : '-'}）` : '0 局'}`; }).join(' | '));
   { const f = H => { const n = H.full + H.hurt; return n ? `满血 ${pct(H.full / n)}、掉过血 ${pct(H.hurt / n)}（只剩 1 血 ${pct(H.last / n)}），共 ${n} 次` : '-'; };
