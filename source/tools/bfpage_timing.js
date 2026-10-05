@@ -97,7 +97,8 @@ async function playGame(browser, url, gi) {
     }
     await new Promise(r => setTimeout(r, 150));
   }
-  const out = await pg.evaluate(`(()=>{const g=window.__xq.game;return {stats:window.__bfStats, wlog:window.__bfLog, result:g.result, round:g.round, plies:g.history.length};})()`);
+  // 这一局实际用的规则：对局选项，以及一级车升二级的价（试行规则 r6 开着是 10，平常 6）——确认 --query 真的生效了
+  const out = await pg.evaluate(`(()=>{const g=window.__xq.game;let rook1=null;try{rook1=g.baseCost?g.baseCost({s:'r',t:'r',id:0,lv:1,hp:1}):null;}catch(e){}return {stats:window.__bfStats, wlog:window.__bfLog, result:g.result, round:g.round, plies:g.history.length, opts:g.opts||null, rook1};})()`);
   await ctx.close();
   return { ...out, logs, secs: Math.round((Date.now() - t0) / 1000) };
 }
@@ -106,7 +107,7 @@ async function playGame(browser, url, gi) {
   const url = 'file://' + buildPage(opt.ai);
   const browser = await pw.chromium.launch({ args: ['--use-gl=angle', '--use-angle=swiftshader', '--enable-unsafe-swiftshader'] });
   const games = [];
-  for (let gi = 0; gi < opt.games; gi++) { games.push(await playGame(browser, url, gi)); process.stderr.write(`第 ${gi + 1} 局完 ${games[gi].secs}s\n`); }
+  for (let gi = 0; gi < opt.games; gi++) { games.push(await playGame(browser, url, gi)); process.stderr.write(`第 ${gi + 1} 局完 ${games[gi].secs}s  对局选项 ${JSON.stringify(games[gi].opts)}  一级车升二级价 ${games[gi].rook1}\n`); }
   await browser.close();
   const all = games.flatMap(g => g.stats), ms = all.map(s => s.ms).sort((a, b) => a - b);
   const q = p => (ms.length ? ms[Math.min(ms.length - 1, Math.floor(p * ms.length))] : 0);
