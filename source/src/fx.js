@@ -959,8 +959,8 @@ const Fx = (() => {
         if (Voice.has(kid) && state.onKingLine) { Sfx.line(0.1 / (Time.boost || 1), Voice.dur(kid)); sleep(0.1).then(() => state.onKingLine(p.s, kid)); return; }
       }
     }
-    // 主帅每次走、每次吃子都说一句（他很少动）；别的兵种走子时约一半的步数说
-    if (!kill && ((!king && Math.random() > 0.55) || Voice.busy)) return;
+    const always = king || p.t === 'n';   // 主帅、马每步都说（Ham 10-09：马走子要每步都有声）；别的兵种约一半的步数说
+    if (!kill && ((!always && Math.random() > 0.55) || Voice.busy)) return;
     let base = `u_${p.s}_${p.t}_${kill ? 'k' : 'm'}`;
     if (Models.TIGER && p.s === 'r' && p.t === 'e' && Voice.has('t_' + base + '1')) base = 't_' + base;   // 汉相换成虎骑时用虎骑的台词（白虎开道 / 谋定而后动 / 犯汉者，虎噬之 / 放虎）
     const pool = [1, 2, 3, 4, 5].map(i => base + i).filter(x => Voice.has(x) && Voice.playable(x));   // 一般是两句，主帅有四五句

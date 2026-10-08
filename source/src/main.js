@@ -1337,7 +1337,8 @@
       Board.showMoves(sel, withBad(bfDmg(selMoves), f, r), !!+opts.hints);
       Sfx.select();
       if (!selMoves.length) toast(selBad.length ? '这枚棋子一动就会送将' : '这枚棋子无路可走');
-    } else { Board.clearMoves(false); sel = null; selMoves = []; selBad = []; }
+    } else if (sel) { Board.flashBad(sel, [f, r]); }   // 选着子点到走不了的地方：那里闪一下红色虚影，选中的子不丢
+    else { Board.clearMoves(false); sel = null; selMoves = []; selBad = []; }
   });
   // ---------- 送将提示 ----------
   // 按走法能走、但走了自己会被将军的着法：照样标出来（标红 / 头顶禁止符号），点上去说明原因；连点三次，自家主帅出言调侃
@@ -1349,7 +1350,7 @@
     if (!+S.confirm) return false;
     if (pendTo && pendTo[0] === to[0] && pendTo[1] === to[1]) { pendTo = null; return false; }
     pendTo = to.slice();
-    const L = withBad(bfDmg(selMoves), sel[0], sel[1]); L.aim = pendTo;
+    const L = withBad(bfDmg(selMoves), sel[0], sel[1]); L.ghost = pendTo;
     Board.showMoves(sel, L, !!+opts.hints); Sfx.select();
     toast('再点一次这个落点，确认落子', 1800);
     return true;
@@ -1368,6 +1369,7 @@
     if (ply !== badAt) { badAt = ply; badN = 0; }
     badN++;
     toast(m.why === 'face' ? '不能送将：将帅不能照面' : '不能送将：这样走，自己的' + (actor() === 'r' ? '帅' : '将') + '会被吃', 2200);
+    if (sel) Board.flashBad(sel, [f, r]);
     Sfx.select();
     // 王不见王：这一步里第二次想走“将帅照面”的棋，自己的主帅开口（有这句配音才说）
     if (m.why === 'face') { const k = KT[actor()]; if (k) { if (k.faceAt !== ply) { k.faceAt = ply; k.face = 0; } if (++k.face === 2 && kingSay(actor(), `${actor()}_face`)) return true; } }
@@ -1478,7 +1480,7 @@
     const aimed = a.k === 'sk' && !!a.to;
     const h = bfNeedConfirm(a) || (aimed ? (bfHarm(a) || { list: [], ev: [] }) : null);
     if (!h && a.k === 'mv' && +S.confirm) {   // 落子确认：普通走子 / 攻击也先框住落点，再点一次（或点「确定」）才走
-      const L = withBad(bfDmg(selMoves), from[0], from[1]); L.aim = a.to;
+      const L = withBad(bfDmg(selMoves), from[0], from[1]); L.ghost = a.to;
       bfMode = { kind: 'confirm', a, hint: '再点一次落点，或点「确定」落子' };
       Board.showMoves(from, L, !!+opts.hints); Sfx.select(); renderBar(); return;
     }
@@ -1525,7 +1527,8 @@
     if (pc && pc.s === actor()) {
       if (sel && sel[0] === f && sel[1] === r) bfClear();
       else bfSelect(f, r);
-    } else bfClear();
+    } else if (sel) Board.flashBad(sel, [f, r]);   // 选着子点到走不了的地方：红色虚影，选中的子不丢
+    else bfClear();
     renderBar();
   }
   // 破釜沉舟：先选第一步，再选第二步，两步一起提交
