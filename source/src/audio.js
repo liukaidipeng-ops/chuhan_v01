@@ -55,7 +55,7 @@ const Sfx = (() => {
   function out(dest, pan) { if (pan === undefined || !ctx.createStereoPanner) return dest; const p = ctx.createStereoPanner(); p.pan.value = Math.max(-1, Math.min(1, pan)); p.connect(dest); return p; }
   function env(g, T, a, peak, dec, hold = 0) { g.gain.setValueAtTime(0.0001, T); g.gain.exponentialRampToValueAtTime(Math.max(0.0002, peak), T + a); if (hold) g.gain.setValueAtTime(Math.max(0.0002, peak), T + a + hold); g.gain.exponentialRampToValueAtTime(0.0001, T + a + hold + dec); }
   // 播放录音。i = 指定第几段（不给就随机挑一段）；dur = 放到第几秒收住，最后 fade 秒淡出
-  function smp(id, { t = 0, vol = 0.5, rate = 1, rj = 0.08, pan, dest, loop = false, dur, lp, i, fade = 0.3 } = {}) {
+  function smp(id, { t = 0, vol = 0.5, rate = 1, rj = 0.08, pan, dest, loop = false, dur, lp, i, fade = 0.3, off = 0 } = {}) {   // off：从这段声音的第几秒开始放
     if (!ok()) return;
     const list = samples[id]; if (!list || !list.length) return;
     const buf = list[i == null ? Math.floor(Math.random() * list.length) : i % list.length]; if (!buf) return;
@@ -66,7 +66,7 @@ const Sfx = (() => {
     let node = s;
     if (lp) { const f = ctx.createBiquadFilter(); f.type = 'lowpass'; f.frequency.value = lp; s.connect(f); node = f; }
     node.connect(g); g.connect(out(dest || sfxBus, pan ?? R(-0.4, 0.4)));
-    s.start(T);
+    s.start(T, Math.max(0, off));
     if (dur) { g.gain.setValueAtTime(vol, T + Math.max(0, dur - fade)); g.gain.linearRampToValueAtTime(0.0001, T + dur); s.stop(T + dur + 0.05); }
   }
   // 把一段录音铺满 dur 秒：录音不够长就接着再放一遍（首尾交叠一点），到点淡出
@@ -311,7 +311,15 @@ const Sfx = (() => {
     cannon: {
       move(dur = 1) { const w = after(0.75); B.wheels(w, dur, 0.25); for (let k = 0; k * 0.7 < dur; k++) B.creak(w + k * 0.7, 0.07); return w; },
       ready() { B.creak(0.1, 0.08); },
-      fire(i, lv = 0) { B.fuse(0, 0.14); B.bigCannon(0.14, 1, lv === 1); B.whistle(0.4, 0.9); },
+      // 炮弹在空中的呼啸：试听台 b19 Ham 挑的两条（降调投弹哨音 + 破空风声；投石机甩出石弹），对齐成刚好在落地那一刻收尾。fl = 从点火到落地的真实秒数
+      fire(i, lv = 0, fl = 0.9) {
+        B.fuse(0, 0.14); B.bigCannon(0.14, 1, lv === 1);
+        const list = samples.shellw; if (!ok() || !list || !list.length) { B.whistle(0.4, 0.9); return; }
+        const k = pick('shellw'), buf = list[k % list.length], gain = [0.51, 1.32][k % 2] * (lv === 1 ? 0.7 : 1);
+        let t = fl - buf.duration, off = 0;
+        if (t < 0.3) { off = 0.3 - t; t = 0.3; }   // 飞得比哨音短：从中间放起，开头让给炮响
+        smp('shellw', { i: k, t, off, vol: gain, rj: 0.02 });
+      },
       explode(big, lv = 0) { const sm = lv === 1; B.blast(0, big ? 1 : 0.75, sm); smp('rockfall', { t: 0.35, vol: (big ? 0.3 : 0.18) * (sm ? 0.6 : 1) }); },
       destroy() { B.boom(0.1, 0.7); B.woodbreak(0.05, 0.6); B.metalfall(0.3, 0.5); smp('metalfall', { t: 0.6, vol: 0.3, rate: 0.7 }); },
       impact() { B.blast(0, 0.9); },

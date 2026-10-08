@@ -797,7 +797,7 @@ const Squads = (() => {
       let dead = Promise.resolve();
       const fire = async (g, i) => {
         for (let k = 0; k < 6; k++) P.sparks(g.torch.getWorldPosition(new V3()), 2, 0.4);
-        s.fire(i, this.lv);
+        s.fire(i, this.lv, real(0.14 + flight));
         await sleep(0.14);
         const muzzle = g.barrel.localToWorld(new V3(1.35, 0, 0));
         Cam.shake(0.14); Fx.flash(muzzle, 40, 0.35); P.fire(muzzle, 16, 0.5); Fx.glow(muzzle, 1.5, 0.3, 0.45);
