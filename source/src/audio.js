@@ -314,8 +314,10 @@ const Sfx = (() => {
       // 炮弹在空中的呼啸：试听台 b19 Ham 挑的两条（降调投弹哨音 + 破空风声；投石机甩出石弹），对齐成刚好在落地那一刻收尾。fl = 从点火到落地的真实秒数
       fire(i, lv = 0, fl = 0.9) {
         B.fuse(0, 0.14); B.bigCannon(0.14, 1, lv === 1);
-        const list = samples.shellw; if (!ok() || !list || !list.length) { B.whistle(0.4, 0.9); return; }
-        const k = pick('shellw'), buf = list[k % list.length], gain = [0.51, 1.32][k % 2] * (lv === 1 ? 0.7 : 1);
+        // Ham 在 b23 里挑了四种，随机出：八（降调哨音 + 破空风声）、五（投石机甩出石弹）、五加大一倍、原来的合成哨音
+        const list = samples.shellw, kind = Math.floor(Math.random() * 4);
+        if (!ok() || !list || list.length < 2 || kind === 3) { B.whistle(0.4, 0.9); return; }
+        const k = kind === 0 ? 0 : 1, buf = list[k], gain = [0.51, 1.32, 2.64][kind] * (lv === 1 ? 0.7 : 1);
         let t = fl - buf.duration, off = 0;
         if (t < 0.3) { off = 0.3 - t; t = 0.3; }   // 飞得比哨音短：从中间放起，开头让给炮响
         smp('shellw', { i: k, t, off, vol: gain, rj: 0.02 });
