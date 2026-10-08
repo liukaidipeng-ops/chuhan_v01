@@ -8,6 +8,7 @@
   // 更新说明（设置里、大厅底部点「更新」查看；最新的放最前）
   const NEWS = [
     ['第六版', '2026 年 10 月', [
+      '轮到谁走，谁的头像牌外面多一圈朱红粗线；最后十秒粗线跟着读秒一亮一暗，越来越快。兵卒和炮过河不再走到岸边等船、上船下船，直接乘船过去，和平地一样快',
       '对局里的界面和其余弹窗也换成了新样子（头像牌、技能按钮、棋谱、喊话、玩法说明、暂停、终局卡片……），和大厅是一套',
       '将帅话多了：帅和将每次走、每次吃子都会说一句，各添了新词。还藏了些彩蛋——连着两次想走“将帅照面”的棋、开局第一步就动帅、帅亲手吃车、连着三回合都在走帅、连点自己的帅五下……各有各的说法；技能模式里四级名将阵亡，主帅会哀叹一声',
       '大厅、设置、询问弹窗换了新样子：朱红底的棋盘格、圆棋子按钮；手机竖屏主按钮固定在屏幕底部。「退出对局」改叫「返回大厅」，点了只问一句「退出本局？」，「继续对局」是大按钮，防误点。游戏现在叫「技能新象棋」',
@@ -495,7 +496,7 @@
   if (window.ResizeObserver) { const ro = new ResizeObserver(() => layoutHud()); ro.observe($('cardOpp')); ro.observe($('cardMe')); }
   const CN10 = ['', '一', '二', '三', '四', '五', '六', '七', '八', '九', '十'];
   const fmtStep = ms => { const t = Math.max(0, Math.ceil(ms / 1000)); return t >= 60 ? Math.floor(t / 60) + ':' + String(t % 60).padStart(2, '0') : t + ' 秒'; };
-  let cdSec = -1;
+  let cdSec = -1, hurryKey = '';
   function paintClocks() {
     let urgent = null; // 正在走的一方只剩 10 秒以内：{ side, sec }
     const live = mode && started && !ended && !game.result && !RP;
@@ -536,6 +537,12 @@
       red.classList.toggle('on', !watching() && (mode === 'local' || urgent.side === mySide));
     } else if (cdSec !== -1) { cdSec = -1; big.classList.remove('on', 'hot'); red.classList.remove('on'); }
     Camp.restless(urgent ? urgent.side : null);
+    // 头像牌外那圈朱红粗线（美术 M7）：读秒时跟着一亮一暗，越到后面越快——剩 10 秒 1 秒一下，剩 1 秒 0.33 秒一下。每秒换一次节拍
+    const hk = urgent ? urgent.side + urgent.sec : '';
+    if (hk !== hurryKey) {
+      hurryKey = hk;
+      for (const s of ['r', 'b']) { const c = cardFor(s), on = !!urgent && urgent.side === s; c.classList.toggle('hurry', on); if (on) c.style.setProperty('--beat', (0.26 + 0.074 * urgent.sec).toFixed(2) + 's'); }
+    }
   }
   // 暂停中（见下面的暂停功能）
   // 人机 / 本地：随便停。联机：每人每局 3 次，每次最多 2 分钟，双方时钟都停；到点自动继续，暂停的一方可以提前继续
@@ -1071,7 +1078,7 @@
   async function boardFinale(result) {
     if (!result.winner) {
       // 和棋：鸿沟为界，两军各自收兵
-      banner('鴻溝為界', '四十回合未见杀伐 · 和局', 3000);
+      banner('鸿沟为界', '四十回合未见杀伐 · 和局', 3000);
       Sfx.B.gong(0, 0.8); Camp.cheer('r', 4, 0.8); Camp.cheer('b', 4, 0.8);
       await Core.sleep(3);
       return;
