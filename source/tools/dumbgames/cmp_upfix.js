@@ -33,6 +33,7 @@ const fmt = seq => seq.map(a => a.k === 'up' ? '升' + a.at : a.k === 'mv' ? a.f
       const t0 = Date.now(); const seq = await A.think(BF.cloneState(S0), lv); const ms = Date.now() - t0;
       let S = BF.cloneState(S0); for (const a of seq) { if (a.k === 'up') S = { ...BF.cloneState(S), ...BF.ai.upgradeState(S, a.at) }; else { const r = BF.attempt(S, a); S = r.S; } }
       const m = mate1(S), L = A.think.last || {};
+      if (nm === 'fix') line.push('保险：换了 ' + (A.think.mateGuard || 0) + ' 次，没找到替代 ' + (A.think.mateGuardMiss || 0) + ' 次' + (A.think.mateGuardErr ? '，出错 ' + A.think.mateGuardErr.slice(0, 200) : ''));
       line.push(`${nm}: ${fmt(seq)}  [分 ${L.v != null ? L.v.toFixed(2) : '?'}，${L.depth} 层，${L.nodes} 节点，${ms}ms] 走后楚一步杀: ${m || '无'}`);
     }
     console.log(line.join('\n   ') + '\n');
