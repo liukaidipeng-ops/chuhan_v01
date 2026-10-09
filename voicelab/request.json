@@ -1,123 +1,1567 @@
 {
- "batch": "b22",
+ "batch": "b24",
  "list_voices": false,
  "hosts": [
   "https://api.minimax.cn"
  ],
  "jobs": [
   {
-   "voice": "Chinese (Mandarin)_Reliable_Executive",
-   "pitch": -1,
-   "vol": 1.5,
-   "speed": 0.82,
-   "emotion": "fearful",
+   "id": "real_up_r_p_2_1",
+   "voice": "Spanish_PowerfulSoldier",
+   "text": "当上伍长了，五个弟兄跟我走！",
+   "vol": 1.7,
+   "speed": 0.93,
+   "emotion": "angry",
    "modify": {
-    "pitch": -12,
-    "timbre": -8,
-    "intensity": -30
+    "intensity": -60
    },
-   "id": "real_r_h_p1_c",
-   "text": "曹参！<#0.2#>(sniffs)身上七十处伤。<#0.25#>这回，没挺过去。<#0.15#>(sighs)",
+   "tone": [
+    "伍长/(wu3)(zhang3)"
+   ]
+  },
+  {
+   "id": "real_up_r_p_2_2",
+   "voice": "Spanish_PowerfulSoldier",
+   "text": "伍长在此，都给我站齐了！",
+   "vol": 1.7,
+   "speed": 0.93,
+   "emotion": "angry",
+   "modify": {
+    "intensity": -60
+   },
+   "tone": [
+    "伍长/(wu3)(zhang3)"
+   ]
+  },
+  {
+   "id": "real_up_r_p_3_1",
+   "voice": "Spanish_PowerfulSoldier",
+   "text": "什长了！十个弟兄，一个都不能少。",
+   "vol": 1.7,
+   "speed": 0.93,
+   "emotion": "angry",
+   "modify": {
+    "intensity": -60
+   },
+   "tone": [
+    "什长/(shi2)(zhang3)"
+   ]
+  },
+  {
+   "id": "real_up_r_p_3_2",
+   "voice": "Spanish_PowerfulSoldier",
+   "text": "什长领队，<#0.15#>跟紧我！",
+   "vol": 1.7,
+   "speed": 0.93,
+   "emotion": "angry",
+   "modify": {
+    "intensity": -60
+   },
+   "tone": [
+    "什长/(shi2)(zhang3)"
+   ]
+  },
+  {
+   "id": "real_up_r_p_4_1",
+   "voice": "Spanish_PowerfulSoldier",
+   "text": "无当飞军，所向无前！",
+   "vol": 2.1,
+   "speed": 0.86,
+   "emotion": "angry",
+   "modify": {
+    "intensity": -90
+   }
+  },
+  {
+   "id": "real_up_r_p_4_2",
+   "voice": "Spanish_PowerfulSoldier",
+   "text": "飞军一到，无人可当！",
+   "vol": 2.1,
+   "speed": 0.86,
+   "emotion": "angry",
+   "modify": {
+    "intensity": -90
+   }
+  },
+  {
+   "id": "real_up_r_r_2_1",
+   "voice": "Spanish_PowerfulSoldier",
+   "text": "换了轻车，跑得更快了！",
+   "vol": 1.7,
+   "speed": 0.93,
+   "emotion": "angry",
+   "modify": {
+    "intensity": -60
+   }
+  },
+  {
+   "id": "real_up_r_r_2_2",
+   "voice": "Spanish_PowerfulSoldier",
+   "text": "轻车已备，随时出击！",
+   "vol": 1.7,
+   "speed": 0.93,
+   "emotion": "angry",
+   "modify": {
+    "intensity": -60
+   }
+  },
+  {
+   "id": "real_up_r_r_3_1",
+   "voice": "Spanish_PowerfulSoldier",
+   "text": "武刚车结阵，坚如城墙！",
+   "vol": 1.7,
+   "speed": 0.93,
+   "emotion": "angry",
+   "modify": {
+    "intensity": -60
+   }
+  },
+  {
+   "id": "real_up_r_r_3_2",
+   "voice": "Spanish_PowerfulSoldier",
+   "text": "武刚车到，看谁冲得动！",
+   "vol": 1.7,
+   "speed": 0.93,
+   "emotion": "angry",
+   "modify": {
+    "intensity": -60
+   }
+  },
+  {
+   "id": "real_up_r_r_4_1",
+   "voice": "Spanish_PowerfulSoldier",
+   "text": "虎贲车骑，冲锋在前！",
+   "vol": 2.1,
+   "speed": 0.86,
+   "emotion": "angry",
+   "modify": {
+    "intensity": -90
+   },
+   "tone": [
+    "车骑/(che1)(qi2)"
+   ]
+  },
+  {
+   "id": "real_up_r_r_4_2",
+   "voice": "Spanish_PowerfulSoldier",
+   "text": "车骑如虎，一往无前！",
+   "vol": 2.1,
+   "speed": 0.86,
+   "emotion": "angry",
+   "modify": {
+    "intensity": -90
+   },
+   "tone": [
+    "车骑/(che1)(qi2)"
+   ]
+  },
+  {
+   "id": "real_up_r_n_2_1",
+   "voice": "Spanish_PowerfulSoldier",
+   "text": "骁骑上马，随时冲杀！",
+   "vol": 1.7,
+   "speed": 0.93,
+   "emotion": "angry",
+   "modify": {
+    "intensity": -60
+   },
+   "tone": [
+    "骁骑/(xiao1)(qi2)"
+   ]
+  },
+  {
+   "id": "real_up_r_n_2_2",
+   "voice": "Spanish_PowerfulSoldier",
+   "text": "马快刀利，骁骑来也！",
+   "vol": 1.7,
+   "speed": 0.93,
+   "emotion": "angry",
+   "modify": {
+    "intensity": -60
+   },
+   "tone": [
+    "骁骑/(xiao1)(qi2)"
+   ]
+  },
+  {
+   "id": "real_up_r_n_3_1",
+   "voice": "Spanish_PowerfulSoldier",
+   "text": "郎中骑，随灌将军破敌！",
+   "vol": 2.1,
+   "speed": 0.86,
+   "emotion": "angry",
+   "modify": {
+    "intensity": -90
+   },
+   "tone": [
+    "郎中骑/(lang2)(zhong1)(qi2)"
+   ]
+  },
+  {
+   "id": "real_up_r_n_3_2",
+   "voice": "Spanish_PowerfulSoldier",
+   "text": "郎中骑到，楚骑休狂！",
+   "vol": 2.1,
+   "speed": 0.86,
+   "emotion": "angry",
+   "modify": {
+    "intensity": -90
+   },
+   "tone": [
+    "郎中骑/(lang2)(zhong1)(qi2)"
+   ]
+  },
+  {
+   "id": "real_up_r_c_2_1",
+   "voice": "Spanish_PowerfulSoldier",
+   "text": "抛石机架好了，砸他个措手不及！",
+   "vol": 1.7,
+   "speed": 0.93,
+   "emotion": "angry",
+   "modify": {
+    "intensity": -60
+   }
+  },
+  {
+   "id": "real_up_r_c_2_2",
+   "voice": "Spanish_PowerfulSoldier",
+   "text": "石弹装满，听令就放！",
+   "vol": 1.7,
+   "speed": 0.93,
+   "emotion": "angry",
+   "modify": {
+    "intensity": -60
+   }
+  },
+  {
+   "id": "real_up_r_c_3_1",
+   "voice": "Spanish_PowerfulSoldier",
+   "text": "霹雳车上阵，一声惊雷！",
+   "vol": 2.1,
+   "speed": 0.86,
+   "emotion": "angry",
+   "modify": {
+    "intensity": -90
+   }
+  },
+  {
+   "id": "real_up_r_c_3_2",
+   "voice": "Spanish_PowerfulSoldier",
+   "text": "霹雳车在，什么城墙都砸得开！",
+   "vol": 1.7,
+   "speed": 0.93,
+   "emotion": "angry",
+   "modify": {
+    "intensity": -60
+   }
+  },
+  {
+   "id": "real_up_r_e_2_1",
+   "voice": "Spanish_PowerfulSoldier",
+   "text": "白虎听令，长史上任。",
+   "vol": 1.5,
+   "speed": 0.92,
+   "emotion": "calm",
+   "modify": {
+    "intensity": -40
+   },
+   "tone": [
+    "长史/(zhang3)(shi3)"
+   ]
+  },
+  {
+   "id": "real_up_r_e_2_2",
+   "voice": "Spanish_PowerfulSoldier",
+   "text": "驭虎长史，奉命而行。",
+   "vol": 1.5,
+   "speed": 0.92,
+   "emotion": "calm",
+   "modify": {
+    "intensity": -40
+   },
+   "tone": [
+    "长史/(zhang3)(shi3)"
+   ]
+  },
+  {
+   "id": "real_up_r_e_3_1",
+   "voice": "Spanish_PowerfulSoldier",
+   "text": "持汉节，护三军。",
+   "vol": 1.5,
+   "speed": 0.92,
+   "emotion": "calm",
+   "modify": {
+    "intensity": -40
+   }
+  },
+  {
+   "id": "real_up_r_e_3_2",
+   "voice": "Spanish_PowerfulSoldier",
+   "text": "节在人在，护军在此！",
+   "vol": 1.7,
+   "speed": 0.93,
+   "emotion": "angry",
+   "modify": {
+    "intensity": -60
+   }
+  },
+  {
+   "id": "real_up_r_e_4_1",
+   "voice": "Spanish_PowerfulSoldier",
+   "text": "白虎相国，为汉王镇守四方！",
+   "vol": 2.1,
+   "speed": 0.86,
+   "emotion": "angry",
+   "modify": {
+    "intensity": -90
+   },
+   "tone": [
+    "为汉王/(wei4)(han4)(wang2)"
+   ]
+  },
+  {
+   "id": "real_up_r_e_4_2",
+   "voice": "Spanish_PowerfulSoldier",
+   "text": "相国驾虎，诸军听令！",
+   "vol": 2.1,
+   "speed": 0.86,
+   "emotion": "angry",
+   "modify": {
+    "intensity": -90
+   }
+  },
+  {
+   "id": "real_up_r_a_2_1",
+   "voice": "Spanish_PowerfulSoldier",
+   "text": "郎卫上值，汉王身边有我。",
+   "vol": 1.5,
+   "speed": 0.92,
+   "emotion": "calm",
+   "modify": {
+    "intensity": -40
+   }
+  },
+  {
+   "id": "real_up_r_a_2_2",
+   "voice": "Spanish_PowerfulSoldier",
+   "text": "升了郎卫，寸步不离汉王！",
+   "vol": 1.7,
+   "speed": 0.93,
+   "emotion": "angry",
+   "modify": {
+    "intensity": -60
+   }
+  },
+  {
+   "id": "real_up_r_a_3_1",
+   "voice": "Spanish_PowerfulSoldier",
+   "text": "中涓近侍，替汉王挡刀！",
+   "vol": 1.7,
+   "speed": 0.93,
+   "emotion": "angry",
+   "modify": {
+    "intensity": -60
+   },
+   "tone": [
+    "中涓/(zhong1)(juan1)"
+   ]
+  },
+  {
+   "id": "real_up_r_a_3_2",
+   "voice": "Spanish_PowerfulSoldier",
+   "text": "中涓在侧，汉王放心。",
+   "vol": 1.5,
+   "speed": 0.92,
+   "emotion": "calm",
+   "modify": {
+    "intensity": -40
+   },
+   "tone": [
+    "中涓/(zhong1)(juan1)"
+   ]
+  },
+  {
+   "id": "real_up_r_a_4_1",
+   "voice": "Spanish_PowerfulSoldier",
+   "text": "参乘虎卫，与汉王同车！",
+   "vol": 2.1,
+   "speed": 0.86,
+   "emotion": "angry",
+   "modify": {
+    "intensity": -90
+   },
+   "tone": [
+    "参乘/(can1)(sheng4)"
+   ]
+  },
+  {
+   "id": "real_up_r_a_4_2",
+   "voice": "Spanish_PowerfulSoldier",
+   "text": "车右虎卫，誓死护驾！",
+   "vol": 2.1,
+   "speed": 0.86,
+   "emotion": "angry",
+   "modify": {
+    "intensity": -90
+   }
+  },
+  {
+   "id": "real_up_b_p_2_1",
+   "voice": "Spanish_PowerfulVeteran",
+   "text": "锐卒！江东子弟不输人！",
+   "vol": 1.7,
+   "speed": 0.93,
+   "emotion": "angry",
+   "modify": {
+    "intensity": -60
+   }
+  },
+  {
+   "id": "real_up_b_p_2_2",
+   "voice": "Spanish_PowerfulVeteran",
+   "text": "楚锐卒，听令向前！",
+   "vol": 1.7,
+   "speed": 0.93,
+   "emotion": "angry",
+   "modify": {
+    "intensity": -60
+   }
+  },
+  {
+   "id": "real_up_b_p_3_1",
+   "voice": "Spanish_PowerfulVeteran",
+   "text": "持戟在手，谁敢近前！",
+   "vol": 1.7,
+   "speed": 0.93,
+   "emotion": "angry",
+   "modify": {
+    "intensity": -60
+   },
+   "tone": [
+    "持戟/(chi2)(ji3)"
+   ]
+  },
+  {
+   "id": "real_up_b_p_3_2",
+   "voice": "Spanish_PowerfulVeteran",
+   "text": "戟锋所指，敌阵自开！",
+   "vol": 1.7,
+   "speed": 0.93,
+   "emotion": "angry",
+   "modify": {
+    "intensity": -60
+   }
+  },
+  {
+   "id": "real_up_b_p_4_1",
+   "voice": "Spanish_PowerfulVeteran",
+   "text": "江东八千子弟，甲士在此！",
+   "vol": 2.1,
+   "speed": 0.86,
+   "emotion": "angry",
+   "modify": {
+    "intensity": -90
+   }
+  },
+  {
+   "id": "real_up_b_p_4_2",
+   "voice": "Spanish_PowerfulVeteran",
+   "text": "披甲执锐，为霸王死战！",
+   "vol": 2.1,
+   "speed": 0.86,
+   "emotion": "angry",
+   "modify": {
+    "intensity": -90
+   },
+   "tone": [
+    "为霸王/(wei4)(ba4)(wang2)"
+   ]
+  },
+  {
+   "id": "real_up_b_r_2_1",
+   "voice": "Spanish_PowerfulVeteran",
+   "text": "戎车已驾，楚军出击！",
+   "vol": 1.7,
+   "speed": 0.93,
+   "emotion": "angry",
+   "modify": {
+    "intensity": -60
+   }
+  },
+  {
+   "id": "real_up_b_r_2_2",
+   "voice": "Spanish_PowerfulVeteran",
+   "text": "戎车开道，都跟上！",
+   "vol": 1.7,
+   "speed": 0.93,
+   "emotion": "angry",
+   "modify": {
+    "intensity": -60
+   }
+  },
+  {
+   "id": "real_up_b_r_3_1",
+   "voice": "Spanish_PowerfulVeteran",
+   "text": "陷阵车，专破坚阵！",
+   "vol": 1.7,
+   "speed": 0.93,
+   "emotion": "angry",
+   "modify": {
+    "intensity": -60
+   }
+  },
+  {
+   "id": "real_up_b_r_3_2",
+   "voice": "Spanish_PowerfulVeteran",
+   "text": "陷阵车到，汉阵必破！",
+   "vol": 1.7,
+   "speed": 0.93,
+   "emotion": "angry",
+   "modify": {
+    "intensity": -60
+   }
+  },
+  {
+   "id": "real_up_b_r_4_1",
+   "voice": "Spanish_PowerfulVeteran",
+   "text": "霸王车骑，所向披靡！",
+   "vol": 2.1,
+   "speed": 0.86,
+   "emotion": "angry",
+   "modify": {
+    "intensity": -90
+   },
+   "tone": [
+    "车骑/(che1)(qi2)"
+   ]
+  },
+  {
+   "id": "real_up_b_r_4_2",
+   "voice": "Spanish_PowerfulVeteran",
+   "text": "车骑冲阵，随霸王破汉！",
+   "vol": 2.1,
+   "speed": 0.86,
+   "emotion": "angry",
+   "modify": {
+    "intensity": -90
+   },
+   "tone": [
+    "车骑/(che1)(qi2)"
+   ]
+  },
+  {
+   "id": "real_up_b_n_2_1",
+   "voice": "Spanish_PowerfulVeteran",
+   "text": "楚骁骑，来去如风！",
+   "vol": 1.7,
+   "speed": 0.93,
+   "emotion": "angry",
+   "modify": {
+    "intensity": -60
+   },
+   "tone": [
+    "骁骑/(xiao1)(qi2)"
+   ]
+  },
+  {
+   "id": "real_up_b_n_2_2",
+   "voice": "Spanish_PowerfulVeteran",
+   "text": "骁骑上马，<#0.15#>追！",
+   "vol": 1.7,
+   "speed": 0.93,
+   "emotion": "angry",
+   "modify": {
+    "intensity": -60
+   },
+   "tone": [
+    "骁骑/(xiao1)(qi2)"
+   ]
+  },
+  {
+   "id": "real_up_b_n_3_1",
+   "voice": "Spanish_PowerfulVeteran",
+   "text": "乌骓骑，与霸王同驰！",
+   "vol": 2.1,
+   "speed": 0.86,
+   "emotion": "angry",
+   "modify": {
+    "intensity": -90
+   },
+   "tone": [
+    "乌骓/(wu1)(zhui1)"
+   ]
+  },
+  {
+   "id": "real_up_b_n_3_2",
+   "voice": "Spanish_PowerfulVeteran",
+   "text": "跟着乌骓跑，谁追得上！",
+   "vol": 1.7,
+   "speed": 0.93,
+   "emotion": "angry",
+   "modify": {
+    "intensity": -60
+   },
+   "tone": [
+    "乌骓/(wu1)(zhui1)"
+   ]
+  },
+  {
+   "id": "real_up_b_c_2_1",
+   "voice": "Spanish_PowerfulVeteran",
+   "text": "抛石就位，砸烂汉营！",
+   "vol": 1.7,
+   "speed": 0.93,
+   "emotion": "angry",
+   "modify": {
+    "intensity": -60
+   }
+  },
+  {
+   "id": "real_up_b_c_2_2",
+   "voice": "Spanish_PowerfulVeteran",
+   "text": "石弹上好了，等他们来！",
+   "vol": 1.7,
+   "speed": 0.93,
+   "emotion": "angry",
+   "modify": {
+    "intensity": -60
+   }
+  },
+  {
+   "id": "real_up_b_c_3_1",
+   "voice": "Spanish_PowerfulVeteran",
+   "text": "霹雳炮响，天崩地裂！",
+   "vol": 2.1,
+   "speed": 0.86,
+   "emotion": "angry",
+   "modify": {
+    "intensity": -90
+   }
+  },
+  {
+   "id": "real_up_b_c_3_2",
+   "voice": "Spanish_PowerfulVeteran",
+   "text": "霹雳炮上阵，叫汉军尝尝！",
+   "vol": 1.7,
+   "speed": 0.93,
+   "emotion": "angry",
+   "modify": {
+    "intensity": -60
+   }
+  },
+  {
+   "id": "real_up_b_e_2_1",
+   "voice": "Spanish_PowerfulVeteran",
+   "text": "战象披挂，踏平汉阵！",
+   "vol": 1.7,
+   "speed": 0.93,
+   "emotion": "angry",
+   "modify": {
+    "intensity": -60
+   }
+  },
+  {
+   "id": "real_up_b_e_2_2",
+   "voice": "Spanish_PowerfulVeteran",
+   "text": "大象发怒了，都退后！",
+   "vol": 1.7,
+   "speed": 0.93,
+   "emotion": "angry",
+   "modify": {
+    "intensity": -60
+   }
+  },
+  {
+   "id": "real_up_b_e_3_1",
+   "voice": "Spanish_PowerfulVeteran",
+   "text": "云梦泽的巨象，出山了！",
+   "vol": 1.7,
+   "speed": 0.93,
+   "emotion": "angry",
+   "modify": {
+    "intensity": -60
+   }
+  },
+  {
+   "id": "real_up_b_e_3_2",
+   "voice": "Spanish_PowerfulVeteran",
+   "text": "巨象一步，地动山摇！",
+   "vol": 2.1,
+   "speed": 0.86,
+   "emotion": "angry",
+   "modify": {
+    "intensity": -90
+   }
+  },
+  {
+   "id": "real_up_b_e_4_1",
+   "voice": "Spanish_PowerfulVeteran",
+   "text": "金甲象军，刀枪不入！",
+   "vol": 2.1,
+   "speed": 0.86,
+   "emotion": "angry",
+   "modify": {
+    "intensity": -90
+   }
+  },
+  {
+   "id": "real_up_b_e_4_2",
+   "voice": "Spanish_PowerfulVeteran",
+   "text": "象军披金甲，谁敢来挡！",
+   "vol": 2.1,
+   "speed": 0.86,
+   "emotion": "angry",
+   "modify": {
+    "intensity": -90
+   }
+  },
+  {
+   "id": "real_up_b_a_2_1",
+   "voice": "Spanish_PowerfulVeteran",
+   "text": "楚郎卫，护卫霸王左右！",
+   "vol": 1.7,
+   "speed": 0.93,
+   "emotion": "angry",
+   "modify": {
+    "intensity": -60
+   }
+  },
+  {
+   "id": "real_up_b_a_2_2",
+   "voice": "Spanish_PowerfulVeteran",
+   "text": "郎卫上值，大营无忧。",
+   "vol": 1.5,
+   "speed": 0.92,
+   "emotion": "calm",
+   "modify": {
+    "intensity": -40
+   }
+  },
+  {
+   "id": "real_up_b_a_3_1",
+   "voice": "Spanish_PowerfulVeteran",
+   "text": "执戟郎，守在帐前！",
+   "vol": 1.7,
+   "speed": 0.93,
+   "emotion": "angry",
+   "modify": {
+    "intensity": -60
+   },
+   "tone": [
+    "执戟/(zhi2)(ji3)"
+   ]
+  },
+  {
+   "id": "real_up_b_a_3_2",
+   "voice": "Spanish_PowerfulVeteran",
+   "text": "当年韩信也做过执戟郎，<#0.15#>我可不跑！",
+   "vol": 1.7,
+   "speed": 0.93,
+   "emotion": "angry",
+   "modify": {
+    "intensity": -60
+   },
+   "tone": [
+    "执戟/(zhi2)(ji3)"
+   ]
+  },
+  {
+   "id": "real_up_b_a_4_1",
+   "voice": "Spanish_PowerfulVeteran",
+   "text": "重瞳亲卫，誓死护卫霸王！",
+   "vol": 2.1,
+   "speed": 0.86,
+   "emotion": "angry",
+   "modify": {
+    "intensity": -90
+   },
+   "tone": [
+    "重瞳/(chong2)(tong2)"
+   ]
+  },
+  {
+   "id": "real_up_b_a_4_2",
+   "voice": "Spanish_PowerfulVeteran",
+   "text": "霸王亲卫在此，谁敢放肆！",
+   "vol": 2.1,
+   "speed": 0.86,
+   "emotion": "angry",
+   "modify": {
+    "intensity": -90
+   }
+  },
+  {
+   "id": "real_up_r_r_h0_a1",
+   "voice": "male-qn-jingying",
+   "text": "(chuckle)臣，多多而益善耳！",
+   "vol": 1.6,
+   "speed": 0.92,
+   "emotion": "happy",
+   "modify": {
+    "pitch": -6
+   }
+  },
+  {
+   "id": "real_up_r_r_h0_a2",
+   "voice": "male-qn-jingying",
+   "text": "萧丞相说信国士无双，<#0.15#>今日便见分晓！",
+   "vol": 1.6,
+   "speed": 0.92,
+   "emotion": "calm",
+   "modify": {
+    "pitch": -6
+   }
+  },
+  {
+   "id": "real_up_r_r_h0_b1",
+   "voice": "Chinese (Mandarin)_Unrestrained_Young_Man",
+   "text": "(chuckle)臣，多多而益善耳！",
+   "vol": 1.6,
+   "speed": 0.92,
+   "emotion": "happy",
+   "modify": {
+    "pitch": -6
+   }
+  },
+  {
+   "id": "real_up_r_r_h1_a1",
+   "voice": "Chinese (Mandarin)_Sincere_Adult",
+   "text": "太仆夏侯婴，为大王执辔！",
+   "vol": 1.6,
+   "speed": 0.98,
+   "emotion": "happy",
+   "tone": [
+    "为大王/(wei4)(da4)(wang2)",
+    "执辔/(zhi2)(pei4)"
+   ]
+  },
+  {
+   "id": "real_up_r_r_h1_a2",
+   "voice": "Chinese (Mandarin)_Sincere_Adult",
+   "text": "彭城那么险都冲出来了，坐稳！",
+   "vol": 1.6,
+   "speed": 0.98,
+   "emotion": "happy"
+  },
+  {
+   "id": "real_up_r_r_h1_b1",
+   "voice": "male-qn-daxuesheng",
+   "text": "太仆夏侯婴，为大王执辔！",
+   "vol": 1.6,
+   "speed": 0.98,
+   "emotion": "happy",
+   "modify": {
+    "pitch": -8
+   },
+   "tone": [
+    "为大王/(wei4)(da4)(wang2)",
+    "执辔/(zhi2)(pei4)"
+   ]
+  },
+  {
+   "id": "real_up_r_p_h0_a1",
+   "voice": "Chinese (Mandarin)_Southern_Young_Man",
+   "text": "织箔吹箫的周勃，今天也当将军了！",
+   "vol": 1.7,
+   "speed": 0.9,
+   "emotion": "happy",
+   "modify": {
+    "pitch": -18,
+    "timbre": -20
+   },
+   "tone": [
+    "织箔/(zhi1)(bo2)"
+   ]
+  },
+  {
+   "id": "real_up_r_p_h0_a2",
+   "voice": "Chinese (Mandarin)_Southern_Young_Man",
+   "text": "勃重厚少文，只管往前打！",
+   "vol": 1.7,
+   "speed": 0.9,
+   "emotion": "angry",
+   "modify": {
+    "pitch": -18,
+    "timbre": -20
+   },
+   "tone": [
+    "重厚/(zhong4)(hou4)",
+    "少文/(shao3)(wen2)"
+   ]
+  },
+  {
+   "id": "real_up_r_p_h0_b1",
+   "voice": "Chinese (Mandarin)_Cute_Spirit",
+   "text": "织箔吹箫的周勃，今天也当将军了！",
+   "vol": 1.7,
+   "speed": 0.9,
+   "emotion": "happy",
+   "modify": {
+    "pitch": -25,
+    "timbre": -30
+   },
+   "tone": [
+    "织箔/(zhi1)(bo2)"
+   ]
+  },
+  {
+   "id": "real_up_r_p_h1_a1",
+   "voice": "Portuguese_PowerfulVeteran",
+   "text": "身被七十创，曹参照样上阵！",
+   "vol": 1.8,
+   "speed": 0.9,
+   "emotion": "angry",
+   "modify": {
+    "intensity": -60
+   },
+   "tone": [
+    "身被/(shen1)(pi1)",
+    "七十创/(qi1)(shi2)(chuang1)",
+    "曹参/(cao2)(can1)"
+   ]
+  },
+  {
+   "id": "real_up_r_p_h1_a2",
+   "voice": "Portuguese_PowerfulVeteran",
+   "text": "攻城略地，曹参功最多！",
+   "vol": 1.8,
+   "speed": 0.9,
+   "emotion": "happy",
+   "modify": {
+    "intensity": -60
+   },
    "tone": [
     "曹参/(cao2)(can1)"
    ]
   },
   {
-   "voice": "Chinese (Mandarin)_Reliable_Executive",
-   "pitch": -1,
-   "vol": 1.5,
-   "speed": 0.84,
-   "emotion": "fearful",
+   "id": "real_up_r_p_h1_b1",
+   "voice": "Spanish_Debator",
+   "text": "身被七十创，曹参照样上阵！",
+   "vol": 1.8,
+   "speed": 0.9,
+   "emotion": "angry",
    "modify": {
-    "pitch": -12,
-    "timbre": -8,
-    "intensity": -30
+    "intensity": -60
    },
-   "id": "real_r_h_p1_d1",
-   "text": "曹参！<#0.2#>(sniffs)身上七十处伤。",
    "tone": [
+    "身被/(shen1)(pi1)",
+    "七十创/(qi1)(shi2)(chuang1)",
     "曹参/(cao2)(can1)"
    ]
   },
   {
-   "voice": "Chinese (Mandarin)_Reliable_Executive",
-   "pitch": -1,
-   "vol": 1.4,
-   "speed": 0.76,
+   "id": "real_up_r_p_h2_a1",
+   "voice": "Chinese (Mandarin)_Stubborn_Friend",
+   "text": "老母伏剑，<#0.15#>陵，誓死事汉王！",
+   "vol": 1.7,
+   "speed": 0.9,
    "emotion": "sad",
    "modify": {
-    "pitch": -12,
-    "timbre": -8
-   },
-   "id": "real_r_h_p1_d2",
-   "text": "这回，没挺过去。(sighs)"
+    "pitch": -8
+   }
   },
   {
-   "voice": "Chinese (Mandarin)_Reliable_Executive",
-   "pitch": -1,
-   "vol": 1.2,
-   "speed": 0.74,
-   "emotion": "sad",
+   "id": "real_up_r_p_h2_a2",
+   "voice": "Chinese (Mandarin)_Stubborn_Friend",
+   "text": "汉王长者，王陵绝无二心！",
+   "vol": 1.7,
+   "speed": 0.9,
+   "emotion": "angry",
    "modify": {
-    "pitch": -12,
-    "timbre": -8
-   },
-   "id": "real_r_h_p1_d3",
-   "text": "这回。<#0.2#>没挺过去。"
+    "pitch": -8
+   }
   },
   {
-   "voice": "Chinese (Mandarin)_Reliable_Executive",
-   "pitch": -1,
-   "vol": 1.4,
-   "speed": 0.76,
-   "emotion": "sad",
+   "id": "real_up_r_p_h2_b1",
+   "voice": "Spanish_AngryMan",
+   "text": "老母伏剑，<#0.15#>陵，誓死事汉王！",
+   "vol": 1.7,
+   "speed": 0.9,
+   "emotion": "sad"
+  },
+  {
+   "id": "real_up_r_p_h3_a1",
+   "voice": "junlang_nanyou",
+   "text": "与大王同日生，绾愿同日战！",
+   "vol": 1.6,
+   "speed": 0.95,
+   "emotion": "happy"
+  },
+  {
+   "id": "real_up_r_p_h3_a2",
+   "voice": "junlang_nanyou",
+   "text": "丰邑同乡的卢绾，又来帮大王了！",
+   "vol": 1.6,
+   "speed": 0.95,
+   "emotion": "happy",
+   "tone": [
+    "卢绾/(lu2)(wan3)"
+   ]
+  },
+  {
+   "id": "real_up_r_p_h3_b1",
+   "voice": "Portuguese_Jovialman",
+   "text": "与大王同日生，绾愿同日战！",
+   "vol": 1.6,
+   "speed": 0.95,
+   "emotion": "happy"
+  },
+  {
+   "id": "real_up_r_p_h4_a1",
+   "voice": "lengdan_xiongzhang",
+   "text": "横阳起兵，傅宽一路随大王至今！",
+   "vol": 1.6,
+   "speed": 0.93,
+   "emotion": "calm"
+  },
+  {
+   "id": "real_up_r_p_h4_a2",
+   "voice": "lengdan_xiongzhang",
+   "text": "魏五大夫骑将傅宽，听令！",
+   "vol": 1.6,
+   "speed": 0.93,
+   "emotion": "angry",
+   "tone": [
+    "骑将/(qi2)(jiang4)",
+    "五大夫/(wu3)(da4)(fu1)"
+   ]
+  },
+  {
+   "id": "real_up_r_p_h4_b1",
+   "voice": "Spanish_ReliableMan",
+   "text": "横阳起兵，傅宽一路随大王至今！",
+   "vol": 1.6,
+   "speed": 0.93,
+   "emotion": "calm"
+  },
+  {
+   "id": "real_up_r_a_h0_a1",
+   "voice": "male-qn-badao",
+   "text": "臣死且不避，<#0.12#>卮酒安足辞！！",
+   "vol": 2.0,
+   "speed": 0.88,
+   "emotion": "angry",
    "modify": {
-    "pitch": -12,
-    "timbre": -8
+    "pitch": -20,
+    "timbre": -25,
+    "intensity": -70
    },
-   "id": "real_r_h_p4_c",
-   "text": "傅宽。<#0.3#>(sighs)好兄弟。<#0.25#>一路走好。"
+   "tone": [
+    "卮酒/(zhi1)(jiu3)"
+   ]
   },
   {
-   "voice": "Chinese (Mandarin)_Reliable_Executive",
-   "pitch": -1,
+   "id": "real_up_r_a_h0_a2",
+   "voice": "male-qn-badao",
+   "text": "屠狗的樊哙来了，谁敢动沛公！",
+   "vol": 2.0,
+   "speed": 0.88,
+   "emotion": "angry",
+   "modify": {
+    "pitch": -20,
+    "timbre": -25,
+    "intensity": -70
+   },
+   "tone": [
+    "樊哙/(fan2)(kuai4)",
+    "沛公/(pei4)(gong1)"
+   ]
+  },
+  {
+   "id": "real_up_r_a_h0_b1",
+   "voice": "Russian_Bad-temperedBoy",
+   "text": "臣死且不避，<#0.12#>卮酒安足辞！！",
+   "vol": 2.0,
+   "speed": 0.88,
+   "emotion": "angry",
+   "modify": {
+    "pitch": -15,
+    "intensity": -70
+   },
+   "tone": [
+    "卮酒/(zhi1)(jiu3)"
+   ]
+  },
+  {
+   "id": "real_up_r_a_h1_a1",
+   "voice": "Chinese (Mandarin)_Gentleman",
+   "text": "事已急矣。<#0.15#>臣请为王诳楚！",
    "vol": 1.5,
-   "speed": 0.8,
-   "emotion": "fearful",
+   "speed": 0.88,
+   "emotion": "calm",
    "modify": {
-    "pitch": -12,
-    "timbre": -8,
-    "intensity": -30
+    "pitch": -10
    },
-   "id": "real_r_h_p4_d",
-   "text": "傅宽！<#0.25#>(sniffs)好兄弟。<#0.2#>走好。"
+   "tone": [
+    "为王/(wei4)(wang2)",
+    "诳楚/(kuang2)(chu3)"
+   ]
   },
   {
-   "voice": "Chinese (Mandarin)_Reliable_Executive",
-   "pitch": -1,
+   "id": "real_up_r_a_h1_a2",
+   "voice": "Chinese (Mandarin)_Gentleman",
+   "text": "黄屋左纛，纪信替大王坐一回！",
    "vol": 1.5,
-   "speed": 0.84,
-   "emotion": "fearful",
+   "speed": 0.88,
+   "emotion": "happy",
    "modify": {
-    "pitch": -12,
-    "timbre": -8,
-    "intensity": -30
+    "pitch": -10
    },
-   "id": "real_r_h_p4_e1",
-   "text": "傅宽！(sniffs)"
+   "tone": [
+    "左纛/(zuo3)(dao4)"
+   ]
   },
   {
-   "voice": "Chinese (Mandarin)_Reliable_Executive",
-   "pitch": -1,
+   "id": "real_up_r_a_h1_b1",
+   "voice": "Spanish_ThoughtfulMan",
+   "text": "事已急矣。<#0.15#>臣请为王诳楚！",
+   "vol": 1.5,
+   "speed": 0.88,
+   "emotion": "calm",
+   "tone": [
+    "为王/(wei4)(wang2)",
+    "诳楚/(kuang2)(chu3)"
+   ]
+  },
+  {
+   "id": "real_up_r_e_h0_a1",
+   "voice": "Chinese (Mandarin)_Radio_Host",
+   "text": "臣请借前箸，为大王筹之。",
    "vol": 1.4,
-   "speed": 0.76,
-   "emotion": "sad",
+   "speed": 0.88,
+   "emotion": "calm",
+   "tone": [
+    "为大王/(wei4)(da4)(wang2)",
+    "前箸/(qian2)(zhu4)"
+   ]
+  },
+  {
+   "id": "real_up_r_e_h0_a2",
+   "voice": "Chinese (Mandarin)_Radio_Host",
+   "text": "博浪沙一椎，误中副车。<#0.2#>这回，不会了。",
+   "vol": 1.4,
+   "speed": 0.88,
+   "emotion": "calm",
+   "tone": [
+    "一椎/(yi1)(chui2)"
+   ]
+  },
+  {
+   "id": "real_up_r_e_h0_b1",
+   "voice": "Chinese (Mandarin)_Gentle_Youth",
+   "text": "臣请借前箸，为大王筹之。",
+   "vol": 1.4,
+   "speed": 0.88,
+   "emotion": "calm",
    "modify": {
-    "pitch": -12,
-    "timbre": -8
+    "pitch": -6
    },
-   "id": "real_r_h_p4_e2",
-   "text": "好兄弟。<#0.25#>走好。(sighs)"
+   "tone": [
+    "为大王/(wei4)(da4)(wang2)",
+    "前箸/(qian2)(zhu4)"
+   ]
+  },
+  {
+   "id": "real_up_r_e_h1_a1",
+   "voice": "Portuguese_CalmLeader",
+   "text": "诸将争金帛，何独收图书。",
+   "vol": 1.5,
+   "speed": 0.9,
+   "emotion": "calm"
+  },
+  {
+   "id": "real_up_r_e_h1_a2",
+   "voice": "Portuguese_CalmLeader",
+   "text": "关中有何，粮草不绝！",
+   "vol": 1.5,
+   "speed": 0.9,
+   "emotion": "happy"
+  },
+  {
+   "id": "real_up_r_e_h1_b1",
+   "voice": "Chinese (Mandarin)_Male_Announcer",
+   "text": "诸将争金帛，何独收图书。",
+   "vol": 1.5,
+   "speed": 0.9,
+   "emotion": "calm",
+   "modify": {
+    "pitch": -6
+   }
+  },
+  {
+   "id": "real_up_b_r_h0_a1",
+   "voice": "badao_shaoye",
+   "text": "吾平生知韩信为人，<#0.1#>(chuckle)易与耳！",
+   "vol": 1.7,
+   "speed": 0.9,
+   "emotion": "disgusted",
+   "modify": {
+    "pitch": -10
+   },
+   "tone": [
+    "易与/(yi4)(yu3)"
+   ]
+  },
+  {
+   "id": "real_up_b_r_h0_a2",
+   "voice": "badao_shaoye",
+   "text": "龙且奉霸王之命，渡水破汉！",
+   "vol": 1.7,
+   "speed": 0.9,
+   "emotion": "angry",
+   "modify": {
+    "pitch": -10
+   },
+   "tone": [
+    "龙且/(long2)(ju1)"
+   ]
+  },
+  {
+   "id": "real_up_b_r_h0_b1",
+   "voice": "Spanish_BossyLeader",
+   "text": "吾平生知韩信为人，<#0.1#>(chuckle)易与耳！",
+   "vol": 1.7,
+   "speed": 0.9,
+   "emotion": "disgusted",
+   "tone": [
+    "易与/(yi4)(yu3)"
+   ]
+  },
+  {
+   "id": "real_up_b_r_h1_a1",
+   "voice": "Portuguese_Strong-WilledBoy",
+   "text": "项王骨鲠之臣，钟离昧在此！",
+   "vol": 1.7,
+   "speed": 0.92,
+   "emotion": "angry",
+   "tone": [
+    "钟离昧/(zhong1)(li2)(mo4)",
+    "骨鲠/(gu3)(geng3)"
+   ]
+  },
+  {
+   "id": "real_up_b_r_h1_a2",
+   "voice": "Portuguese_Strong-WilledBoy",
+   "text": "陈平反间？<#0.12#>昧的心，是铁打的！",
+   "vol": 1.7,
+   "speed": 0.92,
+   "emotion": "angry",
+   "tone": [
+    "昧的/(mo4)(de5)"
+   ]
+  },
+  {
+   "id": "real_up_b_r_h1_b1",
+   "voice": "Spanish_Strong-WilledBoy",
+   "text": "项王骨鲠之臣，钟离昧在此！",
+   "vol": 1.7,
+   "speed": 0.92,
+   "emotion": "angry",
+   "tone": [
+    "钟离昧/(zhong1)(li2)(mo4)",
+    "骨鲠/(gu3)(geng3)"
+   ]
+  },
+  {
+   "id": "real_up_b_p_h0_a1",
+   "voice": "Chinese (Mandarin)_Unrestrained_Young_Man",
+   "text": "得黄金百斤，不如得季布一诺！",
+   "vol": 1.6,
+   "speed": 0.93,
+   "emotion": "happy"
+  },
+  {
+   "id": "real_up_b_p_h0_a2",
+   "voice": "Chinese (Mandarin)_Unrestrained_Young_Man",
+   "text": "季布数窘汉王，今日再窘一回！",
+   "vol": 1.6,
+   "speed": 0.93,
+   "emotion": "happy",
+   "tone": [
+    "数窘/(shuo4)(jiong3)"
+   ]
+  },
+  {
+   "id": "real_up_b_p_h0_b1",
+   "voice": "Portuguese_PassionateWarrior",
+   "text": "得黄金百斤，不如得季布一诺！",
+   "vol": 1.6,
+   "speed": 0.93,
+   "emotion": "happy"
+  },
+  {
+   "id": "real_up_b_p_h1_a1",
+   "voice": "Spanish_PassionateWarrior",
+   "text": "(laughs)人相我当刑而王，<#0.1#>几是乎！",
+   "vol": 1.8,
+   "speed": 0.92,
+   "emotion": "happy",
+   "modify": {
+    "intensity": -60
+   },
+   "tone": [
+    "相我/(xiang4)(wo3)",
+    "而王/(er2)(wang4)",
+    "几是乎/(ji1)(shi4)(hu1)"
+   ]
+  },
+  {
+   "id": "real_up_b_p_h1_a2",
+   "voice": "Spanish_PassionateWarrior",
+   "text": "黥面英布，为楚军前锋！",
+   "vol": 1.8,
+   "speed": 0.92,
+   "emotion": "angry",
+   "modify": {
+    "intensity": -60
+   },
+   "tone": [
+    "为楚军/(wei2)(chu3)(jun1)",
+    "黥面/(qing2)(mian4)"
+   ]
+  },
+  {
+   "id": "real_up_b_p_h1_b1",
+   "voice": "Portuguese_AngryMan",
+   "text": "(laughs)人相我当刑而王，<#0.1#>几是乎！",
+   "vol": 1.8,
+   "speed": 0.92,
+   "emotion": "happy",
+   "tone": [
+    "相我/(xiang4)(wo3)",
+    "而王/(er2)(wang4)",
+    "几是乎/(ji1)(shi4)(hu1)"
+   ]
+  },
+  {
+   "id": "real_up_b_p_h2_a1",
+   "voice": "male-qn-qingse",
+   "text": "江东虞子期，誓随霸王！",
+   "vol": 1.7,
+   "speed": 0.93,
+   "emotion": "angry",
+   "modify": {
+    "intensity": -40
+   }
+  },
+  {
+   "id": "real_up_b_p_h2_a2",
+   "voice": "male-qn-qingse",
+   "text": "为霸王，也为我妹子，子期死战！",
+   "vol": 1.7,
+   "speed": 0.93,
+   "emotion": "angry",
+   "modify": {
+    "intensity": -40
+   },
+   "tone": [
+    "为霸王/(wei4)(ba4)(wang2)"
+   ]
+  },
+  {
+   "id": "real_up_b_p_h2_b1",
+   "voice": "Korean_BraveYouth",
+   "text": "江东虞子期，誓随霸王！",
+   "vol": 1.7,
+   "speed": 0.93,
+   "emotion": "angry"
+  },
+  {
+   "id": "real_up_b_p_h3_a1",
+   "voice": "Spanish_Ghost",
+   "text": "(chuckle)亡在泽中的桓楚，回来了！",
+   "vol": 1.7,
+   "speed": 0.92,
+   "emotion": "happy",
+   "tone": [
+    "桓楚/(huan2)(chu3)",
+    "亡在/(wang2)(zai4)"
+   ]
+  },
+  {
+   "id": "real_up_b_p_h3_a2",
+   "voice": "Spanish_Ghost",
+   "text": "只有项籍知道我在哪，<#0.15#>我来也！",
+   "vol": 1.7,
+   "speed": 0.92,
+   "emotion": "happy"
+  },
+  {
+   "id": "real_up_b_p_h3_b1",
+   "voice": "Portuguese_Dramatist",
+   "text": "(chuckle)亡在泽中的桓楚，回来了！",
+   "vol": 1.7,
+   "speed": 0.92,
+   "emotion": "happy",
+   "tone": [
+    "桓楚/(huan2)(chu3)",
+    "亡在/(wang2)(zai4)"
+   ]
+  },
+  {
+   "id": "real_up_b_p_h4_a1",
+   "voice": "Spanish_Deep-tonedMan",
+   "text": "楚大司马周殷，领九江之兵！",
+   "vol": 1.6,
+   "speed": 0.9,
+   "emotion": "calm"
+  },
+  {
+   "id": "real_up_b_p_h4_a2",
+   "voice": "Spanish_Deep-tonedMan",
+   "text": "骨鲠之臣周殷，<#0.3#>绝不负楚……",
+   "vol": 1.6,
+   "speed": 0.9,
+   "emotion": "calm",
+   "tone": [
+    "骨鲠/(gu3)(geng3)"
+   ]
+  },
+  {
+   "id": "real_up_b_p_h4_b1",
+   "voice": "Portuguese_Godfather",
+   "text": "楚大司马周殷，领九江之兵！",
+   "vol": 1.6,
+   "speed": 0.9,
+   "emotion": "calm"
+  },
+  {
+   "id": "real_up_b_a_h0_a1",
+   "voice": "Portuguese_Grinch",
+   "text": "军中无以为乐，请以剑舞！",
+   "vol": 1.6,
+   "speed": 0.93,
+   "emotion": "happy",
+   "tone": [
+    "为乐/(wei2)(le4)"
+   ]
+  },
+  {
+   "id": "real_up_b_a_h0_a2",
+   "voice": "Portuguese_Grinch",
+   "text": "项庄舞剑，<#0.12#>(chuckle)意在沛公！",
+   "vol": 1.6,
+   "speed": 0.93,
+   "emotion": "happy",
+   "tone": [
+    "沛公/(pei4)(gong1)"
+   ]
+  },
+  {
+   "id": "real_up_b_a_h0_b1",
+   "voice": "Korean_CockyGuy",
+   "text": "军中无以为乐，请以剑舞！",
+   "vol": 1.6,
+   "speed": 0.93,
+   "emotion": "happy",
+   "tone": [
+    "为乐/(wei2)(le4)"
+   ]
+  },
+  {
+   "id": "real_up_b_a_h1_a1",
+   "voice": "Spanish_MaturePartner",
+   "text": "楚左尹项伯，项王季父是也！",
+   "vol": 1.5,
+   "speed": 0.9,
+   "emotion": "calm",
+   "tone": [
+    "左尹/(zuo3)(yin3)"
+   ]
+  },
+  {
+   "id": "real_up_b_a_h1_a2",
+   "voice": "Spanish_MaturePartner",
+   "text": "子房是故交。<#0.3#>今日，各为其主！",
+   "vol": 1.5,
+   "speed": 0.9,
+   "emotion": "calm",
+   "tone": [
+    "各为/(ge4)(wei4)"
+   ]
+  },
+  {
+   "id": "real_up_b_a_h1_b1",
+   "voice": "Portuguese_SereneElder",
+   "text": "楚左尹项伯，项王季父是也！",
+   "vol": 1.5,
+   "speed": 0.9,
+   "emotion": "calm",
+   "tone": [
+    "左尹/(zuo3)(yin3)"
+   ]
+  },
+  {
+   "id": "real_up_b_e_h0_a1",
+   "voice": "Spanish_SereneElder",
+   "text": "居鄛范增，<#0.1#>年七十，<#0.1#>好奇计！",
+   "vol": 1.6,
+   "speed": 0.86,
+   "emotion": "calm",
+   "tone": [
+    "居鄛/(ju1)(chao2)",
+    "好奇计/(hao4)(qi2)(ji4)"
+   ]
+  },
+  {
+   "id": "real_up_b_e_h0_a2",
+   "voice": "Spanish_SereneElder",
+   "text": "玉玦举了三回，<#0.2#>这回，莫再放走沛公！",
+   "vol": 1.6,
+   "speed": 0.86,
+   "emotion": "angry",
+   "tone": [
+    "玉玦/(yu4)(jue2)",
+    "沛公/(pei4)(gong1)"
+   ]
+  },
+  {
+   "id": "real_up_b_e_h0_b1",
+   "voice": "Chinese (Mandarin)_Humorous_Elder",
+   "text": "居鄛范增，<#0.1#>年七十，<#0.1#>好奇计！",
+   "vol": 1.6,
+   "speed": 0.86,
+   "emotion": "calm",
+   "tone": [
+    "居鄛/(ju1)(chao2)",
+    "好奇计/(hao4)(qi2)(ji4)"
+   ]
+  },
+  {
+   "id": "real_up_b_e_h1_a1",
+   "voice": "Portuguese_ReliableMan",
+   "text": "项氏宗亲项佗，愿为霸王效死！",
+   "vol": 1.6,
+   "speed": 0.93,
+   "emotion": "angry",
+   "tone": [
+    "为霸王/(wei4)(ba4)(wang2)",
+    "项佗/(xiang4)(tuo2)"
+   ]
+  },
+  {
+   "id": "real_up_b_e_h1_a2",
+   "voice": "Portuguese_ReliableMan",
+   "text": "当年领兵救魏，今日为霸王破汉！",
+   "vol": 1.6,
+   "speed": 0.93,
+   "emotion": "angry",
+   "tone": [
+    "为霸王/(wei4)(ba4)(wang2)"
+   ]
+  },
+  {
+   "id": "real_up_b_e_h1_b1",
+   "voice": "Spanish_RationalMan",
+   "text": "项氏宗亲项佗，愿为霸王效死！",
+   "vol": 1.6,
+   "speed": 0.93,
+   "emotion": "angry",
+   "tone": [
+    "为霸王/(wei4)(ba4)(wang2)",
+    "项佗/(xiang4)(tuo2)"
+   ]
   }
  ]
 }
