@@ -1,0 +1,3 @@
+{ "args": "--games 300 --seed 3000 --level hard --nodes hard=100000 --ai-r tools/variants/bfai_fast.js --ai-b git:4db9f8c",
+  "env": { "BFAI_LMR": "2" }, "chunks": 48,
+  "note": "只开“靠后安静着法少算一层”（+ 记表）执汉 对 线上，霸王 600 局（和 r22 同种子）：r22 合起来只有 53.7%，逐局比比 r20 只少算一层还差 → 拆开量" }

@@ -1,0 +1,3 @@
+{ "args": "--games 300 --seed 3000 --level hard --nodes hard=100000 --ai-r tools/variants/bfai_fast.js --ai-b git:4db9f8c",
+  "env": { "BFAI_LMR": "2", "BFAI_ROOTREL": "2" }, "chunks": 48,
+  "note": "少算一层 + 根上自己的关键升级（ROOTREL=2）执汉 对 线上，霸王 600 局；和 r22（再加被将军升级）、r23-lmr 逐局比" }

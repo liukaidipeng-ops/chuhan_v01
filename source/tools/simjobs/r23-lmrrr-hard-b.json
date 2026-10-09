@@ -1,0 +1,3 @@
+{ "args": "--games 300 --seed 3000 --level hard --nodes hard=100000 --ai-r git:4db9f8c --ai-b tools/variants/bfai_fast.js",
+  "env": { "BFAI_LMR": "2", "BFAI_ROOTREL": "2" }, "chunks": 48,
+  "note": "线上执汉 对 少算一层 + 根上关键升级执楚，霸王" }
