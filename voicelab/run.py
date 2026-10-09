@@ -107,7 +107,7 @@ for m in REQ.get('music', []):
             if st == 200 and br.get('status_code') == 0 and audio:
                 open(os.path.join(OUT, m['id'] + '.mp3'), 'wb').write(bytes.fromhex(audio))
                 rec.update(ok=True, host=host, model=model, info=r.get('extra_info')); break
-            if br.get('status_code') in (2153, 1004) or st in (401, 404, 410): closed.add(host); break   # 这个站点不给用（不开放 / 密钥不认）
+            if br.get('status_code') in (2153, 1004, 2049) or st in (401, 404, 410): closed.add(host); break   # 这个站点不给用（不开放 / 密钥不认）
             if br.get('status_code') == 1008: break   # 余额不足：别再试别的型号
         if rec.get('ok'): break
     LOG['jobs'].append(rec)
