@@ -8,7 +8,16 @@
   // 更新说明（设置里、大厅底部点「更新」查看；最新的放最前）
   const NEWS = [
     ['第六版', '2026 年 10 月', [
-      '落子要点两下：点了落点先框住，再点一次同一个落点才走，防误触（设置 → 对局与其他里可以关）。兵种开口说台词时不再原地站着等，先慢慢走起来。炮弹在空中的呼啸换成了真实录音，四种随机出',
+      '技能模式升级先弹确认框：写明升了以后血量、攻击怎么变，解锁什么技能、花多少军功、升完还剩多少，点「升级」才升；召回良将后的升级也一样',
+      '「视」按钮改成三档（对电脑、联机、观战）：沙盘（斜着看，能转能拖能缩放）→ 俯瞰（从正上方看，能拖能缩放）→ 定盘（从正上方看，锁住不动），换的时候在「谁走棋」下面亮一下名字；记住上次选的档。本地双人暂时照旧（按「视」换边）',
+      '落子确认的提示改短成「再次点击确认落子」，挪到「谁走棋」下面，不挡棋盘；技能模式里那句改成「再次点击或点「确定」落子」',
+      '打开快了很多：配音和声效改成进了大厅以后在后台下载，网页本身从 8 MB 减到 2.5 MB，手机上的加载页短多了，加载页也换成了真实的进度条。走子时不再一顿一顿（地上的血迹、蹄印烙进地面原来要等显卡，现在在内存里算）；待在大厅时不再空转动画，手机更省电。对局里一直卡会自动降一档画质；浏览器没开硬件加速（没用显卡）会提示怎么打开。电脑上进了大厅、建房间时整个浏览器卡住几秒的问题修好了（主帅头像改成事先画好的图，不再在你电脑上现画；显卡准备画面的活儿挪到加载页里、放到后台做），切换画质、技能模式开局时也不再顿一下',
+      '落子要点两下：点了落点，那里先出一个这枚棋子的半透明虚影（兵种模型模式下是整队兵马的虚影），一明一暗地呼吸，底下四个朱红折角框住落点，再点一次同一个落点才走；点到走不了的地方闪一下红色虚影，选中的子不丢。防误触，设置 → 对局与其他里可以关。电脑上选着子时，鼠标移到能走的点也会亮折角',
+      '轮到谁走，自家半场的格线跟着闪：默认「涌动」（一道淡淡的亮光从底线推到河边），也可以选「河岸」（只闪靠河那条线）或关掉（设置 → 对局与其他）。最后十秒和头像牌的朱框一个节拍',
+      '技能模式：升级时兵种会喊一句——二、三级按新称号说（「当上伍长了，五个弟兄跟我走！」），升到四级的名将各有自己的声音和台词（韩信「臣多多而益善耳！」、项庄「军中无以为乐，请以剑舞！」……），出自《史记》。四级名将走子、攻击、吃子、用技能时也各有自己的台词（樊哙的还在录），三级的兵用技能时也会喊一声',
+      '电脑更不容易送一步杀：选好一步之后会再查对方能不能一步将死自己（包括先升级再走），能就换一步',
+      '兵种开口说台词时不再原地站着等，先慢慢走起来。马每一步都说话。炮弹在空中的呼啸换成了真实录音，四种随机出',
+      '界面细节：技能栏按钮的朱线不再互相撞，设置页签换成墨底；工具栏「譜 視 設」改成简体；苹果手机微信里调大字号不再把界面撑乱',
       '轮到谁走，谁的头像牌外面多一圈朱红粗线；最后十秒粗线跟着读秒一亮一暗，越来越快。兵卒和炮过河不再走到岸边等船、上船下船，直接乘船过去，和平地一样快',
       '对局里的界面和其余弹窗也换成了新样子（头像牌、技能按钮、棋谱、喊话、玩法说明、暂停、终局卡片……），和大厅是一套',
       '将帅话多了：帅和将每次走、每次吃子都会说一句，各添了新词。还藏了些彩蛋——连着两次想走“将帅照面”的棋、开局第一步就动帅、帅亲手吃车、连着三回合都在走帅、连点自己的帅五下……各有各的说法；技能模式里四级名将阵亡，主帅会哀叹一声',
@@ -95,7 +104,7 @@
   };
   const S = {
     music: store.get('music', 'zen'), vMusic: store.get('vMusic', 55), vSfx: store.get('vSfx', 90), vVoice: store.get('vVoice', 100), voice: store.get('voice', 2),
-    models: store.get('models', 0), debris: store.get('debris', 3), confirm: store.get('confirm', 1),   // confirm：落子要点两下（Ham 10-09 要的，防误触；默认开）
+    models: store.get('models', 0), debris: store.get('debris', 3), confirm: store.get('confirm', 1), turnfx: store.get('turnfx', 'wave'),   // confirm：落子要点两下（Ham 10-09 要的，防误触；默认开）
     vis: store.get('vis', store.get('fx', 1) === 0 ? 'low' : 'cine'), gore: store.get('gore', 3), server: store.get('server', ''),
     speed: store.get('speed', 1.5), // 动画播放速度
   };
@@ -113,7 +122,7 @@
     Core.Time.boost = +S.speed || 1.5;
     Sfx.setVol('music', S.vMusic / 100 * 0.9); Sfx.setVol('sfx', S.vSfx / 100); Sfx.setVol('voice', S.vVoice / 100);
     Net.custom = S.server || '';
-    for (const k of ['music', 'vMusic', 'vSfx', 'vVoice', 'voice', 'vis', 'gore', 'server', 'speed', 'models', 'debris', 'confirm']) store.set(k, S[k]);
+    for (const k of ['music', 'vMusic', 'vSfx', 'vVoice', 'voice', 'vis', 'gore', 'server', 'speed', 'models', 'debris', 'confirm', 'turnfx']) store.set(k, S[k]);
   }
   Net.custom = S.server || '';
   Core.Time.boost = +S.speed || 1.5;
@@ -134,20 +143,62 @@
   Core.Cam.setSide('r');
   Board.faceViewer('r');
   Camp.init();
+  let lobbyIsUp; const lobbyUp = new Promise(r => { lobbyIsUp = r; });   // 加载页撤掉、大厅能点了
+  // 着色器先在后台编译（compileAsync：浏览器另开线程编，主线程不等），编好再画头几帧。
+  // 原来第一帧就同步编译，慢手机上要卡好几秒，正好压在刚打开页面的时候
+  // 头几帧（编着色器、画影子图）都在加载页底下做完，再撤加载页（10-09 Ham：电脑上打开就卡住——原来是大厅出来以后才编着色器，
+  //   Windows 上编一批着色器能卡好几秒，正好卡在大厅里点东西的时候）。最多等 6 秒
+  let warmed; const warmUp = new Promise(r => { warmed = r; });
+  { const canDraw = Core.render; if (canDraw) {
+    let ready = false, warm = 3; Core.render = false;
+    const done = () => { ready = true; };
+    Core.compileBg(Core.scene, Core.camera, 900).then(() => setTimeout(done, 50));
+    setTimeout(done, 8000);   // 万一一直不回话，也别一直不画
+    Core.onFrame(() => { if (!ready) { Core.render = false; return; } if (warm > 0) { warm--; if (!warm) warmed(); } Core.render = warm > 0 || $('lobby').classList.contains('hidden'); Core.sleepy = !Core.render; });   // 页面刚开时大厅也带着 hidden（等开场动画），不能拿它判断
+  } else warmed(); }
   Core.start();
   let lobbySpin = true;
   Core.onFrame(dt => { if (lobbySpin && !Core.Cam.cine) Core.Cam.theta += dt * 0.04; });
-  // 大厅现在是整屏不透明的（美术 M3），后面的三维场景看不见：大厅开着时不画，省电、省发热。开头先画 90 帧，把着色器编译掉，免得开局第一帧卡
-  { const canDraw = Core.render; let warm = 90; if (canDraw) Core.onFrame(() => { if (warm > 0) warm--; Core.render = warm > 0 || $('lobby').classList.contains('hidden'); }); }
-  setTimeout(() => { $('loading').style.opacity = 0; setTimeout(() => $('loading').remove(), 900); }, 500);
+  // 大厅现在是整屏不透明的（美术 M3），后面的三维场景看不见：大厅开着时不画，省电、省发热。开头先画几帧，把着色器编译掉、影子图画好，免得开局第一帧卡
+  // （原来画 90 帧，慢手机上要占好几秒、正好压在刚打开页面的时候；编译着色器第一帧就做完了，画 3 帧够了）
+  // 加载页进度：脚本都跑完、场景搭好是 95%，撤掉之前推到 100%
+  { const L = $('loading'); L.classList.add('real'); L.style.setProperty('--p', 0.95); }
+  Promise.race([warmUp, new Promise(r => setTimeout(r, 6000))]).then(() => {
+    $('loading').style.setProperty('--p', 1); setTimeout(() => { $('loading').style.opacity = 0; setTimeout(() => { $('loading').remove(); lobbyIsUp(); }, 900); }, 350);
+  });
+  // 配音包（几 MB）不等第一次点屏幕：大厅出来一会儿就在后台开始取，进对局时多半已经到了
+  setTimeout(() => { Voice.enabled = !!+S.voice; Voice.mode = +S.voice === 2 ? 'real' : 'orig'; }, 1500);
   // 首次触碰时解锁音频（iOS 必需）
   const unlock = () => { Sfx.init(); applySettings(); setTimeout(() => Voice.preload(['r_start', 'b_start', 'r_check', 'b_check', 'r_mate', 'b_mate']), 300); setTimeout(() => Voice.preload(Object.keys(Voice.LINES).filter(k => /_t\d|^ai_/.test(k))), 2500); setTimeout(() => Voice.preload(Object.keys(Voice.LINES).filter(k => /^u_/.test(k))), 4500); };
   window.addEventListener('pointerdown', unlock, { once: true });
   window.addEventListener('keydown', unlock, { once: true });
 
   // ---------- 主帅画像（用三维模型离屏渲染） ----------
-  const faces = {};
-  function portrait(kind) {
+  const faces = Object.assign({}, window.FACES || {});   // 主帅头像：事先画好的图（tools/faces.py 生成，build.js 内嵌），打开页面时不再现画
+  // 从显卡读回像素，不让主线程干等：WebGL2 先读进显卡这边的缓冲、插个「栅栏」，显卡画完了再取（取的时候不用等）；
+  //   老浏览器（WebGL1）还是直接读，会等一下
+  function readLater(R, rt, W, px) {
+    const gl = R.getContext();
+    if (!(window.WebGL2RenderingContext && gl instanceof WebGL2RenderingContext) || !gl.fenceSync) { R.readRenderTargetPixels(rt, 0, 0, W, W, px); return null; }
+    const buf = gl.createBuffer();
+    gl.bindBuffer(gl.PIXEL_PACK_BUFFER, buf); gl.bufferData(gl.PIXEL_PACK_BUFFER, px.byteLength, gl.STREAM_READ);
+    R.state.bindFramebuffer(gl.FRAMEBUFFER, R.properties.get(rt).__webglFramebuffer);   // 多重采样已经在 render 结束时合成到这张图上
+    gl.readPixels(0, 0, W, W, gl.RGBA, gl.UNSIGNED_BYTE, 0);
+    gl.bindBuffer(gl.PIXEL_PACK_BUFFER, null);
+    const sync = gl.fenceSync(gl.SYNC_GPU_COMMANDS_COMPLETE, 0); gl.flush();
+    return new Promise(res => {
+      const t0 = performance.now();
+      const tick = () => {
+        const st = gl.clientWaitSync(sync, 0, 0);
+        if (st === gl.TIMEOUT_EXPIRED && performance.now() - t0 < 3000) { setTimeout(tick, 30); return; }   // 3 秒还没好（软件渲染、对局里一直在画）就直接取，取的时候会等一下
+        gl.deleteSync(sync);
+        gl.bindBuffer(gl.PIXEL_PACK_BUFFER, buf); gl.getBufferSubData(gl.PIXEL_PACK_BUFFER, 0, px); gl.bindBuffer(gl.PIXEL_PACK_BUFFER, null);
+        gl.deleteBuffer(buf); res();
+      };
+      setTimeout(tick, 30);
+    });
+  }
+  async function portrait(kind) {
     const W = 256;
     const sc = new THREE.Scene();
     sc.add(new THREE.HemisphereLight(0xfff4e0, 0x6a5a48, 1.4));
@@ -164,11 +215,15 @@
     rt.texture.colorSpace = THREE.SRGBColorSpace;
     const R = Core.renderer, prev = R.getRenderTarget(), cc = R.getClearColor(new THREE.Color()), ca = R.getClearAlpha();
     const px = new Uint8Array(W * W * 4);
+    // 主帅模型的着色器先在后台编好（compileAsync），再画；不然第一次画要同步编译，电脑上能卡住好几秒
+    await Core.compileBg(sc, cam);
+    let wait = null;
     try {
       R.setRenderTarget(rt); R.setClearColor(0x000000, 0); R.clear(); R.render(sc, cam);
-      R.readRenderTargetPixels(rt, 0, 0, W, W, px);
+      wait = readLater(R, rt, W, px);
     } finally { R.setRenderTarget(prev); R.setClearColor(cc, ca); }
-    Core.disposeTree(h.group); rt.dispose();
+    Core.disposeTree(h.group);
+    try { await wait; } finally { rt.dispose(); }
     const c = document.createElement('canvas'); c.width = c.height = W;
     const g = c.getContext('2d');
     const bg = g.createRadialGradient(W * 0.5, W * 0.42, 10, W * 0.5, W * 0.5, W * 0.72);
@@ -183,11 +238,47 @@
     g.drawImage(t, 0, 0);
     return c.toDataURL('image/png');
   }
+  // 头像原来在玩家电脑上现画：要给主帅模型另编一批着色器、再从显卡读回像素。有的 Windows 电脑上这一下会让整个浏览器卡住几秒
+  //   （10-09 Ham：进大厅后、建房间时整个浏览器不动）。现在改成事先画好：只有带 ?makefaces 打开时才画，给 tools/faces.py 取图用
   function makeFaces() {
-    try { faces.r = portrait('liu'); faces.b = portrait('xiang'); } catch (e) { console.warn('画像生成失败', e); }
-    paintCards();
+    (async () => {
+      try { window.__faces = { r: await portrait('liu'), b: await portrait('xiang') }; } catch (e) { window.__faces = { err: String(e) }; }
+    })();
   }
-  setTimeout(makeFaces, 700);
+  if (/[?&]makefaces\b/.test(location.search)) lobbyUp.then(() => setTimeout(makeFaces, 500));
+  else try { localStorage.removeItem('xq3d-faces'); } catch (e) { }   // 以前存在本机的现画头像，不用了
+
+  // ---------- 卡顿对策 ----------
+  // 1) 浏览器没用显卡（硬件加速关了）：画质开头已经降到低（core.js），这里再告诉玩家怎么打开
+  lobbyUp.then(() => { if (Core.softGL && !Core.userQ) setTimeout(() => toast('这台设备的浏览器没有用显卡画图（硬件加速可能关了），所以会卡，已先用低画质。<br>在浏览器设置里打开「硬件加速 / 使用图形加速」，重启浏览器，会流畅很多。', 9000), 1200); });
+  // 2) 对局里一直卡：每 5 秒看一次，连着两次平均不到 25 帧就降一档画质（只这次打开有效，设置里存的不动；自己在设置里改过就不再自动降）
+  let autoQ = !Core.softGL, slowN = 0;
+  setInterval(() => {
+    const [n, avg] = Core.takeFrames();
+    if (!autoQ || document.hidden || !$('lobby').classList.contains('hidden') || n < 5) { slowN = 0; return; }
+    slowN = avg > 40 ? slowN + 1 : 0;
+    if (slowN >= 2 && Core.quality !== 'low') {
+      const q = Core.quality === 'high' ? 'mid' : 'low'; Core.setQuality(q, false); slowN = 0;
+      toast(`画面有点卡，已自动把画质降到「${q === 'mid' ? '中' : '低'}」（设置里可以改回来）`, 4000);
+    }
+  }, 5000);
+  // 3) 网址后面加 ?perf：左上角显示帧率、每帧绘制次数、显卡名字（查卡顿用，玩家看不到）
+  if (/[?&]perf\b/.test(location.search)) {
+    const d = document.createElement('div');
+    d.style.cssText = 'position:fixed;left:6px;top:6px;z-index:99999;background:rgba(0,0,0,.75);color:#9f9;font:12px/1.45 monospace;padding:6px 9px;border-radius:6px;pointer-events:none;white-space:pre';
+    document.body.appendChild(d);
+    let n = 0, t0 = performance.now(), lt = t0, worst = 0;
+    const tick = () => {
+      const t = performance.now(); worst = Math.max(worst, t - lt); lt = t; n++;
+      if (t - t0 >= 1000) {
+        const R = Core.renderer, i = R.info.render, c = R.domElement;
+        d.textContent = `${Math.round(n * 1000 / (t - t0))} 帧/秒  最慢一帧 ${worst.toFixed(0)} ms\n画质 ${Core.quality}  像素比 ${R.getPixelRatio()}  画布 ${c.width}×${c.height}\n每帧 ${i.calls} 次绘制  ${(i.triangles / 1000).toFixed(0)}K 三角形  影子 ${Core.sun.castShadow ? '开' : '关'}\n${Core.gpu || '显卡未知'}${Core.softGL ? '  ← 软件渲染，没用显卡！' : ''}\n后台编着色器：${Core.parallelGL ? '支持' : '不支持（换场景时可能整个浏览器顿一下）'}\n${navigator.userAgent.replace(/^Mozilla\/5\.0 /, '').slice(0, 90)}`;
+        n = 0; t0 = t; worst = 0;
+      }
+      requestAnimationFrame(tick);
+    };
+    requestAnimationFrame(tick);
+  }
 
   // ---------- 提示 ----------
   let toastT = null;
@@ -454,14 +545,18 @@
     $('netDot').classList.toggle('hidden', !(online() || watching()));
     $('netDot').classList.toggle('bad', (online() && Net.peerState !== 'ok') || ((online() || watching()) && !Net.lineOk));
     $('specN').textContent = (online() || watching()) && Spect.count ? `观战 ${Spect.count}` : '';
-    layoutHud();
+    layoutSoon();
     const left = opts.undo >= 99 ? '' : Math.max(0, opts.undo - undoUsed[actor()]);
     $('undoLeft').textContent = opts.undo ? (left === '' ? '∞' : left) : '';
     $('tUndo').disabled = !canUndo();
   }
   // 浮动元素按卡片实际位置摆放，避免互相压住
+  // 一步棋里 updateHud / renderBar 会被调好几次，每次 layoutHud 都要量元素位置（逼浏览器当场重排版面）。
+  // 攒到下一帧只排一次；窗口尺寸、卡片尺寸变了（resize / ResizeObserver）还是当场排
+  var hudQ = false;   // var：可能在这一行执行之前就被调到
+  function layoutSoon() { if (hudQ) return; hudQ = true; requestAnimationFrame(() => { hudQ = false; layoutHud(); }); }
   function layoutHud() {
-    if ($('hud').classList.contains('hidden')) return;
+    if ($('hud').classList.contains('hidden')) { document.documentElement.style.removeProperty('--below-status'); return; }
     const W = innerWidth, H = innerHeight;
     const compact = isCompact();
     document.body.classList.toggle('compact', compact);
@@ -471,6 +566,7 @@
     else if (W <= 1100) { st.left = (o.right + 18) + 'px'; st.top = (o.top + 4) + 'px'; st.transform = 'none'; }
     else { st.left = '50%'; st.top = ''; st.transform = 'translateX(-50%)'; }
     const sr = $('status').getBoundingClientRect();
+    document.documentElement.style.setProperty('--below-status', (sr.bottom + 10) + 'px');   // 提示框、视角提示都在「谁走棋」下面（美术 M11）
     const below = compact ? sr.bottom : o.bottom;
     $('bubOpp').style.top = (below + 12) + 'px';
     $('bubMe').style.bottom = (H - m.top + 12) + 'px';
@@ -544,6 +640,8 @@
       hurryKey = hk;
       for (const s of ['r', 'b']) { const c = cardFor(s), on = !!urgent && urgent.side === s; c.classList.toggle('hurry', on); if (on) c.style.setProperty('--beat', (0.26 + 0.074 * urgent.sec).toFixed(2) + 's'); }
     }
+    // 自家半场的格线闪（美术 M9）：和头像牌的朱框同一个条件、读秒时同一个节拍
+    if (typeof TurnGlow !== 'undefined') { const ts = mode && started && !game.result ? game.turn : null; TurnGlow.set(ts, S.turnfx, urgent && urgent.side === ts ? 0.26 + 0.074 * urgent.sec : 0); }
   }
   // 暂停中（见下面的暂停功能）
   // 人机 / 本地：随便停。联机：每人每局 3 次，每次最多 2 分钟，双方时钟都停；到点自动继续，暂停的一方可以提前继续
@@ -803,6 +901,7 @@
     // 技能模式的楚方主帅兵法用哪一套，记在这一局的选项里（bs = 1 背水一战）：新开的局用背水一战；
     //   没有这个记号的（改规则之前开的局接着下、房主还是旧版本、旧的复盘）照旧用破釜沉舟——联机双方、观众、接着下的局都看同一个记号，不会一边一套
     if (+opts.bf) { if (opts.bs == null && !state && (m === 'local' || m === 'ai' || m === 'host')) opts.bs = BS_NEW; BF.CFG.beishui.on = !!+opts.bs; }
+    if (+opts.bf) try { Voice.loadBF(); } catch (e) { }   // 技能模式专用的配音包（升级、名将、技能的台词）
     // 试行规则同样记在这一局的选项里（r6 = 1）：只有网址带 ?r6=1 的机器新开的局才有；没有这个记号的一律照现行规则
     //   自己新开的局（本地、人机、房主）每次都按这台设备现在的选择定；跟着别人的（客人、观众）和接着下的局看带来的记号
     if (+opts.bf) { if (!state && (m === 'local' || m === 'ai' || m === 'host')) opts.r6 = R6_NEW; BF.CFG.r6.on = !!+opts.r6; } else BF.CFG.r6.on = false;
@@ -821,6 +920,8 @@
     $('log').classList.toggle('jq', game.jq || !!game.bf);
     bfMode = null; dbgOn = false; dbgNoCd = false; dbgFree = false; $('bfDebug').classList.add('hidden'); $('bfReport').innerHTML = ''; $('bfReport').classList.toggle('hidden', !game.bf);
     $('tRule').classList.toggle('hidden', !game.bf);
+    Core.Cam.view = mode === 'local' ? 0 : Math.max(0, Math.min(2, +store.get('view', 0) || 0));   // 本地双人先照旧（「视」= 换边看），不用三档
+    $('tView').title = mode === 'local' ? '换边看 / 视角复位' : '换视角：沙盘 → 俯瞰 → 定盘';
     setView(mode === 'local' ? 'r' : side);
     $('lobby').classList.add('hidden'); $('hud').classList.remove('hidden');
     $('netbadge').classList.add('hidden');
@@ -1301,7 +1402,16 @@
     const x = e.clientX, y = e.clientY;
     tipT = setTimeout(() => { tipFor = 'board'; showTip(pieceTip(hit.p), pointRect(x, y)); }, 380);
   });
-  $('gl').addEventListener('pointerleave', () => { hoverKey = ''; clearTimeout(tipT); if (tipFor === 'board') hideTip(); });
+  $('gl').addEventListener('pointerleave', () => { hoverKey = ''; clearTimeout(tipT); if (tipFor === 'board') hideTip(); Board.hoverMark(null); });
+  // 电脑：选着子时鼠标移到能走的点，那里亮一个落点标记（Ham 10-09 11:37）；待确认的那个点已经有标记，不重复
+  let hmT = 0;
+  $('gl').addEventListener('pointermove', e => {
+    if (e.pointerType !== 'mouse') return;
+    const now = performance.now(); if (now - hmT < 40) return; hmT = now;
+    const q = sel && !busy && !Core.Cam.cine ? Board.pick(e.clientX, e.clientY) : null;
+    const ok = q && selMoves.some(m => m.to[0] === q[0] && m.to[1] === q[1]) && !(pendTo && pendTo[0] === q[0] && pendTo[1] === q[1]);
+    Board.hoverMark(ok ? q : null);
+  });
 
   // ---------- 点选 ----------
   $('gl').addEventListener('pointerup', e => {
@@ -1352,7 +1462,7 @@
     pendTo = to.slice();
     const L = withBad(bfDmg(selMoves), sel[0], sel[1]); L.ghost = pendTo;
     Board.showMoves(sel, L, !!+opts.hints); Sfx.select();
-    toast('再点一次这个落点，确认落子', 1800);
+    toast('再次点击确认落子', 1800);
     return true;
   }
   function withBad(list, f, r) {
@@ -1481,7 +1591,7 @@
     const h = bfNeedConfirm(a) || (aimed ? (bfHarm(a) || { list: [], ev: [] }) : null);
     if (!h && a.k === 'mv' && +S.confirm) {   // 落子确认：普通走子 / 攻击也先框住落点，再点一次（或点「确定」）才走
       const L = withBad(bfDmg(selMoves), from[0], from[1]); L.ghost = a.to;
-      bfMode = { kind: 'confirm', a, hint: '再点一次落点，或点「确定」落子' };
+      bfMode = { kind: 'confirm', a, hint: '再次点击或点「确定」落子' };   // Ham 审批台 art-042 选 A
       Board.showMoves(from, L, !!+opts.hints); Sfx.select(); renderBar(); return;
     }
     if (!h) { doBF(a); return; }
@@ -1726,6 +1836,24 @@
     const nx = p.lv + 1;
     return `<b>升${LVCN[nx]}级 ·「${game.rankName(p, nx)}」</b><br>${lvGain(p, nx)}，回满血。<br>花 ${cost} 军功` + (base > cost ? `（甲片省 ${base - cost}）` : '') + (halfNow(p) ? '<br><em>召回的子第一次升级半价</em>' : '') + `<br><small>甲片攒满 ${base} 片会自动升级，不花军功。</small>`;
   }
+  // 升级确认框（美术 M9 第 2 条 #mUp）：点「升 X 级」先弹框，写明升了以后血量、攻击怎么变、解锁什么技能、花多少军功；点「升级」才升。
+  //   召回良将落位后的「升 X 级」也弹（美术 M12，Ham 10-09 16:16 定）
+  let upOpen = false;
+  function upConfirm(p, cost, base, half) {
+    return new Promise(res => {
+      const nx = p.lv + 1, a = BF.levelInfo(p.t, p.s, p.lv), b = BF.levelInfo(p.t, p.s, nx), m = game.merit[p.s];
+      $('upT').textContent = `升${LVCN[nx]}级`;
+      $('upFrom').textContent = `${game.rankName(p, p.lv)} · ${LVCN[p.lv]}级`;
+      $('upTo').textContent = `${game.rankName(p, nx)} · ${LVCN[nx]}级`;
+      const row = (k, x, y) => `<tr><th>${k}</th><td>${x}</td><td class="to${y > x ? ' gain' : ''}">${y}</td></tr>`;
+      $('upTbl').innerHTML = '<thead><tr><th></th><th>现在</th><th>升级后</th></tr></thead><tbody>' + row('血量', a.hp, b.hp) + row('攻击', a.atk, b.atk) + '</tbody>';
+      $('upNew').innerHTML = b.skills.filter(k => !a.skills.includes(k)).map(k => `<li><b>${BF.SKILL_CN[k]}${BF.CFG.skills[k] && BF.CFG.skills[k].passive ? '（被动）' : ''}</b>${BF.SKILL_DESC[k] || ''}</li>`).join('');
+      $('upCost').textContent = `花费 ${cost} 军功，升完还剩 ${m - cost}` + (half ? '（召回半价）' : base > cost ? `（甲片省了 ${base - cost}）` : '') + '。升级后回满血。';
+      $('mUp').classList.remove('hidden'); upOpen = true;
+      const fin = v => { $('mUp').classList.add('hidden'); upOpen = false; $('upGo').onclick = $('upNo').onclick = null; res(v); };
+      $('upGo').onclick = () => fin(true); $('upNo').onclick = () => fin(false);
+    });
+  }
   // 棋子说明（悬停 / 长按棋子）：只说要紧的，一条一行
   function pieceTip(p) {
     const nm = `${SIDE_ARMY[p.s]}${pname(p)}`, hero = game.heroName ? game.heroName(p) : '';
@@ -1879,11 +2007,11 @@
       if (!a.p) hint = game.freeUsed ? '已架拒马 · 请再走一步棋' : `${SIDE_ARMY[side]}行动 · 军功 ${game.merit[side]}`;
       if (isCompact() && !game.freeUsed) hint = '';
     }
-    if (!B.length && !(bfMode && bfMode.bs)) { bar.classList.add('hidden'); $('bfRow').innerHTML = ''; $('bfHint').textContent = ''; layoutHud(); return; }
+    if (!B.length && !(bfMode && bfMode.bs)) { bar.classList.add('hidden'); $('bfRow').innerHTML = ''; $('bfHint').textContent = ''; layoutSoon(); return; }
     $('bfHint').textContent = hint;
     $('bfRow').innerHTML = B.join('');
     $('bfRow').querySelectorAll('button[data-a]').forEach(b => b.onclick = ev => { ev.stopPropagation(); bfButton(b.dataset.a, b); });
-    layoutHud();
+    layoutSoon();
   }
   let skillCycle = 0;
   $('skHint').addEventListener('click', ev => { ev.stopPropagation(); bfButton('pickSkill'); });
@@ -1899,6 +2027,12 @@
     if (a === 'bsRedo') { if (bfMode && bfMode.bs) bsReset(); return; }
     if (a === 'rvUp' || a === 'rvEnd') {   // 召回落位后：升级 / 不升级，这时才真正提交
       const M = bfMode; if (!M || M.kind !== 'rvUp' || !canAct()) return;
+      if (a === 'rvUp') {   // 升级先弹确认框；取消就回到「升级 / 结束回合 / 重选」，什么都不提交
+        if (upOpen) return;
+        const key = game.entries.length;
+        const ok = await upConfirm({ s: game.turn, t: M.o.t, lv: M.o.upLv - 1 }, M.o.upCost, M.o.upCost, !!(r6On() && r6On().reviveHalf));
+        if (!ok || bfMode !== M || game.entries.length !== key || !canAct()) return;
+      }
       bfMode = null; rvLanded = M.o.id;
       const e = { k: 'art', id: M.o.id, at: M.at.slice() }; if (a === 'rvUp') e.up = true;
       if (!doBF(e)) { rvLanded = null; Board.reconcile(game); renderBar(); }
@@ -1908,7 +2042,14 @@
     if (a === 'rvRedo') { if (bfMode && bfMode.kind === 'rvUp') { exitBfMode(false); renderBar(); reviveFlow(); } return; }
     if (a === 'ok') { if (bfMode && bfMode.kind === 'confirm') { const act = bfMode.a; bfMode = null; doBF(act); } return; }
     if (a === 'cancel') { if (bfMode && bfMode.bs) return; exitBfMode(false); Board.clearMoves(false); if (sel) bfSelect(sel[0], sel[1]); renderBar(); return; }
-    if (a === 'up' && sel) { doBF({ k: 'up', at: sel }); return; }
+    if (a === 'up' && sel) {
+      const av = bfAvail();
+      if (!av.p || !av.canUp || av.cost == null) { doBF({ k: 'up', at: sel }); return; }   // 升不了：照原来的路子走（会说明原因）
+      if (upOpen) return;
+      const at = sel.slice(), key = game.entries.length;
+      upConfirm(av.p, av.cost, av.base, halfNow(av.p)).then(ok => { if (ok && game.entries.length === key && canAct()) doBF({ k: 'up', at }); });   // 框开着的时候棋局变了（超时、对方动了），就不升
+      return;
+    }
     if (a === 'sk' && sel) {
       const av = bfAvail(), skn = (el && el.dataset.sk) || game.skillOf(av.p), k = (av.skills || []).find(x => x.sk === skn);
       if (!k) return;
@@ -2727,6 +2868,8 @@
   $('tLaugh').onclick = specLaugh;
   // 退出对局 = 回到主菜单（不重载页面）。只有演出正放到一半、状态收不干净时才退而求其次整页重载
   function leaveGame() {
+    document.documentElement.style.removeProperty('--below-status');
+    if (upOpen) $('upNo').click();   // 升级确认框开着就关掉
     cancelAI();
     try { if (online()) Net.send({ t: 'bye' }); } catch (e) { }
     try { Net.close(); } catch (e) { }
@@ -3036,8 +3179,8 @@
 
   // ---------- 设置 ----------
   bindSeg($('mSet'), 'data-s', k => (k === 'quality' ? Core.quality : S[k]), (k, v) => {
-    if (k === 'quality') { Core.setQuality(v); toast('画质已调整（阴影开关在下次打开时生效）'); return; }
-    S[k] = (k === 'music' || k === 'vis') ? v : +v; applySettings();
+    if (k === 'quality') { Core.setQuality(v); autoQ = false; toast('画质已调整'); return; }   // 自己选过画质，就不再自动降
+    S[k] = (k === 'music' || k === 'vis' || k === 'turnfx') ? v : +v; applySettings();
     if (k === 'music' && (started || !mode)) { Sfx.init(); if (mode && !Ending.running) Sfx.Music.start(finalFx && v !== 'off' ? 'final' : v); }
   });
   $('vMusic').value = S.vMusic; $('vSfx').value = S.vSfx; $('oServer').value = S.server;
@@ -3105,7 +3248,22 @@
   // ---------- 对局按钮 ----------
   $('tUndo').onclick = requestUndo;
   // 視：画面被平移过就先归位；本地对战再点一次才是换边看
-  $('tView').onclick = () => { if (mode === 'local' && !Core.Cam.panned) setView(viewSide === 'r' ? 'b' : 'r'); else setView(viewSide); };
+  // 视角三档（美术 M11）：每按一下 沙盘 → 俯瞰 → 定盘 → 沙盘，换的时候在「谁走棋」下面亮一下名字和说明；记住上次选的档。
+  //   本地双人原来按「视」是换边看：换边以后放哪还没定（放在决策台上问 Ham），本地双人先照旧换边
+  const VIEW_S = ['斜着看，能转、能拖、能缩放', '从正上方看，能拖、能缩放', '从正上方看，锁住不动'];
+  Core.Cam.view = Math.max(0, Math.min(2, +store.get('view', 0) || 0));
+  let viewTagT = 0;
+  function showViewTag(v) {
+    $('viewTag').querySelectorAll('.row span').forEach(sp => sp.classList.toggle('on', +sp.dataset.v === v));
+    $('viewTagS').textContent = VIEW_S[v];
+    $('viewTag').classList.add('on'); clearTimeout(viewTagT); viewTagT = setTimeout(() => $('viewTag').classList.remove('on'), 1500);
+  }
+  $('tView').onclick = () => {
+    if (mode === 'local' && !Core.Cam.panned) { setView(viewSide === 'r' ? 'b' : 'r'); return; }
+    if (mode === 'local') { setView(viewSide); return; }
+    const v = (Core.Cam.view + 1) % 3; store.set('view', v);
+    Core.Cam.setView(v, viewSide); showViewTag(v);
+  };
   setInterval(() => $('tView').classList.toggle('flash', !!mode && Core.Cam.panned && !Core.Cam.cine), 300);
   $('tPause').onclick = togglePause; $('pzGo').onclick = () => togglePause();
   $('tLog').onclick = () => { const h = !$('log').classList.contains('hidden'); $('log').classList.toggle('hidden', h); if (!h) renderLog(); };

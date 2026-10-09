@@ -1072,6 +1072,7 @@ html:has(#endcard:not(.hidden)),html:has(#endcard:not(.hidden)) body,html:has(#e
 <div id="vignette"></div>
 
 <div id="loading"><div class="big">技能新象棋</div><div class="ld"><div class="bar"><i id="loadBar"></i></div><div class="note" id="loadTxt">研墨铺纸…</div></div></div>
+<script>/* 真实进度：页面下到哪、脚本跑到哪（build.js 在每段脚本前插 LD），下载占 0～90%，开局前的准备占最后 10%（main.js） */function LD(p){var L=document.getElementById('loading');if(!L)return;L.classList.add('real');L.style.setProperty('--p',Math.min(.9,p*.9))}</script>
 
 <!-- 对局界面 -->
 <div id="hud" class="hidden">

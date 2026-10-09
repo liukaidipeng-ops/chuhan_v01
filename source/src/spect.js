@@ -269,7 +269,8 @@ const Spect = (() => {
       if (!p.path.length) { p.path = null; u.p.set(p.pos.x, yAt(p.pos), p.pos.z); if (u.pose === 'march') u.pose = 'idle'; }
       else if (u.pose === 'idle') u.pose = 'march';
     }
-    for (const t of Object.values(troops)) t.update(dt);
+    // 没人观战的那一队整队藏起来、也不算动作：原来 3 队 × 8 个隐形小兵每帧照样画（24 次绘制）、照样算
+    for (const t of Object.values(troops)) { const on = t.units.some(u => u.vis > 0); t.group.visible = on; if (on) t.update(dt); }
     if (!people.size) return;
     const W = innerWidth, H = innerHeight;
     const vis = [];

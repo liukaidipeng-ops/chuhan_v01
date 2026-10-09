@@ -755,12 +755,17 @@ const Board = (() => {
     const w = hc.width, h = hc.height, src = hc.getContext('2d').getImageData(0, 0, w, h).data;
     return mkCanvas(w, h, g => {
       const im = g.createImageData(w, h), d = im.data;
-      const H = (x, y) => { if (wrapX) x = (x + w) % w; else x = Math.max(0, Math.min(w - 1, x)); y = Math.max(0, Math.min(h - 1, y)); return src[(y * w + x) * 4] / 255; };
-      for (let y = 0; y < h; y++) for (let x = 0; x < w; x++) {
-        let nx = -(H(x + 1, y) - H(x - 1, y)) * k, ny = (H(x, y + 1) - H(x, y - 1)) * k, nz = 1;
+      // 左右上下邻居的下标先算好（原来每个像素调四次取样函数，大贴图开页面时要多花半秒多）
+      const xl = new Int32Array(w), xr = new Int32Array(w), kk = k / 255;
+      for (let x = 0; x < w; x++) { xl[x] = wrapX ? (x - 1 + w) % w : Math.max(0, x - 1); xr[x] = wrapX ? (x + 1) % w : Math.min(w - 1, x + 1); }
+      for (let y = 0; y < h; y++) {
+        const r0 = y * w, ru = Math.min(h - 1, y + 1) * w, rd = Math.max(0, y - 1) * w;
+        for (let x = 0; x < w; x++) {
+        let nx = -(src[(r0 + xr[x]) * 4] - src[(r0 + xl[x]) * 4]) * kk, ny = (src[(ru + x) * 4] - src[(rd + x) * 4]) * kk, nz = 1;
         if (dome) { nx += ((x + 0.5) / w * 2 - 1) * dome; ny -= ((y + 0.5) / h * 2 - 1) * dome; }
-        const l = Math.hypot(nx, ny, nz), i = (y * w + x) * 4;
+        const l = Math.sqrt(nx * nx + ny * ny + nz * nz), i = (r0 + x) * 4;
         d[i] = (nx / l * 0.5 + 0.5) * 255; d[i + 1] = (ny / l * 0.5 + 0.5) * 255; d[i + 2] = (nz / l * 0.5 + 0.5) * 255; d[i + 3] = 255;
+        }
       }
       g.putImageData(im, 0, 0);
     });
@@ -1315,7 +1320,7 @@ const Board = (() => {
       const e = enamelFace('r', 'p', 'gold'), fm = phys({ transparent: true, metalness: 1, roughness: 1, clearcoat: 0.8, clearcoatRoughness: 0.08, map: e.map, roughnessMap: e.orm, metalnessMap: e.orm, aoMap: e.orm, polygonOffset: true, polygonOffsetFactor: -2, ...(envTex ? { envMap: envTex } : {}) });
       tmp.add(new THREE.Mesh(faceGeo, fm));
       tmp.position.set(0, -50, 0); scene.add(tmp);
-      Core.renderer.compile(scene, Core.camera);
+      Core.compileBg(tmp, Core.camera, 300, scene);   // 只编这几种升级材质（用场景的灯光），放后台编；原来是同步把整个场景编一遍，有的电脑上整个浏览器会卡住
       scene.remove(tmp); prewarmSkins.keep = fm; // 留着这份材质：一释放，刚编好的着色器也会被删掉
     } catch (e) { console.warn('prewarmSkins', e); }
   }
@@ -1578,12 +1583,14 @@ const Board = (() => {
     }
     // 落子确认：选中的那枚棋子在落点上留一个蓝色虚影，再点一次才走（Ham 10-09）
     if (moves.ghost && sel) {
+      // 落点标记（Ham 10-09 11:37）：虚影底下一个小标记，点明落在哪
+      markRoot.add(pointMark(moves.ghost[0], moves.ghost[1], 1));
       const g = ghostOf(sel, moves.ghost, false);
       if (g) {
         markRoot.add(g);
-        // 呼吸：透明度在 0.32～0.72 之间一明一暗，约 1.6 秒一下；虚影被清掉（确认、取消、换子）时跟着停
+        // 呼吸：透明度在 0.22～0.46 之间一明一暗，约 1.6 秒一下（Ham 10-09：虚影再淡一点，原来 0.32～0.72）；虚影被清掉（确认、取消、换子）时跟着停
         let t = 0; const mats = g.userData.mats;
-        const off = Core.onFrame(dt => { if (!g.parent) { off(); if (g.userData.drop) g.userData.drop(); return; } t += dt; const k = 0.52 + 0.2 * Math.sin(t * Math.PI * 2 / 1.6); for (const m of mats) m.opacity = m.userData.o0 * k; });
+        const off = Core.onFrame(dt => { if (!g.parent) { off(); if (g.userData.drop) g.userData.drop(); return; } t += dt; const k = GHOST_A + 0.12 * Math.sin(t * Math.PI * 2 / 1.6); for (const m of mats) m.opacity = m.userData.o0 * k; });
       }
     }
     // 选定的技能目标：一个转着的瞄准圈把它框住
@@ -1709,6 +1716,31 @@ const Board = (() => {
   // 模型显示模式下棋盘上的圆棋子是藏起来的（squads.showDisc），虚影照样画圆棋子：落点上要的是「这枚子」的样子。
   // bad=true：点到走不了的地方，同样的虚影带一点红。
   const GHOST_RED = new THREE.Color(0xd8341f);
+  const GHOST_A = 0.34;   // 虚影平均的透明度（乘在原材质上）
+  // 落点标记（Ham 10-09 选了第三案「朱红折角」）：四个直角，和棋盘上炮位、兵位的折角记号一个样子；比棋子大一圈，虚影盖不住
+  let markT = null;
+  function markTex() {
+    if (markT) return markT;
+    markT = canvasTex(256, 256, (g, w) => {
+      g.clearRect(0, 0, w, w); const c = w / 2, d = w * 0.36, l = w * 0.11;
+      g.strokeStyle = '#c8321f'; g.globalAlpha = 0.92; g.lineWidth = w * 0.026; g.lineCap = 'square';
+      for (const sx of [-1, 1]) for (const sy of [-1, 1]) { g.beginPath(); g.moveTo(c + sx * d, c + sy * (d - l)); g.lineTo(c + sx * d, c + sy * d); g.lineTo(c + sx * (d - l), c + sy * d); g.stroke(); }
+    });
+    markT.colorSpace = THREE.SRGBColorSpace;
+    return markT;
+  }
+  function pointMark(f, r, op = 1) {
+    const m = decal(markTex(), 0xffffff, 1.25, X(f), Z(r), TOP + 0.0062, op);
+    m.renderOrder = 5; return m;
+  }
+  // 电脑上鼠标移到能走的点：那里显示同样的标记（淡一点）。main.js 的 pointermove 调 hoverMark([f, r]) / hoverMark(null)
+  let hoverMk = null, hoverAt = '';
+  function hoverMark(at) {
+    const key = at ? at[0] + ',' + at[1] : '';
+    if (key === hoverAt) return; hoverAt = key;
+    if (hoverMk) { scene.remove(hoverMk); hoverMk.material.dispose(); hoverMk = null; }
+    if (at) { hoverMk = pointMark(at[0], at[1], 0.6); scene.add(hoverMk); }
+  }
   // 走不了的虚影染红（10-09 Ham：再红一点）：颜色往朱红拉七成，再加一层红色自发光
   const ghostMat = (m, bad, mats) => {
     const c = m.clone(); c.transparent = true; c.depthWrite = false; c.userData = Object.assign({}, m.userData, { o0: m.opacity == null ? 1 : m.opacity });
@@ -1735,7 +1767,7 @@ const Board = (() => {
     const g = new THREE.Group(); g.userData.mats = mats;
     let gone = false;
     g.userData.drop = () => { if (gone) return; gone = true; try { if (sq.guard) sq.guard.dispose(); sq.dispose(); } catch (e) { } for (const m of mats) m.dispose(); };   // 炮的炮手由 Cannon.dispose 一起收
-    for (const m of mats) m.opacity = m.userData.o0 * 0.52;
+    for (const m of mats) m.opacity = m.userData.o0 * GHOST_A;
     return g;
   }
   function ghostOf(sel, at, bad) {
@@ -1754,7 +1786,7 @@ const Board = (() => {
     };
     const g = copy(src, 0, 0); g.visible = true;
     g.position.set(X(at[0]), TOP, Z(at[1])); g.rotation.set(0, src.rotation.y, 0); g.renderOrder = 6;
-    for (const m of mats) m.opacity = m.userData.o0 * 0.52;
+    for (const m of mats) m.opacity = m.userData.o0 * GHOST_A;
     g.userData.mats = mats;
     return g;
   }
@@ -1770,6 +1802,7 @@ const Board = (() => {
     });
   }
   function clearMoves(immediate = true) {
+    hoverMark(null);
     if (hovered) {
       if (immediate) { hovered.position.y = TOP; hovered.rotation.x = hovered.rotation.z = 0; }
       else dropping.add(hovered);
@@ -1884,7 +1917,7 @@ const Board = (() => {
   })();
   return {
     root, TOP, PH, HALF, X, Z, pos, setPosition, syncPosition, pieces, piecesRoot, makePiece, faceViewer,
-    showMoves, clearMoves, flashBad, showZone, showBad, showStep, setGlow, showLast, pick, meshAt, get hovered() { return hovered; }, ringTex, glowTex, wakes, water, waterMat, decal, flatGeo, pine, deco, FONT,
+    showMoves, clearMoves, flashBad, hoverMark, showZone, showBad, showStep, setGlow, showLast, pick, meshAt, get hovered() { return hovered; }, ringTex, glowTex, wakes, water, waterMat, decal, flatGeo, pine, deco, FONT,
     viewSide: 'r', setSkin, dress, get lastGame() { return lastGame; }, skinTune, get SK() { return SK; }, pieceWood, RZ, BZ, BX, BRIDGE_X, faceTex, backTex, setFace, makeRiver, mtTex, decorate, decorateAll, reconcile, plateGeo, plateOn,
   };
 })();

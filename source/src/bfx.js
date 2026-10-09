@@ -241,6 +241,30 @@ const BFX = (() => {
     if (T0) { c.survive = !!tHit && !tKill; c.killed = !!tKill; c.counter = died ? 'die' : counter ? 'hurt' : null; c.ranged = !!opts.ranged; }
     await Fx.playMove(info, { c, noCamp: opts.noCamp });
     if (tHit) shatter(to, 1);
+    if (!Fx.state.quiet) {
+      // 四级名将吃掉对方之后补一句（攻击那句在冲出去时已经喊过）
+      const hk = tKill ? Fx.heroKey(P0) : null;
+      if (hk) Fx.unitSay(hk + '_k1', { delay: 0.15 });
+      // 撞上拒马、被刺死：架拒马的那一方说拒马的击杀句
+      if (died) {
+        let J = null; for (const row of board) for (const q of row) if (q && q.id === counter.by) J = q;
+        if (J) { const jk = Fx.heroKey(J); Fx.unitSay(jk ? jk + '_sk_juma' : `sk_${J.s}_juma_k`, { delay: 0.2 }); }
+      }
+    }
+  }
+  // 技能台词（被动技能没有）：用的时候说一句；技能杀了对方的子，再补一句。四级名将用自己的声音，三级用兵的声音
+  const PASSIVE = new Set(['jianta', 'shensu', 'huifang', 'jinwei']);
+  function skillLine(P0, sk, side, kill) {
+    if (!P0 || PASSIVE.has(sk)) return 0;
+    const hk = Fx.heroKey(P0);
+    if (kill) return Fx.unitSay(hk ? `${hk}_sk_${sk}` : `sk_${side}_${sk}_k`, { delay: 0.1 });
+    return Fx.unitSay(hk ? `${hk}_s_${sk}` : [`sk_${side}_${sk}_1`, `sk_${side}_${sk}_2`], { delay: 0.15 });
+  }
+  // 升级台词：二、三级说称号的两句之一；四级说这位名将的两句之一。返回这句有多长（秒）
+  function upLine(info) {
+    if (info.t === 'e' && info.side === 'r' && !Models.TIGER) return 0;   // 汉相的升级词是按“虎骑”写的
+    const hk = info.lv === 4 ? Fx.heroKey({ s: info.side, t: info.t, lv: 4, nm: info.nm, id: info.id }) : null;
+    return Fx.unitSay(hk ? [hk + '_up1', hk + '_up2'] : [`up_${info.side}_${info.t}_${info.lv}_1`, `up_${info.side}_${info.t}_${info.lv}_2`], { delay: 0.3 });
   }
 
   async function play(info, game) {
@@ -296,10 +320,13 @@ const BFX = (() => {
     // 称号题签要等棋子换好新装（落回棋盘）再亮出来
     const hero = BF.heroName({ s: info.side, t: info.t, nm: info.nm }), rk = BF.rankName(info.side, info.t, info.lv);
     setTimeout(() => rankPop(info.at, hero || rk, info.side, info.lv, max, hero ? rk : info.auto ? '战功晋升' : ''), 200);
+    const said = upLine(info);
     // 四级：名将登场，题字亮名
     if (hero && (cine() || Fx.level === 'std')) { title(hero, (info.side === 'r' ? '汉' : '楚') + ' · ' + rk, 1700); Sfx.B.gong(0.1, 0.8); }
     await tween(0.3, k => { m.position.y = TOP + Math.sin(k * Math.PI) * 0.35; m.rotation.y = (Board.viewSide === 'b' ? Math.PI : 0) + k * Math.PI * 2; }, ease.inOut);
     m.position.y = TOP; m.rotation.y = Board.viewSide === 'b' ? Math.PI : 0;
+    // 升级词说完再往下走（紧接着走子的话，兵种那一路会把它截掉）
+    if (said > 0) await sleep(Math.min(said + 0.3, 3.2) - 0.3);
   }
   // 神速营：疾奔如风，越过中间的子落到空位
   async function dash(P0, at, to, side) {
@@ -359,6 +386,14 @@ const BFX = (() => {
     await sleep(0.25);
   }
   async function skill(info, before) {
+    const P0 = before[info.from[1]][info.from[0]], sk = info.extra.sk;
+    const active = !PASSIVE.has(sk);
+    if (active && !(sk === 'hujia' && info.extra.rescue)) skillLine(P0, sk, info.side, false);   // 樊哙闯帐有自己的对白
+    Fx.state.quiet = active;
+    try { await skillFx(info, before); } finally { Fx.state.quiet = false; }
+    if (active && sk !== 'juma' && sk !== 'hujia' && (info.ev || []).some(e => e.e === 'kill' && !e.friendly && e.s !== info.side)) skillLine(P0, sk, info.side, true);
+  }
+  async function skillFx(info, before) {
     const ev = info.ev, sk = info.extra.sk, side = info.side, at = info.from, to = info.to;
     const P0 = before[at[1]][at[0]];
     const name = BF.SKILL_CN[sk];

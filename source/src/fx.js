@@ -5,7 +5,7 @@ const Fx = (() => {
   const TOP = Board.TOP;
   const R = (a, b) => a + Math.random() * (b - a);
   const LOW = () => Core.quality === 'low';
-  const state = { level: 'cine', gore: 3, ply: 0, keep: 0 };
+  const state = { level: 'cine', gore: 3, ply: 0, keep: 0, quiet: false };   // quiet：技能演出中，走子不说兵种台词
 
   // ---------- 粒子 ----------
   const pools = { n: [], a: [] };
@@ -181,7 +181,9 @@ const Fx = (() => {
   //  地面痕迹：先清晰，再逐渐淡到 30%，然后"烙"进棋盘图层永久保留
   // ======================================================================
   // 每种痕迹都备几张不同的图，落地时再随机大小、长宽比和朝向，免得满盘一个模子
-  const many = (n, w, h, draw) => Array.from({ length: n }, (_, i) => canvasTex(w, h, (g, W, H) => draw(g, W, H, i)));
+  // 地上痕迹用的贴图画在内存画布上（willReadFrequently）：烙进地面图层时要读它的像素，显卡画布读一次要等显卡交货
+  const mtex = (w, h, draw) => canvasTex(w, h, draw, { read: true });
+  const many = (n, w, h, draw) => Array.from({ length: n }, (_, i) => mtex(w, h, (g, W, H) => draw(g, W, H, i)));
   const pick = a => (Array.isArray(a) ? a[Math.floor(Math.random() * a.length)] : a);
   const MT = {
     // 焦土：射线多少、长短、偏心、主墨团大小、是否多团、是否烧空了心，每张都不一样
@@ -206,7 +208,7 @@ const Fx = (() => {
       for (let k = 0; k < flecks; k++) { const a = rnd() * 6.28, d = w * (0.2 + rnd() * 0.25); inkBlot(g, c + Math.cos(a) * d, c + Math.sin(a) * d, 1 + rnd() * 5, 0.8, 0.4); }
       if (i === 3 || i === 5) { g.globalCompositeOperation = 'destination-out'; inkBlot(g, c + (rnd() - 0.5) * 24, c + (rnd() - 0.5) * 24, main * (0.3 + rnd() * 0.2), 0.55, 0.5); }
     }),
-    scorchRim: canvasTex(256, 256, (g, w) => {
+    scorchRim: mtex(256, 256, (g, w) => {
       const gr = g.createRadialGradient(w / 2, w / 2, w * 0.2, w / 2, w / 2, w * 0.48);
       gr.addColorStop(0, 'rgba(255,255,255,0)'); gr.addColorStop(0.5, 'rgba(255,255,255,.7)'); gr.addColorStop(1, 'rgba(255,255,255,0)');
       g.fillStyle = gr; g.fillRect(0, 0, w, w);
@@ -263,12 +265,12 @@ const Fx = (() => {
       for (let x = 20; x < w - 20; x += 3) { const t = x / w, r = fat * Math.sin(Math.PI * Math.min(1, t * 1.15)) * (0.75 + rnd() * 0.35); g.globalAlpha = 0.55 + rnd() * 0.45; g.beginPath(); g.ellipse(x, h / 2 + Math.sin(x * fq) * wob, 4, Math.max(2, r), 0, 0, 7); g.fill(); }
       g.globalAlpha = 1; for (let k = 0; k < 6 + rnd() * 10; k++) inkBlot(g, 20 + rnd() * (w - 40), h / 2 + (rnd() - 0.5) * 60, 1.5 + rnd() * 4, 1, 0.4);
     }),
-    rut: canvasTex(256, 64, (g, w, h) => {
+    rut: mtex(256, 64, (g, w, h) => {
       for (let x = 0; x < w; x += 2) { g.fillStyle = `rgba(255,255,255,${0.3 + rnd() * 0.5})`; g.fillRect(x, h * 0.3 + (rnd() - 0.5) * 3, 2, h * 0.4 * (0.6 + rnd() * 0.5)); }
       for (let i = 0; i < 30; i++) { g.fillStyle = 'rgba(255,255,255,.5)'; g.fillRect(rnd() * w, h * 0.2 + rnd() * h * 0.6, 2 + rnd() * 3, 1 + rnd() * 2); }
     }),
-    hoof: canvasTex(64, 64, (g, w) => { g.strokeStyle = '#fff'; g.lineWidth = 9; g.lineCap = 'round'; g.beginPath(); g.arc(w / 2, w / 2 + 4, w * 0.28, Math.PI * 0.95, Math.PI * 2.05, true); g.stroke(); }),
-    foot: canvasTex(64, 64, (g, w) => { g.fillStyle = '#fff'; inkBlot(g, w / 2, w / 2, 22, 1, 0.2); g.globalCompositeOperation = 'destination-out'; inkBlot(g, w / 2, w / 2, 14, 0.5, 0.2); }),
+    hoof: mtex(64, 64, (g, w) => { g.strokeStyle = '#fff'; g.lineWidth = 9; g.lineCap = 'round'; g.beginPath(); g.arc(w / 2, w / 2 + 4, w * 0.28, Math.PI * 0.95, Math.PI * 2.05, true); g.stroke(); }),
+    foot: mtex(64, 64, (g, w) => { g.fillStyle = '#fff'; inkBlot(g, w / 2, w / 2, 22, 1, 0.2); g.globalCompositeOperation = 'destination-out'; inkBlot(g, w / 2, w / 2, 14, 0.5, 0.2); }),
     streak: many(3, 512, 96, (g, w, h) => {
       g.fillStyle = '#fff'; const top = 0.1 + rnd() * 0.2, bot = 0.55 + rnd() * 0.25, end = 0.3 + rnd() * 0.4;
       g.beginPath(); g.moveTo(10, h / 2); g.quadraticCurveTo(w * (0.3 + rnd() * 0.3), h * top, w - 10, h * end); g.quadraticCurveTo(w * (0.35 + rnd() * 0.3), h * bot, 10, h / 2); g.fill();
@@ -303,8 +305,8 @@ const Fx = (() => {
       g.globalAlpha = 1; g.fillStyle = '#fff'; inkBlot(g, w / 2, w / 2, 14 + rnd() * 22, 1, 0.5);
       for (let k = 0; k < 14; k++) { const a = rnd() * 6.28, d = 30 + rnd() * 150; inkBlot(g, w / 2 + Math.cos(a) * d, w / 2 + Math.sin(a) * d, 1.5 + rnd() * 4, 0.9, 0.3); }
     }),
-    hole: canvasTex(64, 64, (g, w) => { g.fillStyle = '#fff'; inkBlot(g, w / 2, w / 2, 7, 1, 0.3); }),
-    drag: canvasTex(256, 64, (g, w, h) => { g.fillStyle = '#fff'; for (let x = 0; x < w; x += 3) { g.globalAlpha = 0.2 + 0.6 * (1 - x / w); inkBlot(g, x, h / 2 + (rnd() - 0.5) * 8, 6 + rnd() * 6 * (1 - x / w), 1, 0.4); } }),
+    hole: mtex(64, 64, (g, w) => { g.fillStyle = '#fff'; inkBlot(g, w / 2, w / 2, 7, 1, 0.3); }),
+    drag: mtex(256, 64, (g, w, h) => { g.fillStyle = '#fff'; for (let x = 0; x < w; x += 3) { g.globalAlpha = 0.2 + 0.6 * (1 - x / w); inkBlot(g, x, h / 2 + (rnd() - 0.5) * 8, 6 + rnd() * 6 * (1 - x / w), 1, 0.4); } }),
   };
   // 永久图层（覆盖棋盘面）
   const BX = 4.75, BZ = Board.BZ;
@@ -316,12 +318,32 @@ const Fx = (() => {
   const layer = new THREE.Mesh(layerGeo, new THREE.MeshBasicMaterial({ map: layerTex, transparent: true, depthWrite: false, polygonOffset: true, polygonOffsetFactor: -1, polygonOffsetUnits: -1 }));
   layer.position.y = TOP + 0.0008; layer.renderOrder = 1;
   scene.add(layer);
-  let layerDirty = false;
+  let layerDirty = false, lastUp = 0;
+  const pend = [];   // 已经烙进图层、等图层下一次传上显卡再撤掉的痕迹（同一帧撤，画面不闪）
   // 烙进图层：每层痕迹留 30%，重叠处的浓度是相加的（30% + 30% + …，封顶 MARK_CAP），
   // 而且叠得越多颜色越往焦黑里沉 —— 反复厮杀的地方会越打越黑，所有痕迹都留着
   const MARK_CAP = 0.9;
-  const scratch = document.createElement('canvas'); scratch.width = scratch.height = 64;
-  const sg = scratch.getContext('2d', { willReadFrequently: true });
+  // 痕迹贴图的透明度，取一次存成数组（附带逐级缩小一半的几层，缩得很小时用，免得颗粒感）。
+  // 原来每烙一次都在画布上旋转缩放、再把像素读回来；读像素要等显卡交货，走一步马蹄印、车辙几十个，
+  // 走子时脚本时间的大半都耗在这上面。现在全在内存里算，不碰画布
+  const alphaCache = new Map();
+  function alphaOf(img) {
+    let L = alphaCache.get(img);
+    if (L) return L;
+    const c = document.createElement('canvas'); c.width = img.width; c.height = img.height;
+    const g = c.getContext('2d', { willReadFrequently: true }); g.drawImage(img, 0, 0);
+    const d = g.getImageData(0, 0, c.width, c.height).data;
+    let w = c.width, h = c.height, A = new Uint8Array(w * h);
+    for (let i = 0; i < A.length; i++) A[i] = d[i * 4 + 3];
+    L = [{ A, w, h }];
+    while (w >= 4 && h >= 4) {
+      const w2 = w >> 1, h2 = h >> 1, B = new Uint8Array(w2 * h2), P = L[L.length - 1].A;
+      for (let y = 0; y < h2; y++) for (let x = 0; x < w2; x++) { const o = 2 * y * w + 2 * x; B[y * w2 + x] = (P[o] + P[o + 1] + P[o + w] + P[o + w + 1] + 2) >> 2; }
+      L.push({ A: B, w: w2, h: h2 }); w = w2; h = h2;
+    }
+    alphaCache.set(img, L);
+    return L;
+  }
   function bake(r) {
     const { x, z } = r.m.position;
     const ppu = LAY_W / (2 * BX);
@@ -331,27 +353,40 @@ const Fx = (() => {
     const bw = Math.ceil(w * co + h * si) + 2, bh = Math.ceil(w * si + h * co) + 2;
     const x0 = Math.max(0, Math.floor(cx - bw / 2)), y0 = Math.max(0, Math.floor(cy - bh / 2));
     const W = Math.min(LAY_W, Math.ceil(cx + bw / 2)) - x0, H = Math.min(LAY_H, Math.ceil(cy + bh / 2)) - y0;
-    if (W <= 0 || H <= 0) return;
-    if (scratch.width < W) scratch.width = W;
-    if (scratch.height < H) scratch.height = H;
-    sg.setTransform(1, 0, 0, 1, 0, 0); sg.clearRect(0, 0, W, H);
-    sg.translate(cx - x0, cy - y0); sg.rotate(rot);
-    sg.drawImage(r.tex.image, -w / 2, -h / 2, w, h);
-    const src = sg.getImageData(0, 0, W, H).data, dst = lg.getImageData(x0, y0, W, H), d = dst.data;
+    if (W <= 0 || H <= 0 || w < 0.5 || h < 0.5) return false;
+    const levels = alphaOf(r.tex.image);
+    // 贴图比要烙的大小大出几倍，就用缩小过的那一层
+    let lv = 0; while (lv + 1 < levels.length && Math.min(levels[lv].w / w, levels[lv].h / h) >= 2) lv++;
+    const { A, w: TW, h: TH } = levels[lv];
+    const dst = lg.getImageData(x0, y0, W, H), d = dst.data;
     const cr = (r.color >> 16) & 255, cg = (r.color >> 8) & 255, cb = r.color & 255, k = r.op * 0.3 / 255;
-    for (let i = 0; i < d.length; i += 4) {
-      const as = src[i + 3] * k;
-      if (as < 0.004) continue;
-      const ad = d[i + 3] / 255, sum = ad + as;
-      const dark = 1 - 0.5 * ad * Math.min(1, as / 0.2);      // 底下已经有多浓，这一层就把颜色压多暗
-      d[i] = (d[i] * ad + cr * as) / sum * dark;
-      d[i + 1] = (d[i + 1] * ad + cg * as) / sum * dark;
-      d[i + 2] = (d[i + 2] * ad + cb * as) / sum * dark;
-      d[i + 3] = Math.min(MARK_CAP, sum) * 255;
+    const C = Math.cos(rot), S = Math.sin(rot), su = TW / w, sv = TH / h;
+    // 每个像素反算回贴图上的位置（和画布 translate → rotate → drawImage 一样的变换），双线性取透明度
+    for (let py = 0; py < H; py++) {
+      const dy = y0 + py + 0.5 - cy;
+      for (let px = 0; px < W; px++) {
+        const dx = x0 + px + 0.5 - cx;
+        const u = (dx * C + dy * S + w / 2) * su - 0.5, v = (-dx * S + dy * C + h / 2) * sv - 0.5;
+        if (u <= -1 || v <= -1 || u >= TW || v >= TH) continue;
+        const iu = Math.floor(u), iv = Math.floor(v), fu = u - iu, fv = v - iv, okL = iu >= 0, okR = iu + 1 < TW, okT = iv >= 0, okB = iv + 1 < TH, o = iv * TW + iu;
+        const a00 = okL && okT ? A[o] : 0, a10 = okR && okT ? A[o + 1] : 0, a01 = okL && okB ? A[o + TW] : 0, a11 = okR && okB ? A[o + TW + 1] : 0;
+        const as = ((a00 + (a10 - a00) * fu) * (1 - fv) + (a01 + (a11 - a01) * fu) * fv) * k;
+        if (as < 0.004) continue;
+        const i = (py * W + px) * 4;
+        const ad = d[i + 3] / 255, sum = ad + as;
+        const dark = 1 - 0.5 * ad * Math.min(1, as / 0.2);      // 底下已经有多浓，这一层就把颜色压多暗
+        d[i] = (d[i] * ad + cr * as) / sum * dark;
+        d[i + 1] = (d[i + 1] * ad + cg * as) / sum * dark;
+        d[i + 2] = (d[i + 2] * ad + cb * as) / sum * dark;
+        d[i + 3] = Math.min(MARK_CAP, sum) * 255;
+      }
     }
     lg.putImageData(dst, x0, y0);
     layerDirty = true;
+    return true;
   }
+  // 一个痕迹到期：烙进图层；图层传上显卡的那一帧再把它本身撤掉
+  function retire(r) { if (bake(r)) pend.push(r.m); else { scene.remove(r.m); r.m.material.dispose(); } }
   const marks = [];
   const markGeo = new THREE.PlaneGeometry(1, 1); markGeo.rotateX(-Math.PI / 2);
   let markSeq = 0;
@@ -365,7 +400,7 @@ const Fx = (() => {
     scene.add(m);
     const rec = { m, tex, color, t: 0, op, hold, fade, grow, sx, sz };
     marks.push(rec);
-    if (marks.length > (LOW() ? 50 : 120)) { const o = marks.shift(); bake(o); scene.remove(o.m); o.m.material.dispose(); }
+    if (marks.length > (LOW() ? 50 : 120)) retire(marks.shift());
     return rec;
   }
   onFrame(dt => {
@@ -377,15 +412,18 @@ const Fx = (() => {
       let o = r.op * Math.min(1, r.t / 0.08);
       if (r.t > r.hold) o = r.op * (1 - 0.7 * Math.min(1, (r.t - r.hold) / r.fade));
       r.m.material.opacity = o;
-      if (r.t > r.hold + r.fade) { bake(r); scene.remove(r.m); r.m.material.dispose(); marks.splice(i, 1); }
+      if (r.t > r.hold + r.fade) { retire(r); marks.splice(i, 1); }
     }
-    if (layerDirty) { layerTex.needsUpdate = true; layerDirty = false; }
+    // 图层整张（1024×1255）重新传上显卡：原来每烙一次（走子时几乎每帧）都传一回，现在最多 0.2 秒一回
+    const now = performance.now();
+    if (layerDirty && now - lastUp > 200) { layerTex.needsUpdate = true; layerDirty = false; lastUp = now; flushPend(); }
   });
+  function flushPend() { for (const m of pend) { scene.remove(m); m.material.dispose(); } pend.length = 0; }
   function clearMarks() {
     clearMate();
     for (const r of marks) { scene.remove(r.m); r.m.material.dispose(); }
-    marks.length = 0;
-    lg.clearRect(0, 0, LAY_W, LAY_H); layerTex.needsUpdate = true;
+    marks.length = 0; flushPend();
+    lg.clearRect(0, 0, LAY_W, LAY_H); layerTex.needsUpdate = true; layerDirty = false;
     for (const s of smokes) s.dead = true;
     for (const b of bits) { try { Core.disposeTree(b.o); } catch (e) { } } bits.length = 0;
   }
@@ -947,10 +985,45 @@ const Fx = (() => {
   // ---------- 兵种台词 ----------
   let lastBark = '';
   state.kingLines = []; state.onKingLine = null;
+  // 四级名将（技能模式）的台词编号前缀：h_<方>_<兵种><序号>，序号就是名将表里的位置（韩信 0、夏侯婴 1……）。
+  // 名字发完了的四级子（比如召回后又升上来的）借同兵种一位名将的声音（Ham 10-09：四级都用名将的声音）
+  function heroKey(p) {
+    if (!p || p.lv !== 4 || typeof BF === 'undefined' || !BF.HERO_CN) return null;
+    const names = (BF.HERO_CN[p.s] || {})[p.t] || []; if (!names.length) return null;
+    let i = p.nm;
+    if (i == null || i >= names.length) { let h = 0; for (const ch of String(p.id)) h = (h * 31 + ch.charCodeAt(0)) >>> 0; i = h % names.length; }
+    return `h_${p.s}_${p.t}${i}`;
+  }
+  // 兵种 / 名将说一句（兵种那一路，不打断主帅和旁白）。ids 给一组就随机挑一句，避开上一句；放不出来就不说
+  function unitSay(ids, { delay = 0, vol = 1, pan = 0, skipIfBusy = false } = {}) {
+    if (typeof Voice === 'undefined' || !Voice.enabled) return 0;
+    const pool = [].concat(ids).filter(x => x && Voice.has(x) && Voice.playable(x)); if (!pool.length) return 0;
+    const rest = pool.length > 1 ? pool.filter(x => x !== lastBark) : pool, id = rest[Math.floor(Math.random() * rest.length)];
+    lastBark = id;
+    const d = Voice.dur(id);
+    if (delay > 0) sleep(delay).then(() => Voice.bark(id, { vol, pan, skipIfBusy })); else Voice.bark(id, { vol, pan, skipIfBusy });
+    return d;
+  }
   function bark(info, c) {
     Sfx.line();   // 先当这一步没有台词；真要说了下面再登记（马、象、虎的脚步和叫声照着台词排）
     if (typeof Voice === 'undefined' || !Voice.enabled) return;
+    if (state.quiet) return;   // 技能演出里的走子：技能自己有台词（bfx.js 的 skill），这里不再说
     const p = info.piece, kill = !!c.tgt, king = p.t === 'k';
+    // 四级名将：每一步都说——走子两句挑一句，攻击两句挑一句；吃掉之后的那句由 bfx.js 的 strike 在倒下以后补
+    const hk = heroKey(p);
+    if (hk) {
+      const ids = kill ? [hk + '_a1', hk + '_a2'] : [hk + '_m1', hk + '_m2'];
+      const pool = ids.filter(x => Voice.has(x) && Voice.playable(x));
+      if (pool.length) {
+        if (!kill && Voice.busy) return;
+        const pan = Math.max(-0.7, Math.min(0.7, c.A.x / 6)) * (Board.viewSide === 'b' ? -1 : 1), delay = kill ? 0.35 : 0.1;
+        const rest = pool.length > 1 ? pool.filter(x => x !== lastBark) : pool, id = rest[Math.floor(Math.random() * rest.length)];
+        lastBark = id;
+        Sfx.line(delay / (Time.boost || 1), Voice.dur(id));
+        sleep(delay).then(() => Voice.bark(id, { vol: kill ? 1 : 0.85, pan, skipIfBusy: !kill }));
+        return;
+      }
+    }
     // 主帅的彩蛋台词（开局就动帅、被将军时自己走开、亲手吃车……）：main.js 事先按“哪一方、从哪到哪”登记好，这里对上了就由它来说（带字幕），不再说普通的那句
     if (king && state.kingLines.length) {
       const i = state.kingLines.findIndex(x => x.s === p.s && x.from[0] === info.from[0] && x.from[1] === info.from[1] && x.to[0] === info.to[0] && x.to[1] === info.to[1]);
@@ -1023,10 +1096,10 @@ const Fx = (() => {
   }
 
   return {
-    P, spawn, ring, slash, flash, glow, sink, rise, playMove, undoMove, checkStamp, mateSplash, reveal, flip, cineOn, cineOff, geom, bits, Marks, clearMarks, addSmoke,
+    P, spawn, ring, slash, flash, glow, sink, rise, playMove, heroKey, unitSay, undoMove, checkStamp, mateSplash, reveal, flip, cineOn, cineOff, geom, bits, Marks, clearMarks, addSmoke,
     chunks, throwObj, removePiece, flyFace, groundY, onWater, groundAt, shot, follow, slowmo, ctxOf, rv, R, state, resultAt, lowMove,
     get smokeCount() { return smokes.length; },
-    get markLayer() { return layerCanvas; }, bakeAll() { for (const r of marks) { bake(r); scene.remove(r.m); r.m.material.dispose(); } marks.length = 0; },
+    get markLayer() { return layerCanvas; }, bakeAll() { for (const r of marks) { bake(r); scene.remove(r.m); r.m.material.dispose(); } marks.length = 0; flushPend(); layerTex.needsUpdate = true; layerDirty = false; lastUp = performance.now(); },
     get level() { return state.level; }, set level(v) { state.level = v; },
     get gore() { return state.gore; }, set gore(v) { state.gore = v; },
     get ply() { return state.ply; }, set ply(v) { state.ply = v; },

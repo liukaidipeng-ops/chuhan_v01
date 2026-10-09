@@ -377,11 +377,21 @@ Q.push({
       try { await judge.think(BF.cloneState(g.S), 'judge'); } finally { Math.random = saved; }
       return judge.think.last.v < 4500;   // 对方找不到必胜
     };
+    // nomate 的判法：走完之后对方没有一步杀（对方可以先给一枚子升一级再走）——精确枚举，不靠搜索（搜索本身会漏“先升级再杀”）
+    const mate1 = (S, side) => {
+      const opp = side === 'r' ? 'b' : 'r';
+      if (S.turn !== opp) return false;
+      const st = [S];
+      for (let r = 0; r < 10; r++) for (let f = 0; f < 9; f++) { const p = S.board[r][f]; if (p && p.s === opp && p.t !== 'k') { const U = BF.ai.upgradeState(S, [f, r]); if (U) st.push(U); } }
+      for (const X of st) for (const e of BF.ai.gen(X, false)) { const R = BF.attempt(X, e.a); if (!R) continue; const ev = BF.evaluate(R.S); if (ev && ev.result && ev.result.winner === opp) return true; }
+      return false;
+    };
     JSON.parse(require('fs').readFileSync(file, 'utf8')).forEach((it, i) => { const rules = it.rules || detectRules(it.data); applyRules(null); Q.push({
       name: `实${i + 1} ${it.name}`, cat: '实战', desc: it.desc, rules,   // rules：这局当时的规则（破釜时代的对局要关背水；见 game_load.js 的 detectRules）
       build: () => load(it.data, it.at, rules).game,
-      // same：主行动要和答案一样（答案里有升级的，升级也要一样）；avoid：别再走电脑原来那一步；survive：走完之后对方深搜找不到必胜
-      check: (it.mode || (it.answer ? 'same' : 'avoid')) === 'survive'
+      // same：主行动要和答案一样（答案里有升级的，升级也要一样）；avoid：别再走电脑原来那一步；survive：走完之后对方深搜找不到必胜；nomate：走完之后对方没有一步杀（含先升级）
+      check: it.mode === 'nomate' ? (seq, g0) => { const g = play(g0, seq); return !!g && (g.result ? g.result.winner === it.side : !mate1(g.S, it.side)); }
+        : (it.mode || (it.answer ? 'same' : 'avoid')) === 'survive'
         ? async (seq, g0) => { const g = play(g0, seq); return !!g && survives(g, it.side, it.judgeNodes); }
         : seq => ((it.mode || (it.answer ? 'same' : 'avoid')) === 'same' ? same(main(seq), main(it.answer)) && it.answer.filter(a => a.k === 'up').every(u => seq.some(a => same(a, u))) : !same(main(seq), main(it.bad))),
       answer: it.answer || undefined, bad: it.bad, adjudicated: it.adjudicated, disabled: it.disabled,
