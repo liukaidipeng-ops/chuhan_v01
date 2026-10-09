@@ -1261,8 +1261,9 @@
       Sfx.Music.stop();
       const persp = mode === 'local' || watching() || aiBoth() || !result.winner ? 'win' : (result.winner === mySide ? 'win' : 'lose');
       const W = watching();
-      // 联机（含观战）：结算曲分汉、楚（EndTunes，Ham 挑定前照旧放原来那两首）。胜 → 胜方的曲子；败 → 自己这方的
-      const tune = (mode === 'host' || mode === 'guest' || W) && result.winner ? { side: persp === 'win' ? result.winner : mySide } : null;
+      // 联机（含观战）和人机：结算曲分汉、楚（EndTunes；Ham 10-09 审批台 td-004 选 A：联机 + 人机，本地双人照旧）。
+      //   胜 → 胜方的曲子；败 → 自己这方的。曲子挑定前照旧放原来那两首
+      const tune = (mode === 'host' || mode === 'guest' || mode === 'ai' || W) && result.winner ? { side: persp === 'win' ? result.winner : mySide } : null;
       await Ending.play(result, {
         again: W ? () => { Ending.hideCard(); toast('等待棋手开新局…'); } : requestAgain, againText: W ? '继 续 观 战' : '',
         lobby: toLobby, persp, tune, instant: endSkip || slain, review: startReplay,
