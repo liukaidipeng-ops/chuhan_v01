@@ -1,0 +1,196 @@
+{
+ "batch": "b28",
+ "key_present": true,
+ "key_len": 126,
+ "host": "https://api.minimax.cn",
+ "probe": [
+  {
+   "host": "https://api.minimax.cn",
+   "http": 200,
+   "code": 0,
+   "msg": "success"
+  }
+ ],
+ "jobs": [
+  {
+   "id": "real_h_r_r0_sk_chongzhen__1",
+   "voice": "male-qn-jingying",
+   "voice_id": "male-qn-jingying",
+   "voice_name": null,
+   "ok": true,
+   "ms": 4680,
+   "chars": 38
+  },
+  {
+   "id": "real_h_r_r0_sk_chongzhen__2",
+   "voice": "male-qn-jingying",
+   "voice_id": "male-qn-jingying",
+   "voice_name": null,
+   "ok": true,
+   "ms": 3816,
+   "chars": 32
+  },
+  {
+   "id": "real_sk_b_feiyue_k__1",
+   "voice": "Spanish_PowerfulVeteran",
+   "voice_id": "Spanish_PowerfulVeteran",
+   "voice_name": null,
+   "ok": true,
+   "ms": 3132,
+   "chars": 15
+  },
+  {
+   "id": "real_sk_b_hujia_2__1",
+   "voice": "Spanish_PowerfulVeteran",
+   "voice_id": "Spanish_PowerfulVeteran",
+   "voice_name": null,
+   "ok": true,
+   "ms": 2412,
+   "chars": 14
+  },
+  {
+   "id": "real_sk_b_hujia_2__2",
+   "voice": "Spanish_PowerfulVeteran",
+   "voice_id": "Spanish_PowerfulVeteran",
+   "voice_name": null,
+   "ok": true,
+   "ms": 2340,
+   "chars": 17
+  },
+  {
+   "id": "real_fk_k1__1",
+   "voice": "Korean_ConfidentBoss",
+   "voice_id": "Korean_ConfidentBoss",
+   "voice_name": null,
+   "ok": true,
+   "ms": 4248,
+   "chars": 23
+  },
+  {
+   "id": "real_fk_k2__1",
+   "voice": "Korean_ConfidentBoss",
+   "voice_id": "Korean_ConfidentBoss",
+   "voice_name": null,
+   "ok": true,
+   "ms": 3924,
+   "chars": 27
+  },
+  {
+   "id": "real_fk_k3__1",
+   "voice": "Korean_ConfidentBoss",
+   "voice_id": "Korean_ConfidentBoss",
+   "voice_name": null,
+   "ok": true,
+   "ms": 2124,
+   "chars": 12
+  },
+  {
+   "id": "real_fk_l1__1",
+   "voice": "Japanese_DominantMan",
+   "voice_id": "Japanese_DominantMan",
+   "voice_name": null,
+   "ok": true,
+   "ms": 4608,
+   "chars": 23
+  },
+  {
+   "id": "real_fk_l2__1",
+   "voice": "Japanese_DominantMan",
+   "voice_id": "Japanese_DominantMan",
+   "voice_name": null,
+   "ok": true,
+   "ms": 3852,
+   "chars": 27
+  },
+  {
+   "id": "real_fk_l3__1",
+   "voice": "Japanese_DominantMan",
+   "voice_id": "Japanese_DominantMan",
+   "voice_name": null,
+   "ok": true,
+   "ms": 2124,
+   "chars": 12
+  },
+  {
+   "id": "real_fk_m1__1",
+   "voice": "Korean_StrictBoss",
+   "voice_id": "Korean_StrictBoss",
+   "voice_name": null,
+   "ok": true,
+   "ms": 3744,
+   "chars": 23
+  },
+  {
+   "id": "real_fk_m2__1",
+   "voice": "Korean_StrictBoss",
+   "voice_id": "Korean_StrictBoss",
+   "voice_name": null,
+   "ok": true,
+   "ms": 3816,
+   "chars": 27
+  },
+  {
+   "id": "real_fk_m3__1",
+   "voice": "Korean_StrictBoss",
+   "voice_id": "Korean_StrictBoss",
+   "voice_name": null,
+   "ok": true,
+   "ms": 1944,
+   "chars": 12
+  },
+  {
+   "id": "real_fk_n1__1",
+   "voice": "Russian_ReliableMan",
+   "voice_id": "Russian_ReliableMan",
+   "voice_name": null,
+   "ok": true,
+   "ms": 4032,
+   "chars": 23
+  },
+  {
+   "id": "real_fk_n2__1",
+   "voice": "Russian_ReliableMan",
+   "voice_id": "Russian_ReliableMan",
+   "voice_name": null,
+   "ok": true,
+   "ms": 3852,
+   "chars": 27
+  },
+  {
+   "id": "real_fk_n3__1",
+   "voice": "Russian_ReliableMan",
+   "voice_id": "Russian_ReliableMan",
+   "voice_name": null,
+   "ok": true,
+   "ms": 2052,
+   "chars": 12
+  },
+  {
+   "id": "real_fk_o1__1",
+   "voice": "Japanese_GenerousIzakayaOwner",
+   "voice_id": "Japanese_GenerousIzakayaOwner",
+   "voice_name": null,
+   "ok": true,
+   "ms": 3816,
+   "chars": 23
+  },
+  {
+   "id": "real_fk_o2__1",
+   "voice": "Japanese_GenerousIzakayaOwner",
+   "voice_id": "Japanese_GenerousIzakayaOwner",
+   "voice_name": null,
+   "ok": true,
+   "ms": 3240,
+   "chars": 27
+  },
+  {
+   "id": "real_fk_o3__1",
+   "voice": "Japanese_GenerousIzakayaOwner",
+   "voice_id": "Japanese_GenerousIzakayaOwner",
+   "voice_name": null,
+   "ok": true,
+   "ms": 1692,
+   "chars": 12
+  }
+ ]
+}
