@@ -499,7 +499,7 @@ body.compact #log{width:164px;max-height:34vh}
 /* 手机把字调大时的上限（美术 10-09，Ham：大字体的玩家字巨大、把棋盘挡完）
    1. iOS 的 App 内网页（微信、QQ）是在 body 上加 -webkit-text-size-adjust 放大，这里钉回 100%。
    2. 安卓 App 内网页（setTextZoom）和浏览器自己的字号设置，样式拦不住：所有 font-size 都乘了 var(--fs,1)，
-      脚本量出放大倍数 r 后把 :root 的 --fs 设成 min(1, 1.15 / r)——字最多比设计大 15%。不设就是 1，什么都不变。 */
+      脚本量出放大倍数 r 后把 :root 的 --fs 设成 1 / r——字号固定为设计大小，不跟手机字体放大（Ham 10-09 定）。不设就是 1，什么都不变。 */
 html,body{-webkit-text-size-adjust:100%!important;text-size-adjust:100%!important}
 /* ================= 界面改版：E 棋盘（美术）=================
    大厅各页 + 设置面板。电脑：朱红棋盘、圆棋子；手机竖屏（≤640 宽）：竖河、方格、底栏固定。
@@ -676,12 +676,12 @@ html,body{-webkit-text-size-adjust:100%!important;text-size-adjust:100%!importan
 :root{--g:#a8281c;--c:#f0e7d2;--k:#141311;--ef:"EB","Noto Serif SC","Source Han Serif SC","Noto Serif CJK SC","Songti SC","STSong","SimSun",serif;--es:"PingFang SC","Noto Sans SC","Noto Sans CJK SC","Microsoft YaHei",sans-serif}
 .pcard{border:0;border-radius:0;background:var(--c);color:var(--k);box-shadow:inset 0 0 0 3px var(--c),inset 0 0 0 5px var(--k),0 8px 22px rgba(20,19,17,.25)}
 .pcard:before,.pcard:after{display:none}
-/* 轮到谁走：牌外面套一圈朱红粗线，和牌之间留一道缝。.active 由脚本加（轮到这一方、对局进行中）。
+/* 轮到谁走：牌外面套一圈朱红线（3px，留 3px 缝；10-09 Ham 嫌 5px 压到底下的工具栏，改细），和牌之间留一道缝。.active 由脚本加（轮到这一方、对局进行中）。
    读秒时脚本再加 .hurry，并把 --beat 设成这一秒的节拍（秒），粗线照这个节拍一亮一暗；不设 --beat 时一秒一下。 */
-.pcard{outline:5px solid transparent;outline-offset:5px}
+.pcard{outline:3px solid transparent;outline-offset:3px}
 .pcard.active{outline-color:var(--g);animation:tlIn .28s ease-out both}
 .pcard.active.hurry{animation:tlBlink var(--beat,1s) steps(1) infinite}
-@keyframes tlIn{from{outline-color:transparent;outline-offset:12px}to{outline-color:var(--g);outline-offset:5px}}
+@keyframes tlIn{from{outline-color:transparent;outline-offset:9px}to{outline-color:var(--g);outline-offset:3px}}
 @keyframes tlBlink{0%{outline-color:var(--g)}50%{outline-color:rgba(168,40,28,.12)}100%{outline-color:var(--g)}}
 @media (prefers-reduced-motion:reduce){.pcard.active,.pcard.active.hurry{animation:none}}
 .por .trk{stroke:rgba(20,19,17,.15)}.por .arc{stroke:var(--k)}.por .arc.low{stroke:var(--g)}
@@ -747,8 +747,8 @@ html,body{-webkit-text-size-adjust:100%!important;text-size-adjust:100%!importan
 .sk.ready.ok,.sk.ready.art,.sk.ready.ult{--sr:var(--k)}
 @keyframes eRdy{50%{outline-color:transparent}}
 #bfRow,#bfBar.cmp #bfRow{gap:10px}
-/* 手机：技能栏和「技能未用」提示贴在自己牌的上方，让开牌外那圈朱框（伸出牌外 10px） */
-body.compact #bfBar.cmp,body.compact #skHint{translate:0 -6px}
+/* 手机：技能栏和「技能未用」提示贴在自己牌的上方，让开牌外那圈朱框（伸出牌外 6px） */
+body.compact #bfBar.cmp,body.compact #skHint{translate:0 -2px}
 .sk:disabled,.sk.off{opacity:.5;filter:none}
 .sk .cd{border-radius:0}
 .sk .cdn{border:1.5px solid var(--k);background:var(--c);color:var(--k)}
@@ -849,6 +849,25 @@ html:has(#endcard:not(.hidden)),html:has(#endcard:not(.hidden)) body,html:has(#e
 .modal.e-c input,.modal.e-c textarea{border:2px solid var(--c)!important;border-radius:0!important;background:rgba(20,19,17,.22)!important;color:var(--c)!important}
 .modal.e-c input::placeholder{color:rgba(240,231,210,.55)}
 .modal.e-c input.code{border-width:0 0 2px!important;background:none!important}
+/* 升级确认（美术 10-09，Ham：点升级先弹框确认，防误触，框里写升级后的变化）。
+   脚本填：#upFrom「汉军车 · 二级」、#upTo「汉轻车 · 三级」；#upTbl 一行一项（th 名目，td 现在，td.to 升级后，涨了的 td.to 加 gain）；
+   #upNew 新解锁的技能一条一个 li（<b>技能名</b>说明）；#upCost 花多少军功、剩多少。 */
+#mUp .up-head{display:flex;align-items:baseline;flex-wrap:wrap;gap:6px 12px;margin:0 0 14px;font-family:var(--ef);font-weight:900}
+#mUp .up-from{font-size:calc(16px * var(--fs,1));color:var(--c);letter-spacing:.08em}
+#mUp .up-head i{font-style:normal;font-family:var(--es);color:var(--c)}
+#mUp .up-to{font-size:calc(26px * var(--fs,1));color:var(--k);letter-spacing:.1em}
+#mUp .up-tbl{width:100%;border-collapse:collapse;margin:0 0 12px;font-variant-numeric:tabular-nums}
+#mUp .up-tbl th,#mUp .up-tbl td{border:2px solid var(--c);padding:7px 10px;text-align:center;color:var(--c);font-family:var(--ef);font-weight:900;font-size:calc(19px * var(--fs,1));line-height:1.2}
+#mUp .up-tbl thead th{font-family:var(--es);font-weight:400;font-size:calc(12px * var(--fs,1));letter-spacing:.2em;padding:5px 10px}
+#mUp .up-tbl tbody th{width:4.2em;text-align:left;font-size:calc(15px * var(--fs,1));letter-spacing:.2em}
+#mUp .up-tbl td.to.gain{background:var(--k)}
+#mUp .up-tbl td.to.gain:after{content:"▲";margin-left:6px;font-family:var(--es);font-size:calc(11px * var(--fs,1));vertical-align:3px}
+#mUp .up-new{list-style:none;margin:0 0 12px;padding:0;display:flex;flex-direction:column;gap:8px}
+#mUp .up-new:empty{display:none}
+#mUp .up-new li{padding:10px 12px;background:rgba(20,19,17,.22);box-shadow:inset 0 0 0 1.5px var(--c);color:var(--c);font-size:calc(14px * var(--fs,1));line-height:1.7}
+#mUp .up-new li b{display:block;margin-bottom:2px;font-family:var(--ef);font-weight:900;font-size:calc(16px * var(--fs,1));letter-spacing:.14em}
+#mUp .up-new li b:before{content:"新解锁 · ";font-family:var(--es);font-weight:400;font-size:calc(12px * var(--fs,1));letter-spacing:.1em;opacity:.85}
+#mUp #upCost{margin:4px 0 0;font-variant-numeric:tabular-nums}
 #mExport textarea{height:min(38vh,300px)!important}
 /* ---------- 暂停 ---------- */
 #pauseOv{background:rgba(20,19,17,.72);font-family:var(--ef)}
@@ -1328,6 +1347,17 @@ html:has(#endcard:not(.hidden)),html:has(#endcard:not(.hidden)) body,html:has(#e
   <div class="chips" id="pickList"></div>
   </div>
   <div class="e-bar"><button class="btn small" id="pickNo">取消</button></div>
+</div></div></div>
+
+<div id="mUp" class="modal e-c hidden"><div class="wrap"><div class="rod t"></div><div class="rod b"></div><div class="scroll">
+  <h3 id="upT">升级</h3>
+  <div class="e-body">
+  <div class="up-head"><span class="up-from" id="upFrom"></span><i aria-hidden="true">→</i><span class="up-to" id="upTo"></span></div>
+  <table class="up-tbl" id="upTbl"></table>
+  <ul class="up-new" id="upNew"></ul>
+  <p class="note" id="upCost"></p>
+  </div>
+  <div class="e-bar"><button class="btn small" id="upNo">取消</button><button class="btn red solid" id="upGo">升级</button></div>
 </div></div></div>
 
 <div id="mName" class="modal e-c hidden"><div class="wrap"><div class="rod t"></div><div class="rod b"></div><div class="scroll">
