@@ -1583,7 +1583,7 @@ const Board = (() => {
         markRoot.add(g);
         // 呼吸：透明度在 0.32～0.72 之间一明一暗，约 1.6 秒一下；虚影被清掉（确认、取消、换子）时跟着停
         let t = 0; const mats = g.userData.mats;
-        const off = Core.onFrame(dt => { if (!g.parent) { off(); return; } t += dt; const k = 0.52 + 0.2 * Math.sin(t * Math.PI * 2 / 1.6); for (const m of mats) m.opacity = m.userData.o0 * k; });
+        const off = Core.onFrame(dt => { if (!g.parent) { off(); if (g.userData.drop) g.userData.drop(); return; } t += dt; const k = 0.52 + 0.2 * Math.sin(t * Math.PI * 2 / 1.6); for (const m of mats) m.opacity = m.userData.o0 * k; });
       }
     }
     // 选定的技能目标：一个转着的瞄准圈把它框住
@@ -1709,14 +1709,40 @@ const Board = (() => {
   // 模型显示模式下棋盘上的圆棋子是藏起来的（squads.showDisc），虚影照样画圆棋子：落点上要的是「这枚子」的样子。
   // bad=true：点到走不了的地方，同样的虚影带一点红。
   const GHOST_RED = new THREE.Color(0xd8341f);
+  // 走不了的虚影染红（10-09 Ham：再红一点）：颜色往朱红拉七成，再加一层红色自发光
+  const ghostMat = (m, bad, mats) => {
+    const c = m.clone(); c.transparent = true; c.depthWrite = false; c.userData = Object.assign({}, m.userData, { o0: m.opacity == null ? 1 : m.opacity });
+    if (bad) { if (c.color) c.color.lerp(GHOST_RED, 0.7); if (c.emissive) { c.emissive.setHex(0xa0180a); c.emissiveIntensity = 0.9; } }
+    mats.push(c); return c;
+  };
+  // 兵种模型模式（10-09 Ham：虚影要是兵种模型的虚影）：在落点另立一队同样的兵马（同兵种、同等级、同朝向），材质全换成半透明的克隆。
+  // 返回一个空的容器 Group 放进 markRoot；容器被清掉（clearMoves）或 flashBad 播完时，userData.drop() 把这一队收掉、克隆的材质释放。
+  function squadGhost(src, at, bad) {
+    const SQ = typeof Squads !== 'undefined' ? Squads : null;
+    if (!SQ || !SQ.Stand || !SQ.Stand.on || !SQ.Stand.sq(src)) return null;
+    const u = src.userData; if (!u.t || u.h) return null;
+    let lv = 0;
+    if (lastGame && lastGame.bf) for (const row of lastGame.board) for (const p of row) if (p && p.id === u.id) lv = p.lv || 1;
+    let sq;
+    try { sq = SQ.make(u.t, u.s, new THREE.Vector3(X(at[0]), TOP, Z(at[1])), SQ.yawOf(new THREE.Vector3(0, 0, u.s === 'r' ? -1 : 1)), 'move', lv || 1, lv); } catch (e) { return null; }
+    if (sq.setPose && sq.troop) sq.setPose('idle'); if (sq.crew) sq.crew.setPose('idle'); if (sq.horse && !sq.mounted) sq.horse.speed = 0;
+    if (sq.flags) for (const f of sq.flags) scene.remove(f.group);   // 旗子不要：落点上看清人马就够了
+    const parts = [sq, sq.guard, sq.crew].filter(Boolean);
+    for (const q of parts) { if (q.setVis) q.setVis(1); if (q.updaters) for (const f of q.updaters) try { f(0); } catch (e) { } }   // 先跑一帧，各个兵马站到位（不然有的部件还停在世界原点）
+    const mats = [], roots = parts.map(q => q.group).filter(Boolean);
+    // 描墨边的那层（背面外扩）不进虚影：半透明时它会从身体里透出来，整队发黑
+    for (const r of roots) r.traverse(o => { if (o.material && !Array.isArray(o.material) && o.material.side === THREE.BackSide) { o.visible = false; return; } if (o.material) { o.material = Array.isArray(o.material) ? o.material.map(m => ghostMat(m, bad, mats)) : ghostMat(o.material, bad, mats); o.castShadow = false; o.renderOrder = 6; } });
+    const g = new THREE.Group(); g.userData.mats = mats;
+    let gone = false;
+    g.userData.drop = () => { if (gone) return; gone = true; try { if (sq.guard) sq.guard.dispose(); sq.dispose(); } catch (e) { } for (const m of mats) m.dispose(); };   // 炮的炮手由 Cannon.dispose 一起收
+    for (const m of mats) m.opacity = m.userData.o0 * 0.52;
+    return g;
+  }
   function ghostOf(sel, at, bad) {
     const src = meshAt(sel[0], sel[1]); if (!src) return null;
+    const sg = squadGhost(src, at, bad); if (sg) return sg;
     const mats = [];
-    const cm = m => {
-      const c = m.clone(); c.transparent = true; c.depthWrite = false; c.userData = { o0: m.opacity == null ? 1 : m.opacity };
-      if (bad) { if (c.color) c.color.lerp(GHOST_RED, 0.42); if (c.emissive) { c.emissive.setHex(0x6a1206); c.emissiveIntensity = 0.55; } }
-      mats.push(c); return c;
-    };
+    const cm = m => ghostMat(m, bad, mats);
     const skinned = !!src.userData.skinned;
     const copy = (o, depth, idx) => {
       const d = o.isMesh ? new THREE.Mesh(o.geometry, Array.isArray(o.material) ? o.material.map(cm) : cm(o.material)) : new THREE.Group();
@@ -1740,7 +1766,7 @@ const Board = (() => {
       t += dt;
       const fade = t < 0.45 ? 1 : Math.max(0, 1 - (t - 0.45) / (T - 0.45)), k = (0.5 + 0.18 * Math.cos(t * Math.PI * 2 / 0.5)) * fade;
       for (const m of mats) m.opacity = m.userData.o0 * k;
-      if (t >= T) { off(); scene.remove(g); for (const m of mats) m.dispose(); }
+      if (t >= T) { off(); scene.remove(g); if (g.userData.drop) g.userData.drop(); else for (const m of mats) m.dispose(); }
     });
   }
   function clearMoves(immediate = true) {
