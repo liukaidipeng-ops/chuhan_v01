@@ -76,6 +76,8 @@ function build(E, tag) {
     // LMRPLY：从第几层起才减（默认 1）。第 1 层是对方对电脑这一步的直接应着——对方最好的反击要是个排在后面的安静着法，减了就看不出来，
     //   电脑会高估自己的安静着法（考卷第 1 题“先升级再吃”：吃炮 8.01、车到 4,3 却 8.98）。LMRTHR=1：走完能打死对方子的“造威胁”安静着法不减
     const LMRPLY = E.BFAI_LMRPLY != null ? +E.BFAI_LMRPLY : 1, LMRTHR = on('BFAI_LMRTHR', false);
+    // LMR2=M（第 4 步试验）：排第 M 个以后、剩下至少 4 层的安静着法少算两层（默认 0 = 关）
+    const LMR2 = +(E.BFAI_LMR2 || 0);
     rep("    kdMe = S0.turn; nodes = 0;", "    lmrOn = L.depth > " + LMRMIN + "; kdMe = S0.turn; nodes = 0;");
     rep("  let nodes = 0, deadline = Infinity, qMax = 3;", "  let nodes = 0, deadline = Infinity, qMax = 3, lmrOn = false;");
     rep("    const list = order(A.gen(S, false), killers[ply]);", "    const list = order(A.gen(S, false), killers[ply]); let mi = 0;");
@@ -83,7 +85,7 @@ function build(E, tag) {
       "      legal++; mi++;\n      const w = decided(r.S, r.ev);\n" +
       "      let v;   // 变体 fast：排在后面的安静着法先少算一层试一下\n" +
       "      if (w) v = w === side ? WIN - ply : -WIN + ply;\n" +
-      "      else if (lmrOn && ply >= " + LMRPLY + " && depth >= " + LMRD + " && mi > " + LMR + " && !inChk && it.a.k === 'mv' && !it.q && !A.inCheck(r.S, r.S.turn)" + (LMRTHR ? " && !A.moveTargets(r.S, it.a.to[0], it.a.to[1]).some(m => { const q = r.S.board[m.to[1]][m.to[0]]; return q && q.s !== side && q.hp <= A.atk(r.S.board[it.a.to[1]][it.a.to[0]]); })" : "") + ") { v = -ab(r.S, depth - 2, -alpha - 0.01, -alpha, ply + 1, ext); if (v > alpha) v = -ab(r.S, depth - 1, -beta, -alpha, ply + 1, ext); }\n" +
+      "      else if (lmrOn && ply >= " + LMRPLY + " && depth >= " + LMRD + " && mi > " + LMR + " && !inChk && it.a.k === 'mv' && !it.q && !A.inCheck(r.S, r.S.turn)" + (LMRTHR ? " && !A.moveTargets(r.S, it.a.to[0], it.a.to[1]).some(m => { const q = r.S.board[m.to[1]][m.to[0]]; return q && q.s !== side && q.hp <= A.atk(r.S.board[it.a.to[1]][it.a.to[0]]); })" : "") + ") { v = -ab(r.S, depth - 2" + (LMR2 ? " - (mi > " + LMR2 + " && depth >= 4 ? 1 : 0)" : "") + ", -alpha - 0.01, -alpha, ply + 1, ext); if (v > alpha) v = -ab(r.S, depth - 1, -beta, -alpha, ply + 1, ext); }\n" +
       "      else v = -ab(r.S, depth - 1, -beta, -alpha, ply + 1, ext);");
   }
   if (DELTA > 0) rep("      if (n >= 6) break;\n      const r = BF.attempt(S, it.a); if (!r || r.free) continue;\n      n++;",
