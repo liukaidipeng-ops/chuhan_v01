@@ -8,6 +8,7 @@
   // 更新说明（设置里、大厅底部点「更新」查看；最新的放最前）
   const NEWS = [
     ['第六版', '2026 年 10 月', [
+      '本地双人换边改成像转盘一样转过去：慢慢起步、慢慢停下，棋子跟着一起转，字一直是正的（原来是一下子甩过去）',
       '界面音效（你在试听台挑的）：电脑上鼠标移到大厅的三个圆形图标（联机大厅、人机对战、本地对战）上轻轻「叮」一下（玉片轻碰），点它们「嗒」一声（玉扣）；别的按钮、选项不出声。棋子显示选「棋子」+ 低特效时，落子声按棋子材质分开：木棋子像筹码落桌、银棋子「叮」、金棋子厚重的「当」、玉棋子像瓷碗轻磕（技能模式按等级：一级木、二级银、三级金、四级玉）',
       '技能模式电脑「霸王」变强了（数值部做的）：同样的思考时间能多算半层到一层（多数步能算到五层），和上一版对下 600 局赢 57.6%；每步还快了一点。电脑判断“谁在将军”也快了约两成，各模式结果不变',
       '修好：俯瞰、定盘（正上方看）时，进攻、吃子的震屏会让整张棋盘乱转几十度、来回抽动。原因是正上方往下看时镜头分不清哪边是“上”，一点点抖动就整盘转。现在正上方看时震屏只是整个画面轻轻平移一下，不转不歪；本地双人在正上方看时换边也改成平稳地转过去',
@@ -937,7 +938,7 @@
   }
 
   // ---------- 开局 ----------
-  function setView(side, smooth) { viewSide = side; Core.Cam.setSide(side, !smooth); Board.faceViewer(side); Board.viewSide = side; paintCards(); }
+  function setView(side, smooth) { viewSide = side; Core.Cam.setSide(side, !smooth); Board.faceViewer(side, smooth); Board.viewSide = side; paintCards(); }
   let finaleHero = null;
   function clearFinale() { if (finaleHero) { try { if (finaleHero.dropped) Core.disposeTree(finaleHero.dropped); finaleHero.dispose(); } catch (e) { } finaleHero = null; } }
   async function startGame(m, side, o, { state = null, intro = true } = {}) {
