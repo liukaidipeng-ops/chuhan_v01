@@ -16,7 +16,9 @@
 //     （复盘：第一局 R23 升马再走更好，电脑在攒钱升车）。只加宽根上，比加宽对手模型便宜得多。
 //   BFAI_CHKUP（默认关）：被将军的一方，所有能升的升级都考虑（用户 2026-10-09：“被将的时候也要可以升级才行”）。
 //     原来：自己被将军时根上最多看 3 种升级、兵和相 / 象不看；搜索里对方被将军时只看静态收益前 3 名——会以为“将死了”，
-//     其实对方升一级就解了（复盘里“把局面看得太好”的那类）。被将军时合法应着很少，全看也不贵；两边一样（对称）。
+//     其实对方升一级就解了（复盘里“把局面看得太好”的那类）。两边一样（对称）。
+//     BFAI_CHKUP=1：搜索里被将军时所有升级都试——实测太贵（霸王同样节点平均 3.37 → 3.08 层：这个游戏将军很常见）。
+//     BFAI_CHKUP=2：搜索里只试“升了才打得死将军的那枚子”的升级和帅身边的子的升级；根上（电脑自己被将军）仍然全看。
 'use strict';
 const fs = require('fs'), path = require('path'), os = require('os');
 const { execFileSync } = require('child_process');
@@ -26,7 +28,7 @@ function build(E, tag) {
   let s = src0;
   const rep = (a, b) => { const n = s.split(a).length - 1; if (n !== 1) throw new Error(`bfai_fast：锚点出现 ${n} 次：${a.slice(0, 80)}`); s = s.replace(a, () => b); };
   const on = (k, d) => E[k] == null ? d : !/^(0|false|off)$/i.test(String(E[k]));
-  const TT = on('BFAI_TT', true), TTMOVE = on('BFAI_TTMOVE', true), LMR = +(E.BFAI_LMR || 0), DELTA = +(E.BFAI_DELTA || 0), ROOTREL = +(E.BFAI_ROOTREL || 0), CHKUP = on('BFAI_CHKUP', false);
+  const TT = on('BFAI_TT', true), TTMOVE = on('BFAI_TTMOVE', true), LMR = +(E.BFAI_LMR || 0), DELTA = +(E.BFAI_DELTA || 0), ROOTREL = +(E.BFAI_ROOTREL || 0), CHKUP = +(E.BFAI_CHKUP || 0);
   if (TT || TTMOVE) {
     rep("  function ab(S, depth, alpha, beta, ply, ext = 0) {",
       "  // 变体 fast：局面指纹（两个 32 位散列拼成 53 位的数）\n" +
@@ -67,6 +69,11 @@ function build(E, tag) {
   if (LMR > 0) {
     // 只在最多层数 > LMRMIN（默认 3）的档位用：r20 霸王 61.0%（300 局，z 3.9）；校尉（最多 3 层）48.1%，只是更快、不更强
     const LMRMIN = E.BFAI_LMRMIN != null ? +E.BFAI_LMRMIN : 3;
+    // LMRD：剩下至少几层才减（默认 2）。剩 2 层就减，会把对方靠后的应着压成只看吃子，安静的反击看不见——考卷第 1 题“先升级再吃”因此丢分
+    const LMRD = E.BFAI_LMRD != null ? +E.BFAI_LMRD : 2;
+    // LMRPLY：从第几层起才减（默认 1）。第 1 层是对方对电脑这一步的直接应着——对方最好的反击要是个排在后面的安静着法，减了就看不出来，
+    //   电脑会高估自己的安静着法（考卷第 1 题“先升级再吃”：吃炮 8.01、车到 4,3 却 8.98）。LMRTHR=1：走完能打死对方子的“造威胁”安静着法不减
+    const LMRPLY = E.BFAI_LMRPLY != null ? +E.BFAI_LMRPLY : 1, LMRTHR = on('BFAI_LMRTHR', false);
     rep("    kdMe = S0.turn; nodes = 0;", "    lmrOn = L.depth > " + LMRMIN + "; kdMe = S0.turn; nodes = 0;");
     rep("  let nodes = 0, deadline = Infinity, qMax = 3;", "  let nodes = 0, deadline = Infinity, qMax = 3, lmrOn = false;");
     rep("    const list = order(A.gen(S, false), killers[ply]);", "    const list = order(A.gen(S, false), killers[ply]); let mi = 0;");
@@ -74,7 +81,7 @@ function build(E, tag) {
       "      legal++; mi++;\n      const w = decided(r.S, r.ev);\n" +
       "      let v;   // 变体 fast：排在后面的安静着法先少算一层试一下\n" +
       "      if (w) v = w === side ? WIN - ply : -WIN + ply;\n" +
-      "      else if (lmrOn && depth >= 2 && mi > " + LMR + " && !inChk && it.a.k === 'mv' && !it.q && !A.inCheck(r.S, r.S.turn)) { v = -ab(r.S, depth - 2, -alpha - 0.01, -alpha, ply + 1, ext); if (v > alpha) v = -ab(r.S, depth - 1, -beta, -alpha, ply + 1, ext); }\n" +
+      "      else if (lmrOn && ply >= " + LMRPLY + " && depth >= " + LMRD + " && mi > " + LMR + " && !inChk && it.a.k === 'mv' && !it.q && !A.inCheck(r.S, r.S.turn)" + (LMRTHR ? " && !A.moveTargets(r.S, it.a.to[0], it.a.to[1]).some(m => { const q = r.S.board[m.to[1]][m.to[0]]; return q && q.s !== side && q.hp <= A.atk(r.S.board[it.a.to[1]][it.a.to[0]]); })" : "") + ") { v = -ab(r.S, depth - 2, -alpha - 0.01, -alpha, ply + 1, ext); if (v > alpha) v = -ab(r.S, depth - 1, -beta, -alpha, ply + 1, ext); }\n" +
       "      else v = -ab(r.S, depth - 1, -beta, -alpha, ply + 1, ext);");
   }
   if (DELTA > 0) rep("      if (n >= 6) break;\n      const r = BF.attempt(S, it.a); if (!r || r.free) continue;\n      n++;",
@@ -112,12 +119,18 @@ function build(E, tag) {
       "  const upCacheChk = new Map();\n" +
       "  function upsChk(S, side) {\n" +
       "    let ups = upCacheChk.get(S); if (ups) return ups; ups = [];\n" +
-      "    for (let r = 0; r < 10; r++) for (let f = 0; f < 9; f++) { const p = S.board[r][f]; if (!p || p.s !== side || p.t === 'k') continue; const T = A.upgradeState(S, [f, r]); if (T) ups.push({ S: T, id: p.id, at: [f, r] }); }\n" +
+      (CHKUP >= 2 ? "    const ck = new Set(XQ_.checkers(S.board, side === 'r' ? 'b' : 'r')); let kf = -9, kr = -9; for (let r = 0; r < 10; r++) for (let f = 0; f < 9; f++) { const p = S.board[r][f]; if (p && p.t === 'k' && p.s === side) { kf = f; kr = r; } }\n" : "") +
+      "    for (let r = 0; r < 10; r++) for (let f = 0; f < 9; f++) { const p = S.board[r][f]; if (!p || p.s !== side || p.t === 'k') continue; const T = A.upgradeState(S, [f, r]); if (!T) continue;\n" +
+      (CHKUP >= 2 ? "      const p1 = T.board[r][f], a0 = A.atk(p), a1 = A.atk(p1); let rel = Math.max(Math.abs(f - kf), Math.abs(r - kr)) <= 1;\n" +
+                    "      if (!rel) for (const m of A.moveTargets(T, f, r)) { const q = T.board[m.to[1]][m.to[0]]; if (q && ck.has(q.id) && q.hp <= a1 && q.hp > a0) { rel = true; break; } }\n" +
+                    "      if (!rel) continue;\n" : "") +
+      "      ups.push({ S: T, id: p.id, at: [f, r] }); }\n" +
       "    if (side === 'b' && PFX) for (const u of ups) { pfAlias.set(u.S, S); pfUp.set(u.S, u.id); }\n" +
       "    upCacheChk.set(S, ups); return ups;\n" +
       "  }\n" +
       "  function upsOf(S, side) {");
     rep("pfCache.clear(); upCache.clear();", "pfCache.clear(); upCache.clear(); upCacheChk.clear();");
+    if (CHKUP >= 2) rep("  const A = BF.ai, CFG = BF.CFG;", "  const A = BF.ai, CFG = BF.CFG, XQ_ = global.XQ || require('./rules.js');");
     // 根上：自己被将军时所有升级都进搜索（兵、相 / 象也算，不限 3 种）
     rep("      const T = A.upgradeState(S, [f, r]); if (!T) continue;",
       "      const T = A.upgradeState(S, [f, r]); if (!T) continue;\n" +
