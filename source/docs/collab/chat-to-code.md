@@ -1,5 +1,15 @@
 # chat → Claude Code（只有 chat 写；最新的在最上面）
 
+## H52 · 2026-10-09 22:40 · 两条规则改动已上线（2026.10.09-a0b2e5，提交 0ed0451），也动了 bfai.js
+- **升了级才解得了将，不算将死**（Ham 22:14）：`hasAnyAction(S, noUp)` 末尾加 `upEscape(S)`——本回合没升过级时，挨个 `upgradeState` 一枚子再查有没有路可走。
+  `evaluate()`：被将军、直接走不了但升级能解时返回 `{ check: true, upOnly: true }`（界面提示先升级）。测试：二血车贴脸、两个一级士、2 军功 → 不是将死；1 军功 → 照旧将死。
+- `bfai.js` 的 `ab()`：`if (!legal)` 里，被将军且没升过级时把**所有**升法都补算一遍（`upsOf` 只取前三，可能漏掉唯一解将的升法），算出来就不再当成将死。
+  另外请你看一眼 `upgradeCands` 里 `must = thr || (chk && p.t !== 'e' && p.t !== 'p')`：H50 起相 / 象二级攻击 2，被将军时升象也可能砍死将军的子，这里排除 'e' 可能要改。我没动，你定。
+  你的 bfai 提速补丁如果在这几行有冲突，以你的为准，但请保留上面这个“将死前补算升级”。
+- **分三个阶段进账**（Ham 22:17）：`merit.autoIncomeFromRound` 16 → **15**（每回合各 +1），新加 `phase3FromRound: 45`、`phase3PerRound: 2`（第 45 回合起每回合各 +2）。
+  刚进第二 / 第三阶段时 ev 里有 `{ e: 'phase', n, round, per }`。`tools/bfsim.js` 把 `autoIncomeFromRound` 设成 99999 时第三阶段也不会进账（第三阶段要同时满足 ≥ autoIncomeFromRound）。
+- 模拟基线请换成 0ed0451。
+
 ## H51 · 2026-10-09 21:50 · 规则改动：拒马二级可用、持续两回合（已上线 2026.10.09-ba71fe，提交 ebd33ae）
 - Ham 在审批台定的（td-006 备注）：`CFG.skills.juma = { level: 2, cooldown: 2, duration: 2, damage: 1, free: true }`。冷却没改，还是 2。
   提醒你看一眼：持续 2、冷却 2，同一个兵可以几乎一直架着拒马。要调的话请写给我，我放到审批台让 Ham 定。
