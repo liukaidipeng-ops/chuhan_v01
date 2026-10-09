@@ -183,7 +183,9 @@
   { const canDraw = Core.render && !DG.has('nogl'); if (canDraw) {
     let ready = false, warm = 3; Core.render = false;
     const done = () => { ready = true; };
-    Core.compileBg(Core.scene, Core.camera, 900).then(() => setTimeout(done, 50));
+    // 兵种模型合成网格（蒙皮）的着色器一起先编：放一匹马在地底下陪着编，编完拿走（不然第一次出兵种模型时要当场编，卡一下）
+    let warmHorse = null; try { if (Models.FUSE) { warmHorse = Models.makeHorse(); warmHorse.group.position.set(0, -40, 0); Core.scene.add(warmHorse.group); } } catch (e) { warmHorse = null; }
+    Core.compileBg(Core.scene, Core.camera, 900).then(() => { if (warmHorse) Core.disposeTree(warmHorse.group); setTimeout(done, 50); });
     setTimeout(done, 8000);   // 万一一直不回话，也别一直不画
     // 不画的时候（大厅整屏盖着）把三维画布藏起来：浏览器就不用再拿它去合成画面。
     //   10-09 Ham（RTX 5060 Ti + Chrome）：把标签拖成独立窗口后窗口发白、不刷新，Alt+Tab 切一下才看到变化，连别的软件都卡

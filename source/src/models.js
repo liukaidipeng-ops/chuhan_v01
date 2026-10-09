@@ -988,6 +988,8 @@ const Models = (() => {
     const flame = new THREE.Sprite(new THREE.SpriteMaterial({ map: Core.Tex.spark, color: 0xff8a30, blending: THREE.AdditiveBlending, depthWrite: false, transparent: true }));
     flame.position.y = -0.1; flame.scale.setScalar(0.001); torch.add(flame);
     tail.rotation.z = 0.35;
+    archer.userData.fuse = true; fuse(tower);   // 塔（连象奴）死时整个坠落：单独一块
+    fuse(g);
     return {
       group: g, root, body, head, trunk, ears, legs, tail, torch, flame, tower, archer, mahout, banner,
       t: rnd() * 5, speed: 0, rearK: 0, trumpetK: 0, dead: 0, fire: 0,
