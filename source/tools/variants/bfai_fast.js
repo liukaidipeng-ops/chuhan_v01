@@ -19,6 +19,8 @@
 //     其实对方升一级就解了（复盘里“把局面看得太好”的那类）。两边一样（对称）。
 //     BFAI_CHKUP=1：搜索里被将军时所有升级都试——实测太贵（霸王同样节点平均 3.37 → 3.08 层：这个游戏将军很常见）。
 //     BFAI_CHKUP=2：搜索里只试“升了才打得死将军的那枚子”的升级和帅身边的子的升级；根上（电脑自己被将军）仍然全看。
+//   第 4 步（C61 之后，只在霸王）：BFAI_NMP=R（默认 0 = 关）：让一步试试——没被将军、剩下至少 3 层、自己还有车马炮时，先假装停一手让对方连走，
+//     少算 R+1 层；这样对方都翻不过来，这条线就不细算了。BFAI_PVS=1：排在后面的着法先用窄窗口探，比当前最好的还好才按全窗口重算。
 'use strict';
 const fs = require('fs'), path = require('path'), os = require('os');
 const { execFileSync } = require('child_process');
@@ -28,7 +30,7 @@ function build(E, tag) {
   let s = src0;
   const rep = (a, b) => { const n = s.split(a).length - 1; if (n !== 1) throw new Error(`bfai_fast：锚点出现 ${n} 次：${a.slice(0, 80)}`); s = s.replace(a, () => b); };
   const on = (k, d) => E[k] == null ? d : !/^(0|false|off)$/i.test(String(E[k]));
-  const TT = on('BFAI_TT', true), TTMOVE = on('BFAI_TTMOVE', true), LMR = +(E.BFAI_LMR || 0), DELTA = +(E.BFAI_DELTA || 0), ROOTREL = +(E.BFAI_ROOTREL || 0), CHKUP = +(E.BFAI_CHKUP || 0);
+  const TT = on('BFAI_TT', true), TTMOVE = on('BFAI_TTMOVE', true), LMR = +(E.BFAI_LMR || 0), DELTA = +(E.BFAI_DELTA || 0), ROOTREL = +(E.BFAI_ROOTREL || 0), CHKUP = +(E.BFAI_CHKUP || 0), NMP = +(E.BFAI_NMP || 0), PVS = on('BFAI_PVS', false);
   if (TT || TTMOVE) {
     rep("  function ab(S, depth, alpha, beta, ply, ext = 0) {",
       "  // 变体 fast：局面指纹（两个 32 位散列拼成 53 位的数）\n" +
@@ -137,6 +139,24 @@ function build(E, tag) {
       "      if (chk) { cand.push({ at: [f, r], S: T, gain: score(T, me) - base, must: true, unlock: false }); continue; }   // 变体 fast：被将军时全都考虑");
     rep("    const top = cand.filter(c => !c.unlock).slice(0, 3), ex = cand.find(c => c.unlock);",
       "    if (chk) return cand;   // 变体 fast：被将军时全都考虑\n    const top = cand.filter(c => !c.unlock).slice(0, 3), ex = cand.find(c => c.unlock);");
+  }
+  if (NMP > 0) {
+    if (!LMR) throw new Error('bfai_fast：NMP 要和 LMR 一起开（借用 lmrOn 只在霸王用）');
+    rep("    let best = -INF, legal = 0, bm = null;",
+      "    // 变体 fast：让一步试试（对方连走两步都翻不过来就不细算）\n" +
+      "    if (lmrOn && ply >= 1 && depth >= 3 && !inChk && !wasNull[ply] && beta < WIN / 2 && !S.upgraded && !S.final) {\n" +
+      "      let big = false; for (const row of S.board) for (const p of row) if (p && p.s === side && (p.t === 'r' || p.t === 'n' || p.t === 'c')) big = true;\n" +
+      "      if (big) { const T = BF.cloneState(S); T.turn = side === 'r' ? 'b' : 'r'; T.upgraded = false; T.freeUsed = false; T.jmLock = null;\n" +
+      "        wasNull[ply + 1] = true; let v; try { v = -ab(T, depth - 1 - " + NMP + ", -beta, -beta + 0.01, ply + 1, ext); } finally { wasNull[ply + 1] = false; }\n" +
+      "        if (v >= beta) return v; }\n" +
+      "    }\n" +
+      "    let best = -INF, legal = 0, bm = null;");
+    rep("  const TTB = new Map();", "  const TTB = new Map(), wasNull = [];");
+  }
+  if (PVS) {
+    rep("      else v = -ab(r.S, depth - 1, -beta, -alpha, ply + 1, ext);",
+      "      else if (lmrOn && mi > 1 && beta - alpha > 0.02) { v = -ab(r.S, depth - 1, -alpha - 0.01, -alpha, ply + 1, ext); if (v > alpha && v < beta) v = -ab(r.S, depth - 1, -beta, -alpha, ply + 1, ext); }   // 变体 fast：窄窗口先探\n" +
+      "      else v = -ab(r.S, depth - 1, -beta, -alpha, ply + 1, ext);");
   }
   const out = path.join(os.tmpdir(), `bfai_fast_${rev}_${tag || 'env'}_${process.pid}.js`);
   fs.writeFileSync(out, s);
