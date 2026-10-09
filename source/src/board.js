@@ -485,29 +485,24 @@ const Board = (() => {
   })();
   const pieceWood = new THREE.MeshStandardMaterial({ map: Tex.wood, color: 0xf4dcbc, roughness: 0.45, metalness: 0.0 });
   const faceCache = {};
+  // 木棋子字面（美术 M13，Ham 14:30「木棋子颜色太深了，移动端汉方看不清楚」→ 选「牙黄面加色边」）：牙黄面铺满，外粗内细两道色边，字粗楷不描边
   function faceTex(s, t) {
     const key = s + t;
     if (faceCache[key]) return faceCache[key];
     const ch = XQ.NAMES[s][t];
-    const col = s === 'r' ? '#a3241a' : '#1c1a18';
+    const col = s === 'r' ? '#b3241a' : '#1a1714';   // 汉朱、楚墨
     return (faceCache[key] = canvasTex(512, 512, (g, w) => {
       g.clearRect(0, 0, w, w);
       const c = w / 2;
-      const ring = (r, lw, color, d = 0) => { g.strokeStyle = color; g.lineWidth = lw; g.beginPath(); g.arc(c + d, c + d, r, 0, 7); g.stroke(); };
-      // 刻痕双圈 + 联珠纹
-      ring(w * 0.452, 12, 'rgba(60,30,10,.45)', 3); ring(w * 0.452, 10, col);
-      ring(w * 0.372, 6, 'rgba(60,30,10,.4)', 2); ring(w * 0.372, 5, col);
-      for (let i = 0; i < 40; i++) {
-        const a = i / 40 * Math.PI * 2, x = c + Math.cos(a) * w * 0.412, y = c + Math.sin(a) * w * 0.412;
-        g.fillStyle = 'rgba(60,30,10,.35)'; g.beginPath(); g.arc(x + 1.5, y + 1.5, 5.5, 0, 7); g.fill();
-        g.fillStyle = '#b8914a'; g.beginPath(); g.arc(x, y, 5, 0, 7); g.fill();
-      }
-      g.font = `bold 300px ${FONT}`; g.textAlign = 'center'; g.textBaseline = 'middle'; g.lineJoin = 'round';
-      g.fillStyle = 'rgba(70,35,10,.5)'; g.fillText(ch, c + 6, c + 22);
-      g.strokeStyle = '#c9a045'; g.lineWidth = 11; g.strokeText(ch, c, c + 16);
-      g.strokeStyle = 'rgba(255,236,170,.6)'; g.lineWidth = 3; g.strokeText(ch, c - 1, c + 14);
+      const ring = (r, lw, color) => { g.strokeStyle = color; g.lineWidth = lw; g.beginPath(); g.arc(c, c, r, 0, 7); g.stroke(); };
+      // 牙黄面：左上略亮，往外渐深
+      const gr = g.createRadialGradient(c * 0.8, c * 0.75, 10, c, c, w * 0.48);
+      gr.addColorStop(0, '#f1e4c0'); gr.addColorStop(1, '#e6d3a4');
+      g.fillStyle = gr; g.beginPath(); g.arc(c, c, w * 0.47, 0, 7); g.fill();
+      // 色边：外圈一道粗边 + 里面一道细圈，和字同色
+      ring(w * 0.47, 14, col); ring(w * 0.452, 10, col); ring(w * 0.372, 5, col);
+      g.font = `bold 310px ${FONT}`; g.textAlign = 'center'; g.textBaseline = 'middle';
       g.fillStyle = col; g.fillText(ch, c, c + 16);
-      g.fillStyle = 'rgba(255,240,210,.14)'; g.fillText(ch, c - 3, c + 12);
     }));
   }
   // 揭棋暗子：漆面背（汉为朱漆、楚为黑漆），金边祥云，中间极淡地印着所在位置的兵种
@@ -654,6 +649,25 @@ const Board = (() => {
   });
   let feastTex = null;
   // 头顶血条：细长胶囊，左端金色菱形饰；汉军朱红、楚军暗绿；亮格 = 剩余生命，暗格 = 已掉的血（朝向镜头）
+  // 脚下血圈（美术 M17）：汉朱红、楚低饱和蓝；有血的段是凸起的珐琅，掉了的压平、半透明暗色。几何体、材质按键缓存（不随棋子释放）
+  const HPC = { r: 0xb8382b, b: 0x4d6c8c };
+  const hpSector = (R0, R1, a0, a1) => { const sh = new THREE.Shape(); sh.absarc(0, 0, R1, a0, a1, false); sh.absarc(0, 0, R0, a1, a0, true); sh.closePath(); return sh; };
+  const ringCache = new Map();
+  const ringGet = (k, mk) => { let v = ringCache.get(k); if (!v) { v = mk(); if (v.isBufferGeometry) v.userData.keep = true; ringCache.set(k, v); } return v; };
+  function footRing(hp, max, s, W = 0.045, D = 0.013, GAP = 0.3) {
+    const g = new THREE.Group(), R0 = 0.452, R1 = R0 + W, span = (Math.PI * 2 - GAP * max) / max;
+    const baseGeo = ringGet('bg', () => { const q = new THREE.RingGeometry(R0 - 0.006, R1 + 0.006, 72); q.rotateX(-Math.PI / 2); return q; });
+    const dim = ringGet('mOff', () => new THREE.MeshStandardMaterial({ color: 0x2a221c, roughness: 0.9, transparent: true, opacity: 0.35, depthWrite: false }));
+    const base = new THREE.Mesh(baseGeo, dim); base.position.y = 0.003; g.add(base);
+    for (let i = 0; i < max; i++) {
+      const a0 = Math.PI / 2 + GAP / 2 + i * (span + GAP), on = i < hp, bs = Math.min(0.008, W * 0.12);
+      const geo = ringGet(`g${max}_${i}_${on ? 1 : 0}`, () => { const q = new THREE.ExtrudeGeometry(hpSector(R0 + bs, R1 - bs, a0, a0 + span), { depth: on ? D : 0.004, bevelEnabled: true, bevelThickness: on ? D * 0.4 : 0.002, bevelSize: bs, bevelSegments: 3, curveSegments: 32 }); q.rotateX(-Math.PI / 2); return q; });
+      const mat = on ? ringGet('mOn' + s, () => new THREE.MeshPhysicalMaterial({ color: HPC[s], emissive: HPC[s], emissiveIntensity: 0.18, roughness: 0.38, metalness: 0.05, clearcoat: 0.6, clearcoatRoughness: 0.18 }))
+        : ringGet('mLost', () => new THREE.MeshStandardMaterial({ color: 0x2a221c, roughness: 0.9, transparent: true, opacity: 0.3, depthWrite: false }));
+      const mm = new THREE.Mesh(geo, mat); mm.position.y = 0.004; mm.castShadow = on; g.add(mm);
+    }
+    return g;
+  }
   const hpTexCache = new Map();
   const HP_COL = { r: ['#ff8a66', '#e2462c', '#9c1f12'], b: ['#7fc79a', '#3f8a5e', '#1b4a31'] };
   function hpTex(hp, max, side) {
@@ -701,7 +715,7 @@ const Board = (() => {
   //   boxAz / boxEl / boxI / zen = 斜上方柔光箱的方位半宽、仰角范围、亮度，天顶灯亮度（决定金属顶面那块高光有多大、多亮）
   //   domeM = 金属顶面的弧度（略微隆起，高光才是一块有形状的光斑，而不是整面发白）
   //   jade = 玉面纹理：gu 谷纹 / pu 蒲纹 / yun 云纹 / su 素面
-  const SK = { boxAz: [9, 14], boxEl: [33, 39, 51, 56], boxI: [1.2, 3.0], zen: 2.4, domeM: 0.2, anisoTop: 0.16, envS: 0.9, envG: 0.82, jade: 'yun' };   // 顶面高光占比：银约 35%、金约 25%；白玉用云纹
+  const SK = { boxAz: [5.5, 8.5], boxEl: [33, 39, 51, 56], boxI: [0.9, 2.3], zen: 2.0, domeM: 0.5, anisoTop: 0.16, envS: 0.9, envG: 0.82, jade: 'yun' };   // 顶面高光占比：银约 35%、金约 25%；白玉用云纹
   try { const o = JSON.parse(localStorage.getItem('xq3d-sk') || 'null'); if (o) Object.assign(SK, o); } catch (e) { }
   function studioEnv() {
     const W = 512, H = 256, lin = new Float32Array(W * H * 3);
@@ -1261,10 +1275,9 @@ const Board = (() => {
       pl.userData.plate = i; d.add(pl);
     }
     if (p.lv >= 2 || kingF) {
-      const tx = hpTex(p.hp, max, p.s), sc = (window.innerWidth <= 760 ? 1.25 : 1) * 0.0028;
-      const sp = new THREE.Sprite(new THREE.SpriteMaterial({ map: tx, transparent: true, depthWrite: false }));
-      sp.scale.set(tx.userData.w * sc, tx.userData.h * sc, 1); sp.position.y = PH + 0.34; sp.renderOrder = 6;
-      sp.userData.hpBar = { hp: p.hp, max }; d.add(sp);
+      // 血条：棋子脚下贴着棋盘一圈立体血段，一点血一段（美术 M17，Ham 审批台 059 / 063 / 066 / 069）
+      const ring = footRing(p.hp, max, p.s);
+      ring.userData.hpBar = { hp: p.hp, max }; d.add(ring);
     }
     if (o.jm) {
       for (let i = 0; i < 10; i++) {

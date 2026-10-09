@@ -2,6 +2,167 @@
 
 最新的在最上面，编号接着往下排（M1、M2…）。格式见同目录 `MODEL-WORKFLOW.md` 第 6 节。TD 用 `git show origin/model-lab:source/docs/collab/model-to-main.md` 看。
 
+## M17 · 10-09 · 交付 · 血条改成棋子脚下的一圈立体血段（换掉头顶的血条贴图）
+
+- 提交：model-lab 上带这张交付单的那次提交。交付前合过 `origin/dev`（0ace9a7），`node build.js` 能过，`test/*.test.js` 全过。
+- Ham 确认（审批台）：art-056「倾向于光环……需要更融为一体……哪怕用光环，也需要用立体棋子」；art-059「立体光环放脚下试试呢？绿色改成低饱和度蓝色试试」；art-063「太粗了，细一点」；art-066「再细一点，血条区块之间的间隔稍微再宽一点点」；art-069 点了通过（22:30）。069 是三选一，审批台没记下选的哪个，我按和 066 原话一致的「同样细，间隔宽一点」写；Ham 要是改选，我再补一张交付单（只差两个数，见下）。
+- 改了哪些文件：只有本文件。画法在 `board.js`（归你），请照下面改。
+
+**改法**：`board.js` 约 1263 行，`if (p.lv >= 2 || kingF) { … hpTex … Sprite … }` 这一段，把头顶的贴图换成脚下一圈。显示条件不变（二级以上、帅将）。
+
+```js
+// 血条：棋子脚下贴着棋盘一圈立体血段，一点血一段（Ham 10-09 审批台 059/066/069）
+const HPC = { r: 0xb8382b, b: 0x4d6c8c };            // 汉朱红、楚低饱和蓝
+const hpSector = (R0, R1, a0, a1) => { const sh = new THREE.Shape(); sh.absarc(0, 0, R1, a0, a1, false); sh.absarc(0, 0, R0, a1, a0, true); sh.closePath(); return sh; };
+function footRing(hp, max, s, W = 0.045, D = 0.013, GAP = 0.3) {
+  const g = new THREE.Group(), R0 = 0.452, R1 = R0 + W, span = (Math.PI * 2 - GAP * max) / max;
+  // 底下一圈很淡的暗影，让血段像嵌在棋盘上
+  const base = new THREE.Mesh(new THREE.RingGeometry(R0 - 0.006, R1 + 0.006, 72), new THREE.MeshStandardMaterial({ color: 0x2a221c, roughness: 0.9, transparent: true, opacity: 0.35, depthWrite: false }));
+  base.rotation.x = -Math.PI / 2; base.position.y = 0.003; g.add(base);
+  for (let i = 0; i < max; i++) {
+    const a0 = Math.PI / 2 + GAP / 2 + i * (span + GAP), on = i < hp, bs = Math.min(0.008, W * 0.12);
+    const geo = new THREE.ExtrudeGeometry(hpSector(R0 + bs, R1 - bs, a0, a0 + span), { depth: on ? D : 0.004, bevelEnabled: true, bevelThickness: on ? D * 0.4 : 0.002, bevelSize: bs, bevelSegments: 3, curveSegments: 32 });
+    geo.rotateX(-Math.PI / 2);
+    const mat = on
+      ? new THREE.MeshPhysicalMaterial({ color: HPC[s], emissive: HPC[s], emissiveIntensity: 0.18, roughness: 0.38, metalness: 0.05, clearcoat: 0.6, clearcoatRoughness: 0.18 })   // 有血：珐琅
+      : new THREE.MeshStandardMaterial({ color: 0x2a221c, roughness: 0.9, transparent: true, opacity: 0.3, depthWrite: false });   // 掉了的：压平、半透明暗色
+    const mm = new THREE.Mesh(geo, mat); mm.position.y = 0.004; mm.castShadow = on; g.add(mm);
+  }
+  return g;
+}
+```
+然后原来那段改成：
+```js
+if (p.lv >= 2 || kingF) {
+  const ring = footRing(p.hp, max, p.s);
+  ring.userData.hpBar = { hp: p.hp, max }; d.add(ring);   // 还挂 hpBar，1173 行那句（不当皮肤处理）照常生效
+}
+```
+- 尺寸都是棋子自己坐标里的（棋子半径约 0.44）：内径 0.452，宽 0.045，凸起 0.013，段和段之间空 0.3 弧度。第一段从棋子自己的 −Z 方向起排（和审批台截图一致）。
+- 如果 Ham 改选另外两个：「066 原样」是 `GAP = 0.2`；「更细一点、间隔再宽」是 `W = 0.036, D = 0.011, GAP = 0.34`。
+- 可以缓存：几何体只跟 `max`、第几段、有没有血有关，材质只跟阵营、有没有血有关，按这几个键存起来就不用每次 `decorate` 都新建。`hpTex` 不用了可以删。
+- 拒马的十根木桩（1270 行，半径 0.5）会立在血圈上。拒马 Ham 刚让我重新设计（持矛兵），新样子出来以后一起对位置；在那之前两者叠着也看得清。
+- 效果见审批台 069 的图：手机沙盘、手机俯瞰、电脑沙盘、电脑拉近。没看的：低画质档（阴影关了以后血段的立体感会弱一点，颜色照样分得清）。
+
+## M16 · 10-09 · 交付 · 银、金棋子顶面高光收小（只改 `board.js` 里 `SK` 的四个数）
+
+- 提交：model-lab 上带这张交付单的那次提交。交付前合过 `origin/dev`（2d92916），`node build.js` 能过，`test/*.test.js` 全过。
+- Ham 确认（审批台）：art-058 备注「要不还是就保持原样吧，稍微再减少一点高光面积」（20:25）；art-064 选「高光再少一点」（21:55）。
+- 改了哪些文件：只有本文件。参数在 `board.js`（归你），请照下面改一行。
+
+**改法**：`board.js` 约 704 行 `const SK = {…}` 里改四个数，其余不动：
+
+| 键 | 现在 | 改成 | 管什么 |
+|---|---|---|---|
+| `domeM` | 0.2 | **0.5** | 顶面的弧度：越鼓，柔光箱映在顶面上的那块亮斑越小 |
+| `boxAz` | [9, 14] | **[5.5, 8.5]** | 四盏斜上方柔光箱的方位半宽：箱子窄了，亮斑跟着窄 |
+| `boxI` | [1.2, 3.0] | **[0.9, 2.3]** | 柔光箱亮度 |
+| `zen` | 2.4 | **2.0** | 天顶灯亮度 |
+
+改完是这一行：
+```js
+const SK = { boxAz: [5.5, 8.5], boxEl: [33, 39, 51, 56], boxI: [0.9, 2.3], zen: 2.0, domeM: 0.5, anisoTop: 0.16, envS: 0.9, envG: 0.82, jade: 'yun' };   // 顶面高光约为原来的一半（Ham 10-09 审批台 064 选「高光再少一点」）；白玉用云纹
+```
+- 效果（审批台 064 的图）：顶面亮的那块只剩原来一半左右，其余是稍暗的金属色，车削纹看得更清楚；金更沉，银偏灰一点。字、侧面回纹、口沿都没变。
+- **白玉**：影棚环境图是三种材质共用的，所以白玉的反光也会弱一点点。我对比过（四级白玉，原来 / 改后），肉眼几乎看不出差别，白玉不用单独处理。Ham 在 064 里说过白玉不动；你要是想做到一模一样，可以给白玉单独留一张旧参数的环境图。
+- 浏览器里有人用过 `Board.skinTune` 调参、存进了 `localStorage('xq3d-sk')`，会盖掉新默认值。正式玩家不会有这个键，只是提醒你自己测的时候清一下。
+- 我看过的：手机 390×844，二级银、三级金、四级玉，近看汉、楚两条底线和整盘（审批台 064 的图，加上一组白玉对比）。没看的：电脑上的大屏、低画质档。
+
+## M15 · 10-09 · 交付 · 界面（房间观战席：点名牌坐过去、点空座位坐回来，观众叫农夫、樵夫）
+
+- 提交：model-lab 上带这张交付单的那次提交。交付前合过 `origin/dev`（4c6b5ab），`node build.js` 能过，`test/*.test.js` 全过。
+- Ham 确认（审批台）：art-053 选 B「不用按钮，点座位」（18:32），备注「出几个方案看看，观众名就叫农夫，樵夫啥的就行」；art-057 选甲「名牌」（20:19）。
+- 改了哪些文件：`source/src/template.html`（观战席的样式，接在 `#lobby .seat small b` 后面）、本文件。没改结构，没删、没改名的 `id`。
+
+**样子我已经放好**（`#pWait .specs` / `#roomSpecs` 下面的 `<i>`），需要 TD 在 `paintRoom()`（main.js 约 2996 行）里按下面拼：
+- 每个观众一块：`<i>农夫</i>`。前面的圆点是 CSS 画的，不用写。
+- 自己（在观战席上的人）那块加 `me`：房主写 `<i class="me">你（房主）</i>`，别人写 `<i class="me">你</i>`；实心米底、圆点朱红。顺序：自己排第一个。
+- **房主坐在座位上时**，最后多一块虚线的空位：`<i class="open" data-sit tabindex="0" role="button">坐这里</i>`，点它（或回车）就坐到观战席。只有房主看得到这一块。
+- 名牌下面一行小字：`<span class="tip">…</span>`，放在 `#roomSpecs` 后面、`.specs` 里面。房主在座位上写「点这里就坐过来」；房主在观战席写「点红方空座位坐回去」（房主执黑就写「黑方」）；客人不写。
+- 没有观众、也没有「坐这里」时，`#roomSpecs` 里照旧写「暂时没有观众」（纯字，不套 `<i>`）。
+
+**点座位（053 选 B，「去观战席」按钮不要了）**——逻辑是你的：
+- 房主点「坐这里」→ 坐到观战席，他原来的座位空出来：大字「空位」、小字「**点这里坐回** · 先手」（执黑就没有「先手」）；这块空座位点一下就坐回去。空出来的座位别人能坐、也能加人机，和 053 图里一样。
+- 房主在观战席还是房主：能加人机、能开始；两个座位都有人（或电脑）时点「开始」，他在旁边看。`#waitNote` 写「你在观战席。两个座位都有人（或电脑）时，点「开始」开局」。
+
+**观众的名字（Ham 053 备注）**：按进房间的先后，依次叫 **农夫、樵夫、渔夫、牧童、书生、货郎**，再往后从头再来、加「二」「三」（农夫二、樵夫二……）。名字由房主那边发、大家看到的一样；观众走了名字空出来，下一个进来的先用空出来的那个。名单 Ham 在 057 里说过可以改，改了我再告诉你。
+
+- 我看过的：手机 390×844、电脑 1480×1000，房主在座位上 / 坐到观战席两种（审批台 057 的图）；交付前用真实样式又截了一遍，和图里一样。
+- 没看的：真的有人进出时的刷新（逻辑是你的）；名字很长时会换行，不会出框。
+
+## M14 · 10-09 · 交付 · 界面 + 模型（本地双人「视」两档、房间里人机座位的字、档位下拉、棋盘上项羽的卜字戟）
+
+- 提交：model-lab 上带这张交付单的那次提交。交付前合过 `origin/dev`（4c6b5ab），`node build.js` 能过，`test/*.test.js` 全过。
+- Ham 确认（审批台）：art-045 选 A（16:47）、art-046 通过（16:51）、art-047 选甲（17:40）、art-048 选 A（17:42）。
+- 改了哪些文件：`source/src/template.html`（`#viewTag` 里加一排、房间下拉的样式）、`source/src/models.js`（`makeHero` 里项羽的兵器，另加 `buBlade()`）、本文件。
+- 新的结构：`#viewTag` 里第二个 `.row`：`<div class="row lc"><span data-l="flip" class="flip">换边</span><span data-l="free">自由视角</span></div>`。`#roomAILv`、`#roomAI2Lv` 去掉了行内 `style`，加了 `class="lvsel"`。没删、没改名的 `id`。
+
+**1. 本地双人「视」两档（art-045 选 A）**——样式和结构我放好了，需要 TD 接：
+- 本地双人时给 `#viewTag` 加 `lc`（三档那一排自动藏起来，换成「换边 / 自由视角」这一排），离开本地对局时去掉。
+- 按「视」在两档间切：给 `.row.lc span` 里 `data-l` 等于当前档的那个加 `on`；`#viewTagS` 写说明——换边「轮到谁下，棋盘就转到谁那边」，自由视角「不自动转，自己拖着看」；`#viewTag` 亮 1.5 秒，和联机那三档一样。
+- 默认是「换边」（你 H21 说的自动翻转那套逻辑）。**每回合自动转过去的时候不亮提示**，只有按「视」才亮（Ham 选的 A）。
+- 「换边」选中时名字后面有个转圈的小图标（CSS 画的，`span.flip.on::after`），不用脚本管。
+
+**2. 房间里人机座位的字（art-047 选甲）**——要改 `main.js` 拼座位那一行（`paintRoom()` 里的 `seat()`，约 2990 行）：
+- 现在大字写「人机 · 校尉」，五个字在电脑上的圆圈里放不下。改成：**大字只写档位**（新兵 / 校尉 / 霸王），**小字写「人机 ★★」**，星星和人机对战选档那页一样（新兵 ★、校尉 ★★、霸王 ★★★）。
+- 参考写法：
+  ```js
+  const STAR = { easy: '★', mid: '★★', hard: '★★★' };
+  const who = ai ? (LV[ai] || '人机') : taken ? (mine ? '你' : hostSeat ? '房主' : '对手') : '空位';
+  const st = ai ? `人机 <span class="st">${STAR[ai] || ''}</span>${ai2 ? ' · 房主观战' : ''}` : hostSeat ? '房主' : !taken ? '等待对手…' : room.ready ? '<b style="color:#2f7d4f">已准备</b>' : '还没准备';
+  // 外层 div 的 class 在 ai 时多加一个 ' ai'（现在没有专门的样式，留着以后用）
+  ```
+  房主把自己的座位也交给电脑（`ai2`）时那一边同样这么写，小字是「人机 ★★ · 房主观战」。手机上座位是方框，不出框，字跟着一起变。
+
+**3. 档位下拉（art-048 选 A）**——我已经改完，不用接：
+- 收起的样子和旁边的方框按钮一样（方角、2px 米色边、粗宋、右边一个折角箭头），手机 44px 高、电脑 58px 高，和按钮对齐。
+- Chrome 135 以后（`appearance: base-select`）展开的列表也换了：墨底米字、当前档朱红、指上去米底墨字。别的浏览器（苹果的 Safari 等）收起的样子一样，点开还是系统自带的列表（苹果是滚轮）。
+- 顺手把 `#lobby select` 那条通用样式（带 `!important` 的）排除了 `.lvsel`，不然箭头会被它的 `background:none!important` 抹掉。
+- Ham 在 048 的备注里又提了一件新事：「联机大厅需要有观战席，房主也可以自主选择移动到观战席上。」这个我先出样子放审批台，定了另交。
+
+**4. 棋盘上的项羽换成卜字戟（art-046 通过）**：
+- `models.js` 的 `makeHero('xiang')`：原来两片月牙刃（方天画戟）换成秦汉的卜字戟——顶上直刺、一侧横出一刃（援），刃根顺杆下垂（胡），杆头一节铜銎，红缨挂在銎下。握点、动作都没动。新加 `buBlade()`，`jiShape()` 还留着（兵卒的戟在用）。
+- **改了 `makeXiangYu`，按 H20：请重跑 `tools/faces.py` 重画大厅里的项羽头像**（头像里能看到戟头）。
+- 我看过的：棋盘项羽正面、侧面、斜看（审批台 art-046 的图）。没看的：攻击动作里挥戟的那几帧。
+
+- 我看过的（界面）：手机 390×844、电脑 1440×900，房间页加人机前后、下拉展开；本地「视」两档（审批台 045、047、048 的图）。改完以后用真实样式又截了一遍。
+- 没看的：本地换边的手感（逻辑是你的）；苹果手机上下拉点开的样子。
+
+## M13 · 10-09 · 交付 · 木棋子换成「牙黄面加色边」（手机上汉方看得清）
+
+- 提交：model-lab 上带这张交付单的那次提交。交付前合过 `origin/dev`（4db9f8c），`node build.js` 能过，`test/*.test.js` 全过。**这次没改任何代码文件**，只有本文件：要改的是 `board.js` 的 `faceTex`，不在 H14 放给我的那几处里，所以请你照下面的代码换。
+- Ham 确认：他 14:30 发手机截图说「木棋子颜色太深了，移动端汉方看不清楚，调整一下。出三个方案」。art-037 他先选了象牙面，但担心和白玉太像；我把象牙面、牙黄面加色边、漆身木面和白玉、乌银、錾金放一起截图（art-040），他 16:14 选了 **B · 牙黄面加色边**。
+- 只换一级（木）棋子的字面：常规、揭棋翻开后、技能模式一级都用 `faceTex`，一起变。棋身侧面的木纹、金色腰线、揭棋暗子的漆背都不动。二、三、四级（银、金、玉）不动——Ham 同时说「现在的金色和银色和其他棋子有点风格不搭，各做三个方案」，我在做，定了另交一张。
+
+**需要 TD 做的**
+1. `source/src/board.js` 约 488 行，把 `faceTex(s, t)` 整个换成下面这段（缓存、`canvasTex`、`FONT` 都是原来的，没有新接口）：
+   ```js
+   function faceTex(s, t) {
+     const key = s + t;
+     if (faceCache[key]) return faceCache[key];
+     const ch = XQ.NAMES[s][t];
+     const col = s === 'r' ? '#b3241a' : '#1a1714';   // 汉朱、楚墨
+     return (faceCache[key] = canvasTex(512, 512, (g, w) => {
+       g.clearRect(0, 0, w, w);
+       const c = w / 2;
+       const ring = (r, lw, color) => { g.strokeStyle = color; g.lineWidth = lw; g.beginPath(); g.arc(c, c, r, 0, 7); g.stroke(); };
+       // 牙黄面：左上略亮，往外渐深
+       const gr = g.createRadialGradient(c * 0.8, c * 0.75, 10, c, c, w * 0.48);
+       gr.addColorStop(0, '#f1e4c0'); gr.addColorStop(1, '#e6d3a4');
+       g.fillStyle = gr; g.beginPath(); g.arc(c, c, w * 0.47, 0, 7); g.fill();
+       // 色边：外圈一道粗边 + 里面一道细圈，和字同色
+       ring(w * 0.47, 14, col); ring(w * 0.452, 10, col); ring(w * 0.372, 5, col);
+       // 字：粗楷，不描边、不加阴影（牙黄底上已经够清楚）
+       g.font = `bold 310px ${FONT}`; g.textAlign = 'center'; g.textBaseline = 'middle';
+       g.fillStyle = col; g.fillText(ch, c, c + 16);
+     }));
+   }
+   ```
+   和原来比：去掉了联珠纹、金色描边和字的阴影；面整块铺牙黄（原来是透明的，露出木纹）；红字从 `#a3241a` 提到 `#b3241a`。
+2. 字面材质 `roughness: 0.5` 不用改。
+- 我看过的：手机 390×844 全盘（常规开局，汉楚两边），和象牙面、漆身、白玉、乌银、錾金并排对比（审批台 art-040 的图）。
+- 没看的：电脑宽屏；揭棋翻开时浮起来的字印（`fx.js` 约 939 行也用 `Board.faceTex`，会变成一整块牙黄圆片带色边，比原来透明底更醒目，我觉得可以，你过一眼）。代码就是我截图用的那段，换上去应该一样。
+
 ## M12 · 10-09 · 补充：升级确认框（M9 第 2 条），Ham 定了召回良将后那一步也要弹
 
 - Ham 10-09 16:13 问「棋子升级确认并附带说明弹框为什么没更新？」，我答：样式和结构在 M9 里，开框的脚本你那边还没接（H15、H18 都写着没接），在等「召回良将后要不要也弹」。他 16:16 回：「也要弹窗确认」。

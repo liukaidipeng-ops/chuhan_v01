@@ -118,7 +118,7 @@
   const fewPieces = S => { let n = 0; for (const row of S.board) for (const p of row) if (p && p.s === S.turn) n++; return n <= 4; };
 
   // ---------- 搜索 ----------
-  let nodes = 0, deadline = Infinity, qMax = 3;
+  let nodes = 0, deadline = Infinity, qMax = 3, lmrOn = false;
   let nodeCap = Infinity;   // 测试用的“按搜索量收手”：搜过这么多节点就停（LEVELS.<档>.nodes），不看时间，结果可复现
   const TIMEOUT = { timeout: true };
   const hist = new Map();                     // 历史启发：哪些安静着法以前造成过剪枝
@@ -257,6 +257,22 @@
     }
     return false;
   }
+  // 局面指纹（两个 32 位散列拼成 53 位的数）
+  const TTB = new Map();
+  function fp(S) {
+    let h1 = 2166136261, h2 = 5381;
+    const mix = x => { h1 = Math.imul(h1 ^ x, 16777619); h2 = (Math.imul(h2, 33) ^ x) | 0; };
+    const mixS = t => { for (let i = 0; i < t.length; i++) mix(t.charCodeAt(i)); };
+    for (let r = 0; r < 10; r++) for (let f = 0; f < 9; f++) {
+      const p = S.board[r][f]; if (!p) continue;
+      mix(1000 + r * 9 + f);
+      for (const k in p) { mixS(k); const v = p[k]; if (typeof v === 'number') { mix(v | 0); mix(Math.round(v * 4096) | 0); } else if (typeof v === 'string') { mix(7); mixS(v); } else if (typeof v === 'boolean') mix(v ? 3 : 5); else if (v == null) mix(9); else mixS(JSON.stringify(v)); }
+    }
+    mixS(JSON.stringify([S.turn, S.cnt, S.merit, S.used, S.fx, S.crossed, S.dead, S.upgraded, S.ckHist, S.freeUsed, S.jmLock, S.final, S.occ, S.named]));
+    return (h1 >>> 0) * 2097152 + ((h2 >>> 0) & 2097151);
+  }
+  const toTT = (v, ply) => (v > WIN / 2 ? v + ply : v < -WIN / 2 ? v - ply : v), fromTT = (v, ply) => (v > WIN / 2 ? v - ply : v < -WIN / 2 ? v + ply : v);
+  const mkey = a => (a.k === 'mv' ? hk(a) : JSON.stringify(a));
   function ab(S, depth, alpha, beta, ply, ext = 0) {
     if (++nodes > nodeCap || ((nodes & 63) === 0 && now() > deadline)) throw TIMEOUT;
     const side = S.turn, inChk = A.inCheck(S, side);
@@ -268,24 +284,31 @@
       else return qs(S, alpha, beta, ply, 0);
     }
     if (fewPieces(S) && stuck(S)) return -WIN + ply;
-    let best = -INF, legal = 0;
+    // 查表——同一局面、同样剩余层数、同样的延伸次数和“这层要不要考虑对方升级 / 破釜”
+    const tkey = fp(S) + ':' + depth + ':' + ext + ':' + (ply === upPly && !S.upgraded ? 1 : 0) + (ply === pfPly ? 2 : 0), tte = TTB.get(tkey), a0 = alpha;
+    if (tte) { const v = fromTT(tte.v, ply); if (tte.f === 0 || (tte.f === 1 && v >= beta) || (tte.f === 2 && v <= alpha)) return v; }
+    let best = -INF, legal = 0, bm = null;
     // 对方应这一步时，也可能先花军功给某枚子升一级再走（多一点血：我方本来能吃掉的子就吃不掉了，打上去还会被弹回）
     if (ply === upPly && !S.upgraded) {
       const ups = upsOf(S, side);
       for (const u of ups) {
         const v = ab(u.S, depth - extd, alpha, beta, ply, ext - extd);
-        if (v > best) best = v;
+        if (v > best) { best = v; bm = null; }
         if (v > alpha) alpha = v;
-        if (alpha >= beta) return best;
+        if (alpha >= beta) { if (TTB.size < 300000) TTB.set(tkey, { v: toTT(best, ply), f: 1, m: null }); return best; }
       }
     }
-    const list = order(A.gen(S, false), killers[ply]);
+    const list = order(A.gen(S, false), killers[ply]); let mi = 0;
+    if (tte && tte.m != null) { const i = list.findIndex(it => mkey(it.a) === tte.m); if (i > 0) { const x = list[i]; list.splice(i, 1); list.unshift(x); } }   // 上次最好的一步先算
     for (const it of list) {
       const r = BF.attempt(S, it.a); if (!r || r.free) continue;
-      legal++;
+      legal++; mi++;
       const w = decided(r.S, r.ev);
-      const v = w ? (w === side ? WIN - ply : -WIN + ply) : -ab(r.S, depth - 1, -beta, -alpha, ply + 1, ext);
-      if (v > best) best = v;
+      let v;   // 排在后面的安静着法先少算一层试一下
+      if (w) v = w === side ? WIN - ply : -WIN + ply;
+      else if (lmrOn && ply >= 1 && depth >= 2 && mi > 2 && !inChk && it.a.k === 'mv' && !it.q && !A.inCheck(r.S, r.S.turn)) { v = -ab(r.S, depth - 2, -alpha - 0.01, -alpha, ply + 1, ext); if (v > alpha) v = -ab(r.S, depth - 1, -beta, -alpha, ply + 1, ext); }
+      else v = -ab(r.S, depth - 1, -beta, -alpha, ply + 1, ext);
+      if (v > best) { best = v; bm = it.a; }
       if (v > alpha) alpha = v;
       if (alpha >= beta) {
         if (!it.q && it.a.k === 'mv') { const k = hk(it.a); killers[ply] = k; hist.set(k, Math.min(300, (hist.get(k) || 0) + depth * depth)); }
@@ -323,6 +346,7 @@
       if (!r) return -WIN + ply;                // 将死 / 困毙
       return -ab(r.S, depth - 1, -beta, -alpha, ply + 1, ext);
     }
+    if (TTB.size < 300000) TTB.set(tkey, { v: toTT(best, ply), f: best <= a0 ? 2 : best >= beta ? 1 : 0, m: bm ? mkey(bm) : null });   // 记下来
     return best;
   }
 
@@ -401,7 +425,7 @@
     let L = tick ? { ...L0, budget: Math.min(L0.budget, 1400) } : L0;   // 在主线程里算（开不了 Worker）时少想一会儿，免得卡画面
     let S = S0, last = now();
     const breathe = async () => { if (tick && now() - last > 12) { await tick(); last = now(); } };
-    kdMe = S0.turn; nodes = 0; qMax = L.q; hist.clear(); killers.length = 0; upPly = -1; pfPly = -1; pfCache.clear(); upCache.clear(); pfAlias.clear(); pfUp.clear(); deadline = Infinity; nodeCap = Infinity;
+    lmrOn = L.depth > 3; kdMe = S0.turn; nodes = 0; qMax = L.q; hist.clear(); killers.length = 0; upPly = -1; pfPly = -1; pfCache.clear(); upCache.clear(); TTB.clear(); pfAlias.clear(); pfUp.clear(); deadline = Infinity; nodeCap = Infinity;
     const fin0 = !!S0.final, chk0 = A.inCheck(S0, me);
     if (PFD && me === 'r' && L.depth >= 3 && S0.cnt.b < (S0.fx.pf || 0)) L = { ...L, depth: L.depth + PFD };   // 楚方技能被封的反击窗口：多算一层
     const byNodes = L.nodes > 0;   // 设了 nodes：按搜索量收手，完全不看时间（对打、考卷、漏着率用，机器快慢不影响结果）

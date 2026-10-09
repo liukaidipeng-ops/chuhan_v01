@@ -637,8 +637,8 @@ html,body{-webkit-text-size-adjust:100%!important;text-size-adjust:100%!importan
 #lobby .seg button,#mSet .seg button{min-height:44px;margin-left:-2px;padding:0 16px;border:2px solid var(--c);border-radius:0;background:none;color:var(--c);font-family:var(--es);font-size:calc(15px * var(--fs,1));white-space:nowrap}
 #lobby .seg button.on,#lobby .seg button.on.r,#mSet .seg button.on{background:var(--c);border-color:var(--c);color:var(--k);font-weight:500}
 #lobby .seg button:focus-visible,#mSet .seg button:focus-visible{outline:2px solid var(--c);outline-offset:3px}
-#lobby input:not([type=checkbox]):not(.code),#lobby select,#mSet input:not([type=range]){border:2px solid var(--c)!important;border-radius:0;background:none!important;color:var(--c);font-family:var(--es)!important;min-height:44px}
-#lobby select option{color:#141311}
+#lobby input:not([type=checkbox]):not(.code),#lobby select:not(.lvsel),#mSet input:not([type=range]){border:2px solid var(--c)!important;border-radius:0;background:none!important;color:var(--c);font-family:var(--es)!important;min-height:44px}
+#lobby select:not(.lvsel) option{color:#141311}
 #lobby input::placeholder,#mSet input::placeholder{color:rgba(240,231,210,.6)}
 #lobby input[type=checkbox]{accent-color:var(--k)}
 
@@ -830,6 +830,11 @@ body.compact #bfBar.cmp,body.compact #skHint{translate:0 -2px}
 #viewTag .row span.on{background:var(--g);color:var(--c)}
 #viewTag .row span.lock.on::after{content:"";display:inline-block;width:8px;height:7px;margin-left:5px;border:2px solid currentColor;border-top-width:3px;border-radius:1px;vertical-align:1px;box-sizing:border-box}
 #viewTag small{font:500 calc(12px * var(--fs,1)) var(--es);color:var(--c);background:rgba(20,19,17,.82);padding:2px 10px;letter-spacing:.06em}
+/* 本地双人：「视」只有两档（换边 / 自由视角），#viewTag 加 lc 时换成这一排（art-045） */
+#viewTag .row.lc{display:none}
+#viewTag.lc .row{display:none}
+#viewTag.lc .row.lc{display:flex}
+#viewTag .row span.flip.on::after{content:"";display:inline-block;width:12px;height:12px;margin-left:6px;vertical-align:-1px;background:currentColor;-webkit-mask:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 12 12'%3E%3Cpath d='M1.8 5.4A4.2 4.2 0 0 1 9 2.6' fill='none' stroke='%23000' stroke-width='1.9'/%3E%3Cpath d='M10.6 .6v4H6.6z'/%3E%3Cpath d='M10.2 6.6A4.2 4.2 0 0 1 3 9.4' fill='none' stroke='%23000' stroke-width='1.9'/%3E%3Cpath d='M1.4 11.4v-4h4z'/%3E%3C/svg%3E") center/contain no-repeat;mask:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 12 12'%3E%3Cpath d='M1.8 5.4A4.2 4.2 0 0 1 9 2.6' fill='none' stroke='%23000' stroke-width='1.9'/%3E%3Cpath d='M10.6 .6v4H6.6z'/%3E%3Cpath d='M10.2 6.6A4.2 4.2 0 0 1 3 9.4' fill='none' stroke='%23000' stroke-width='1.9'/%3E%3Cpath d='M1.4 11.4v-4h4z'/%3E%3C/svg%3E") center/contain no-repeat}
 @media (prefers-reduced-motion:reduce){#viewTag{transition:none}}
 #skip{border:2px solid var(--c);border-radius:0;background:var(--k);color:var(--c);font-family:var(--ef);font-weight:900}
 #rpBar{padding:12px;border:0;border-radius:0;background:var(--k);box-shadow:inset 0 0 0 3px var(--k),inset 0 0 0 4px var(--c),0 8px 24px rgba(0,0,0,.35)}
@@ -1029,9 +1034,44 @@ html:has(#endcard:not(.hidden)),html:has(#endcard:not(.hidden)) body,html:has(#e
   #pWait .note{font-size:calc(16px * var(--fs,1))}
   #pWait .row{gap:14px;margin:20px 0 4px}
   #pWait .e-body .btn,#pWait .e-body .btn.small{min-height:58px;padding:0 28px;font-size:calc(20px * var(--fs,1));letter-spacing:.2em}
-  #pWait select{min-height:58px;padding:0 12px!important;font-size:calc(17px * var(--fs,1))!important}
 }
 #lobby .seat small b{color:inherit!important;font-weight:900}
+
+/* 观战席（057 甲 · 名牌）：一排方框名牌，前面一个圆点；你自己那块实心、点是朱红；房主在座位上时最后多一块虚线「坐这里」，点它坐过去；
+   下面一行小字提示（.tip）。名牌由 main.js 生成：<i>农夫</i> / <i class="me">你（房主）</i> / <i class="open" data-sit tabindex="0" role="button">坐这里</i> */
+#pWait .specs{display:flex;align-items:center;justify-content:center;gap:12px;flex-wrap:wrap;margin:0 0 14px;font-family:var(--es)}
+#pWait .specs>b{margin:0;font-family:var(--ef);font-weight:900;letter-spacing:.3em;padding-left:.3em}
+#pWait #roomSpecs{display:flex;align-items:center;justify-content:center;gap:8px;flex-wrap:wrap}
+#lobby #pWait #roomSpecs i{font-style:normal;display:inline-flex;align-items:center;gap:7px;min-height:34px;margin:0;padding:0 14px 0 8px;border:2px solid var(--c);border-radius:0;background:none;color:var(--c);
+  font-family:var(--es);font-size:calc(15px * var(--fs,1));letter-spacing:.08em;white-space:nowrap}
+#lobby #pWait #roomSpecs i::before{content:"";flex:none;width:16px;height:16px;border-radius:50%;background:var(--c)}
+#lobby #pWait #roomSpecs i.me{background:var(--c);color:var(--k);font-weight:900}
+#lobby #pWait #roomSpecs i.me::before{background:var(--g)}
+#lobby #pWait #roomSpecs i.open{border-style:dashed;cursor:pointer}
+#lobby #pWait #roomSpecs i.open::before{content:"+";width:16px;height:16px;border-radius:0;background:none;display:flex;align-items:center;justify-content:center;font:900 18px/1 var(--es)}
+#lobby #pWait #roomSpecs i.open:hover{background:rgba(240,231,210,.12)}
+#lobby #pWait #roomSpecs i.open:focus-visible{outline:3px solid var(--c);outline-offset:3px}
+#pWait .specs .tip{flex-basis:100%;text-align:center;font-size:calc(13px * var(--fs,1));letter-spacing:.06em;opacity:.75}
+
+/* 房间里选电脑档位的下拉：和旁边的方框按钮一个样子（方角、2px 米色边、粗宋），展开的列表是墨底米字、选中的朱红 */
+#pWait select{appearance:none;-webkit-appearance:none;min-height:44px;margin:0;padding:0 40px 0 16px;border:2px solid var(--c);border-radius:0;
+  background:transparent url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 14 9'%3E%3Cpath d='M1.5 1.5 7 7l5.5-5.5' fill='none' stroke='%23f0e7d2' stroke-width='2.4' stroke-linecap='square'/%3E%3C/svg%3E") no-repeat right 14px center/12px 8px;
+  color:var(--c);font-family:var(--ef);font-weight:900;font-size:calc(16px * var(--fs,1));letter-spacing:.12em;cursor:pointer}
+#pWait select:focus-visible{outline:3px solid var(--c);outline-offset:4px}
+#pWait select option{background:var(--k);color:var(--c)}
+@supports (appearance:base-select){
+  #pWait select,#pWait select::picker(select){appearance:base-select}
+  #pWait select{display:inline-flex;align-items:center;padding:0 16px;background-image:none}
+  #pWait select::picker-icon{content:"";display:block;width:13px;height:9px;margin-left:16px;background:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 14 9'%3E%3Cpath d='M1.5 1.5 7 7l5.5-5.5' fill='none' stroke='%23f0e7d2' stroke-width='2.4' stroke-linecap='square'/%3E%3C/svg%3E") no-repeat center/13px 9px;transition:transform .15s}
+  #pWait select:open::picker-icon{transform:rotate(180deg)}
+  #pWait select::picker(select){position-area:bottom span-right;position-try-fallbacks:none;margin:6px 0;padding:4px;border:2px solid var(--c);border-radius:0;background:var(--k);box-shadow:0 10px 24px rgba(0,0,0,.35)}
+  #pWait select option{min-height:48px;padding:0 22px;display:flex;align-items:center;gap:12px;color:var(--c);font-family:var(--ef);font-weight:900;font-size:calc(18px * var(--fs,1));letter-spacing:.2em;cursor:pointer}
+  #pWait select option::checkmark{display:none}
+  #pWait select option:checked{background:var(--g)}
+  #pWait select option:hover,#pWait select option:focus-visible{background:var(--c);color:var(--k);outline:0}
+}
+@media (min-width:641px){#pWait select{min-height:58px;padding:0 46px 0 22px;font-size:calc(20px * var(--fs,1));letter-spacing:.2em;background-position:right 18px center;background-size:13px 9px}}
+@supports (appearance:base-select){@media (min-width:641px){#pWait select{padding:0 20px 0 22px}}}
 
 /* ---------- 手机竖屏：竖河 ---------- */
 @media (max-width:640px){
@@ -1244,7 +1284,7 @@ html:has(#endcard:not(.hidden)),html:has(#endcard:not(.hidden)) body,html:has(#e
       <div class="specs"><b>观战席</b><span id="roomSpecs">暂时没有观众</span></div>
       <div class="chips" id="waitChips"></div>
       <p class="note" id="waitNote"><span class="spin"></span>正在连接线路…</p>
-      <div class="row hidden" id="roomHostRow"><button class="btn red solid" id="bRoomStart">开 始</button><button class="btn small" id="bRoomAI">添加人机</button><select id="roomAILv" style="font-size:15px;padding:6px 4px;border:1px solid #bba;background:rgba(255,255,255,.5);font-family:inherit"><option value="easy">新兵</option><option value="mid" selected>校尉</option><option value="hard">霸王</option></select><button class="btn small hidden" id="bRoomAI2">观看人机对战</button><select id="roomAI2Lv" style="font-size:15px;padding:6px 4px;border:1px solid #bba;background:rgba(255,255,255,.5);font-family:inherit"><option value="easy">新兵</option><option value="mid" selected>校尉</option><option value="hard">霸王</option></select></div>
+      <div class="row hidden" id="roomHostRow"><button class="btn red solid" id="bRoomStart">开 始</button><button class="btn small" id="bRoomAI">添加人机</button><select id="roomAILv" class="lvsel"><option value="easy">新兵</option><option value="mid" selected>校尉</option><option value="hard">霸王</option></select><button class="btn small hidden" id="bRoomAI2">观看人机对战</button><select id="roomAI2Lv" class="lvsel"><option value="easy">新兵</option><option value="mid" selected>校尉</option><option value="hard">霸王</option></select></div>
       <div class="row hidden" id="roomGuestRow"><button class="btn red solid" id="bRoomReady">准 备</button><button class="btn small" id="bRoomWatch">改为观战</button></div>
       <div id="qrWrap" class="hidden"><div id="qr"></div><div class="note">朋友用手机扫码即可入局</div></div>
       <div class="row" id="roomInvite"><button class="btn small solid" id="bShare">发送邀请链接</button><button class="btn small" id="bCopyCode">复制房间码</button></div>
@@ -1447,7 +1487,7 @@ html:has(#endcard:not(.hidden)),html:has(#endcard:not(.hidden)) body,html:has(#e
 <div id="rpBar" class="hidden"><button data-rp="first" title="回到开局">|◀</button><button data-rp="prev" title="后退一步">◀</button><button data-rp="play" class="pl">▶ 播放</button><button data-rp="next" title="前进一步">▶</button><button data-rp="last" title="跳到终局">▶|</button><span id="rpInfo"></span><button data-rp="exit" class="x">退出复盘</button></div>
 <button class="btn small hidden" id="skip">跳过 ▸▸</button>
 <div id="toast"></div>
-<div id="viewTag" aria-live="polite"><div class="row"><span data-v="0">沙盘</span><span data-v="1">俯瞰</span><span data-v="2" class="lock">定盘</span></div><small id="viewTagS"></small></div>
+<div id="viewTag" aria-live="polite"><div class="row"><span data-v="0">沙盘</span><span data-v="1">俯瞰</span><span data-v="2" class="lock">定盘</span></div><div class="row lc"><span data-l="flip" class="flip">换边</span><span data-l="free">自由视角</span></div><small id="viewTagS"></small></div>
 <div id="tip" class="hidden"></div>
 <button id="updBar" class="hidden">有新版本 · 点此刷新</button>
 
