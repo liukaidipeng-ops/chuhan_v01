@@ -1,0 +1,3 @@
+{ "args": "--games 300 --seed 3000 --level mid --ai-r tools/variants/bfai_v7c61.js --ai-b tools/variants/bfai_c61.js",
+  "env": {}, "chunks": 48,
+  "note": "第七版（活到兑现只开汉）执汉 对 C61 执楚，mid" }
