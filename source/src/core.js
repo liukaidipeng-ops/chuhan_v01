@@ -134,7 +134,10 @@ const Core = (() => {
       return Math.max(6.9 / v, 5.6 / (v * a));
     },
     // 平滑移动到某个机位
-    async to(pos, look, dur = 1, e = ease.inOut) {
+    async to(pos, look, dur = 1, e = ease.inOut, force = false) {
+      // 俯瞰 / 定盘（正上方看）时不跟特写镜头跑：只等同样长的时间（演出节奏不变），镜头不动。终局的镜头（force）照走
+      //   （10-09 Ham：顶视图吃子的时候非常晃）
+      if (this.view && !force) return tween(dur, () => { }, e);
       this.cine = true;
       const id = this.moveId = (this.moveId || 0) + 1;
       const p0 = this.pos.clone(), l0 = this.look.clone();
@@ -145,7 +148,7 @@ const Core = (() => {
       await this.to(p, this.target.clone(), dur);
       this.cine = false;
     },
-    shake(a) { this.shakeAmp = Math.max(this.shakeAmp, a); },
+    shake(a) { this.shakeAmp = Math.max(this.shakeAmp, this.view ? a * 0.2 : a); },   // 正上方看时震屏只留两成
     // 平移：沿屏幕的左右 / 前后在地面上挪动注视点（dx、dy 是屏幕像素）
     panBy(dx, dy) {
       const k = this.radius * 0.0016, c = Math.cos(this.theta), s = Math.sin(this.theta);

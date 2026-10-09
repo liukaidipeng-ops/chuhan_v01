@@ -695,7 +695,7 @@ const Fx = (() => {
   // 只在电影档移动镜头
   const shot = (pos, look, dur = 0.8, e) => (cine() ? Cam.to(pos, look, dur, e) : Promise.resolve());
   function follow(target, offset, lookAhead, stiff = 4) {
-    if (!cine()) return () => { };
+    if (!cine() || Cam.view) return () => { };   // 正上方看（俯瞰 / 定盘）时镜头不跟
     Cam.cine = true;
     const desired = new V3(), look = new V3();
     return onFrame(dt => {
