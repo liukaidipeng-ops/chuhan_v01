@@ -176,6 +176,23 @@ const ok = (x, msg) => { assert(x, msg); };
   ok(g.legalFrom(4, 9).length > 0 && !g.legalFrom(0, 6).length, '之后只能走将应将');
   console.log('拒马应将 OK');
 }
+{
+  // Ham 10-10：拒马生效的两回合里这枚兵不能走；炮（隔子打）不挨反伤；冷却 4 回合
+  ok(BF.CFG.skills.juma.cooldown === 4, '拒马冷却 4 回合');
+  const pawn = P('b', 'p', 3);
+  const g = setup([[4, 0, K('r')], [3, 9, K('b')], [0, 6, pawn], [5, 9, P('b', 'a')], [0, 2, P('r', 'c')], [0, 4, P('r', 'p')], [8, 0, P('r', 'r')]], { turn: 'b' });
+  ok(g.apply({ k: 'sk', at: [0, 6] }) && g.apply({ k: 'mv', from: [5, 9], to: [4, 8] }), '黑卒拒马，再走一步士');
+  ok(g.apply({ k: 'mv', from: [8, 0], to: [8, 1] }), '红走一步');
+  ok(g.jmActive(g.at(0, 6)) && g.jmRooted(g.at(0, 6)), '下一回合拒马还在');
+  ok(!g.legalFrom(0, 6).length && !g.apply({ k: 'mv', from: [0, 6], to: [0, 5] }), '拒马期间卒不能走');
+  ok(!g.selfCheckFrom(0, 6).length, '拒马期间也不提示“送将”');
+  ok(!g.skillTargets(0, 6).length, '冷却中不能再架');
+  ok(g.apply({ k: 'mv', from: [4, 8], to: [5, 9] }), '黑走士');
+  const hp0 = g.at(0, 6).hp, i = g.apply({ k: 'mv', from: [0, 2], to: [0, 6] });
+  ok(i && g.at(0, 2) && g.at(0, 2).t === 'c' && g.at(0, 2).hp === 1 && g.at(0, 6).hp === hp0 - 1, '炮隔子打拒马：卒掉 1 血，炮不挨反伤、弹回原位');
+  ok(!g.jmActive(g.at(0, 6)) && g.legalFrom(0, 6).length > 0, '两回合过后拒马消失，卒又能走');
+  console.log('拒马不能动 / 炮不挨反伤 / 冷却 4 OK');
+}
 // 7. 冲阵
 {
   const g = setup([[4, 0, K('r')], [3, 9, K('b')], [0, 0, P('r', 'r', 3)], [0, 5, P('b', 'p')], [0, 6, P('b', 'n')], [0, 8, P('b', 'c', 2)]]);
