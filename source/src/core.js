@@ -15,7 +15,9 @@ const Core = (() => {
   const softGL = /swiftshader|llvmpipe|softpipe|basic render|software/i.test(GPU);
   try { const q = localStorage.getItem('xq3d-quality'); if (q) { quality = JSON.parse(q); userQ = true; } else if (isMobile) quality = 'mid'; } catch (e) { if (isMobile) quality = 'mid'; }
   if (softGL && !userQ) quality = 'low';
-  const renderer = new THREE.WebGLRenderer({ canvas, antialias: quality !== 'low', powerPreference: 'high-performance' });
+  // 排查用的开关（网址后面加，例如 ?noaa&lowp）：noaa 关多重采样抗锯齿，lowp 不点名要独立显卡。10-09 查 Ham 电脑上窗口卡死用
+  const DIAG = new URLSearchParams(location.search);
+  const renderer = new THREE.WebGLRenderer({ canvas, antialias: quality !== 'low' && !DIAG.has('noaa'), powerPreference: DIAG.has('lowp') ? 'default' : 'high-performance' });
   // 像素比：按画质封顶，再按“整张画布最多多少像素”封顶。大屏、高分屏全屏时画布能有上千万像素（还带多重采样），
   //   显卡（尤其集成显卡）吃不消，会拖累整台电脑（10-09 Ham：高配电脑卡、拖成独立窗口时所有软件都卡住）
   const PX_BUDGET = { high: 3.7e6, mid: 2.4e6, low: 1.4e6 };
@@ -429,7 +431,7 @@ const Core = (() => {
     get quality() { return quality; },
     setQuality(q, keep = true) { quality = q; if (keep) try { localStorage.setItem('xq3d-quality', JSON.stringify(q)); } catch (e) { } const sh = q !== 'low'; if (sh) renderer.shadowMap.enabled = true; if (sun.castShadow !== sh) { sun.castShadow = sh; held++; const un = () => { held--; }; compileBg(scene, camera, 600).then(un); } resize(); },   // keep=false：只这一次打开页面有效（自动降画质用）。
     // 影子用太阳的 castShadow 开关：三维库会发现灯光变了、自动重编着色器，当场生效（原来改 shadowMap.enabled 要下次打开才生效）
-    gpu: GPU, softGL, get parallelGL() { return parallelGL; }, get userQ() { return userQ; },
+    gpu: GPU, softGL, DIAG, get parallelGL() { return parallelGL; }, get userQ() { return userQ; },
     isMobile,
     renderer, scene, camera, sun, hemi, Time, onFrame, tween, sleep, ease, Cam, canvasTex, Tex, rnd, inkBlot,
     toon, outlineMat, outlineShared, inked, merge, M4, disposeTree, compileBg,

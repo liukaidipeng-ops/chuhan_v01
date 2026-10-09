@@ -149,7 +149,13 @@
   // 头几帧（编着色器、画影子图）都在加载页底下做完，再撤加载页（10-09 Ham：电脑上打开就卡住——原来是大厅出来以后才编着色器，
   //   Windows 上编一批着色器能卡好几秒，正好卡在大厅里点东西的时候）。最多等 6 秒
   let warmed; const warmUp = new Promise(r => { warmed = r; });
-  { const canDraw = Core.render; if (canDraw) {
+  // 排查开关（10-09 Ham 电脑上把标签拖成独立窗口就整台电脑卡）：
+  //   nogl 完全不画三维（画布也不显示）；nopaper 去掉整屏的纸纹叠加（mix-blend）；nobd 去掉所有背景模糊、滤镜、混合
+  const DG = Core.DIAG;
+  if (DG.has('nopaper')) { const pp = $('paper'); if (pp) pp.remove(); }
+  if (DG.has('nobd')) document.head.insertAdjacentHTML('beforeend', '<style>*,*::before,*::after{backdrop-filter:none!important;-webkit-backdrop-filter:none!important;filter:none!important;mix-blend-mode:normal!important}</style>');
+  if (DG.has('nogl')) { Core.render = false; Core.renderer.domElement.style.display = 'none'; Core.onFrame(() => { Core.render = false; Core.sleepy = true; }); }
+  { const canDraw = Core.render && !DG.has('nogl'); if (canDraw) {
     let ready = false, warm = 3; Core.render = false;
     const done = () => { ready = true; };
     Core.compileBg(Core.scene, Core.camera, 900).then(() => setTimeout(done, 50));
@@ -280,7 +286,7 @@
       const t = performance.now(); worst = Math.max(worst, t - lt); lt = t; n++;
       if (t - t0 >= 1000) {
         const R = Core.renderer, i = R.info.render, c = R.domElement;
-        d.textContent = `${Math.round(n * 1000 / (t - t0))} 帧/秒  最慢一帧 ${worst.toFixed(0)} ms\n画质 ${Core.quality}  像素比 ${R.getPixelRatio()}  画布 ${c.width}×${c.height}\n每帧 ${i.calls} 次绘制  ${(i.triangles / 1000).toFixed(0)}K 三角形  影子 ${Core.sun.castShadow ? '开' : '关'}\n${Core.gpu || '显卡未知'}${Core.softGL ? '  ← 软件渲染，没用显卡！' : ''}\n后台编着色器：${Core.parallelGL ? '支持' : '不支持（换场景时可能整个浏览器顿一下）'}\n${navigator.userAgent.replace(/^Mozilla\/5\.0 /, '').slice(0, 90)}`;
+        d.textContent = `${Math.round(n * 1000 / (t - t0))} 帧/秒  最慢一帧 ${worst.toFixed(0)} ms\n画质 ${Core.quality}  像素比 ${R.getPixelRatio()}  画布 ${c.width}×${c.height}\n每帧 ${i.calls} 次绘制  ${(i.triangles / 1000).toFixed(0)}K 三角形  影子 ${Core.sun.castShadow ? '开' : '关'}\n${Core.gpu || '显卡未知'}${Core.softGL ? '  ← 软件渲染，没用显卡！' : ''}\n后台编着色器：${Core.parallelGL ? '支持' : '不支持（换场景时可能整个浏览器顿一下）'}${[...Core.DIAG.keys()].filter(k => k !== 'perf').length ? '\n排查开关：' + [...Core.DIAG.keys()].filter(k => k !== 'perf').join(' ') : ''}\n${navigator.userAgent.replace(/^Mozilla\/5\.0 /, '').slice(0, 90)}`;
         n = 0; t0 = t; worst = 0;
       }
       requestAnimationFrame(tick);
