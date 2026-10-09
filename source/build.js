@@ -56,7 +56,15 @@ const now = new Date(Date.now() + 8 * 3600e3);
 const ver = now.toISOString().slice(0, 10).replace(/-/g, '.') + '-' + crypto.createHash('sha1').update(eng + app + data + realVer + bfVer + tpl + fs.statSync(path.join(D, 'fonts/songhei-subset.woff2')).size).digest('hex').slice(0, 6);   // 页面模板和界面字体也算进版本号：只改样式的更新，开着页面的人也要收到“有新版本”的提示
 // 界面用的宋体黑（思源宋体 Black 子集，SIL OFL 1.1，见 fonts/OFL-NotoSerifSC.txt；字表 fonts/songhei-chars.txt，归美术）
 const eb = 'data:font/woff2;base64,' + fs.readFileSync(path.join(D, 'fonts/songhei-subset.woff2')).toString('base64');
-const out = tpl.replace('/*APPVER*/', ver).replace('/*XKFONT*/', () => xk).replace('/*EBFONT*/', () => eb).replace('/*THREE*/', () => safe(three)).replace('/*QR*/', () => safe(qr)).replace('/*VOICE*/', () => data).replace('/*ENG*/', () => safe(eng)).replace('/*APP*/', () => safe(app));
+// 加载页的真实进度（美术 M9；Ham：要真实进度，不然玩家以为卡了）：页面边下边执行，每段脚本前插一个 LD(下到这里的比例)。
+//   应用脚本按模块拆成一段一段的 <script>（顶层的 const 在后面的脚本里照样看得见），进度走得匀；规则引擎那段（#eng）要原样塞进 Worker，不拆
+const appMods = order.filter(n => !ENG.includes(n) && fs.existsSync(path.join(D, 'src', n + '.js')));
+const appTags = appMods.map(n => `<script>/*LD*/</script>\n<script>${safe(`// ---- ${n}.js ----\n` + fs.readFileSync(path.join(D, 'src', n + '.js'), 'utf8'))}</script>`).join('\n');
+let out = tpl.replace('/*APPVER*/', ver).replace('/*XKFONT*/', () => xk).replace('/*EBFONT*/', () => eb)
+  .replace('<script>/*THREE*/</script>', () => `<script>/*LD*/</script>\n<script>${safe(three)}</script>`).replace('/*QR*/', () => safe(qr)).replace('/*VOICE*/', () => data)
+  .replace('<script id="eng">/*ENG*/</script>', () => `<script>/*LD*/</script>\n<script id="eng">${safe(eng)}</script>`).replace('<script>/*APP*/</script>', () => appTags);
+{ const total = Buffer.byteLength(out); let acc = 0, i = 0; const parts = out.split('/*LD*/');
+  out = parts.map((s, k) => { acc += Buffer.byteLength(s); return k < parts.length - 1 ? s + `LD(${(acc / total).toFixed(3)})` : s; }).join(''); }
 fs.mkdirSync(path.join(D, 'dist/site'), { recursive: true });
 fs.writeFileSync(path.join(D, 'dist', '楚汉三维象棋.html'), out);
 fs.writeFileSync(path.join(D, 'dist/site/index.html'), out);
