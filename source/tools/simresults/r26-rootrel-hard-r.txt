@@ -1,0 +1,98 @@
+# r26-rootrel-hard-r（GitHub Actions 运行 37964389885）
+# 请求：{"args":"--games 300 --seed 3000 --level hard --nodes hard=100000 --ai-r tools/variants/bfai_next.js --ai-b src/bfai.js","env":{"BFAI_ROOTREL":"2"},"chunks":48,"note":"新规则：根上补“会改变吃子结果”的升级（最多 2 个；Ham 10-09 霸王局第 29 回合 升象吃炮）执汉 对 线上，霸王"}
+# 收到 48/48 段
+== current | hard vs hard  [汉 tools/variants/bfai_next.js | 楚 src/bfai.js] | 296 局 | 0s ==
+胜负：汉 143  楚 152  和/超时 1   汉方胜率（分胜负的局）48.5%  95%CI 43–54%  ✗ 另有 4 局出错、没算进来，结果可能有偏差
+结局：b:checkmate 152  r:checkmate 141  r:stalemate 2  -:cap 1
+回合：平均 51.5  中位 50  P90 74  60 回合内结束 75.7%  进入决战 0.0%
+将死 293 局：将军的子有 2 血以上 93.5%（其中贴在帅将身边 77.8%），双将 5.5%
+攻防指标：车参与的将死 60.1%（三级以上的车 49.1%）；贴脸将死 81.6%；被将死的一方开局 4 个士象，终局平均丢 1.74 个（丢 0/1/2/3/4 个的局：47/88/76/59/23）
+士象技能（两方合计，每局平均次数）：护驾 1.54，铁甲禁卫 0.74，飞越 0.26，齐射 0.02，践踏打中 0.01，反击 0.00
+行动（用过的局占比 / 每局平均次数）  汉 | 楚
+  破釜沉舟         0.0%   0.00 |  39.5%   0.40
+  召回良将        45.3%   0.45 |   0.0%   0.00
+  召回后马上升级     39.5%   0.40 |   0.0%   0.00
+  普通走子       100.0%  47.03 | 100.0%  46.63
+  停着           0.0%   0.00 |   0.3%   0.00
+  冲阵          23.3%   0.34 |  23.6%   0.32
+  飞越          11.1%   0.14 |   9.5%   0.13
+  护驾          45.6%   0.83 |  39.5%   0.71
+  拒马          95.9%   9.14 |  94.6%   7.77
+  霹雳          28.7%   0.40 |  23.0%   0.33
+  齐射           2.0%   0.02 |   0.0%   0.00
+  踏营          21.3%   0.49 |  31.8%   0.74
+  终极兵法         1.7%   0.02 |   9.8%   0.10
+  回防(被动)       9.5%   0.16 |  10.1%   0.17
+  铁甲禁卫(被动)    25.0%   0.39 |  25.0%   0.35
+  神速营(被动)     33.8%   0.70 |  29.1%   0.60
+升级（* = 甲片自动晋升）  汉 | 楚 （用过的局占比 / 每局平均）
+  a2     83.1%  1.41 |  85.8%  1.40
+  a3     65.2%  1.04 |  67.2%  0.98
+  a4     44.3%  0.62 |  44.6%  0.59
+  c2     91.6%  1.25 |  90.9%  1.24
+  c3     62.5%  0.78 |  55.4%  0.67
+  e2     61.1%  0.77 |  60.1%  0.69
+  e2*     0.3%  0.00 |   0.3%  0.00
+  e3     40.9%  0.47 |  41.9%  0.47
+  e4     13.2%  0.16 |  14.9%  0.16
+  n2     90.2%  1.38 |  93.2%  1.43
+  n3     56.8%  0.77 |  68.9%  0.93
+  p2     98.6%  2.70 |  99.3%  2.48
+  p3     84.1%  1.69 |  75.7%  1.29
+  p4     42.2%  0.73 |  41.2%  0.61
+  r2     81.1%  1.06 |  73.0%  0.93
+  r3     47.3%  0.55 |  49.3%  0.56
+  r4     14.5%  0.15 |  11.1%  0.11
+击杀来源（每局平均）  汉 | 楚
+  普通吃子         6.60 |   6.35
+  冲阵           0.16 |   0.14
+  飞越           0.00 |   0.01
+  拒马反伤         0.00 |   0.01
+  霹雳           0.26 |   0.23
+  踏营           0.09 |   0.08
+  回防(被动)       0.04 |   0.01
+  铁甲禁卫(被动)     0.07 |   0.04
+造成伤害但没打死（每局平均）  汉 | 楚
+  强攻           3.99 |   3.99
+  冲阵           0.24 |   0.24
+  飞越           0.02 |   0.01
+  践踏           0.00 |   0.01
+  霹雳           0.36 |   0.28
+  齐射           0.02 |   0.00
+  踏营           0.05 |   0.08
+军功来源（每局平均）  汉 | 楚
+  击杀       20.9 |   21.6
+  哀兵        6.8 |    7.1
+  回合       45.5 |   45.3
+  将军        6.6 |    5.3
+  过河        1.3 |    1.1
+终极兵法：汉用 5 局（平均第 73.4 回合，用了的局胜 100.0%）  楚用 29 局（第 65.9 回合，胜 79.3%）  护驾破鸿门宴 4 局
+主帅兵法：汉召回 134 局（第 33.2 回合，胜 34.3%）  楚背水 117 局（第 39.5 回合，胜 35.9%）
+召回的子（134 次）：士 1、炮 7、象 1、马 2、车 123；死时 1 级 96、2 级 33、3 级 5；回来 1 级 96、2 级 38；召回的子第一次升级：当场 117 次（平均花 5.2）、之后手动 15 次（召回后平均 3.6 回合、平均花 4.8）、甲片自动 0 次；没升过 2 次；死时一级的那些局汉胜 33.3%（96 局），二级以上 36.8%（38 局）
+少子才能用的主帅兵法（汉召回）：轮到自己时满足用的条件（车马炮比对方少；第三版还要至少丢了一半）过 176 局，第一次平均第 31.2 回合；真用了 134 局（胜 34.3%）
+少子才能用的主帅兵法（楚背水）：轮到自己时满足用的条件（车马炮比对方少；第三版还要至少丢了一半）过 153 局，第一次平均第 31.1 回合；真用了 117 局（胜 35.9%）
+车马炮持续落后（自己走完还少、到下回合还少）：汉 165 局（55.7%，第一次平均第 28.1 回合、平均落后 14.3 回合；这些局汉胜 34.5%；其中用了主帅兵法 121 局、胜 32.2%） | 楚 160 局（54.1%，第一次平均第 27.0 回合、平均落后 16.8 回合；这些局楚胜 40.6%；其中用了主帅兵法 106 局、胜 32.1%）
+手动升级时的血量（升级回满血，掉了血再升更划算）：汉 满血 88.6%、掉过血 11.4%（只剩 1 血 10.4%），共 4482 次 | 楚 满血 88.5%、掉过血 11.5%（只剩 1 血 10.7%），共 4300 次
+先有二级车的一方：两边都有的 169 局里先到的胜 56.2%；只有一方有的 90 局里有的一方胜 84.4%
+背水前后（117 局，分数 + 汉优；背水没有封锁期，这里的“之后”只是汉方紧接着的一手）：背水那一手汉方 -7.31 分（子力 -4.67）；汉方随后一手 +1.54 分；这些局汉胜 64.1%
+首次升到 N 级（平均回合 / 出现的局占比）  汉 | 楚
+  2 级  第 3.0 回合 100.0% | 第 2.5 回合 100.0%
+  3 级  第 20.2 回合 97.0% | 第 21.8 回合 95.6%
+  4 级  第 42.8 回合 62.2% | 第 42.7 回合 58.1%
+局面分随回合（汉方视角，正 = 汉优）/ 军功 / 等级总和
+  R5（296 局在下）分 0.37  军功 汉 1.4 楚 1.3  等级 汉 0.9 楚 0.9
+  R10（296 局在下）分 0.40  军功 汉 2.1 楚 2.0  等级 汉 1.4 楚 1.4
+  R15（294 局在下）分 0.09  军功 汉 3.5 楚 3.7  等级 汉 2.2 楚 2.1
+  R20（286 局在下）分 0.47  军功 汉 3.9 楚 3.8  等级 汉 4.1 楚 3.9
+  R30（268 局在下）分 1.09  军功 汉 4.5 楚 4.4  等级 汉 7.4 楚 7.0
+  R40（222 局在下）分 2.30  军功 汉 5.5 楚 5.9  等级 汉 9.7 楚 9.3
+翻盘（某回合落后 ≥ T 分的一方最后赢了）
+  R10≥2：81 局，落后方赢 38（46.9%），和 0
+  R10≥4：37 局，落后方赢 15（40.5%），和 0
+  R20≥2：170 局，落后方赢 67（39.4%），和 0
+  R20≥4：102 局，落后方赢 44（43.1%），和 0
+  R30≥2：204 局，落后方赢 61（29.9%），和 0
+  R30≥4：155 局，落后方赢 39（25.2%），和 0
+每步平均 2214ms
+✗ 出错的局 4 个（没算进胜负；出错的局往往不是随便哪局，结果可能有偏差）： 3109 Error: 电脑没有给出行动（楚方，第 48 回合，被将军，普通行动 0 种，破釜 / 背水组合 0 种） | 3201 Error: 电脑没有给出行动（汉方，第 50 回合，被将军，普通行动 0 种，破釜 / 背水组合 0 种） | 3266 Error: 电脑没有给出行动（楚方，第 24 回合，被将军，普通行动 0 种，破釜 / 背水组合 0 种）
+（合并 48 份：/home/runner/work/chuhan_v01/chuhan_v01/parts/r26-rootrel-hard-r-0.json、/home/runner/work/chuhan_v01/chuhan_v01/parts/r26-rootrel-hard-r-1.json、/home/runner/work/chuhan_v01/chuhan_v01/parts/r26-rootrel-hard-r-2.json、/home/runner/work/chuhan_v01/chuhan_v01/parts/r26-rootrel-hard-r-3.json、/home/runner/work/chuhan_v01/chuhan_v01/parts/r26-rootrel-hard-r-4.json、/home/runner/work/chuhan_v01/chuhan_v01/parts/r26-rootrel-hard-r-5.json、/home/runner/work/chuhan_v01/chuhan_v01/parts/r26-rootrel-hard-r-6.json、/home/runner/work/chuhan_v01/chuhan_v01/parts/r26-rootrel-hard-r-7.json、/home/runner/work/chuhan_v01/chuhan_v01/parts/r26-rootrel-hard-r-8.json、/home/runner/work/chuhan_v01/chuhan_v01/parts/r26-rootrel-hard-r-9.json、/home/runner/work/chuhan_v01/chuhan_v01/parts/r26-rootrel-hard-r-10.json、/home/runner/work/chuhan_v01/chuhan_v01/parts/r26-rootrel-hard-r-11.json、/home/runner/work/chuhan_v01/chuhan_v01/parts/r26-rootrel-hard-r-12.json、/home/runner/work/chuhan_v01/chuhan_v01/parts/r26-rootrel-hard-r-13.json、/home/runner/work/chuhan_v01/chuhan_v01/parts/r26-rootrel-hard-r-14.json、/home/runner/work/chuhan_v01/chuhan_v01/parts/r26-rootrel-hard-r-15.json、/home/runner/work/chuhan_v01/chuhan_v01/parts/r26-rootrel-hard-r-16.json、/home/runner/work/chuhan_v01/chuhan_v01/parts/r26-rootrel-hard-r-17.json、/home/runner/work/chuhan_v01/chuhan_v01/parts/r26-rootrel-hard-r-18.json、/home/runner/work/chuhan_v01/chuhan_v01/parts/r26-rootrel-hard-r-19.json、/home/runner/work/chuhan_v01/chuhan_v01/parts/r26-rootrel-hard-r-20.json、/home/runner/work/chuhan_v01/chuhan_v01/parts/r26-rootrel-hard-r-21.json、/home/runner/work/chuhan_v01/chuhan_v01/parts/r26-rootrel-hard-r-22.json、/home/runner/work/chuhan_v01/chuhan_v01/parts/r26-rootrel-hard-r-23.json、/home/runner/work/chuhan_v01/chuhan_v01/parts/r26-rootrel-hard-r-24.json、/home/runner/work/chuhan_v01/chuhan_v01/parts/r26-rootrel-hard-r-25.json、/home/runner/work/chuhan_v01/chuhan_v01/parts/r26-rootrel-hard-r-26.json、/home/runner/work/chuhan_v01/chuhan_v01/parts/r26-rootrel-hard-r-27.json、/home/runner/work/chuhan_v01/chuhan_v01/parts/r26-rootrel-hard-r-28.json、/home/runner/work/chuhan_v01/chuhan_v01/parts/r26-rootrel-hard-r-29.json、/home/runner/work/chuhan_v01/chuhan_v01/parts/r26-rootrel-hard-r-30.json、/home/runner/work/chuhan_v01/chuhan_v01/parts/r26-rootrel-hard-r-31.json、/home/runner/work/chuhan_v01/chuhan_v01/parts/r26-rootrel-hard-r-32.json、/home/runner/work/chuhan_v01/chuhan_v01/parts/r26-rootrel-hard-r-33.json、/home/runner/work/chuhan_v01/chuhan_v01/parts/r26-rootrel-hard-r-34.json、/home/runner/work/chuhan_v01/chuhan_v01/parts/r26-rootrel-hard-r-35.json、/home/runner/work/chuhan_v01/chuhan_v01/parts/r26-rootrel-hard-r-36.json、/home/runner/work/chuhan_v01/chuhan_v01/parts/r26-rootrel-hard-r-37.json、/home/runner/work/chuhan_v01/chuhan_v01/parts/r26-rootrel-hard-r-38.json、/home/runner/work/chuhan_v01/chuhan_v01/parts/r26-rootrel-hard-r-39.json、/home/runner/work/chuhan_v01/chuhan_v01/parts/r26-rootrel-hard-r-40.json、/home/runner/work/chuhan_v01/chuhan_v01/parts/r26-rootrel-hard-r-41.json、/home/runner/work/chuhan_v01/chuhan_v01/parts/r26-rootrel-hard-r-42.json、/home/runner/work/chuhan_v01/chuhan_v01/parts/r26-rootrel-hard-r-43.json、/home/runner/work/chuhan_v01/chuhan_v01/parts/r26-rootrel-hard-r-44.json、/home/runner/work/chuhan_v01/chuhan_v01/parts/r26-rootrel-hard-r-45.json、/home/runner/work/chuhan_v01/chuhan_v01/parts/r26-rootrel-hard-r-46.json、/home/runner/work/chuhan_v01/chuhan_v01/parts/r26-rootrel-hard-r-47.json）
