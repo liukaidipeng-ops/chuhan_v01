@@ -1,0 +1,3 @@
+{ "args": "--games 300 --seed 3000 --level hard --nodes hard=100000 --ai-r tools/variants/bfai_v7live.js --ai-b git:f998d98",
+  "env": {}, "chunks": 48,
+  "note": "新规则（H55 后）：第七版（活到兑现只开汉）执汉 对 同底版 f998d98，霸王" }

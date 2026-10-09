@@ -1,3 +1,0 @@
-{ "args": "--games 3840 --seed 100000 --level mid --nodes mid=60000 --open 10 --dump-pos",
-  "env": {}, "chunks": 48,
-  "note": "新规则：自动调权重的数据——线上电脑自对打（校尉 6 万节点，前 10 步随机），记安静局面 + 胜负" }
