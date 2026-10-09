@@ -631,6 +631,11 @@ const Board = (() => {
   const rivetGeo = new THREE.SphereGeometry(0.009, 8, 6); rivetGeo.userData.keep = true;
   const plateFrame = new THREE.MeshStandardMaterial({ color: 0xd8a945, metalness: 0.8, roughness: 0.3, emissive: 0x2a1a04 });
   const plateOff = new THREE.MeshStandardMaterial({ color: 0x3b3633, metalness: 0.1, roughness: 0.9 });
+  // 功勋牌（Ham 10-09 20:31：「甲片」改叫「功勋」；审批台 td-007：汉方用金边朱心圆牌 + 朱红绶带，楚方仍是乌铁甲片）
+  const medalGeo = new THREE.CylinderGeometry(0.036, 0.036, 0.012, 24); medalGeo.rotateX(Math.PI / 2); medalGeo.userData.keep = true;
+  const medalCoreGeo = new THREE.CylinderGeometry(0.02, 0.02, 0.006, 20); medalCoreGeo.rotateX(Math.PI / 2); medalCoreGeo.userData.keep = true;
+  const medalRibGeo = new THREE.BoxGeometry(0.03, 0.026, 0.006); medalRibGeo.userData.keep = true;
+  const medalRed = new THREE.MeshStandardMaterial({ color: 0xc8321e, metalness: 0.2, roughness: 0.45, emissive: 0x2a0602 });
   const starGeo = (() => {
     const sh = new THREE.Shape();
     for (let i = 0; i < 10; i++) { const a = -Math.PI / 2 + i * Math.PI / 5, r = i % 2 ? 0.026 : 0.06; i ? sh.lineTo(Math.cos(a) * r, Math.sin(a) * r) : sh.moveTo(Math.cos(a) * r, Math.sin(a) * r); }
@@ -1238,14 +1243,21 @@ const Board = (() => {
     // 棋身：一级木、二级乌银错花、三级錾金、四级羊脂白玉金丝嵌；升级后的字换成掐丝珐琅
     applySkin(m, d, p.lv, p);
     if (face && face.material) face.material.color.set(o.dim ? 0x8f8a84 : 0xffffff);
-    // 腰带甲片 = 攒下的击杀数（每片抵下次升级 1 功，升级时用掉）
+    // 腰带上的牌 = 功勋（攒下的击杀数，每点抵下次升级 1 功，攒满自动升级，升级时用掉）
     const nx = Math.min(8, p.xp || 0);
     for (let i = 0; i < nx; i++) {
       const a = (i - (nx - 1) / 2) * 0.26;
-      const pl = new THREE.Mesh(plateGeo, plateOn);
-      pl.position.set(Math.sin(a) * 0.4305, PH * 0.6, Math.cos(a) * 0.4305); pl.rotation.y = a;
-      const fr = new THREE.Mesh(plateFrameGeo, plateFrame); fr.position.z = -0.003; pl.add(fr);
-      const rv = new THREE.Mesh(rivetGeo, plateFrame); rv.position.z = 0.007; rv.scale.z = 0.5; pl.add(rv);
+      let pl;
+      if (p.s === 'r') {   // 汉：金边朱心圆牌，上面一截朱红绶带
+        pl = new THREE.Mesh(medalGeo, plateFrame); pl.position.set(Math.sin(a) * 0.437, PH * 0.6, Math.cos(a) * 0.437); pl.rotation.y = a;
+        const cr = new THREE.Mesh(medalCoreGeo, medalRed); cr.position.z = 0.006; pl.add(cr);
+        const rb = new THREE.Mesh(medalRibGeo, medalRed); rb.position.set(0, 0.045, -0.002); pl.add(rb);
+      } else {
+        pl = new THREE.Mesh(plateGeo, plateOn);
+        pl.position.set(Math.sin(a) * 0.4305, PH * 0.6, Math.cos(a) * 0.4305); pl.rotation.y = a;
+        const fr = new THREE.Mesh(plateFrameGeo, plateFrame); fr.position.z = -0.003; pl.add(fr);
+        const rv = new THREE.Mesh(rivetGeo, plateFrame); rv.position.z = 0.007; rv.scale.z = 0.5; pl.add(rv);
+      }
       pl.userData.plate = i; d.add(pl);
     }
     if (p.lv >= 2 || kingF) {

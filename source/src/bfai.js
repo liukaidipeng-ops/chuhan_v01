@@ -562,7 +562,7 @@
         const T = pick.S;
         let jm = null;
         for (let r = 0; r < 10 && !jm; r++) for (let f = 0; f < 9; f++) {
-          const p = S.board[r][f]; if (!p || p.s !== me || p.t !== 'p' || p.lv < 3) continue;
+          const p = S.board[r][f]; if (!p || p.s !== me || p.t !== 'p' || p.lv < ((CFG.skills.juma && CFG.skills.juma.level) || CFG.skillLevel)) continue;
           const q = T.board[r][f]; if (!q || q.id !== p.id) continue;                 // 这一步动的就是它
           let hit = false;
           for (let r2 = 0; r2 < 10 && !hit; r2++) for (let f2 = 0; f2 < 9; f2++) { const e = T.board[r2][f2]; if (e && e.s !== me && A.moveTargets(T, f2, r2).some(m => m.to[0] === f && m.to[1] === r)) { hit = true; break; } }

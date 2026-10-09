@@ -31,14 +31,9 @@ const Sfx = (() => {
       }
     });
   }
-  function init() {
-    if (NOAUDIO) return;
-    if (ctx) { if (ctx.state === 'suspended') ctx.resume(); return; }
-    const AC = window.AudioContext || window.webkitAudioContext;
-    if (!AC) return;
-    ctx = new AC();
-    try { if (navigator.audioSession) navigator.audioSession.type = 'playback'; } catch (e) { }
-    master = ctx.createGain(); master.gain.value = enabled ? 1 : 0;
+  // 混音台：总线（音效 / 配乐 / 配音）→ 混响、压缩 → 出声。现场的声音和离线渲染（renderOffline）共用这一套
+  function buildGraph(masterGain = 1) {
+    master = ctx.createGain(); master.gain.value = masterGain;
     comp = ctx.createDynamicsCompressor(); comp.threshold.value = -14; comp.knee.value = 8; comp.ratio.value = 4; comp.attack.value = 0.004; comp.release.value = 0.2;
     master.connect(comp); comp.connect(ctx.destination);
     verb = ctx.createConvolver(); verb.buffer = makeIR();
@@ -49,6 +44,23 @@ const Sfx = (() => {
     sfxSend = ctx.createGain(); sfxSend.gain.value = 0.2; sfxBus.connect(sfxSend); sfxSend.connect(verb);
     const ms = ctx.createGain(); ms.gain.value = 0.5; musicBus.connect(ms); ms.connect(verb);
     const vs = ctx.createGain(); vs.gain.value = 0.12; voiceBus.connect(vs); vs.connect(verb);
+  }
+  // 离线渲染：把 fn() 里排的声音画进一段 sec 秒的音频（不出声），返回 AudioBuffer。出试听样用（tools/tunes.py）
+  async function renderOffline(fn, sec, rate = 44100) {
+    const live = { ctx, master, comp, verb, sfxBus, musicBus, voiceBus, sfxSend, nb: _nb };
+    const off = new OfflineAudioContext(2, Math.ceil(sec * rate), rate);
+    ctx = off; _nb = null; buildGraph(1);
+    try { fn(); } finally { ({ ctx, master, comp, verb, sfxBus, musicBus, voiceBus, sfxSend } = live); _nb = live.nb; }
+    return off.startRendering();
+  }
+  function init() {
+    if (NOAUDIO) return;
+    if (ctx) { if (ctx.state === 'suspended') ctx.resume(); return; }
+    const AC = window.AudioContext || window.webkitAudioContext;
+    if (!AC) return;
+    ctx = new AC();
+    try { if (navigator.audioSession) navigator.audioSession.type = 'playback'; } catch (e) { }
+    buildGraph(enabled ? 1 : 0);
     loadSamples();
     startAmbient();
     // 苹果手机开着静音键也要出声：后台循环放一段静音。只在苹果设备上做；放的是 1 秒真静音，不是空文件——
@@ -617,7 +629,9 @@ const Sfx = (() => {
   }
 
   const S = {
-    init, B, U, unit, river, Music, pluck, hurt, smp,
+    init, B, U, unit, river, Music, pluck, hurt, smp, renderOffline,
+    // 给配乐脚本（endtunes.js）用的一套合成小工具；bus() 取当下的配乐总线（离线渲染时是离线那一套）
+    kit: { N, voiceOsc, pluck, tn, nz, taikoTo, shimeTo, hornTo, B, smp, bus: () => musicBus, now: () => (ctx ? ctx.currentTime : 0) },
     // 兵种台词开口：delay 秒后开始说，说 dur 秒。不带参数 = 这一步没有台词
     line(delay = 0, dur = 0) { cue = ok() && dur > 0 ? now() + delay + dur : 0; }, lineLeft,
     get ctx() { return ctx; }, get nSamples() { return Object.values(samples).reduce((a, l) => a + l.filter(Boolean).length, 0); },   // 已经解码好的素材段数（自测用）
