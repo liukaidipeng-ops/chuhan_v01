@@ -656,7 +656,8 @@ const Ending = (() => {
     $('skip').classList.add('hidden');
     $('fade').style.transition = 'none'; $('fade').style.opacity = 1;
     endCard(info, result.loser, callbacks.again, callbacks.lobby, callbacks.mine, callbacks.againText, callbacks.review);
-    Sfx.Music.stinger(callbacks.persp || 'win');
+    const tn = callbacks.tune;
+    if (!(tn && typeof EndTunes !== 'undefined' && EndTunes.play(tn.side, callbacks.persp || 'win'))) Sfx.Music.stinger(callbacks.persp || 'win');
     requestAnimationFrame(() => { $('fade').style.transition = 'opacity 1s'; $('fade').style.opacity = 0; });
   }
   function finish() {

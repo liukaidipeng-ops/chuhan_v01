@@ -1261,9 +1261,11 @@
       Sfx.Music.stop();
       const persp = mode === 'local' || watching() || aiBoth() || !result.winner ? 'win' : (result.winner === mySide ? 'win' : 'lose');
       const W = watching();
+      // 联机（含观战）：结算曲分汉、楚（EndTunes，Ham 挑定前照旧放原来那两首）。胜 → 胜方的曲子；败 → 自己这方的
+      const tune = (mode === 'host' || mode === 'guest' || W) && result.winner ? { side: persp === 'win' ? result.winner : mySide } : null;
       await Ending.play(result, {
         again: W ? () => { Ending.hideCard(); toast('等待棋手开新局…'); } : requestAgain, againText: W ? '继 续 观 战' : '',
-        lobby: toLobby, persp, instant: endSkip || slain, review: startReplay,
+        lobby: toLobby, persp, tune, instant: endSkip || slain, review: startReplay,
         mine: mode === 'local' || W || aiBoth() || !result.winner ? '' : (persp === 'win' ? '你 胜 了' : '你 败 了'),
       });
       if (pendingRestart) { const st = pendingRestart; pendingRestart = null; restart(st === true ? undefined : st); if (mode === 'host') Net.send({ t: 'restart', state: snapshot() }); }
