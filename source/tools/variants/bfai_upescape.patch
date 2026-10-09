@@ -1,0 +1,22 @@
+diff --git a/source/src/bfai.js b/source/src/bfai.js
+index e6e5c38..e2d921d 100644
+--- a/source/src/bfai.js
++++ b/source/src/bfai.js
+@@ -542,6 +542,17 @@
+       if (rest.some(k => k.a.k !== 'art')) { artOff = kids.filter(k => !rest.includes(k)); kids = rest; }   // 平时不救的召回留给下面的一步杀保险兜底
+       if (TR) TR.artOff = artOff.map(k => { const t = tOf(k.a.id); return { a: k.a, t, why: 'aep'.includes(t) ? '士象兵不救' : '车还在、楚的破釜没用：只救车' }; });
+     }
++    // 被将军、普通着法和名额里的升级都解不了将，但升了别的子能解（H52：这不算将死）：把所有升法都试一遍。
++    //   根上的升级有筛子（相 / 象、兵被将军时不算保命，最多看三种；新兵根本不在搜索里比升级），唯一能解将的那种可能被筛掉，
++    //   那样电脑一步都给不出来、网页就停在电脑这一回合（2026-10-10 数值部在对打里撞到）
++    if (!kids.length && chk0 && !pofu.length && !S0.upgraded) {
++      if (S !== S0) { S = S0; seq.length = 0; }   // 新兵先随手升了一枚子、升完还是无着：换掉那次升级
++      const all = upgradeAll(S);
++      for (const c of all) for (const k of A.expand(c.S)) { k.up = c; k.base = null; k.own = false; kids.push(k); }
++      // 楚：升完级还得靠背水一战（连走两步）才解得了将
++      if (!kids.length && me === 'b') { for (const c of all) for (const k of A.pofuPairs(c.S)) { k.up = c; k.gain = score(k.S, me); pofu.push(k); } pofu.sort((x, y) => y.gain - x.gain); }
++      if (TR && (kids.length || pofu.length)) TR.upEscape = true;
++    }
+     if (!kids.length) {
+       // 普通着法一步都没有（被将死的样子），但背水一战还能解：就用它
+       if (pofu.length) { const k = pofu[0]; if (k.up) seq.push({ k: 'up', at: k.up.at }); seq.push(k.a); }

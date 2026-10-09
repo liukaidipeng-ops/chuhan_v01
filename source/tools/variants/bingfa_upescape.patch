@@ -1,0 +1,16 @@
+diff --git a/source/src/bingfa.js b/source/src/bingfa.js
+index 38a5eb6..2030bbc 100644
+--- a/source/src/bingfa.js
++++ b/source/src/bingfa.js
+@@ -936,7 +936,10 @@
+         p.xp = 0; // 甲片在升级时用掉
+         S.upgraded = true;
+         this.entries.push({ k: 'up', at: e.at.slice() }); this.sides.push(p.s); this.ends.push(0);
+-        const info = { k: 'up', side: p.s, id: p.id, t: p.t, at: e.at.slice(), lv: p.lv, hp: p.hp, cost, usedXp: xp, nm: p.nm, ev: [], after: S };
++        // 被将军、只有升级才解得了将（status.upOnly）时升了级：重新判一次——升的不是能解将的那枚子、升完还是无路可走，就是将死
++        //   （不重判的话 status 还停在 upOnly、result 也没有，对局卡住：电脑给不出行动，人也没有着可走。数值部 2026-10-10）
++        if (this.status && this.status.upOnly) { const st = evaluate(S); this.status = st; if (st.result) this.result = st.result; }
++        const info = { k: 'up', side: p.s, id: p.id, t: p.t, at: e.at.slice(), lv: p.lv, hp: p.hp, cost, usedXp: xp, nm: p.nm, ev: [], after: S, result: this.result };
+         this.last = info;
+         return info;
+       }
