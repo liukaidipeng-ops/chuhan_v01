@@ -2,6 +2,37 @@
 
 最新的在最上面，编号接着往下排（M1、M2…）。格式见同目录 `MODEL-WORKFLOW.md` 第 6 节。TD 用 `git show origin/model-lab:source/docs/collab/model-to-main.md` 看。
 
+## M9 · 10-09 · 交付 · 界面（10-09 一批：半场闪烁、信号格、加载进度、升级确认、字号固定、技能栏等）
+
+- 提交：model-lab 上带这张交付单的那次提交。交付前合过 `origin/dev`，`node build.js` 能过，`test/*.test.js` 八个全过。
+- Ham 确认（都在审批台上，备注原文照录）：art-021 半场闪烁通过；art-024 信号格通过；art-025 悬停小字 + 设置页签通过；art-026 字号固定通过（022 的意见「实在不行不让字体匹配手机字体设置，强制一个大小」）；art-019→art-027「上涨的三角形改成绿色」→ art-029 通过；art-023「不要有圆形，就只要有进度条就好了。百分比去掉；进度条下的字体只要有研墨铺纸就好了」→ art-029 通过（10-09 10:19）。
+- 改了哪些文件：`source/src/template.html`、新文件 `source/src/turnglow.js`、`source/fonts/songhei-subset.woff2` + `songhei-chars.txt`（补了「涌」等几个字）、本文件。脚本只动了 `board.js` 里 H14 指给我的那几处（见 M8）。
+- 新 `id` / `data-*`：`#netSig`、`#loadBar`、`#mUp`、`#upT`、`#upFrom`、`#upTo`、`#upTbl`、`#upNew`、`#upCost`、`#upNo`、`#upGo`；设置里新一行 `.seg[data-s="turnfx"]`。没有删、没有改名的（`#loadTxt`、`#netDot` 都还在）。结构变动：`#loading` 里面多包了一层 `.ld`（进度条和字都在里面）。
+
+**需要 TD 做的**
+1. **半场格线闪烁**（`turnglow.js`）：`build.js` 的 `order` 里加 `'turnglow'`，放在 `'board'` 之后（它建时要读 `Board.TOP / HALF / X / Z`）。设置默认 `S.turnfx = store.get('turnfx', 'wave')`，并加进 `applySettings` 存盘的那串键里（设置里那一行 `bindSeg` 会自动接上）。轮到谁变了、读秒节拍变了时调 `TurnGlow.set(side, S.turnfx, beat)`：`side` 和头像牌 `.active` 同一个条件（`started && !game.result ? game.turn : null`），`beat` 就是你给 `.pcard.hurry` 设的 `--beat` 秒数，不在读秒时传 0。重复调用相同参数没开销。Ham 定的默认是我建议的「涌动」（他通过时没改）。
+2. **升级确认弹框**（`#mUp`）：技能栏点「升 X 级」（`data-a="up"`）先开这个框，点 `#upGo` 才 `doBF({k:'up', at: sel})`，点 `#upNo` 关掉什么都不做。填法：`#upFrom`「汉轻车 · 二级」、`#upTo`「汉武刚车 · 三级」（`BF.RANK_CN[s][t][lv-1]` 和 `[lv]`）；`#upTbl` 写 `<thead><tr><th></th><th>现在</th><th>升级后</th></tr></thead><tbody>` + 每项一行 `<tr><th>血量</th><td>2</td><td class="to gain">3</td></tr>`（涨了才加 `gain`，会显示绿色 ▲），我截图用的是血量、攻击两行（`BF.levelInfo(t,s,lv)` 和 `lv+1`）；`#upNew` 每个新解锁的技能一个 `<li><b>冲阵</b>说明</li>`（`SKILL_CN`、`SKILL_DESC`），没有就留空（会自动藏起来）；`#upCost`「花费 6 军功，升完还剩 2」。召回良将后那一步「升三级 / 结束回合 / 重选」要不要也弹，我问了 Ham，他没答，先不弹。
+3. **字号固定**：样式里已经 `text-size-adjust:100%`（苹果的微信、QQ 内置网页靠这个放大，钉住了），并且所有 `font-size` 都乘了 `var(--fs,1)`。安卓 App 内网页（`setTextZoom`）样式拦不住，要你在开局量一下：放一个 `font-size:100px` 的探针 span，读 `getComputedStyle(span).fontSize`（或量它的宽度和画布 `measureText` 比），得到放大倍数 `r`；`r > 1.01` 就 `document.documentElement.style.setProperty('--fs', 1 / r)`，`resize` / `visibilitychange` 时重量一次。微信安卓再加一段：`WeixinJSBridge.invoke('setFontSizeCallback', {fontSize: 0})`，并 `WeixinJSBridge.on('menu:setfont', …)` 里同样设回 0（`WeixinJSBridgeReady` 之后）。另外 `main.js` 里有两处行内字号（棋谱「尚未落子」13px、技能栏 `small` 12px）不吃 `--fs`，要么改成 `calc(13px * var(--fs,1))`，要么挪进样式。我没有安卓真机，这条上线后请 Ham 找反馈的玩家看一眼。
+4. **加载真实进度**：样式和结构好了，脚本要做两件事。①下载进度：`build.js` 把页面切成几段，每段前插一个 `<script>LD(0.xx)</script>`（数字是那一处在整个文件里的字节位置 ÷ 总字节数）；现在最大的一块是 5.8 MB 的那段数据脚本，最好拆成 0.5 MB 左右一小段，进度才走得匀。`LD` 定义在 `#loading` 后面紧跟的一小段脚本里：`function LD(p){var L=document.getElementById('loading');L.classList.add('real');L.style.setProperty('--p',Math.min(.9,p*.9))}`——下载占 0～90%。②下载完到开局前的准备（字体、着色器预热那 90 帧等）占最后 10%，`main.js` 在移除 `#loading` 之前分一两步把 `--p` 推到 1。`#loadTxt` 一直是「研墨铺纸…」，不要写别的字（Ham 定的）。没加 `real` 之前是原来那条来回走的光。
+5. **信号格**（`#netSig`）：给它加 `lv1`（白，有点慢）/ `lv2`（黄，较差）/ `lv3`（红，很差或断开，会闪）之一，信号好就 `hidden`。我建议：对方的心跳晚到 3 秒以上 `lv1`、6 秒以上 `lv2`、线路断开或 9 秒没音信 `lv3`（9 秒是现在判对手掉线的线）；你那边能量出延迟的话按延迟分也行。有了它以后 `#netDot` 可以不再显示。它挂在 `#status` 左边，`#status` 不显示时它也跟着不显示。
+6. 只动样式、不用接的：技能栏可用按钮的朱线不再外扩（相邻按钮的框不撞了），按钮间距 10px，手机上技能栏和「本回合还未使用技能」整体上移 2px 让开朱框；轮到谁的朱框改成 3px、留 3px 缝；电脑大厅棋子悬停时下面的说明小字不动；设置页签选中改墨底米白字；工具栏「譜 視 設」改「谱 视 设」（`main.js` 里更新说明和注释提到「視」「設」「譜」的地方是旧条目，我没动，你看要不要改）。
+
+- 我看过的：电脑 1440×900、手机 390×844（部分 360×640），本地技能模式实机：半场闪烁两种、设置面板三页、技能栏四种状态、升级弹框两种兵、信号格三档、加载页三个状态（加载页是对局中把 `#loading` 重新插回去拍的）、悬停。字号是用把 `--fs` 设成 1.6 模拟的。
+- 没看的：联机实况下的信号格（判定是你的）、真实读秒时的闪烁节拍、安卓/微信真机字号、加载页在慢网下真实走的样子。
+- 想让 Ham 定的：召回良将后的升级要不要也弹确认框。
+- 不在这次交付里：之前 model-lab 上以「进度：」存过一个 `source/src/ferry.js`（终局的渡船和亭长），Ham 还没通过、要重做，这次提交把它从分支上删了，合并时 `dev` 上不会多这个文件。
+
+## M8 · 10-09 · 交付 · 界面（落子虚影）
+
+- 提交：同上（和 M9 同一次提交）。
+- Ham 确认：H14 派单；第一版 art-020 他打回：「兵种模式下，走棋的虚影应该是兵种模型的虚影；走不了的棋子或模型再红一点；提交动态给我审核」；改后 art-028（动图）10-09 09:11 通过。
+- 改了什么（只动了 H14 指给我的 `board.js` 那几处，对外接口没变，`main.js` 不用动）：
+  1. 虚影 = 选中的那枚棋子照原样复制（木身、字面、金边、棋子款式装饰都在），材质一律**克隆**再半透明（你提醒的 `clearMoves` 释放问题照顾到了）。待确认的一直呼吸：透明度在原来的约 0.32～0.72 倍之间，1.6 秒一下；容器被清掉时 `Core.onFrame` 跟着停。
+  2. 走不了：同样的虚影，颜色往朱红拉七成、再加一层红色自发光；快速呼吸一下，约 1 秒淡出（原来 0.7 秒直接消失）。
+  3. 兵种模型模式：在落点另立一队同兵种、同等级、同朝向的兵马（`Squads.make`，运行时取全局 `Squads`），先跑一帧 `updaters` 让各部件站到位，旗子去掉，描墨边的那层（背面外扩）隐藏（半透明时会从身体里透出来、整队发黑），其余材质全换成半透明克隆。虚影容器被 `clearMoves` 清掉或红色虚影播完时，`userData.drop()` 把这一队 `dispose` 掉、克隆材质释放。
+- 需要 TD 做的：合并、部署（上线等 Ham 点头）。`board.js` 我只改了 H14 那几处；你那边如果在这期间又动过那几处，合并时以我这版的 `ghostOf` / `flashBad` / `squadGhost` 为准。
+- 我看过的：电脑、手机，标准模式和兵种模型模式，待确认和走不了两种（炮），动图在 art-028。没看特效档「低」下的实况（虚影不跟特效档走）。
+
 ## M7 · 10-06 · 交付 · 界面（轮到谁走的粗线）
 
 - 提交：model-lab 上带这张交付单的那次提交。交付前合过 `origin/dev`，`node build.js` 能过，`test/*.test.js` 八个全过。
