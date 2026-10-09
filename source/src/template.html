@@ -736,6 +736,26 @@ html,body{-webkit-text-size-adjust:100%!important;text-size-adjust:100%!importan
 .pcard .mer{color:var(--k)}
 .pcard .mer b{border-radius:0;background:var(--k);color:var(--c);font-family:var(--ef);font-weight:900}
 .pcard .mer i{color:var(--k)}.pcard .mer i.pop{color:var(--g)}
+/* 主将卡军功印（Ham 10-10：审批台 070 选「乙 · 军功印」，飞的东西选「甲 · 金光」）；加功、花功的动画在 merit.js */
+.pcard .bfm .mer{display:inline-flex;align-items:center;gap:7px;color:var(--k)}
+.pcard .mer .mseal{position:relative;flex:none;width:calc(38px * var(--fs,1));height:calc(38px * var(--fs,1));background:linear-gradient(145deg,#f3d27a,#c9a14a 55%,#94681e);box-shadow:inset 0 0 0 2px #f8e7b0,inset 0 0 0 3.5px #6b4a14,0 0 0 2px var(--k);display:flex;align-items:center;justify-content:center;transform-origin:50% 60%}
+.pcard .mer .mseal i,.pcard .mer .mseal i.pop{font:900 calc(22px * var(--fs,1))/1 var(--num);font-style:normal;color:var(--k);font-variant-numeric:tabular-nums;transform:none;transition:none}
+.pcard .mer .mseal.red{filter:sepia(1) saturate(4) hue-rotate(-30deg) brightness(.85)}
+.pcard .mer .mseal.red i{color:var(--g)}
+.pcard .mer .mseal .rp{position:absolute;inset:-2px;box-shadow:0 0 0 2px #e9c46a;opacity:0;text-decoration:none}
+.pcard .mer .mtx{display:flex;flex-direction:column;line-height:1.1}
+.pcard .mer .mtx b{all:unset;font:900 calc(13px * var(--fs,1)) var(--ef);letter-spacing:.2em;color:var(--k)}
+.pcard .mer .mtx small{font:500 calc(11px * var(--fs,1)) var(--es);color:#5b564c;letter-spacing:0}
+.pcard.mglowc{box-shadow:inset 0 0 0 3px var(--c),inset 0 0 0 5px var(--k),0 0 0 3px #e9c46a,0 0 26px rgba(233,196,106,.85)!important}
+.pcard.mhurt{box-shadow:inset 0 0 0 3px var(--c),inset 0 0 0 5px var(--k),0 0 0 3px var(--g),0 0 22px rgba(168,40,28,.6)!important}
+.mfly{position:fixed;z-index:80;pointer-events:none;left:0;top:0;will-change:transform,opacity}
+.mglow{width:16px;height:16px;margin:-8px 0 0 -8px;border-radius:50%;background:radial-gradient(circle,#fffbe8 0 30%,#ffe08a 55%,rgba(233,180,60,0) 72%);filter:drop-shadow(0 0 6px rgba(255,214,110,.95))}
+.mtail{width:10px;height:10px;margin:-5px 0 0 -5px;border-radius:50%;background:radial-gradient(circle,rgba(255,240,190,.95),rgba(233,180,60,0) 70%)}
+.mspark{width:4px;height:12px;margin:-6px 0 0 -2px;border-radius:2px;background:linear-gradient(#fff6d0,#e9b84a)}
+.mlab{font:900 calc(16px * var(--fs,1))/1 var(--ef);letter-spacing:.06em;white-space:nowrap;padding:3px 8px;transform:translate(-50%,-100%)}
+.mlab.g{background:var(--k);color:#f3d27a;box-shadow:0 0 0 1.5px #c9a14a}
+.mlab.s{background:var(--g);color:var(--c);box-shadow:0 0 0 1.5px var(--k)}
+.mlab small{font:500 .78em var(--es);margin-left:6px;letter-spacing:0;opacity:.9}
 .pcard .fxs span{padding:2px 7px;border-radius:0;background:var(--k);color:var(--c);font-family:var(--es)}
 .pcard .fxs span.red{background:var(--g)}
 .pcard .fxs span.used{background:none;color:#5b564c;border:1px solid rgba(20,19,17,.35)}
@@ -1155,8 +1175,8 @@ html:has(#endcard:not(.hidden)),html:has(#endcard:not(.hidden)) body,html:has(#e
 
 <!-- 对局界面 -->
 <div id="hud" class="hidden">
-  <div class="pcard b" id="cardOpp"><div class="por"><svg viewBox="0 0 80 80"><circle class="trk" cx="40" cy="40" r="36"/><circle class="arc" cx="40" cy="40" r="36"/></svg><img class="face" alt=""><div class="seal">楚</div></div><div class="info"><div class="nm"><span class="who">项羽</span><span class="tag">对手</span></div><div class="clk">--:--</div><div class="meta"><div class="caps"></div><span class="undo"></span></div><div class="bfm hidden"><span class="mer" title="军功"><b>功</b><i>3</i><small>/30</small></span><span class="fxs"></span></div></div></div>
-  <div class="pcard r" id="cardMe"><div class="por"><svg viewBox="0 0 80 80"><circle class="trk" cx="40" cy="40" r="36"/><circle class="arc" cx="40" cy="40" r="36"/></svg><img class="face" alt=""><div class="seal">漢</div></div><div class="info"><div class="nm"><span class="who">刘邦</span><span class="tag">你</span></div><div class="clk">--:--</div><div class="meta"><div class="caps"></div><span class="undo"></span></div><div class="bfm hidden"><span class="mer" title="军功"><b>功</b><i>3</i><small>/30</small></span><span class="fxs"></span></div></div></div>
+  <div class="pcard b" id="cardOpp"><div class="por"><svg viewBox="0 0 80 80"><circle class="trk" cx="40" cy="40" r="36"/><circle class="arc" cx="40" cy="40" r="36"/></svg><img class="face" alt=""><div class="seal">楚</div></div><div class="info"><div class="nm"><span class="who">项羽</span><span class="tag">对手</span></div><div class="clk">--:--</div><div class="meta"><div class="caps"></div><span class="undo"></span></div><div class="bfm hidden"><span class="mer" title="军功"><span class="mseal"><i>3</i><s class="rp"></s></span><span class="mtx"><b>军功</b><small>满 30</small></span></span><span class="fxs"></span></div></div></div>
+  <div class="pcard r" id="cardMe"><div class="por"><svg viewBox="0 0 80 80"><circle class="trk" cx="40" cy="40" r="36"/><circle class="arc" cx="40" cy="40" r="36"/></svg><img class="face" alt=""><div class="seal">漢</div></div><div class="info"><div class="nm"><span class="who">刘邦</span><span class="tag">你</span></div><div class="clk">--:--</div><div class="meta"><div class="caps"></div><span class="undo"></span></div><div class="bfm hidden"><span class="mer" title="军功"><span class="mseal"><i>3</i><s class="rp"></s></span><span class="mtx"><b>军功</b><small>满 30</small></span></span><span class="fxs"></span></div></div></div>
   <div class="bubble" id="bubOpp"><b></b><span></span></div>
   <div class="bubble" id="bubMe"><b></b><span></span></div>
   <div id="status"><i class="sig hidden" id="netSig" role="img" aria-label="网络信号弱"><b></b><b></b><b></b><b></b></i><i class="dot hidden" id="netDot"></i><span id="statusT"></span><span id="specN"></span></div>

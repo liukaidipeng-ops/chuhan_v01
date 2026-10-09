@@ -2,6 +2,49 @@
 
 最新的在最上面，编号接着往下排（M1、M2…）。格式见同目录 `MODEL-WORKFLOW.md` 第 6 节。TD 用 `git show origin/model-lab:source/docs/collab/model-to-main.md` 看。
 
+## M19 · 10-10 · 交付 · 界面 + 动画（主将卡军功印：加功、花功时飞金光）
+
+- 提交：model-lab 上带这张交付单的那次提交。交付前合过 `origin/dev`（a6f45fd），`node build.js` 能过，`test/*.test.js` 全过。
+- Ham 确认：10-09 22:18 在对话里说「重新设计技能模式下的主将界面：让功勋更明显，每次增加功勋和花费功勋都能有视觉提示。做三个方案」（td-010 定了统一叫军功）；审批台 art-070 选乙「军功印」，备注「铜钱非常廉价，重新设计」；10-10 01:36 在对话里选「甲 · 金光」。能点着看的样子：https://claude.ai/artifact/3yNAo1y24qRqEBkdnqwyC8（切到「甲 · 金光」）。
+- 改了哪些文件：
+  1. `source/src/template.html`：两张主将卡里的 `.mer` 换了里面的结构（`.mer` 本身和 `title` 没变），样式接在 `.pcard .mer i{color:var(--k)}…` 那一行后面。新结构：`<span class="mer" title="军功"><span class="mseal"><i>3</i><s class="rp"></s></span><span class="mtx"><b>军功</b><small>满 30</small></span></span>`。你在 main.js 约 517 行用的 `bfm.querySelector('.mer i')` 照样能找到印上的数字，不用改；`.pop` 那个放大变红的效果我在样式里关掉了（动画由下面的 merit.js 管）。
+  2. 新文件 `source/src/merit.js`（美术管），对外只有 `Merit.gain / Merit.spend / Merit.at`，用法写在文件开头。
+- 只改 template.html、不接 merit.js 也能上：印的样子先有了，只是没有飞的动画（还是你原来的数字变化）。
+
+**需要 TD 做的**
+1. `build.js` 第 5 行 `order` 里加 `'merit'`，放在 `'bfx'` 后面、`'main'` 前面就行（它只在调用时才用 Board、Core）。
+2. `main.js` 约 2341 行 `bfMerit(info)`：把原来飘 `.merpop` 的那段换成下面这样（照你那边的事件字段写的，字段名对不上的地方你改）：
+   ```js
+   // 军功变动：主将卡军功印上飞金光（美术 M19，merit.js；Ham 10-10 审批台 070）
+   function bfMerit(info) {
+     const ev = info.ev || [], at = a => (a ? Merit.at(a[0], a[1]) : null);
+     const spend = { r: [], b: [] }, gain = { r: [], b: [] };
+     if (info.k === 'up') spend[info.side].push([info.cost, '升级', at(info.at)]);
+     { const ru = ev.find(x => x.e === 'reviveUp'); if (ru) spend.r.push([ru.cost, '召回升级', at(ru.at)]); }
+     if (info.k === 'ult') spend[info.side].push([BF.CFG.ultimates.cost, '兵法', cardFor(info.side).querySelector('.fxs [data-k="ult"]')]);
+     let lastKill = null;
+     for (const x of ev) {
+       if (x.e === 'kill') lastKill = x.at;
+       if (x.e !== 'merit' || x.n <= 0) continue;
+       const from = x.why === '击杀' || x.why === '哀兵' ? at(lastKill) : x.why === '过河' ? at(info.to) : null;   // 将军、每回合进账：从顶上状态条飞来
+       gain[x.s].push([x.n, x.why, from]);
+     }
+     for (const s of ['r', 'b']) {
+       const out = spend[s].reduce((a, q) => a + q[0], 0), inn = gain[s].reduce((a, q) => a + q[0], 0);
+       let v = game.merit[s] - inn + out, t = 0;   // 动画开始前印上该是几
+       for (const [n, why, to] of spend[s]) { v -= n; const vv = v; setTimeout(() => Merit.spend(s, n, why, to, vv), t); t += 450; }
+       for (const [n, why, from] of gain[s]) { v += n; const vv = v; setTimeout(() => Merit.gain(s, n, why, from, vv), t); t += 300; }
+     }
+   }
+   ```
+   - 兵法签：卡片上终极兵法那枚签（约 525 行第二个 `chips.push`）请加一个 `data-k="ult"`，花功的金光飞向它；找不到时金光往印的正上方飞，也不会出错。
+   - 一步里有好几笔（比如吃子又将军），一笔一笔排着飞，花在前、加在后。
+   - **时机**：现在 `bfMerit` 在 `apply` 之后马上调，交战演出还没播，金光会比子倒下早。最好挪到演出里那个子倒下的时候（bfx 里处理 `kill` 的地方）再调对应那一笔；挪不动就先这样，Ham 看了再说。
+   - 动画期间 `paint()` 把数字直接写成最后的值也没关系，merit.js 每一帧会改回来；动画结束停在你写的值上。
+   - `.merpop` 的样式和 `merup` 动画用不到了，可以删。
+3. 系统设了「减少动态效果」的，merit.js 不飞，直接改数字。
+- 我看过的：手机 390×844、电脑 1440×900，真实技能对局里定格：平时、金光飞来、落进印里金星四溅、到账、花功变红飞走（审批台 070 的图和上面页面）。没看的：低画质档、联机时对方的卡（同一套代码，`side` 换成对方）。
+
 ## M18 · 10-10 · 交付 · 界面（大厅：电脑上联机放中间，人机 · 联机 · 本地）
 
 - 提交：model-lab 上带这张交付单的那次提交（样式改动在前一个「进度」提交里已经放进 `template.html`）。交付前合过 `origin/dev`（b05371a），`node build.js` 能过，`test/*.test.js` 全过。
