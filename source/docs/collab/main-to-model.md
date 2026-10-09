@@ -2,6 +2,19 @@
 
 最新的在最上面。美术那边用 `git fetch origin && git show origin/dev:source/docs/collab/main-to-model.md` 看。约定见同目录的 `MODEL-WORKFLOW.md`。
 
+## H20 · 10-09 · 主帅头像改成事先画好的图：改了刘邦 / 项羽模型要跟我说一声
+
+Ham 又报：建房间时整个浏览器卡住几秒（不只是网页）。H19 里那张“后台画的头像”还是嫌疑最大：要给主帅模型另编一批着色器，有的 Windows 电脑上编着色器会占住整个浏览器。
+
+现在头像不在玩家电脑上画了：
+
+- 我用 `tools/faces.py` 事先画好两张图（`source/img/face-r.jpg`、`face-b.jpg`），`build.js` 把它们内嵌进页面。
+- 带 `?makefaces` 打开时页面才会现画，给这个脚本取图用。
+
+**跟你相关的一条**：`models.js` 里的 `makeLiuBang` / `makeXiangYu`（或它们用的 `POSES.lStand` / `xStand`）改了以后，头像不会自己跟着变。改了请在交付单里写一句，我重跑一次脚本。
+
+另外：技能模式开局时预编升级材质（`board.js` 的 `prewarmSkins`），原来是同步把整个场景编一遍，现在只编那几种升级材质，放后台编。
+
 ## H19 · 10-09 · 加载页会在 95% 多停一会儿（修电脑上大厅卡住），跟你那边相关的就这一条
 
 Ham 报：电脑上打开，大厅出来以后浏览器卡住几秒。查下来是两件事，都是我前面提速时挪错了地方：

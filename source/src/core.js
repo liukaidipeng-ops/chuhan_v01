@@ -393,10 +393,12 @@ const Core = (() => {
   // 在后台把一个场景要用的着色器编好，编好了再画（第一次画就不用当场等显卡编译，电脑上编一批能卡住好几秒）。
   //   浏览器支持「并行编译」就问它编好没有；不支持的，先把编译命令发出去，过一会儿（显卡那边在编）再画
   let held = 0;
-  function compileBg(sc, cam, ms = 1200) {
+  //   lit：用哪个场景的灯光编（只编一小撮物体时传整个场景，编出来的才是场景里真正要用的那一版）
+  const parallelGL = (() => { try { return renderer.extensions.has('KHR_parallel_shader_compile'); } catch (e) { return false; } })();
+  function compileBg(sc, cam, ms = 1200, lit = null) {
     try {
-      if (renderer.extensions.has('KHR_parallel_shader_compile')) return renderer.compileAsync(sc, cam).catch(() => { });
-      renderer.compile(sc, cam); renderer.getContext().flush();
+      if (parallelGL) return renderer.compileAsync(sc, cam, lit).catch(() => { });
+      renderer.compile(sc, cam, lit); renderer.getContext().flush();
     } catch (e) { }
     return new Promise(r => setTimeout(r, ms));
   }
@@ -405,7 +407,7 @@ const Core = (() => {
     get quality() { return quality; },
     setQuality(q, keep = true) { quality = q; if (keep) try { localStorage.setItem('xq3d-quality', JSON.stringify(q)); } catch (e) { } renderer.setPixelRatio(prFor(q)); const sh = q !== 'low'; if (sh) renderer.shadowMap.enabled = true; if (sun.castShadow !== sh) { sun.castShadow = sh; held++; const un = () => { held--; }; compileBg(scene, camera, 600).then(un); } resize(); },   // keep=false：只这一次打开页面有效（自动降画质用）。
     // 影子用太阳的 castShadow 开关：三维库会发现灯光变了、自动重编着色器，当场生效（原来改 shadowMap.enabled 要下次打开才生效）
-    gpu: GPU, softGL, get userQ() { return userQ; },
+    gpu: GPU, softGL, get parallelGL() { return parallelGL; }, get userQ() { return userQ; },
     isMobile,
     renderer, scene, camera, sun, hemi, Time, onFrame, tween, sleep, ease, Cam, canvasTex, Tex, rnd, inkBlot,
     toon, outlineMat, outlineShared, inked, merge, M4, disposeTree, compileBg,

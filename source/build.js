@@ -41,7 +41,9 @@ for (const f of fs.readdirSync(realDir).filter(f => f.endsWith('.mp3')).sort()) 
 const realPack = Buffer.concat(realParts), realVer = crypto.createHash('sha1').update(realPack).digest('hex').slice(0, 8);
 const bfPack = Buffer.concat(bfParts), bfVer = crypto.createHash('sha1').update(bfPack).digest('hex').slice(0, 8);
 const REAL = { url: 'voice-real.bin?v=' + realVer, idx: realIdx, text: realMeta.text || {}, bf: { url: 'voice-bf.bin?v=' + bfVer, idx: bfIdx } };
-const data = `window.VOICE_LINES=${JSON.stringify(L)};window.VOICE_ORIG=${JSON.stringify(ORIG)};window.VOICE_REAL=${JSON.stringify(REAL)};window.SFX_PACK=${JSON.stringify(SFXP)};`;
+// 主帅头像：事先画好的两张图（tools/faces.py 生成 img/face-r.jpg、face-b.jpg），内嵌进页面，打开时不用现画
+const FACES = {}; for (const k of ['r', 'b']) { const f = path.join(D, 'img', `face-${k}.jpg`); if (fs.existsSync(f)) FACES[k] = 'data:image/jpeg;base64,' + fs.readFileSync(f).toString('base64'); }
+const data = `window.VOICE_LINES=${JSON.stringify(L)};window.VOICE_ORIG=${JSON.stringify(ORIG)};window.VOICE_REAL=${JSON.stringify(REAL)};window.SFX_PACK=${JSON.stringify(SFXP)};window.FACES=${JSON.stringify(FACES)};`;
 // 规则引擎和技能模式的电脑单独放一个 <script id="eng">：页面照常执行，另外整段原样塞进 Web Worker 里算棋
 const ENG = ['rules', 'bingfa', 'bfai'];
 const src = n => `// ---- ${n}.js ----\n` + fs.readFileSync(path.join(D, 'src', n + '.js'), 'utf8');

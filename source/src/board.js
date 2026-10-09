@@ -1320,7 +1320,7 @@ const Board = (() => {
       const e = enamelFace('r', 'p', 'gold'), fm = phys({ transparent: true, metalness: 1, roughness: 1, clearcoat: 0.8, clearcoatRoughness: 0.08, map: e.map, roughnessMap: e.orm, metalnessMap: e.orm, aoMap: e.orm, polygonOffset: true, polygonOffsetFactor: -2, ...(envTex ? { envMap: envTex } : {}) });
       tmp.add(new THREE.Mesh(faceGeo, fm));
       tmp.position.set(0, -50, 0); scene.add(tmp);
-      Core.renderer.compile(scene, Core.camera);
+      Core.compileBg(tmp, Core.camera, 300, scene);   // 只编这几种升级材质（用场景的灯光），放后台编；原来是同步把整个场景编一遍，有的电脑上整个浏览器会卡住
       scene.remove(tmp); prewarmSkins.keep = fm; // 留着这份材质：一释放，刚编好的着色器也会被删掉
     } catch (e) { console.warn('prewarmSkins', e); }
   }

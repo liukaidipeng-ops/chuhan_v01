@@ -8,7 +8,7 @@
   // 更新说明（设置里、大厅底部点「更新」查看；最新的放最前）
   const NEWS = [
     ['第六版', '2026 年 10 月', [
-      '打开快了很多：配音和声效改成进了大厅以后在后台下载，网页本身从 8 MB 减到 2.5 MB，手机上的加载页短多了，加载页也换成了真实的进度条。走子时不再一顿一顿（地上的血迹、蹄印烙进地面原来要等显卡，现在在内存里算）；待在大厅时不再空转动画，手机更省电。对局里一直卡会自动降一档画质；浏览器没开硬件加速（没用显卡）会提示怎么打开。电脑上刚打开时大厅会卡住几秒的问题修好了（显卡准备画面的活儿挪到加载页里、放到后台做；头像也改成后台画），切换画质时也不再顿一下',
+      '打开快了很多：配音和声效改成进了大厅以后在后台下载，网页本身从 8 MB 减到 2.5 MB，手机上的加载页短多了，加载页也换成了真实的进度条。走子时不再一顿一顿（地上的血迹、蹄印烙进地面原来要等显卡，现在在内存里算）；待在大厅时不再空转动画，手机更省电。对局里一直卡会自动降一档画质；浏览器没开硬件加速（没用显卡）会提示怎么打开。电脑上进了大厅、建房间时整个浏览器卡住几秒的问题修好了（主帅头像改成事先画好的图，不再在你电脑上现画；显卡准备画面的活儿挪到加载页里、放到后台做），切换画质、技能模式开局时也不再顿一下',
       '落子要点两下：点了落点，那里先出一个这枚棋子的半透明虚影（兵种模型模式下是整队兵马的虚影），一明一暗地呼吸，底下四个朱红折角框住落点，再点一次同一个落点才走；点到走不了的地方闪一下红色虚影，选中的子不丢。防误触，设置 → 对局与其他里可以关。电脑上选着子时，鼠标移到能走的点也会亮折角',
       '轮到谁走，自家半场的格线跟着闪：默认「涌动」（一道淡淡的亮光从底线推到河边），也可以选「河岸」（只闪靠河那条线）或关掉（设置 → 对局与其他）。最后十秒和头像牌的朱框一个节拍',
       '技能模式：升级时兵种会喊一句——二、三级按新称号说（「当上伍长了，五个弟兄跟我走！」），升到四级的名将各有自己的声音和台词（韩信「臣多多而益善耳！」、项庄「军中无以为乐，请以剑舞！」……），出自《史记》。四级名将走子、攻击、吃子、用技能时也各有自己的台词（樊哙的还在录），三级的兵用技能时也会喊一声',
@@ -171,7 +171,7 @@
   window.addEventListener('keydown', unlock, { once: true });
 
   // ---------- 主帅画像（用三维模型离屏渲染） ----------
-  const faces = {};
+  const faces = Object.assign({}, window.FACES || {});   // 主帅头像：事先画好的图（tools/faces.py 生成，build.js 内嵌），打开页面时不再现画
   // 从显卡读回像素，不让主线程干等：WebGL2 先读进显卡这边的缓冲、插个「栅栏」，显卡画完了再取（取的时候不用等）；
   //   老浏览器（WebGL1）还是直接读，会等一下
   function readLater(R, rt, W, px) {
@@ -235,20 +235,15 @@
     g.drawImage(t, 0, 0);
     return c.toDataURL('image/png');
   }
-  // 画一张要编译模型的着色器、还要从显卡读回像素，慢手机上能卡好几秒：等大厅出来、手上空闲了再画；
-  // 画好存在本机，同一个版本以后打开直接用（版本号变了才重画，模型改了能跟上）
+  // 头像原来在玩家电脑上现画：要给主帅模型另编一批着色器、再从显卡读回像素。有的 Windows 电脑上这一下会让整个浏览器卡住几秒
+  //   （10-09 Ham：进大厅后、建房间时整个浏览器不动）。现在改成事先画好：只有带 ?makefaces 打开时才画，给 tools/faces.py 取图用
   function makeFaces() {
-    const key = 'xq3d-faces', ver = window.APP_VERSION || '';
-    try { const c = JSON.parse(localStorage.getItem(key) || 'null'); if (c && c.v === ver && c.r && c.b) { faces.r = c.r; faces.b = c.b; paintCards(); return; } } catch (e) { }
-    const go = async () => {
-      if (Core.softGL && $('lobby').classList.contains('hidden')) { setTimeout(go, 3000); return; }   // 没用显卡的电脑：对局里画头像要卡好几秒，等回到大厅再画
-      try { faces.r = await portrait('liu'); faces.b = await portrait('xiang'); } catch (e) { console.warn('画像生成失败', e); }
-      paintCards();
-      if (faces.r && faces.b) try { localStorage.setItem(key, JSON.stringify({ v: ver, r: faces.r, b: faces.b })); } catch (e) { }
-    };
-    if (window.requestIdleCallback) requestIdleCallback(go, { timeout: 8000 }); else go();
+    (async () => {
+      try { window.__faces = { r: await portrait('liu'), b: await portrait('xiang') }; } catch (e) { window.__faces = { err: String(e) }; }
+    })();
   }
-  lobbyUp.then(() => setTimeout(makeFaces, 2500));
+  if (/[?&]makefaces\b/.test(location.search)) lobbyUp.then(() => setTimeout(makeFaces, 500));
+  else try { localStorage.removeItem('xq3d-faces'); } catch (e) { }   // 以前存在本机的现画头像，不用了
 
   // ---------- 卡顿对策 ----------
   // 1) 浏览器没用显卡（硬件加速关了）：画质开头已经降到低（core.js），这里再告诉玩家怎么打开
@@ -274,7 +269,7 @@
       const t = performance.now(); worst = Math.max(worst, t - lt); lt = t; n++;
       if (t - t0 >= 1000) {
         const R = Core.renderer, i = R.info.render, c = R.domElement;
-        d.textContent = `${Math.round(n * 1000 / (t - t0))} 帧/秒  最慢一帧 ${worst.toFixed(0)} ms\n画质 ${Core.quality}  像素比 ${R.getPixelRatio()}  画布 ${c.width}×${c.height}\n每帧 ${i.calls} 次绘制  ${(i.triangles / 1000).toFixed(0)}K 三角形  影子 ${Core.sun.castShadow ? '开' : '关'}\n${Core.gpu || '显卡未知'}${Core.softGL ? '  ← 软件渲染，没用显卡！' : ''}\n${navigator.userAgent.replace(/^Mozilla\/5\.0 /, '').slice(0, 90)}`;
+        d.textContent = `${Math.round(n * 1000 / (t - t0))} 帧/秒  最慢一帧 ${worst.toFixed(0)} ms\n画质 ${Core.quality}  像素比 ${R.getPixelRatio()}  画布 ${c.width}×${c.height}\n每帧 ${i.calls} 次绘制  ${(i.triangles / 1000).toFixed(0)}K 三角形  影子 ${Core.sun.castShadow ? '开' : '关'}\n${Core.gpu || '显卡未知'}${Core.softGL ? '  ← 软件渲染，没用显卡！' : ''}\n后台编着色器：${Core.parallelGL ? '支持' : '不支持（换场景时可能整个浏览器顿一下）'}\n${navigator.userAgent.replace(/^Mozilla\/5\.0 /, '').slice(0, 90)}`;
         n = 0; t0 = t; worst = 0;
       }
       requestAnimationFrame(tick);
