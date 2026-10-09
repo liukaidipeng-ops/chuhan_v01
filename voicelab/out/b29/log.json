@@ -1,0 +1,61 @@
+{
+ "batch": "b29",
+ "key_present": true,
+ "key_len": 126,
+ "host": "https://api.minimax.cn",
+ "probe": [
+  {
+   "host": "https://api.minimax.cn",
+   "http": 200,
+   "code": 0,
+   "msg": "success"
+  }
+ ],
+ "jobs": [
+  {
+   "id": "real_h_r_a0_m1__1",
+   "voice": "Japanese_GenerousIzakayaOwner",
+   "voice_id": "Japanese_GenerousIzakayaOwner",
+   "voice_name": null,
+   "ok": true,
+   "ms": 2628,
+   "chars": 17
+  },
+  {
+   "id": "real_h_r_a0_m2__1",
+   "voice": "Japanese_GenerousIzakayaOwner",
+   "voice_id": "Japanese_GenerousIzakayaOwner",
+   "voice_name": null,
+   "ok": true,
+   "ms": 3168,
+   "chars": 19
+  },
+  {
+   "id": "real_h_r_a0_a2__1",
+   "voice": "Japanese_GenerousIzakayaOwner",
+   "voice_id": "Japanese_GenerousIzakayaOwner",
+   "voice_name": null,
+   "ok": true,
+   "ms": 3240,
+   "chars": 21
+  },
+  {
+   "id": "real_h_r_a0_k1__1",
+   "voice": "Japanese_GenerousIzakayaOwner",
+   "voice_id": "Japanese_GenerousIzakayaOwner",
+   "voice_name": null,
+   "ok": true,
+   "ms": 3240,
+   "chars": 15
+  },
+  {
+   "id": "real_h_r_a0_s_hujia__1",
+   "voice": "Japanese_GenerousIzakayaOwner",
+   "voice_id": "Japanese_GenerousIzakayaOwner",
+   "voice_name": null,
+   "ok": true,
+   "ms": 2556,
+   "chars": 17
+  }
+ ]
+}
