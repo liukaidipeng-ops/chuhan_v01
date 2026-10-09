@@ -31,9 +31,10 @@ if (cmd === 'plan') {
   const [before, after] = rest;
   const spec = before && !/^0+$/.test(before) ? `${before}..${after}` : `${after}~1..${after}`;
   let files = [];
-  try { files = execFileSync('git', ['diff', '--name-only', '--diff-filter=AM', spec, '--', 'source/tools/simjobs/'], { cwd: REPO, encoding: 'utf8' }).split('\n').filter(f => f.endsWith('.json')); } catch (e) { console.error(e.message); }
+  try { files = execFileSync('git', ['diff', '--name-only', '--no-renames', '--diff-filter=AM', spec, '--', 'source/tools/simjobs/'], { cwd: REPO, encoding: 'utf8' }).split('\n').filter(f => f.endsWith('.json')); } catch (e) { console.error(e.message); }
   const include = [];
   for (const f of files) { const j = load(f); if (/--match/.test(j.args)) throw new Error(f + '：对打暂不支持'); if (/--seedlist|--stop-after-revive/.test(j.args)) throw new Error(f + '：--seedlist / --stop-after-revive 是本机探针用的，GitHub 分段会把整串种子发给每一段（种子重复、合并失败），请改用 --seed + --games'); for (let c = 0; c < chunksOf(j); c++) if (range(j, c).hi > range(j, c).lo) include.push({ req: f, name: nameOf(f), chunk: c }); }
+  // --no-renames：改名重用的请求文件（内容几乎一样）会被 git 认成“改名”，--diff-filter=AM 就把它漏掉（2026-10-10 r27 漏了两组）
   if (include.length > 256) throw new Error(`一次推送共 ${include.length} 段，超过 GitHub 一次最多 256 段的上限（整批不会开跑）：拆成几次推，或者减少 chunks`);   // 2026-10-10 r25 就是这样没跑起来
   console.log('matrix=' + JSON.stringify({ include }));
   console.log('any=' + (include.length ? 'true' : 'false'));
