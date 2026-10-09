@@ -1115,5 +1115,47 @@
    "dur": 0.6,
    "src": "试听台 b30 梆子两响：合成"
   }
+ ],
+ "uihover": [
+  {
+   "f": "uihover_0.mp3",
+   "dur": 0.068,
+   "src": "试听台 b32 hover_2：CC0 录音"
+  }
+ ],
+ "uiclick": [
+  {
+   "f": "uiclick_0.mp3",
+   "dur": 0.144,
+   "src": "试听台 b32 click_2：CC0 录音"
+  }
+ ],
+ "pw": [
+  {
+   "f": "pw_0.mp3",
+   "dur": 0.078,
+   "src": "试听台 b32 wood_3：CC0 录音"
+  }
+ ],
+ "ps": [
+  {
+   "f": "ps_0.mp3",
+   "dur": 0.443,
+   "src": "试听台 b32 silver_1：CC0 录音"
+  }
+ ],
+ "pg": [
+  {
+   "f": "pg_0.mp3",
+   "dur": 0.172,
+   "src": "试听台 b32 gold_1：CC0 录音"
+  }
+ ],
+ "pj": [
+  {
+   "f": "pj_0.mp3",
+   "dur": 0.243,
+   "src": "试听台 b32 jade_1：CC0 录音"
+  }
  ]
 }

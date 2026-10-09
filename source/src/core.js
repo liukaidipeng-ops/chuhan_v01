@@ -81,6 +81,7 @@ const Core = (() => {
   const ease = {
     linear: x => x,
     inOut: x => (x < 0.5 ? 2 * x * x : 1 - Math.pow(-2 * x + 2, 2) / 2),
+    sine: x => (1 - Math.cos(Math.PI * x)) / 2,   // 比 inOut 更柔：起步、收尾都很缓
     out: x => 1 - Math.pow(1 - x, 3),
     in: x => x * x * x,
     outBack: x => { const c1 = 1.70158, c3 = c1 + 1; return 1 + c3 * Math.pow(x - 1, 3) + c1 * Math.pow(x - 1, 2); },
@@ -118,12 +119,22 @@ const Core = (() => {
         Math.cos(this.theta) * Math.sin(this.phi)).multiplyScalar(this.radius).add(this.target);
       return p;
     },
-    setSide(side, snap = true) {
+    // snap = false：不跳过去，像转盘一样把棋盘转到这一边——慢慢加速、慢慢减速（Ham 10-10：本地双人换边转得太猛）
+    //   转的时候 spinning = true，棋子的朝向跟着 theta 一起转（Board.faceViewer 第二个参数），字一直是正的
+    setSide(side, snap = true, dur = 1.4) {
       this.homeTheta = side === 'b' ? Math.PI : 0;
-      this.theta = this.homeTheta; this.phi = this.view ? 0.001 : 0.72;   // 正上方时 phi 不能是 0（lookAt 会翻）
-      this.target.copy(this.home0);
-      this.radius = this.view ? this.fitTop() : this.fitRadius();
-      if (snap) { this.pos.copy(this.orbitPos()); this.look.copy(this.target); this.upTh = this.theta; }   // snap=false：镜头从现在的位置滑过去
+      const th = this.homeTheta, phi = this.view ? 0.001 : 0.72;   // 正上方时 phi 不能是 0（lookAt 会翻）
+      const rad = this.view ? this.fitTop() : this.fitRadius();
+      const id = this.spinId = (this.spinId || 0) + 1;
+      if (snap) { this.spinning = false; this.theta = th; this.phi = phi; this.target.copy(this.home0); this.radius = rad; this.pos.copy(this.orbitPos()); this.look.copy(this.target); this.upTh = this.theta; return Promise.resolve(); }
+      const th0 = this.theta, ph0 = this.phi, r0 = this.radius, t0 = this.target.clone();
+      let d = th - th0; d = Math.atan2(Math.sin(d), Math.cos(d));
+      this.spinning = Math.abs(d) > 0.01;
+      return tween(this.spinning ? dur : 0.6, k => {
+        if (this.spinId !== id) return;
+        this.theta = th0 + d * k; this.upTh = this.theta;
+        this.phi = ph0 + (phi - ph0) * k; this.radius = r0 + (rad - r0) * k; this.target.lerpVectors(t0, this.home0, k);
+      }, ease.sine).then(() => { if (this.spinId === id) { this.theta = th; this.upTh = th; this.spinning = false; } });
     },
     setView(v, side) { this.view = v; this.setSide(side, false); },
     homeDir() { return new THREE.Vector3(Math.sin(this.homeTheta), 0, Math.cos(this.homeTheta)); },
@@ -198,6 +209,7 @@ const Core = (() => {
     canvas.addEventListener('mousedown', e => { if (e.button === 1) e.preventDefault(); });
     canvas.addEventListener('auxclick', e => { if (e.button === 1) e.preventDefault(); });
     canvas.addEventListener('pointerdown', e => {
+      if (Cam.spinning) { Cam.spinId++; Cam.spinning = false; }   // 正在转的时候用户自己拖：别跟他抢
       if (e.pointerType === 'mouse' && e.button === 1) { drag = { x: e.clientX, y: e.clientY, moved: 99, id: e.pointerId, pan: true }; try { canvas.setPointerCapture(e.pointerId); } catch (err) { } return; }
       drag = { x: e.clientX, y: e.clientY, moved: 0, id: e.pointerId }; twoF = false;
     });

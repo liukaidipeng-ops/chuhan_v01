@@ -8,6 +8,12 @@
   // 更新说明（设置里、大厅底部点「更新」查看；最新的放最前）
   const NEWS = [
     ['第六版', '2026 年 10 月', [
+      '联机房间有观众席了（美术画的样子）：观众按进房先后叫农夫、樵夫、渔夫、牧童、书生、货郎，不用自己填名字；房主可以点观战席最后的「坐这里」去旁观，点空座位坐回；房主在观战席时可以「我的座位加人机」，让电脑替你和对手下（对手也是电脑就是电脑对电脑）。原来的「观看人机对战」按钮去掉了',
+      '技能模式改了「拒马」（Ham 定的）：架上拒马的两回合里这枚兵原地不动，不能走（回防、神速营也不行）；炮隔子打过来不挨反伤（拒马的矛够不着），车马兵士象撞上来照旧先挨 1 点；冷却从 2 回合改成 4 回合',
+      '「导出本局」里多带了电脑每一步当时的思考（算到几层、前几名候选和它预想的后续、有没有被一步杀保险换掉、筛掉了哪些升级），悔棋悔掉的那几步也留着——给数值部复盘、训练电脑用；电脑的走法没变',
+      '电脑上的大厅：三个圆按钮改成「人机 · 联机 · 本地」，联机放中间（手机上照旧竖排，联机在最上面）',
+      '本地双人换边改成像转盘一样转过去：慢慢起步、慢慢停下，棋子跟着一起转，字一直是正的（原来是一下子甩过去）',
+      '界面音效（你在试听台挑的）：电脑上鼠标移到大厅的三个圆形图标（联机大厅、人机对战、本地对战）上轻轻「叮」一下（玉片轻碰），点它们「嗒」一声（玉扣）；别的按钮、选项不出声。棋子显示选「棋子」+ 低特效时，落子声按棋子材质分开：木棋子像筹码落桌、银棋子「叮」、金棋子厚重的「当」、玉棋子像瓷碗轻磕（技能模式按等级：一级木、二级银、三级金、四级玉）',
       '技能模式电脑「霸王」变强了（数值部做的）：同样的思考时间能多算半层到一层（多数步能算到五层），和上一版对下 600 局赢 57.6%；每步还快了一点。电脑判断“谁在将军”也快了约两成，各模式结果不变',
       '修好：俯瞰、定盘（正上方看）时，进攻、吃子的震屏会让整张棋盘乱转几十度、来回抽动。原因是正上方往下看时镜头分不清哪边是“上”，一点点抖动就整盘转。现在正上方看时震屏只是整个画面轻轻平移一下，不转不歪；本地双人在正上方看时换边也改成平稳地转过去',
       '本地双人：棋盘自动转向——轮到谁下就转到谁那边；按「视」可以改成自由视角（不自动转）',
@@ -189,6 +195,20 @@
   Core.start();
   let lobbySpin = true;
   Core.onFrame(dt => { if (lobbySpin && !Core.Cam.cine) Core.Cam.theta += dt * 0.04; });
+  // 界面音效（Ham 10-09）：电脑上鼠标移到大厅那三个圆形图标（联机大厅、人机对战、本地对战）上轻响一下（只认鼠标，手机触屏不响），点它们再响一下。
+  //   别的按钮、选项都不响（Ham 10-10：不然吵死了）。以后要给别的按钮加，给它加 data-sfx
+  {
+    const UI_SEL = '#pMain .menu .btn, [data-sfx]';
+    const pick = e => { const el = e.target && e.target.closest ? e.target.closest(UI_SEL) : null; return el && !el.disabled && !el.closest('[data-nosfx]') ? el : null; };
+    let hov = null;
+    document.addEventListener('pointerover', e => {
+      if (e.pointerType !== 'mouse') return;
+      const el = pick(e); if (el === hov) return;
+      hov = el; if (el) Sfx.ui('hover');
+    }, true);
+    document.addEventListener('pointerout', e => { if (hov && !(e.relatedTarget && hov.contains(e.relatedTarget))) hov = null; }, true);
+    document.addEventListener('click', e => { if (pick(e)) Sfx.ui('click'); }, true);
+  }
   // 大厅现在是整屏不透明的（美术 M3），后面的三维场景看不见：大厅开着时不画，省电、省发热。开头先画几帧，把着色器编译掉、影子图画好，免得开局第一帧卡
   // （原来画 90 帧，慢手机上要占好几秒、正好压在刚打开页面的时候；编译着色器第一帧就做完了，画 3 帧够了）
   // 加载页进度：脚本都跑完、场景搭好是 95%，撤掉之前推到 100%
@@ -352,8 +372,10 @@
   const aiSide = () => (vsAI() ? other(mySide) : null);
   // 房主把自己的座位也交给电脑：电脑对电脑，房主和进房的人一起看
   const aiBoth = () => mode === 'host' && !!(opts && opts.ai && opts.ai2);
-  const isAI = s => vsAI() && (s !== mySide || aiBoth());
-  const aiLevel = s => (aiBoth() && s === mySide ? opts.ai2 : opts.level);
+  // 房主坐到观战席、把自己的座位交给电脑，对面是真人（美术 M15 第一期）：联机照常，只是房主这一方由房主这台机器上的电脑走
+  const hostBot = () => mode === 'host' && !!(opts && opts.ai2) && !(opts && opts.ai);
+  const isAI = s => (vsAI() && (s !== mySide || aiBoth())) || (hostBot() && s === mySide);
+  const aiLevel = s => ((aiBoth() && s === mySide) || hostBot() ? opts.ai2 : opts.level);
   const watching = () => mode === 'watch';
   let watchWaiting = false;
   // 揭棋：同屏对战时本地随机布子；联机/观战时暗子身份未知，靠双方密钥逐个揭开（见 jq.js）
@@ -457,9 +479,10 @@
       c.querySelector('.seal').textContent = SEAL[s];
       c.querySelector('.who').textContent = NAME[s];
       const img = c.querySelector('.face'); if (faces[s] && img.src !== faces[s]) img.src = faces[s];
+      const botSide = online() && opts && opts.ai2 && !opts.ai ? hostSide : null;   // 房主的座位交给了电脑
       c.querySelector('.tag').textContent = mode === 'local' || mode === 'watch' ? (s === 'r' ? '红方' : '黑方')
         : vsAI() ? (isAI(s) ? `电脑 · ${LV[aiLevel(s)] || ''}` : '你')
-          : (s === mySide ? '你' : '对手');
+          : s === botSide ? `电脑 · ${LV[opts.ai2] || ''}` : (s === mySide ? '你' : '对手');
     }
     updateHud();
   }
@@ -799,11 +822,12 @@
   // 技能模式的电脑放进 Web Worker 里算（和动画互不耽误）；开不了 Worker 就等动画放完在主线程分片算
   let bfW = null, bfWSeq = 0;
   const bfWait = new Map();
-  function bfThink(S, level, waitIdle) {
-    const local = async () => { await waitIdle(); return BFAI.think(S, level, () => new Promise(r => setTimeout(r, 0))); };
+  // trace：要不要电脑的思考记录（C62 A：对局里的电脑都记，导出时带上；分析不记）
+  function bfThink(S, level, waitIdle, trace) {
+    const local = async () => { await waitIdle(); BFAI.trace = !!trace; try { const seq = await BFAI.think(S, level, () => new Promise(r => setTimeout(r, 0))); bfThink.last = BFAI.think.last; return seq; } finally { BFAI.trace = false; } };
     if (bfW === null) {
       try {
-        const src = document.getElementById('eng').textContent + '\nself.onmessage=async e=>{const d=e.data;try{if(d.cfg){Object.assign(BF.CFG.beishui,d.cfg.beishui);if(d.cfg.r6)Object.assign(BF.CFG.r6,d.cfg.r6);BF.CFG.generalArts.fromRound=d.cfg.fromRound;BF.CFG.attack=d.cfg.attack;}const seq=await BFAI.think(d.S,d.level);postMessage({id:d.id,seq:seq,stat:BFAI.think.last});}catch(err){postMessage({id:d.id,err:String(err&&err.stack||err)});}};';
+        const src = document.getElementById('eng').textContent + '\nself.onmessage=async e=>{const d=e.data;try{BFAI.trace=!!d.trace;if(d.cfg){Object.assign(BF.CFG.beishui,d.cfg.beishui);if(d.cfg.r6)Object.assign(BF.CFG.r6,d.cfg.r6);BF.CFG.generalArts.fromRound=d.cfg.fromRound;BF.CFG.attack=d.cfg.attack;}const seq=await BFAI.think(d.S,d.level);postMessage({id:d.id,seq:seq,stat:BFAI.think.last});}catch(err){postMessage({id:d.id,err:String(err&&err.stack||err)});}};';
         bfW = new Worker(URL.createObjectURL(new Blob([src], { type: 'text/javascript' })));
         bfW.onmessage = e => { const w = bfWait.get(e.data.id); if (!w) return; bfWait.delete(e.data.id); if (e.data.err) w.rej(new Error(e.data.err)); else { bfThink.last = e.data.stat; w.res(e.data.seq); } };
         bfW.onerror = () => { bfW = false; for (const w of bfWait.values()) w.rej(new Error('worker')); bfWait.clear(); };
@@ -811,11 +835,11 @@
     }
     if (!bfW) return local();
     // 试验性的规则开关（背水一战等）也带给电脑线程：它那边有自己的一份配置
-    return new Promise((res, rej) => { const id = ++bfWSeq; bfWait.set(id, { res, rej }); bfW.postMessage({ id, S, level, cfg: { beishui: BF.CFG.beishui, r6: BF.CFG.r6, fromRound: BF.CFG.generalArts.fromRound, attack: BF.CFG.attack } }); }).catch(e => { console.warn('电脑线程出错，改在主线程算', e); return local(); });
+    return new Promise((res, rej) => { const id = ++bfWSeq; bfWait.set(id, { res, rej }); bfW.postMessage({ id, S, level, trace: !!trace, cfg: { beishui: BF.CFG.beishui, r6: BF.CFG.r6, fromRound: BF.CFG.generalArts.fromRound, attack: BF.CFG.attack } }); }).catch(e => { console.warn('电脑线程出错，改在主线程算', e); return local(); });
   }
   function cancelAI() { aiSeq++; if (aiThinking) { try { AI.cancel(); } catch (e) { } } aiThinking = false; }
   function maybeAI() {
-    if (!vsAI() || ended || game.result || !started || !isAI(game.turn) || pendingUndo) return;
+    if (!(vsAI() || hostBot()) || ended || game.result || !started || !isAI(game.turn) || pendingUndo) return;
     if (aiThinking) return;
     const id = ++aiSeq, side = game.turn, lvl = aiLevel(side);
     aiThinking = true; updateHud();
@@ -826,9 +850,12 @@
       const waitIdle = async () => { await anim; while (busy) await Core.sleep(0.1); };
       (async () => {
         if (game.mustPass && game.mustPass()) return [{ k: 'pass' }];
-        return bfThink(BF.cloneState(game.S), lvl, waitIdle);
+        return bfThink(BF.cloneState(game.S), lvl, waitIdle, true);
       })().then(async seq => {
         if (id !== aiSeq || !seq) { if (id === aiSeq) { aiThinking = false; updateHud(); } return; }
+        // 思考记录按这一回合第一条行动的序号存（导出里的 think）
+        const tr = bfThink.last && bfThink.last.trace;
+        if (tr) { if (!game.__think) game.__think = {}; game.__think[game.entries.length] = tr; }
         const el = performance.now() - t0;
         if (el < minWait) await Core.sleep((minWait - el) / 1000);
         aiThinking = false;
@@ -922,7 +949,7 @@
   }
 
   // ---------- 开局 ----------
-  function setView(side, smooth) { viewSide = side; Core.Cam.setSide(side, !smooth); Board.faceViewer(side); Board.viewSide = side; paintCards(); }
+  function setView(side, smooth) { viewSide = side; Core.Cam.setSide(side, !smooth); Board.faceViewer(side, smooth); Board.viewSide = side; paintCards(); }
   let finaleHero = null;
   function clearFinale() { if (finaleHero) { try { if (finaleHero.dropped) Core.disposeTree(finaleHero.dropped); finaleHero.dispose(); } catch (e) { } finaleHero = null; } }
   async function startGame(m, side, o, { state = null, intro = true } = {}) {
@@ -1119,6 +1146,7 @@
     if (game.jq && !jqReady()) return false;
     if (mode === 'local') return true;
     if (vsAI()) return !aiBoth() && game.turn === mySide && !aiThinking;
+    if (hostBot()) return false;   // 房主在观战席，他那一方电脑在走
     return Net.connected && game.turn === mySide;
   }
   function doMove(m, remote = false, clk, sent = false) {
@@ -1165,7 +1193,7 @@
     queueAnim(info);
     updateHud(); publish();
     // 电脑在玩家的动画播放时就开始思考
-    if (vsAI() && !info.result && isAI(game.turn)) maybeAI();
+    if ((vsAI() || hostBot()) && !info.result && isAI(game.turn)) maybeAI();
     return true;
   }
   // 连吃：同一方连续吃子、期间对方没吃回（对方一吃回就清零）
@@ -2033,6 +2061,7 @@
     selMoves = game.legalFrom(f, r).map(m => { const q = game.at(m.to[0], m.to[1]); return { ...m, atk: !!(q && q.hp > game.atkOf(me)) }; });
     Board.showMoves(sel, withBad(bfDmg(selMoves), f, r), !!+opts.hints);
     if (game.frozen(me) && !selMoves.length) toast('这枚子刚用过背水一战，这一回合不能动', 2200);
+    else if (game.jmRooted && game.jmRooted(me) && !selMoves.length) toast('这枚兵正在拒马，拒马结束前不能移动', 2200);
     Sfx.select();
   }
   function bfClear() { Board.clearMoves(false); sel = null; selMoves = []; selBad = []; }
@@ -2131,7 +2160,7 @@
         if (e.e === 'kill') { const m = Board.pieces.get(e.id); if (m) m.visible = false; }
       }
       M.board = pv.S.board; M.sel = null;
-      Board.clearMoves(true); Sfx.place();
+      Board.clearMoves(true); Sfx.place(Board.pieces.get((game.at(hit.from[0], hit.from[1]) || {}).id));
       M.hint = BF.CFG.beishui.on ? BS_HINT[1] : '破釜沉舟 · 第二步：选子再走一步'; renderBar();
       return;
     }
@@ -2171,7 +2200,7 @@
       M.m1 = { from: hit.from, to: hit.to };
       const pv = game.bsFree(M.m1);
       bsShow(pv.ev); M.board = pv.S.board; M.seconds = pv.list; M.sel = null;
-      Board.clearMoves(true); Sfx.place();
+      Board.clearMoves(true); Sfx.place(Board.pieces.get((game.at(hit.from[0], hit.from[1]) || {}).id));
       { const me = game.at(hit.from[0], hit.from[1]), mv = me && pv.ev.filter(e => e.e === 'move' && e.id === me.id).pop();   // 第一步的落点留虚影、悬「一」、留路径（打不死被弹回的，虚影留在原地）
         Board.showStep({ from: hit.from, to: mv ? mv.to : hit.from, aim: hit.to, id: me && me.id }); }
       M.hint = BS_HINT[1]; renderBar();
@@ -2374,7 +2403,7 @@
     }
     if (sks) h += `<div class="tsks sv${SKV}">${sks}</div>`;
     if (p.lv < mx) { const cost = game.upgradeCost(p), base = game.baseCost(p); h += `<div class="tnx"><b>下一级</b>「${game.rankName(p, p.lv + 1)}」${lvGain(p, p.lv + 1)}<small>　或花 ${cost} 军功升级${base > cost ? `（杀敌抵了 ${base - cost}）` : ''}${halfNow(p) ? '，召回后首次半价' : ''}</small></div>`; }
-    if (game.jmActive(p)) h += '<em>拒马中：来攻的子先挨 1 点</em>';
+    if (game.jmActive(p)) h += '<em>拒马中：这枚兵不能移动；近身来攻的子先挨 1 点（炮隔子打不受影响）</em>';
     if (game.frozen(p)) h += '<em>背水一战后力竭：这回合不能动（被将军时可以去吃将军的子）</em>';
     if (p.s === 'b' && game.fx.sm) h += `<em>军心涣散：还有 ${game.fx.sm} 回合不能走</em>`;
     return h;
@@ -2703,7 +2732,7 @@
       else if (game.upOnly && game.upOnly() && canAct() && (mode === 'local' || game.turn === mySide)) toast('被将军：直接走解不了将，先给能解将的子升一级', 3200);
       else if (game.mayPass() && game.fx.sm > 0 && canAct() && (mode === 'local' || game.turn === mySide)) toast('四面楚歌：楚军只能走将，或点「停着」', 2800);
       if (info.result && !busy) finishGame(info.result);
-      else if (!busy && vsAI() && isAI(game.turn)) maybeAI();
+      else if (!busy && (vsAI() || hostBot()) && isAI(game.turn)) maybeAI();
       else if (!busy) localFlip();
     });
   }
@@ -2879,6 +2908,12 @@
     Sfx.B.whoosh(0, 0.5, 0.3); Sfx.B.bell(0.1, 660, 0.08);
     for (const m of Board.pieces.values()) Fx.P.ink(m.position.clone().setY(Board.TOP + 0.1), 2, 0.3, 0.25, 0.5);
     await Core.sleep(0.25);
+    // 悔掉的分支留着（C62 A：Ham 悔棋往往正是找到了电脑的漏洞）：被悔掉的行动、电脑当时的思考记录
+    if (n < game.entries.length) {
+      const th = {}; for (const k of Object.keys(game.__think || {})) if (+k >= n) { th[k] = game.__think[k]; delete game.__think[k]; }
+      if (!game.__branches) game.__branches = [];
+      game.__branches.push({ at: n, t: Date.now(), entries: JSON.parse(JSON.stringify(game.entries.slice(n))), think: th });
+    }
     game.rebuild(n);
     rebuildNotes();
     Board.setPosition(game); Board.faceViewer(viewSide);
@@ -2892,6 +2927,7 @@
     busy++;
     anim = anim.then(async () => {
       if (game.bf) { await bfRewind(bfUndoTarget(plies)); return; }
+      { const n = game.history.length - plies; if (n >= 0 && plies > 0) { if (!game.__branches) game.__branches = []; game.__branches.push({ at: n, t: Date.now(), moves: game.history.slice(n).map(h => ({ from: h.from, to: h.to })) }); } }
       for (let i = 0; i < plies; i++) { const h = game.undo(); if (h) { notes.pop(); await Fx.undoMove(h, game.at(h.from[0], h.from[1])); } }
       const last = game.history[game.history.length - 1];
       Board.showLast(last ? last.from : null, last ? last.to : null);
@@ -2976,10 +3012,10 @@
         // 我已入座：进房间界面，点「准备」，等房主开局
         if (mode || Net.role !== 'guest') return;
         if (!room) {
-          room = { code: Net.code, host: false, hostSide: d.hostSide, seated: true, ready: !!d.ready };
+          room = { code: Net.code, host: false, hostSide: d.hostSide, seated: true, ready: !!d.ready, hostOut: !!d.hostOut, ai2: d.ai2 || null };
           opts = d.opts || {};
           showPane('pWait'); $('roomCode').textContent = Net.code; $('waitChips').innerHTML = chipsFor(d.opts || {}, d.hostSide); $('roomLock').classList.toggle('hidden', !(d.opts && d.opts.pwh));
-        } else room.ready = !!d.ready;
+        } else { room.ready = !!d.ready; room.hostOut = !!d.hostOut; room.ai2 = d.ai2 || null; }
         paintRoom();
         break;
       case 'ready':
@@ -3183,16 +3219,46 @@
     F.scrollTop = F.scrollHeight;
     $('specBox').classList.remove('hidden');
   }
+  // ---------- 观众的名号（美术 M15 / Ham art-053：按进房先后叫农夫、樵夫、渔夫、牧童、书生、货郎，再往后加「二」「三」）----------
+  //   房主起名、发给大家（观众频道 snames），大家看到的一样；观众走了名号空出来，下一个进来的先用空出来的那个
+  const SPEC_ORDER = ['农夫', '樵夫', '渔夫', '牧童', '书生', '货郎'], CNN = ['', '', '二', '三', '四', '五', '六', '七', '八', '九', '十'];
+  let specNames = {}, specToastT = 0;   // 观众的 pid → 名号（房主那份是源头）
+  const specNameOf = (pid, fallback) => specNames[pid] || fallback;
+  function hostNameSpecs() {
+    if (Net.role !== 'host') return false;
+    const live = [...Spect.people.values()].filter(p => !p.self).map(p => p.id);
+    let changed = false;
+    for (const id of Object.keys(specNames)) if (!live.includes(id)) { delete specNames[id]; changed = true; }
+    const used = new Set(Object.values(specNames));
+    for (const id of live) if (!specNames[id]) {
+      for (let k = 0; k < 600; k++) { const r = Math.floor(k / 6) + 1, nm = SPEC_ORDER[k % 6] + (r > 1 ? CNN[r] || String(r) : ''); if (!used.has(nm)) { specNames[id] = nm; used.add(nm); changed = true; break; } }
+    }
+    return changed;
+  }
+  function sendSpecNames() { if (Net.role === 'host' && Object.keys(specNames).length) Net.sendSpec({ t: 'snames', m: specNames }); }
+  setInterval(() => { if (Net.role === 'host' && (room || mode)) { if (hostNameSpecs()) setTimeout(paintRoom, 0); sendSpecNames(); } }, 4000);
+  function specNamed() {   // 观众：拿到了自己的名号
+    const nm = specNames[Net.myPid]; if (!nm || Net.role !== 'watch') return;
+    if (nm !== myName) { myName = nm; Spect.upsert(Net.myPid, myName, myAlleg, true); specHello(); }
+    if (specToastT) { clearTimeout(specToastT); specToastT = 0; toast(`你以「${myName}」的名号入席观战`, 2600); }
+  }
   // 收到观众频道消息（棋手和观众都会收到）
   function onSpec(d) {
     if (!d || !d._p) return;
     setTimeout(paintRoom, 0);
-    if (d.t === 'sbye') { const p = Spect.get(d._p); if (p) feed(p, '离席'); Spect.remove(d._p); updateHud(); return; }
+    if (d.t === 'snames') {   // 房主发的名号表
+      if (Net.role === 'host' || !d.m) return;
+      specNames = d.m;
+      for (const [id, nm] of Object.entries(specNames)) { const q = Spect.get(id); if (q && q.name !== nm) Spect.upsert(id, nm, q.a, q.self); }
+      specNamed(); updateHud(); return;
+    }
+    if (d.t === 'sbye') { const p = Spect.get(d._p); if (p) feed(p, '离席'); Spect.remove(d._p); if (hostNameSpecs()) sendSpecNames(); updateHud(); return; }
     // 棋手把站在棋盘上的观众弹飞（发的人是棋手，不是观众，不能把他登记进观战席）
     if (d.t === 'flick') { specFlick(d.id, false); return; }
     const isNew = !Spect.has(d._p);
-    const p = Spect.upsert(d._p, d.n, d.a, false);
+    let p = Spect.upsert(d._p, specNameOf(d._p, d.n), d.a, false);
     if (!p) return;
+    if (isNew && Net.role === 'host' && hostNameSpecs()) { p = Spect.upsert(d._p, specNames[d._p], d.a, false) || p; sendSpecNames(); }
     if (isNew) { feed(p, '入席观战'); if (mode && !watching()) toast(`「${p.name}」入席观战`); if (!mode && room) roomSfx('roomjoin'); }
     if (d.t === 'go') { Spect.walk(d._p, d.wp); return; }
     if (d.p) Spect.setPos(d._p, d.p);
@@ -3209,23 +3275,16 @@
   setInterval(() => {
     let changed = false;
     for (const p of [...Spect.people.values()]) if (!p.self && Date.now() - p.seen > 14000) { Spect.remove(p.id); changed = true; }
-    if (changed) updateHud();
+    if (changed) { if (hostNameSpecs()) sendSpecNames(); updateHud(); setTimeout(paintRoom, 0); }
   }, 3000);
   function enterWatch(code) {
     enteringWatch = true;
     clearInterval(joinTimer);
     Net.close(true);
-    $('joinNote').innerHTML = '这局已有两位棋手，你可以入席观战。';
-    $('nameIn').value = myName || '';
-    $('nameIn').placeholder = Spect.randomName();
-    $('mName').classList.remove('hidden');
-    $('nameRnd').onclick = () => { $('nameIn').value = Spect.randomName(); };
-    $('nameGo').onclick = () => {
-      myName = ($('nameIn').value.trim() || $('nameIn').placeholder).replace(/[<>]/g, '').slice(0, 8);
-      store.set('specName', myName);
-      $('mName').classList.add('hidden');
-      startWatch(code);
-    };
+    $('joinNote').innerHTML = '这局已有两位棋手，你入席观战。';
+    // 观众的名号由房主按进房先后起（农夫、樵夫……），不再自己填；房主那边还是旧版本时用一个随机的
+    myName = Spect.randomName(); specNames = {};
+    startWatch(code);
   }
   function specHello() { if (Net.role === 'watch') Net.sendSpec({ t: 'sp', n: myName, a: myAlleg, p: Spect.posOf(Net.myPid) || undefined }); }
   // 观众走动：点地面 / 棋盘就走过去（过河走桥、上棋盘走楼梯；路线在自己这边算好，发给大家照着走）
@@ -3286,7 +3345,9 @@
       startGame('watch', 'r', d.opts, { state: d, intro: false }).then(() => updateHud());
       Spect.upsert(Net.myPid, myName, myAlleg, true);
       specHello();
-      toast(`你以「${myName}」的名号入席观战`, 2600);
+      // 名号等房主发过来再报（最多等 3 秒，房主是旧版本就用自己这个）
+      clearTimeout(specToastT); specToastT = setTimeout(() => { specToastT = 0; toast(`你以「${myName}」的名号入席观战`, 2600); }, 3000);
+      if (specNames[Net.myPid]) specNamed();
       setTimeout(() => { if (watching()) toast('点地面或棋盘就能走过去：过河走桥，上棋盘走两侧的小楼梯', 5200); }, 3000);
       return;
     }
@@ -3445,8 +3506,8 @@
   $('bRoomReady').onclick = () => { if (!room || room.host) return; room.ready = !room.ready; if (room.ready) roomSfx('roomready'); Net.send({ t: 'ready', on: room.ready }); paintRoom(); };
   // 客人改当观众：让出座位，转去观战席
   $('bRoomWatch').onclick = () => { if (!room || room.host) return; const code = room.code; closeRoom(); clearInterval(joinTimer); try { Net.send({ t: 'bye' }); } catch (e) { } showPane('pJoin'); enterWatch(code); };
-  $('bRoomAI2').onclick = () => { if (!room || !room.host || !room.ai) return; room.ai2 = room.ai2 ? null : ($('roomAI2Lv').value || 'mid'); paintRoom(); };
-  $('bRoomAI').onclick = () => { if (!room || !room.host || room.seated) return; room.ai = room.ai ? null : ($('roomAILv').value || 'mid'); if (!room.ai) room.ai2 = null; paintRoom(); try { Net.hallTouch(); } catch (e) { } };
+  $('bRoomAI2').onclick = () => { if (!room || !room.host || !room.hostOut) return; room.ai2 = room.ai2 ? null : ($('roomAI2Lv').value || 'mid'); paintRoom(); roomTell(); };
+  $('bRoomAI').onclick = () => { if (!room || !room.host || room.seated) return; room.ai = room.ai ? null : ($('roomAILv').value || 'mid'); paintRoom(); try { Net.hallTouch(); } catch (e) { } };
   $('lockOn').onchange = () => { $('lockPw').classList.toggle('hidden', !$('lockOn').checked); if ($('lockOn').checked) $('lockPw').focus(); };
   $('bBackH').onclick = () => showPane('pMain');
   $('bCreate').onclick = () => { createFor = 'host'; $('createTitle').textContent = '房间设置'; $('bCreateGo').textContent = '创建'; $('optPub').classList.remove('hidden'); $('optLock').classList.remove('hidden'); showPane('pCreate'); };
@@ -3475,47 +3536,86 @@
   // ---------- 房间：两个座位（红·汉 / 黑·楚）+ 观战席。对手入座后倒数 5 秒开局，房主也可以立即开始 ----------
   let room = null;   // { code, host: 我是不是房主, hostSide, seated: 客座有没有人, ready: 客人准备好没有, ai: 房主加的人机档位 }
   const AUTOSTART = (() => { try { return !!localStorage.getItem('xq3d-autostart'); } catch (e) { return false; } })();   // 测试用：客人自动准备、房主自动开始
+  // 房间（美术 M15 第一期）：房主可以点观战席的「坐这里」坐过去，他的座位空出来（点空座位坐回）；空座位可以加人机（电脑替房主下，房主旁观）。
+  //   room.hostOut：房主在观战席；room.ai2：房主座位上的电脑档位（只在房主在观战席时有）；room.ai：对面座位上的电脑
   function paintRoom() {
     if (!room) return;
+    const STAR = { easy: '★', mid: '★★', hard: '★★★' }, SN2 = { r: '红', b: '黑' };
+    const hostOut = !!room.hostOut, ai2 = hostOut ? room.ai2 || null : null;
     const seat = side => {
-      const hostSeat = side === room.hostSide, ai2 = hostSeat && room.ai && room.ai2, mine = hostSeat === room.host && !ai2, ai = (!hostSeat && room.ai) || ai2, taken = hostSeat || room.seated || ai;
-      // 人机座位（美术 M14 / art-047 选甲）：大字只写档位，小字写「人机 ★★」（五个字在电脑上的圆圈里放不下）
-      const STAR = { easy: '★', mid: '★★', hard: '★★★' };
-      const who = ai ? (LV[ai] || '人机') : taken ? (mine ? '你' : hostSeat ? '房主' : '对手') : '空位';
-      const st = ai ? `人机 <span class="st">${STAR[ai] || ''}</span>${ai2 ? ' · 房主观战' : ''}` : hostSeat ? '房主' : !taken ? '等待对手…' : room.ready ? '<b style="color:#2f7d4f">已准备</b>' : '还没准备';
-      return `<div class="seat ${side}${taken ? '' : ' empty'}${mine ? ' me' : ''}${ai ? ' ai' : ''}"><span class="sd">${side === 'r' ? '红·汉' : '黑·楚'}</span><div class="who">${who}</div><small>${st}${side === 'r' ? ' · 先手' : ''}</small></div>`;
+      const hostSeat = side === room.hostSide, first = side === 'r' ? ' · 先手' : '';
+      let cls = '', who, st, attr = '';
+      if (hostSeat) {
+        const back = room.host && hostOut ? ' data-back tabindex="0" role="button"' : '';
+        if (!hostOut) { who = room.host ? '你' : '房主'; st = '房主'; if (room.host) cls = ' me'; }
+        else if (ai2) { who = LV[ai2] || '人机'; st = `人机 <span class="st">${STAR[ai2] || ''}</span>${room.host ? ' · 点我坐回' : ' · 房主观战'}`; cls = ' ai' + (back ? ' back' : ''); attr = back; }
+        else { who = '空位'; st = room.host ? '点这里坐回' : '房主在观战席'; cls = ' empty' + (back ? ' back' : ''); attr = back; }
+      } else {
+        const ai = room.ai, taken = room.seated || ai, mine = !room.host && room.seated && !ai;
+        who = ai ? (LV[ai] || '人机') : taken ? (mine ? '你' : '对手') : '空位';
+        st = ai ? `人机 <span class="st">${STAR[ai] || ''}</span>` : !taken ? '等待对手…' : room.ready ? '<b style="color:#2f7d4f">已准备</b>' : '还没准备';
+        cls = (taken ? '' : ' empty') + (mine ? ' me' : '') + (ai ? ' ai' : '');
+      }
+      return `<div class="seat ${side}${cls}"${attr}><span class="sd">${side === 'r' ? '红·汉' : '黑·楚'}</span><div class="who">${who}</div><small>${st}${hostSeat && ai2 ? '' : first}</small></div>`;   // 人机座位的小字已经够长，不再写「先手」
     };
     $('roomSeats').innerHTML = seat('r') + seat('b');
+    // 观战席：自己（房主坐过来了）排第一，再是各位观众（名字房主按进房先后发：农夫、樵夫……），房主还在座位上时最后一块「坐这里」
+    const esc = t => String(t).replace(/[<>&]/g, '');
     const ps = [...Spect.people.values()].filter(p => !p.self);
-    $('roomSpecs').innerHTML = ps.length ? ps.map(p => `<i>${String(p.name).replace(/[<>&]/g, '')}</i>`).join('') : '暂时没有观众';
+    let h = '';
+    if (room.host && hostOut) h += '<i class="me">你（房主）</i>';
+    if (!room.host && hostOut) h += '<i>房主</i>';
+    h += ps.map(p => `<i>${esc(specNameOf(p.id, p.name))}</i>`).join('');
+    if (room.host && !hostOut) h += '<i class="open" data-sit tabindex="0" role="button">坐这里</i>';
+    $('roomSpecs').innerHTML = h || '暂时没有观众';
+    const specs = $('roomSpecs').parentNode; let tip = specs.querySelector('.tip');
+    const tipTxt = !room.host ? '' : !hostOut ? '点这里就坐过来' : `点${SN2[room.hostSide]}方${ai2 ? '的人机' : '空座位'}坐回去`;
+    if (tipTxt) { if (!tip) { tip = document.createElement('span'); tip.className = 'tip'; specs.appendChild(tip); } tip.textContent = tipTxt; } else if (tip) tip.remove();
     const canAI = room.host && !(opts && opts.jq);   // 象棋、技能模式都能加人机；揭棋没有电脑
     $('roomHostRow').classList.toggle('hidden', !room.host);
     $('roomGuestRow').classList.toggle('hidden', room.host);
     $('roomInvite').classList.toggle('hidden', !room.host);
     if (!room.host) $('qrWrap').classList.add('hidden');
     if (room.host) {
-      const ok = !!room.ai || (room.seated && room.ready);
+      const ok = roomFull();
       $('bRoomStart').classList.toggle('off', !ok);
       $('bRoomAI').classList.toggle('hidden', !canAI || room.seated);
       $('bRoomAI').textContent = room.ai ? '移除人机' : '添加人机';
       $('roomAILv').classList.toggle('hidden', !canAI || room.seated || !!room.ai);
-      // 加了人机之后，房主还可以把自己的座位也交给电脑：电脑对电脑，自己和进房的人一起看
-      $('bRoomAI2').classList.toggle('hidden', !canAI || !room.ai);
-      $('bRoomAI2').textContent = room.ai2 ? '我来下' : '观看人机对战';
-      $('roomAI2Lv').classList.toggle('hidden', !canAI || !room.ai || !!room.ai2);
-      if (Net.lineOk) $('waitNote').innerHTML = room.ai && room.ai2 ? '电脑对电脑：点「开始」开局，你和进房的人一起观战' : room.ai ? '人机已就位，点「开始」开局；其他人进来会坐到观战席' : !room.seated ? '<span class="spin"></span>等待对手入座…（也可以添加人机）' : room.ready ? '对手已准备，点「开始」开局' : '对手已入座，等他点「准备」';
+      // 房主在观战席：他空出来的座位也能加人机（电脑替他下，他在旁边看）
+      $('bRoomAI2').classList.toggle('hidden', !canAI || !hostOut);
+      $('bRoomAI2').textContent = ai2 ? '撤下我座位的人机' : '我的座位加人机';
+      $('roomAI2Lv').classList.toggle('hidden', !canAI || !hostOut || !!ai2);
+      if (Net.lineOk) $('waitNote').innerHTML = hostOut ? '你在观战席。两个座位都有人（或电脑）时，点「开始」开局'
+        : room.ai ? '人机已就位，点「开始」开局；其他人进来会坐到观战席' : !room.seated ? '<span class="spin"></span>等待对手入座…（也可以添加人机）' : room.ready ? '对手已准备，点「开始」开局' : '对手已入座，等他点「准备」';
     } else {
       $('bRoomReady').textContent = room.ready ? '取消准备' : '准 备';
       $('bRoomReady').classList.toggle('solid', !room.ready);
       $('waitNote').innerHTML = room.ready ? '<span class="spin"></span>已准备，等房主开始…' : '点「准备」后房主才能开始；也可以改为观战';
     }
   }
-  function roomTell() { if (room && room.host && room.seated) Net.send({ t: 'seat', hostSide, opts, ready: room.ready }); }
+  // 两个座位都有人（或电脑）了：房主那边（房主自己 / 他座位上的电脑）+ 对面（电脑 / 已准备的对手）
+  const roomFull = () => !!room && (!room.hostOut || !!room.ai2) && (!!room.ai || (room.seated && room.ready));
+  // 房主坐到观战席 / 坐回座位
+  function roomSit(out) {
+    if (!room || !room.host || mode || mode_starting) return;
+    room.hostOut = !!out; if (!out) room.ai2 = null;
+    paintRoom(); roomTell(); try { Net.hallTouch(); } catch (e) { }
+  }
+  $('roomSpecs').addEventListener('click', e => { if (e.target.closest('[data-sit]')) roomSit(true); });
+  $('roomSpecs').addEventListener('keydown', e => { if ((e.key === 'Enter' || e.key === ' ') && e.target.closest('[data-sit]')) { e.preventDefault(); roomSit(true); } });
+  $('roomSeats').addEventListener('click', e => { if (e.target.closest('[data-back]')) roomSit(false); });
+  $('roomSeats').addEventListener('keydown', e => { if ((e.key === 'Enter' || e.key === ' ') && e.target.closest('[data-back]')) { e.preventDefault(); roomSit(false); } });
+  function roomTell() { if (room && room.host && room.seated) Net.send({ t: 'seat', hostSide, opts, ready: room.ready, hostOut: !!room.hostOut, ai2: room.hostOut ? room.ai2 || null : null }); }
   function roomBegin() {
     if (!room || !room.host || mode || mode_starting) return;
+    if (room.hostOut && !room.ai2) { toast('你的座位空着：给它加个人机，或者点空座位坐回去'); return; }
     if (!(room.ai || (room.seated && room.ready))) { toast(room.seated ? '对手还没准备' : '还没有对手：等人入座，或者添加人机'); return; }
     mode_starting = true;
-    if (room.ai) { opts = { ...opts, ai: room.ai, level: room.ai, ai2: room.ai2 || null }; store.set('host', { code: room.code, opts, side: hostSide, t: Date.now() }); }
+    const ai2 = room.hostOut ? room.ai2 || null : null;
+    if (room.ai) opts = { ...opts, ai: room.ai, level: room.ai, ai2 };
+    else opts = { ...opts, ai: null, ai2 };   // 对面是真人；房主座位上有电脑时由房主这台机器替他走（hostBot）
+    if (room.ai || ai2) store.set('host', { code: room.code, opts, side: hostSide, t: Date.now() });
     closeRoom();
     startGame('host', hostSide, opts).then(() => { mode_starting = false; publish(); });
     Net.send({ t: 'welcome', state: snapshot() });
@@ -3529,7 +3629,7 @@
     $('roomCode').textContent = code;
     $('waitChips').innerHTML = chipsFor(o, side);
     $('roomLock').classList.toggle('hidden', !o.pwh);
-    closeRoom(); room = { code, host: true, hostSide: side, seated: false, cd: 0 }; paintRoom();
+    closeRoom(); specNames = {}; room = { code, host: true, hostSide: side, seated: false, cd: 0, hostOut: false, ai2: null }; paintRoom();
     $('waitNote').innerHTML = '<span class="spin"></span>正在连接线路…';
     store.set('host', { code, opts: o, side, t: Date.now() });
     try { history.replaceState(null, '', location.pathname + '?room=' + code); } catch (e) { }
@@ -3717,10 +3817,15 @@
     const kind = G.bf ? 'bf' : G.jq ? 'jq' : 'xq', KIND = { bf: '技能模式', jq: '揭棋', xq: '象棋' };
     const o = { app: 'chuhan3d', ver: APPV, when: new Date().toISOString(), kind, mode, me: mode === 'local' ? null : mySide };
     if (vsAI()) o.ai = aiBoth() ? { r: aiLevel('r'), b: aiLevel('b') } : { [aiSide()]: opts.level };
+    else if (online() && opts.ai2 && !opts.ai) o.ai = { [hostSide]: opts.ai2 };
     o.opts = { undo: opts.undo, total: opts.total, step: opts.step };
     if (G.bf) { o.opts.bs = +opts.bs ? 1 : 0; o.opts.r6 = +opts.r6 ? 1 : 0; }   // 这一局用的哪套规则（重放要用）
     o.cfg = {};   // 调过的规则配置（游戏里没有调配置的入口，恒为空；留着给模拟工具对齐格式）
     o.result = G.result || null;
+    // C62 A：电脑每一回合的思考记录（键是这一回合第一条行动在 entries 里的序号）、悔掉的分支；C62 C：标了“这步笨”的
+    if (G.__think) o.think = G.__think;
+    if (G.__branches && G.__branches.length) o.branches = G.__branches;
+    if (G.__flags && G.__flags.length) o.flags = G.__flags;
     if (G.bf) {
       o.entries = G.entries;
       // 调试摆过子的局：起始局面不是标准开局，一并带上
@@ -3849,7 +3954,7 @@
   window.__xq = {
     get busy() { return busy; }, get started() { return started; }, get game() { return game; }, get mode() { return mode; }, get aiThinking() { return aiThinking; },
     doMove, startGame, finishGame, Ending, Fx, Board, Core, Camp, Squads, Spect, setView, onData, Net, requestUndo, sendEmote, get clock() { return clock; }, get opts() { return opts; }, joinRoom, notation, get notes() { return notes; }, aiSay,
-    doBF, bfButton, bfClick, get bfMode() { return bfMode; }, BF, BFX, specGo, specFlick, exportGame, anaOpen, anaPick, anaExplain, anaDemo, get anaDet() { return anaDet; }, get RP() { return RP; },
+    doBF, bfButton, bfClick, get bfMode() { return bfMode; }, BF, BFX, specGo, specFlick, exportGame, hostRoom, roomSit, get room() { return room; }, get specNames() { return specNames; }, anaOpen, anaPick, anaExplain, anaDemo, get anaDet() { return anaDet; }, get RP() { return RP; },
     get badN() { return badN; }, get JK() { return JK; }, get JC() { return JC; }, get pendingJ() { return pendingJ; }, get jqBad() { return jqBad; }, jqReady, capChip, XQ,
   };
   if (location.hash === '#local') { startGame('local', 'r', { undo: 3, total: 15, step: 60, hints: 1 }, { intro: false }); return; }

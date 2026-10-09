@@ -1117,7 +1117,7 @@ const Squads = (() => {
     m.position.copy(pos); m.position.y = TOP; m.visible = true; m.scale.set(1, 1, 1);
     Stand.snap(m);
     dropSquad(sq);
-    Sfx.place();
+    Sfx.place(m);
     return true;
   }
   // 马的行进路线：直奔落点（这里给出路线中点，供朝向和镜头用）

@@ -693,7 +693,8 @@ html,body{-webkit-text-size-adjust:100%!important;text-size-adjust:100%!importan
 #lobby .btn b,#lobby .btn i{font-weight:900;font-style:normal}
 #pMain .menu{position:absolute;inset:0;display:block;max-width:none;margin:0}
 #pMain .menu .btn{--d:calc(var(--bh)*.826);position:absolute;top:50%;margin:calc(var(--d)/-2) 0 0 calc(var(--d)/-2);gap:.3vh}
-#pMain .menu .btn:nth-child(1){left:25%}#pMain .menu .btn:nth-child(2){left:50%}#pMain .menu .btn:nth-child(3){left:75%}
+/* 电脑上联机放中间：人机 · 联机 · 本地（Ham 10-09 23:22）；手机竖排不受影响 */
+#pMain .menu #bAI{left:25%}#pMain .menu #bHall{left:50%}#pMain .menu #bLocal{left:75%}
 #pMain .menu .btn b,#lobby .e-two .btn b{font-size:calc(calc(var(--d)*.27) * var(--fs,1));letter-spacing:.08em;padding-left:.08em}
 #pMain .menu .btn i,#lobby .e-two .btn i{font-size:calc(calc(var(--d)*.1) * var(--fs,1));letter-spacing:.5em;padding-left:.5em}
 #pMain .menu .btn small{position:absolute;left:50%;top:calc(100% + var(--bh)*.087 + 22px);transform:translateX(-50%);opacity:1;color:var(--c);font-family:var(--es);font-weight:400;font-size:calc(14px * var(--fs,1));letter-spacing:.2em;white-space:nowrap}
@@ -781,9 +782,9 @@ html,body{-webkit-text-size-adjust:100%!important;text-size-adjust:100%!importan
 #lobby.intro .e-grid,#lobby.intro .e-river,#lobby.intro .e-vr,#lobby.intro .e-top{animation:eIn .8s both}
 #lobby.intro .e-river span,#lobby.intro .e-vr span{animation:eInk 1.1s .35s both}
 #lobby.intro #pMain .menu>*{animation:eDrop .45s both}
-#lobby.intro #pMain .menu>*:nth-child(1){animation-delay:1.1s}
-#lobby.intro #pMain .menu>*:nth-child(2){animation-delay:1.22s}
-#lobby.intro #pMain .menu>*:nth-child(3){animation-delay:1.34s}
+#lobby.intro #pMain .menu>#bAI{animation-delay:1.1s}
+#lobby.intro #pMain .menu>#bHall{animation-delay:1.22s}
+#lobby.intro #pMain .menu>#bLocal{animation-delay:1.34s}
 #lobby.intro .resume{animation:eIn .5s 1.6s both}
 @keyframes eIn{from{opacity:0}to{opacity:1}}
 @keyframes eInk{from{opacity:0;filter:blur(14px)}to{opacity:1;filter:blur(0)}}
@@ -1137,6 +1138,7 @@ html:has(#endcard:not(.hidden)),html:has(#endcard:not(.hidden)) body,html:has(#e
 #lobby #pWait #roomSpecs i.open::before{content:"+";width:16px;height:16px;border-radius:0;background:none;display:flex;align-items:center;justify-content:center;font:900 18px/1 var(--es)}
 #lobby #pWait #roomSpecs i.open:hover{background:rgba(240,231,210,.12)}
 #lobby #pWait #roomSpecs i.open:focus-visible{outline:3px solid var(--c);outline-offset:3px}
+#lobby #pWait .seat.back{cursor:pointer}#lobby #pWait .seat.back:hover{filter:brightness(1.06)}#lobby #pWait .seat.back:focus-visible{outline:3px solid var(--c);outline-offset:3px}
 #pWait .specs .tip{flex-basis:100%;text-align:center;font-size:calc(13px * var(--fs,1));letter-spacing:.06em;opacity:.75}
 
 /* 房间里选电脑档位的下拉：和旁边的方框按钮一个样子（方角、2px 米色边、粗宋），展开的列表是墨底米字、选中的朱红 */
@@ -1501,10 +1503,10 @@ html:has(#endcard:not(.hidden)),html:has(#endcard:not(.hidden)) body,html:has(#e
   · <b>看等级与血量</b>：棋身材质就是等级——一级木、二级乌银错花、三级錾金、四级羊脂白玉金缕（升级后字面换成掐丝珐琅）；头顶细血条（汉红、楚绿）是生命值。<br>
   · <b>杀敌记功</b>：每击杀一个敌方单位，出手的那枚子自己记 1 点军功（腰带上多一枚：汉军是金边朱心的圆牌，楚军是乌铁甲片）。记满下一级的价钱就自动升级；没记满时，花全队军功升级每点抵 1 功（升级后清零，最少花 1 功）。误伤己方子不得军功、也不记功。<br>
   · <b>攻击</b>：走到敌子格时，敌子血量不超过攻方攻击力就吃掉占位，否则只打掉攻击力那么多血，攻方退回原位。<b>攻击力</b>：车、马、炮、兵卒一、二级是 1，<b>三级起是 2</b>；士、相 / 象二级起是 2；帅将始终是 1。打不死将军的子不算解将。<br>
-  · <b>兵种技能</b>（三级解锁，有冷却；兵卒的拒马二级解锁）：兵卒「拒马」原地驻营架矛，不占行动，其他棋子还能继续走；对方来犯的子先挨 1 点伤害，持续两回合；车「冲阵」以直线上遇到的第一枚子为跳板（敌我皆可、帅将除外，跳板挨 1 点伤害），落到它身后一格——空格直接落下，有子且一击可杀就吃掉占位，打不死则扣它血、车退回原位；马「踏营」无视蹩马腿（只能在敌方半场用）；炮「霹雳」五格落弹溅伤四周；相/象「飞越」无视塞象眼；士「护驾」与帅将换位（鸿门宴期间护驾可把汉王救出来）。<br>
+  · <b>兵种技能</b>（三级解锁，有冷却；兵卒的拒马二级解锁）：兵卒「拒马」原地驻营架矛，不占行动，其他棋子还能继续走；持续两回合，期间这枚兵不能移动；对方近身来犯的子先挨 1 点伤害（炮隔子打不受影响），冷却 4 回合；车「冲阵」以直线上遇到的第一枚子为跳板（敌我皆可、帅将除外，跳板挨 1 点伤害），落到它身后一格——空格直接落下，有子且一击可杀就吃掉占位，打不死则扣它血、车退回原位；马「踏营」无视蹩马腿（只能在敌方半场用）；炮「霹雳」五格落弹溅伤四周；相/象「飞越」无视塞象眼；士「护驾」与帅将换位（鸿门宴期间护驾可把汉王救出来）。<br>
   · <b>四级技能</b>：汉相「齐射」不动身射斜线两格；楚象「践踏」攻击或吃子后就地跺脚，那一格周围一圈敌子各扣 1 点、残血踩死（被动，走空格不触发）；兵卒「神速营」八个方向直线疾行 1～2 格、可越子，落点须是空格、不能攻击（冷却 5）；兵卒「回防」可后退一格（冷却 2）；士「铁甲禁卫」可在九宫内上下左右走一格（冷却 2）。<br>
   · <b>称号</b>：每升一级换一个称号（汉军兵 → 汉伍长 → 汉什长 → 无当飞军；楚军卒 → 楚锐卒 → 楚持戟 → 江东甲士……），把鼠标停在棋子上可以看到。<br>
-  · <b>被动技能</b>不用按按钮：能用时直接作为普通走法出现；同一回合里主动技能和被动技能可以一起用（例如架完拒马，再用回防后退一格）。<br>
+  · <b>被动技能</b>不用按按钮：能用时直接作为普通走法出现；同一回合里主动技能和被动技能可以一起用（例如给一枚兵架完拒马，再让另一枚四级兵用回防后退一格）。<br>
   · 电脑上把鼠标停在按钮、兵法签或棋子上，手机上长按，可以看到说明；右侧「法」按钮是规则速览。选子后，打不死的目标头顶标「-1」「-2」，能一击杀死才标「殺」。<br>
   · <b>决战</b>：棋盘上双方的车、马、兵、炮都死光后，屏幕会提示进入决战——象、士、帅将都可以过河进攻（象仍走田、士仍走斜一格，只是不受河界九宫限制）；帅将按过河兵走（前、左、右各一格，不能后退），各有 3 点生命；没有将军——可以对脸、可以送将，帅将被打到 0 血就输；士的「铁甲禁卫」出了九宫也能用；<b>夺营</b>——帅将走进对方九宫后，对方再走三步还没把它打死（它自己也没走出九宫），就算获胜。<br>
   · <b>主帅兵法</b>（每局一次，只给落了下风的一方用）：己方车马炮最多还剩 3 枚、而且比对方少时才能用。刘邦「召回良将」复活一枚被吃的子：按兵种选（同一兵种阵亡了几枚，按等级最高的那枚算），回来最多二级——死时一级的回来还是一级，二级以上的回来都是二级，血回满；可以放回这一兵种任意一个空着的开局位置（比如车放左角或右角），位置都被占着就召不回来。落位后可以马上花军功给它升一级，它第一次升级只要半价（单数向上取整，比如车一升二 5 功），升过一次恢复原价；召回占这一回合，它这回合不能动。项羽「背水一战」连走两步——同一枚子走两步，或两枚子各走一步，合计最多吃一个子；只看两步走完：楚将不被将军、也不将着汉帅就行。发动后不能取消；用过的子下一回合不能动（被将军时可以去吃掉将军的那枚）。<br>
