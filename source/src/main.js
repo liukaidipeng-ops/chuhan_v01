@@ -8,7 +8,7 @@
   // 更新说明（设置里、大厅底部点「更新」查看；最新的放最前）
   const NEWS = [
     ['第六版', '2026 年 10 月', [
-      '打开快了很多：配音和声效改成进了大厅以后在后台下载，网页本身从 8 MB 减到 2.5 MB，手机上的加载页短多了，加载页也换成了真实的进度条。走子时不再一顿一顿（地上的血迹、蹄印烙进地面原来要等显卡，现在在内存里算）；待在大厅时不再空转动画，手机更省电。对局里一直卡会自动降一档画质；浏览器没开硬件加速（没用显卡）会提示怎么打开',
+      '打开快了很多：配音和声效改成进了大厅以后在后台下载，网页本身从 8 MB 减到 2.5 MB，手机上的加载页短多了，加载页也换成了真实的进度条。走子时不再一顿一顿（地上的血迹、蹄印烙进地面原来要等显卡，现在在内存里算）；待在大厅时不再空转动画，手机更省电。对局里一直卡会自动降一档画质；浏览器没开硬件加速（没用显卡）会提示怎么打开。电脑上刚打开时大厅会卡住几秒的问题修好了（显卡准备画面的活儿挪到加载页里、放到后台做；头像也改成后台画），切换画质时也不再顿一下',
       '落子要点两下：点了落点，那里先出一个这枚棋子的半透明虚影（兵种模型模式下是整队兵马的虚影），一明一暗地呼吸，底下四个朱红折角框住落点，再点一次同一个落点才走；点到走不了的地方闪一下红色虚影，选中的子不丢。防误触，设置 → 对局与其他里可以关。电脑上选着子时，鼠标移到能走的点也会亮折角',
       '轮到谁走，自家半场的格线跟着闪：默认「涌动」（一道淡淡的亮光从底线推到河边），也可以选「河岸」（只闪靠河那条线）或关掉（设置 → 对局与其他）。最后十秒和头像牌的朱框一个节拍',
       '技能模式：升级时兵种会喊一句——二、三级按新称号说（「当上伍长了，五个弟兄跟我走！」），升到四级的名将各有自己的声音和台词（韩信「臣多多而益善耳！」、项庄「军中无以为乐，请以剑舞！」……），出自《史记》。四级名将走子、攻击、吃子、用技能时也各有自己的台词（樊哙的还在录），三级的兵用技能时也会喊一声',
@@ -143,15 +143,16 @@
   let lobbyIsUp; const lobbyUp = new Promise(r => { lobbyIsUp = r; });   // 加载页撤掉、大厅能点了
   // 着色器先在后台编译（compileAsync：浏览器另开线程编，主线程不等），编好再画头几帧。
   // 原来第一帧就同步编译，慢手机上要卡好几秒，正好压在刚打开页面的时候
+  // 头几帧（编着色器、画影子图）都在加载页底下做完，再撤加载页（10-09 Ham：电脑上打开就卡住——原来是大厅出来以后才编着色器，
+  //   Windows 上编一批着色器能卡好几秒，正好卡在大厅里点东西的时候）。最多等 6 秒
+  let warmed; const warmUp = new Promise(r => { warmed = r; });
   { const canDraw = Core.render; if (canDraw) {
     let ready = false, warm = 3; Core.render = false;
-    const R = Core.renderer, done = () => { ready = true; };
-    // 等加载页撤掉、大厅能点了再收尾（没有后台编译的浏览器，头一帧还是要同步编，别让它挡着加载页）
-    const comp = new Promise(r => { try { (R.compileAsync ? R.compileAsync(Core.scene, Core.camera) : Promise.resolve()).then(r, r); } catch (e) { r(); } });
-    Promise.all([comp, lobbyUp]).then(() => setTimeout(done, 300));
-    setTimeout(done, 12000);   // 万一一直不回话，也别一直不画
-    Core.onFrame(() => { if (!ready) { Core.render = false; return; } if (warm > 0) warm--; Core.render = warm > 0 || $('lobby').classList.contains('hidden'); Core.sleepy = !Core.render; });   // 页面刚开时大厅也带着 hidden（等开场动画），不能拿它判断
-  } }
+    const done = () => { ready = true; };
+    Core.compileBg(Core.scene, Core.camera, 900).then(() => setTimeout(done, 50));
+    setTimeout(done, 8000);   // 万一一直不回话，也别一直不画
+    Core.onFrame(() => { if (!ready) { Core.render = false; return; } if (warm > 0) { warm--; if (!warm) warmed(); } Core.render = warm > 0 || $('lobby').classList.contains('hidden'); Core.sleepy = !Core.render; });   // 页面刚开时大厅也带着 hidden（等开场动画），不能拿它判断
+  } else warmed(); }
   Core.start();
   let lobbySpin = true;
   Core.onFrame(dt => { if (lobbySpin && !Core.Cam.cine) Core.Cam.theta += dt * 0.04; });
@@ -159,7 +160,9 @@
   // （原来画 90 帧，慢手机上要占好几秒、正好压在刚打开页面的时候；编译着色器第一帧就做完了，画 3 帧够了）
   // 加载页进度：脚本都跑完、场景搭好是 95%，撤掉之前推到 100%
   { const L = $('loading'); L.classList.add('real'); L.style.setProperty('--p', 0.95); }
-  setTimeout(() => { $('loading').style.setProperty('--p', 1); setTimeout(() => { $('loading').style.opacity = 0; setTimeout(() => { $('loading').remove(); lobbyIsUp(); }, 900); }, 350); }, 400);
+  Promise.race([warmUp, new Promise(r => setTimeout(r, 6000))]).then(() => {
+    $('loading').style.setProperty('--p', 1); setTimeout(() => { $('loading').style.opacity = 0; setTimeout(() => { $('loading').remove(); lobbyIsUp(); }, 900); }, 350);
+  });
   // 配音包（几 MB）不等第一次点屏幕：大厅出来一会儿就在后台开始取，进对局时多半已经到了
   setTimeout(() => { Voice.enabled = !!+S.voice; Voice.mode = +S.voice === 2 ? 'real' : 'orig'; }, 1500);
   // 首次触碰时解锁音频（iOS 必需）
@@ -169,7 +172,30 @@
 
   // ---------- 主帅画像（用三维模型离屏渲染） ----------
   const faces = {};
-  function portrait(kind) {
+  // 从显卡读回像素，不让主线程干等：WebGL2 先读进显卡这边的缓冲、插个「栅栏」，显卡画完了再取（取的时候不用等）；
+  //   老浏览器（WebGL1）还是直接读，会等一下
+  function readLater(R, rt, W, px) {
+    const gl = R.getContext();
+    if (!(window.WebGL2RenderingContext && gl instanceof WebGL2RenderingContext) || !gl.fenceSync) { R.readRenderTargetPixels(rt, 0, 0, W, W, px); return null; }
+    const buf = gl.createBuffer();
+    gl.bindBuffer(gl.PIXEL_PACK_BUFFER, buf); gl.bufferData(gl.PIXEL_PACK_BUFFER, px.byteLength, gl.STREAM_READ);
+    R.state.bindFramebuffer(gl.FRAMEBUFFER, R.properties.get(rt).__webglFramebuffer);   // 多重采样已经在 render 结束时合成到这张图上
+    gl.readPixels(0, 0, W, W, gl.RGBA, gl.UNSIGNED_BYTE, 0);
+    gl.bindBuffer(gl.PIXEL_PACK_BUFFER, null);
+    const sync = gl.fenceSync(gl.SYNC_GPU_COMMANDS_COMPLETE, 0); gl.flush();
+    return new Promise(res => {
+      const t0 = performance.now();
+      const tick = () => {
+        const st = gl.clientWaitSync(sync, 0, 0);
+        if (st === gl.TIMEOUT_EXPIRED && performance.now() - t0 < 3000) { setTimeout(tick, 30); return; }   // 3 秒还没好（软件渲染、对局里一直在画）就直接取，取的时候会等一下
+        gl.deleteSync(sync);
+        gl.bindBuffer(gl.PIXEL_PACK_BUFFER, buf); gl.getBufferSubData(gl.PIXEL_PACK_BUFFER, 0, px); gl.bindBuffer(gl.PIXEL_PACK_BUFFER, null);
+        gl.deleteBuffer(buf); res();
+      };
+      setTimeout(tick, 30);
+    });
+  }
+  async function portrait(kind) {
     const W = 256;
     const sc = new THREE.Scene();
     sc.add(new THREE.HemisphereLight(0xfff4e0, 0x6a5a48, 1.4));
@@ -186,11 +212,15 @@
     rt.texture.colorSpace = THREE.SRGBColorSpace;
     const R = Core.renderer, prev = R.getRenderTarget(), cc = R.getClearColor(new THREE.Color()), ca = R.getClearAlpha();
     const px = new Uint8Array(W * W * 4);
+    // 主帅模型的着色器先在后台编好（compileAsync），再画；不然第一次画要同步编译，电脑上能卡住好几秒
+    await Core.compileBg(sc, cam);
+    let wait = null;
     try {
       R.setRenderTarget(rt); R.setClearColor(0x000000, 0); R.clear(); R.render(sc, cam);
-      R.readRenderTargetPixels(rt, 0, 0, W, W, px);
+      wait = readLater(R, rt, W, px);
     } finally { R.setRenderTarget(prev); R.setClearColor(cc, ca); }
-    Core.disposeTree(h.group); rt.dispose();
+    Core.disposeTree(h.group);
+    try { await wait; } finally { rt.dispose(); }
     const c = document.createElement('canvas'); c.width = c.height = W;
     const g = c.getContext('2d');
     const bg = g.createRadialGradient(W * 0.5, W * 0.42, 10, W * 0.5, W * 0.5, W * 0.72);
@@ -210,8 +240,9 @@
   function makeFaces() {
     const key = 'xq3d-faces', ver = window.APP_VERSION || '';
     try { const c = JSON.parse(localStorage.getItem(key) || 'null'); if (c && c.v === ver && c.r && c.b) { faces.r = c.r; faces.b = c.b; paintCards(); return; } } catch (e) { }
-    const go = () => {
-      try { faces.r = portrait('liu'); faces.b = portrait('xiang'); } catch (e) { console.warn('画像生成失败', e); }
+    const go = async () => {
+      if (Core.softGL && $('lobby').classList.contains('hidden')) { setTimeout(go, 3000); return; }   // 没用显卡的电脑：对局里画头像要卡好几秒，等回到大厅再画
+      try { faces.r = await portrait('liu'); faces.b = await portrait('xiang'); } catch (e) { console.warn('画像生成失败', e); }
       paintCards();
       if (faces.r && faces.b) try { localStorage.setItem(key, JSON.stringify({ v: ver, r: faces.r, b: faces.b })); } catch (e) { }
     };

@@ -19,6 +19,7 @@ const Core = (() => {
   const prFor = q => Math.min(window.devicePixelRatio, q === 'high' ? 2 : q === 'mid' ? 1.5 : 1);
   renderer.setPixelRatio(prFor(quality));
   renderer.localClippingEnabled = true;
+  renderer.debug.checkShaderErrors = false;   // 线上不查着色器报错：查一次要同步等显卡编完，第一次画东西时会卡
   renderer.shadowMap.enabled = quality !== 'low';
   renderer.shadowMap.type = THREE.PCFSoftShadowMap;
   renderer.toneMapping = THREE.ACESFilmicToneMapping;
@@ -205,7 +206,7 @@ const Core = (() => {
     for (const u of Array.from(updaters)) u(dt);
     for (const h of frameHooks) h(dt, raw);
     Cam.update(raw);
-    if (Core.render) renderer.render(scene, camera);
+    if (Core.render && !held) renderer.render(scene, camera);   // held：换影子开关后，新着色器还在后台编，先停画（不然当场同步编、卡住）
   }
 
   // ---------- 贴图工具 ----------
@@ -389,14 +390,25 @@ const Core = (() => {
     if (o.parent) o.parent.remove(o);
   }
 
+  // 在后台把一个场景要用的着色器编好，编好了再画（第一次画就不用当场等显卡编译，电脑上编一批能卡住好几秒）。
+  //   浏览器支持「并行编译」就问它编好没有；不支持的，先把编译命令发出去，过一会儿（显卡那边在编）再画
+  let held = 0;
+  function compileBg(sc, cam, ms = 1200) {
+    try {
+      if (renderer.extensions.has('KHR_parallel_shader_compile')) return renderer.compileAsync(sc, cam).catch(() => { });
+      renderer.compile(sc, cam); renderer.getContext().flush();
+    } catch (e) { }
+    return new Promise(r => setTimeout(r, ms));
+  }
+
   return {
     get quality() { return quality; },
-    setQuality(q, keep = true) { quality = q; if (keep) try { localStorage.setItem('xq3d-quality', JSON.stringify(q)); } catch (e) { } renderer.setPixelRatio(prFor(q)); const sh = q !== 'low'; if (sh) renderer.shadowMap.enabled = true; sun.castShadow = sh; resize(); },   // keep=false：只这一次打开页面有效（自动降画质用）。
+    setQuality(q, keep = true) { quality = q; if (keep) try { localStorage.setItem('xq3d-quality', JSON.stringify(q)); } catch (e) { } renderer.setPixelRatio(prFor(q)); const sh = q !== 'low'; if (sh) renderer.shadowMap.enabled = true; if (sun.castShadow !== sh) { sun.castShadow = sh; held++; const un = () => { held--; }; compileBg(scene, camera, 600).then(un); } resize(); },   // keep=false：只这一次打开页面有效（自动降画质用）。
     // 影子用太阳的 castShadow 开关：三维库会发现灯光变了、自动重编着色器，当场生效（原来改 shadowMap.enabled 要下次打开才生效）
     gpu: GPU, softGL, get userQ() { return userQ; },
     isMobile,
     renderer, scene, camera, sun, hemi, Time, onFrame, tween, sleep, ease, Cam, canvasTex, Tex, rnd, inkBlot,
-    toon, outlineMat, outlineShared, inked, merge, M4, disposeTree,
+    toon, outlineMat, outlineShared, inked, merge, M4, disposeTree, compileBg,
     start() { clock.start(); loop(); },
     get nUpdaters() { return updaters.size + frameHooks.length; },   // 每帧要跑的回调有几个（查泄漏用）
     // 取走这段时间的帧统计：[帧数, 平均毫秒, 超过 40 毫秒的帧数]，取完清零
