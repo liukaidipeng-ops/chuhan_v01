@@ -596,7 +596,7 @@ const Fx = (() => {
     const t = info.piece.t;
     Sfx.lift();
     await tween(0.4, k => { m.position.lerpVectors(A, B, k); m.position.y = TOP + Math.sin(k * Math.PI) * 0.5; }, ease.inOut);
-    Sfx.place(); Cam.shake(0.06);
+    Sfx.place(m); Cam.shake(0.06);
     const su = Sfx.unit(unitKey(t, c.s)); su.impact && su.impact();
     if (tgt && tgt.parent) {
       const cc = tgt.position.clone(); cc.y += 0.1;
@@ -626,14 +626,14 @@ const Fx = (() => {
     Sfx.lift();
     const mid = A.clone().lerp(B, 0.62);
     await tween(0.3, k => { m.position.lerpVectors(A, mid, k); m.position.y = TOP + Math.sin(k * Math.PI) * 0.35; }, ease.in);
-    Sfx.place(); Cam.shake(0.08); su.impact && su.impact();
+    Sfx.place(m); Cam.shake(0.08); su.impact && su.impact();
     if (c.counter) { Sfx.B.stab(0, 0.5); P.blood(m.position.clone().setY(TOP + 0.2), 10, 0.6, d.clone().negate()); P.wood(mid, 6, d.clone().negate(), 0.5); }
     if (c.counter === 'die') { const cc = m.position.clone(); chunks(cc, d.clone().negate(), 0.7, 8, { of: m }); flyFace(m, cc, d.clone().negate(), 0.6, false); m.visible = false; return; }
     if (c.survive) {
       if (tgt) { P.blood(B.clone().setY(TOP + 0.2), 10, 0.6, d); P.sparks(B.clone().setY(TOP + 0.25), 8); await tween(0.2, k => { tgt.position.copy(B).addScaledVector(d, Math.sin(k * Math.PI) * 0.12); }); }
       if (c.onImpact) await c.onImpact({});
       await tween(0.32, k => { m.position.lerpVectors(mid, A, k); m.position.y = TOP + Math.sin(k * Math.PI) * 0.2; }, ease.out);
-      Sfx.place();
+      Sfx.place(m);
       return;
     }
     // 拒马之后余血吃下
@@ -654,7 +654,7 @@ const Fx = (() => {
       await tween(dur, k => { m.position.lerpVectors(A0, B, k); m.position.y = A0.y + (TOP - A0.y) * k + Math.sin(k * Math.PI) * Math.min(0.2, 0.06 + dist * 0.03); });
     }
     m.position.copy(B);
-    Sfx.place();
+    Sfx.place(m);
   }
 
   // ---------- 棋子沉入墨中 / 浮现 ----------
@@ -668,7 +668,7 @@ const Fx = (() => {
     m.position.copy(pos); m.visible = true;
     P.ink(pos.clone().setY(TOP + 0.08), 10, 0.4, 0.3, 0.7);
     await tween(dur, k => m.scale.set(1, Math.max(0.01, k), 1), ease.outBack);
-    Sfx.place();
+    Sfx.place(m);
   }
   function groundY(p) {
     const a = Math.abs(p.z), H = Board.HALF;
@@ -947,7 +947,7 @@ const Fx = (() => {
     }, ease.out).then(() => { scene.remove(bg, fg); bg.material.dispose(); fg.material.dispose(); });
     await sleep(0.25);
     await tween(0.16, k => { m.position.y = top - (top - TOP) * k; }, ease.in);
-    m.position.y = TOP; Sfx.place();
+    m.position.y = TOP; Sfx.place(m);
   }
 
   // ---------- 悔棋：墨迹倒流 ----------
@@ -965,7 +965,7 @@ const Fx = (() => {
         if (++n % 2 === 0) spawn({ pos: m.position.clone(), color: 0x3b4a44, size: 0.25, size2: 0.05, life: 0.6, op: 0.5 });
       }, ease.inOut);
       m.position.copy(Bp); m.rotation.y = Board.viewSide === 'b' ? Math.PI : 0;
-      Sfx.place();
+      Sfx.place(m);
       // 揭棋：翻开的子撤回后重新扣上
       if (h.rv && piece && piece.h) { await flip(m, piece, 0.4); await tween(0.12, k => { m.position.y = TOP + 0.4 * (1 - k); }); m.position.y = TOP; }
     }

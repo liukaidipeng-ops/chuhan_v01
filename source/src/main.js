@@ -189,6 +189,20 @@
   Core.start();
   let lobbySpin = true;
   Core.onFrame(dt => { if (lobbySpin && !Core.Cam.cine) Core.Cam.theta += dt * 0.04; });
+  // 界面音效（Ham 10-09）：电脑上鼠标移到按钮 / 选项上轻响一下（只认鼠标，手机触屏不响）；点按钮再响一下（手机也响）。
+  //   不想响的元素加 data-nosfx
+  {
+    const UI_SEL = 'button, select, .tool, [data-sfx]';
+    const pick = e => { const el = e.target && e.target.closest ? e.target.closest(UI_SEL) : null; return el && !el.disabled && !el.closest('[data-nosfx]') ? el : null; };
+    let hov = null;
+    document.addEventListener('pointerover', e => {
+      if (e.pointerType !== 'mouse') return;
+      const el = pick(e); if (el === hov) return;
+      hov = el; if (el) Sfx.ui('hover');
+    }, true);
+    document.addEventListener('pointerout', e => { if (hov && !(e.relatedTarget && hov.contains(e.relatedTarget))) hov = null; }, true);
+    document.addEventListener('click', e => { if (pick(e)) Sfx.ui('click'); }, true);
+  }
   // 大厅现在是整屏不透明的（美术 M3），后面的三维场景看不见：大厅开着时不画，省电、省发热。开头先画几帧，把着色器编译掉、影子图画好，免得开局第一帧卡
   // （原来画 90 帧，慢手机上要占好几秒、正好压在刚打开页面的时候；编译着色器第一帧就做完了，画 3 帧够了）
   // 加载页进度：脚本都跑完、场景搭好是 95%，撤掉之前推到 100%
@@ -1698,7 +1712,7 @@
         if (e.e === 'kill') { const m = Board.pieces.get(e.id); if (m) m.visible = false; }
       }
       M.board = pv.S.board; M.sel = null;
-      Board.clearMoves(true); Sfx.place();
+      Board.clearMoves(true); Sfx.place(Board.pieces.get((game.at(hit.from[0], hit.from[1]) || {}).id));
       M.hint = BF.CFG.beishui.on ? BS_HINT[1] : '破釜沉舟 · 第二步：选子再走一步'; renderBar();
       return;
     }
@@ -1738,7 +1752,7 @@
       M.m1 = { from: hit.from, to: hit.to };
       const pv = game.bsFree(M.m1);
       bsShow(pv.ev); M.board = pv.S.board; M.seconds = pv.list; M.sel = null;
-      Board.clearMoves(true); Sfx.place();
+      Board.clearMoves(true); Sfx.place(Board.pieces.get((game.at(hit.from[0], hit.from[1]) || {}).id));
       { const me = game.at(hit.from[0], hit.from[1]), mv = me && pv.ev.filter(e => e.e === 'move' && e.id === me.id).pop();   // 第一步的落点留虚影、悬「一」、留路径（打不死被弹回的，虚影留在原地）
         Board.showStep({ from: hit.from, to: mv ? mv.to : hit.from, aim: hit.to, id: me && me.id }); }
       M.hint = BS_HINT[1]; renderBar();

@@ -580,7 +580,7 @@ const Board = (() => {
   function setSkin(v) { pieceSkin = [2, 3, 4].includes(+v) ? +v : 0; }
   function dress(m, p) {
     if (m.userData.deco) { m.remove(m.userData.deco); m.userData.deco = null; }
-    if (!pieceSkin) { m.userData.skinned = false; return; }
+    if (!pieceSkin) { m.userData.skinned = false; m.userData.mat = 1; return; }
     const d = new THREE.Group(); m.add(d); m.userData.deco = d;
     applySkin(m, d, pieceSkin, p);
   }
@@ -1172,6 +1172,7 @@ const Board = (() => {
   });
   function applySkin(m, d, lv, p) {
     const body = m.children[0], band = m.children[2];
+    m.userData.mat = lv >= 2 && lv <= 4 ? lv : 1;   // 落子声按材质：1 木、2 银、3 金、4 玉
     m.userData.skinned = lv >= 2;
     if (lv < 2) { if (body) body.material = pieceWood; if (band) band.visible = true; skinFace(m, p, lv); return; }
     const S = levelSkins()[Math.min(4, lv)], vi = p && p.id != null ? Math.abs(p.id | 0) % 3 : 0; // 玉：每枚子的纹理、皮色各不相同
@@ -1251,7 +1252,7 @@ const Board = (() => {
     if (m.userData.deco) { m.remove(m.userData.deco); m.userData.deco = null; }
     const face = m.children[1];
     const body = m.children[0];
-    if (!p || (!p.lv && !(p.t === 'k' && p.w))) { m.userData.skinned = false; if (body) body.material = pieceWood; if (m.children[2]) m.children[2].visible = true; skinFace(m, p, 0); if (face && face.material) face.material.color.set(o.dim ? 0x8f8a84 : 0xffffff); return; }
+    if (!p || (!p.lv && !(p.t === 'k' && p.w))) { m.userData.skinned = false; m.userData.mat = 1; if (body) body.material = pieceWood; if (m.children[2]) m.children[2].visible = true; skinFace(m, p, 0); if (face && face.material) face.material.color.set(o.dim ? 0x8f8a84 : 0xffffff); return; }
     const d = new THREE.Group(); m.add(d); m.userData.deco = d;
     const kingF = p.t === 'k' && p.w, max = kingF ? BF.CFG.finalKingHp : BF.hpOf(p.t, p.lv);   // 决战里的帅将：3 点生命，也挂血条
     // 棋身：一级木、二级乌银错花、三级錾金、四级羊脂白玉金丝嵌；升级后的字换成掐丝珐琅

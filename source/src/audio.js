@@ -184,6 +184,7 @@ const Sfx = (() => {
   //  基础音效
   // ======================================================================
   const has = id => !!(samples[id] && samples[id].length);
+  const PLACE = { 1: ['pw', 0.5], 2: ['ps', 0.42], 3: ['pg', 0.45], 4: ['pj', 0.42] }, UI_VOL = { hover: 0.16, click: 0.3 }, uiLast = {};
   // 真实录音相对旧的合成音的音量系数（各处调用还是按旧的习惯传 v）
   const HOOF_GAIN = 1.7, NEIGH_GAIN = 5, CRY_GAIN = 2.6, MARCH_GAIN = 1.5;
   // 鼓点回调：每敲一下大鼓（音效也好、配乐也好）知会一声，场边擂鼓的士兵跟着动。t = 多少秒后响，v = 多响
@@ -640,7 +641,18 @@ const Sfx = (() => {
     set enabled(v) { enabled = v; if (master) master.gain.setTargetAtTime(v ? 1 : 0, now(), 0.05); },
     setVol(k, v) { vol[k] = v; const bus = { sfx: sfxBus, music: musicBus, voice: voiceBus }[k]; if (bus) bus.gain.setTargetAtTime(v, now(), 0.05); },
     vol,
-    place() { B.wood(0, 0.45); },
+    // 落子声分材质（Ham 10-09 试听台第二十九批）：m = 棋子模型，看 m.userData.mat（1 木、2 银、3 金、4 玉，board.js 换材质时记下）。
+    //   素材包里没有这种材质的声音（还没挑 / 没下载完）就用原来的木头声
+    place(m) {
+      const mat = (m && m.userData && m.userData.mat) || 1, [id, v] = PLACE[mat] || PLACE[1];
+      if (has(id)) smp(id, { vol: v, rj: 0.05, pan: 0 }); else B.wood(0, 0.45);
+    },
+    // 界面音效：hover = 电脑上鼠标移到按钮上，click = 点按钮。很轻，连着划过一排按钮时不会噼里啪啦（两下之间至少隔 45 毫秒）
+    ui(kind) {
+      const id = kind === 'click' ? 'uiclick' : 'uihover', t = performance.now();
+      if (!has(id) || t - (uiLast[kind] || 0) < 45) return; uiLast[kind] = t;
+      smp(id, { vol: UI_VOL[kind] || 0.2, rj: 0.03, pan: 0 });
+    },
     // 吃子：战鼓擂动 + 全营欢呼；big=连吃时更响更长，还夹着喊杀
     celebrate(v = 1, big = false) {
       const n = big ? 14 : 9;
