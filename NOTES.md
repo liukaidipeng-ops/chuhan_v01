@@ -15,6 +15,7 @@
   - **新规则的变体**：`tools/variants/bfai_next.js`（底版 f998d98）：BFAI_LMR2（更狠少算）、BFAI_NMP（让一步试试）、BFAI_CHKMUST（被将军升相 / 象 / 兵算保命，H52 问的）、BFAI_ROOTREL（根上补“会改变吃子结果”的升级，g4 第 29 回合修好）。`bfai_v7live.js`（第七版 + 线上）、`bfai_tuned.js`（换权重 + 线上）。
   - **GitHub**：r25 超过一次 256 段的上限没开跑（ci_sim 现在会报错）。**r26（根上补升级，宽版 ROOTREL=2）对线上 594 局 47.2%（z −1.4）→ 不交**，另有 6 局电脑“被将军、没给行动”→ 查出 C63 的 bug。
     现在：r27（H55 后，对线上 a5ad197：更狠少算 + 让一步试试 霸王、窄版补升级 ROOTREL=1+ROOTATK=1 霸王、CHKMUST 校尉）在跑；r28（第七版 对 git:f998d98 霸王 + 校尉）+ t3（调权重数据）排在后面。
+  - **r27（H55 后）窄版补升级 ROOTREL=1 + ROOTATK=1：对线上霸王 595 局 52.2%（z +1.1）→ C64 交 TD**（`tools/variants/bfai_rootatk.patch`，和 C63 一起能打上，8 组测试全过）。r27 的另两组（更狠少算、CHKMUST）因为 git 把改名重用的请求文件认成“改名”没排进去 → ci_sim plan 加 `--no-renames`，重排成 r29（排在 r28 后面）。
   - **C63（bug，已发 TD）**：H52 的“只有升级才解得了将”会卡住对局——① 电脑：唯一解将的升法被根上筛子挡掉 → 返回空行动，网页停在电脑回合；新兵随手升了没用的子就不走了；② 引擎：upOnly 时升错了子不重判，result 一直空。补丁 `tools/variants/bfai_upescape.patch`、`bingfa_upescape.patch`，8 组测试全过；复现 `tools/upescape/`。
   - **H54（TD 已上线复盘接口）**：`BFAI.obsVersion = 1`；`BFAI.trace` 思考记录、`scoreParts`、`LEVELS.<档>.upAll / rootUpAll / fixedDepth`；导出带 `think`（按回合首条行动序号）、`branches`（悔棋分支）、`flags`（留好了）。**复盘工具第二版 `tools/review/review.js`**：按导出版本号在 main 的 version.json 历史找部署提交，取当时的引擎（老对局也能重放），不再打补丁。g4 用它重看：第 27 回合网页那次选了“升马 + 士”（深裁判比重算那步差 5.8 分），没有思考记录看不到为什么——以后的对局有了。
   - **H55（已上线、已合并 a5ad197）**：拒马期间兵不能动、炮不挨反伤、冷却 4。变体底版：bfai_next 用 a5ad197；bfai_v7live、bfai_tuned 用 f998d98（H54 改了 score / upgradeCands 写法，锚点对不上），对手用 git:f998d98。
