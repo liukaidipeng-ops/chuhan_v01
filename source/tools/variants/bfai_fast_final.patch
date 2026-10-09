@@ -1,14 +1,5 @@
---- a/source/src/bfai.js	2026-10-09 11:55:55.640830058 +0000
-+++ b/source/src/bfai.js	2026-10-09 11:55:55.653338279 +0000
-@@ -3,7 +3,7 @@
- // 升级、拒马、主帅兵法、终极兵法另有各自的判断。整份代码既在页面里跑，也原样放进 Web Worker。
- (function (global) {
-   const BF = global.BF || require('./bingfa.js');
--  const A = BF.ai, CFG = BF.CFG;
-+  const A = BF.ai, CFG = BF.CFG, XQ_ = global.XQ || require('./rules.js');
-   const other = s => (s === 'r' ? 'b' : 'r');
-   const WIN = 9000, INF = 1e9;
-   const VAL = { r: 9, c: 4.6, n: 4.2, e: 2.3, a: 2.1, p: 1.1, k: 0 };
+--- a/source/src/bfai.js	2026-10-09 15:25:10.632542896 +0000
++++ b/source/src/bfai.js	2026-10-09 15:25:10.642123271 +0000
 @@ -118,7 +118,7 @@
    const fewPieces = S => { let n = 0; for (const row of S.board) for (const p of row) if (p && p.s === S.turn) n++; return n <= 4; };
  
@@ -18,27 +9,7 @@
    let nodeCap = Infinity;   // 测试用的“按搜索量收手”：搜过这么多节点就停（LEVELS.<档>.nodes），不看时间，结果可复现
    const TIMEOUT = { timeout: true };
    const hist = new Map();                     // 历史启发：哪些安静着法以前造成过剪枝
-@@ -169,6 +169,19 @@
-   const keyA = a => JSON.stringify(a);
-   // “走子方先给某枚子升一级再走”的那几个局面（静态收益最高的 3 个）。每个局面只生成一次：
-   //   逐层加深时每一层都用同一批对象，破釜组合的缓存（按对象记）才接得上
-+  // 被将军时的全部升级（不限前 3 名；每个局面只生成一次）
-+  const upCacheChk = new Map();
-+  function upsChk(S, side) {
-+    let ups = upCacheChk.get(S); if (ups) return ups; ups = [];
-+    const ck = new Set(XQ_.checkers(S.board, side === 'r' ? 'b' : 'r')); let kf = -9, kr = -9; for (let r = 0; r < 10; r++) for (let f = 0; f < 9; f++) { const p = S.board[r][f]; if (p && p.t === 'k' && p.s === side) { kf = f; kr = r; } }
-+    for (let r = 0; r < 10; r++) for (let f = 0; f < 9; f++) { const p = S.board[r][f]; if (!p || p.s !== side || p.t === 'k') continue; const T = A.upgradeState(S, [f, r]); if (!T) continue;
-+      const p1 = T.board[r][f], a0 = A.atk(p), a1 = A.atk(p1); let rel = Math.max(Math.abs(f - kf), Math.abs(r - kr)) <= 1;
-+      if (!rel) for (const m of A.moveTargets(T, f, r)) { const q = T.board[m.to[1]][m.to[0]]; if (q && ck.has(q.id) && q.hp <= a1 && q.hp > a0) { rel = true; break; } }
-+      if (!rel) continue;
-+      ups.push({ S: T, id: p.id, at: [f, r] }); }
-+    if (side === 'b' && PFX) for (const u of ups) { pfAlias.set(u.S, S); pfUp.set(u.S, u.id); }
-+    upCacheChk.set(S, ups); return ups;
-+  }
-   function upsOf(S, side) {
-     let ups = upCache.get(S);
-     if (ups) return ups;
-@@ -257,6 +270,22 @@
+@@ -257,6 +257,22 @@
      }
      return false;
    }
@@ -61,7 +32,7 @@
    function ab(S, depth, alpha, beta, ply, ext = 0) {
      if (++nodes > nodeCap || ((nodes & 63) === 0 && now() > deadline)) throw TIMEOUT;
      const side = S.turn, inChk = A.inCheck(S, side);
-@@ -268,24 +297,31 @@
+@@ -268,24 +284,31 @@
        else return qs(S, alpha, beta, ply, 0);
      }
      if (fewPieces(S) && stuck(S)) return -WIN + ply;
@@ -71,10 +42,8 @@
 +    if (tte) { const v = fromTT(tte.v, ply); if (tte.f === 0 || (tte.f === 1 && v >= beta) || (tte.f === 2 && v <= alpha)) return v; }
 +    let best = -INF, legal = 0, bm = null;
      // 对方应这一步时，也可能先花军功给某枚子升一级再走（多一点血：我方本来能吃掉的子就吃不掉了，打上去还会被弹回）
--    if (ply === upPly && !S.upgraded) {
--      const ups = upsOf(S, side);
-+    if ((ply === upPly || inChk) && !S.upgraded) {   // 被将军的一方所有升级都试
-+      const ups = inChk ? upsChk(S, side) : upsOf(S, side);
+     if (ply === upPly && !S.upgraded) {
+       const ups = upsOf(S, side);
        for (const u of ups) {
          const v = ab(u.S, depth - extd, alpha, beta, ply, ext - extd);
 -        if (v > best) best = v;
@@ -102,7 +71,7 @@
        if (v > alpha) alpha = v;
        if (alpha >= beta) {
          if (!it.q && it.a.k === 'mv') { const k = hk(it.a); killers[ply] = k; hist.set(k, Math.min(300, (hist.get(k) || 0) + depth * depth)); }
-@@ -312,6 +348,7 @@
+@@ -312,6 +335,7 @@
        if (!r) return -WIN + ply;                // 将死 / 困毙
        return -ab(r.S, depth - 1, -beta, -alpha, ply + 1, ext);
      }
@@ -110,59 +79,12 @@
      return best;
    }
  
-@@ -353,7 +390,7 @@
-   function upgradeCands(S, L) {
-     if (S.upgraded) return [];
-     const me = S.turn, U = CFG.ultimates, fin = !!S.final;
--    const base = score(S, me), chk = A.inCheck(S, me), cand = [];
-+    const base = score(S, me), chk = A.inCheck(S, me), cand = [], skipped = [];
-     // 对方有没有两点血以上的进攻子（它来将军时，一级的士、帅砍不死它）
-     let heavy = false; for (let r = 0; r < 10; r++) for (let f = 0; f < 9; f++) { const p = S.board[r][f]; if (p && p.s !== me && heavyAt(p, f, r)) heavy = true; }
-     // 军功前期很紧，只能靠杀子挣：先紧着车升。车还能升、军功再攒一点就够时，别的子先不升（保命的除外）
-@@ -366,6 +403,7 @@
-     for (let r = 0; r < 10; r++) for (let f = 0; f < 9; f++) {
-       const p = S.board[r][f]; if (!p || p.s !== me || p.t === 'k') continue;
-       const T = A.upgradeState(S, [f, r]); if (!T) continue;
-+      if (chk) { cand.push({ at: [f, r], S: T, gain: score(T, me) - base, must: true, unlock: false }); continue; }   // 被将军时全都考虑
-       // 保命的升级（不受“给车攒军功”限制）：只算大子和守子正被捉、或者正被将军（相 / 象除外：它砍不了人；士升二级攻击 2，可能正好砍死将军的子）。
-       //   兵被捉不算——兵老是被捉着，回回都救的话军功全填给兵了，车永远升不上去（对打里就是这么输的）
-       const thr = p.t !== 'p' && threatened(S, [f, r]), must = thr || (chk && p.t !== 'e' && p.t !== 'p');
-@@ -373,14 +411,27 @@
-       // 守子：被捉、被将军才升；对方有两血进攻子逼近时，士可以先升到二级（攻击 2 才砍得死它），再往上只加血、不急
-       // 守子升到三级、四级会解锁技能（飞越、护驾、铁甲禁卫、齐射 / 践踏）：值不值看搜索，这里只留一个名额给它（见下）
-       const unlock = defender && !must && p.lv >= 2 && !(saving || hoard);
--      if (defender && !must && !unlock && !(p.t === 'a' && heavy && p.lv < 2)) continue;
--      if ((saving || hoard) && p.t !== 'r' && !must) continue;
-+      const keep0 = !(defender && !must && !unlock && !(p.t === 'a' && heavy && p.lv < 2)) && !((saving || hoard) && p.t !== 'r' && !must);
-+      if (!keep0) { skipped.push({ at: [f, r], S: T, gain: score(T, me) - base, must, unlock }); continue; }   // 筛掉的先记着
-       cand.push({ at: [f, r], S: T, gain: score(T, me) - base, must, unlock });
-     }
-     cand.sort((x, y) => (y.must ? 1 : 0) - (x.must ? 1 : 0) || y.gain - x.gain);
-     // 前三个照旧；“守子升级解锁技能”的静态分低、排不进前三，另给一个名额（最多一个）
-+    if (chk) return cand;   // 被将军时全都考虑
-     const top = cand.filter(c => !c.unlock).slice(0, 3), ex = cand.find(c => c.unlock);
-     if (ex) top.push(ex);
-+    // 再加最多 2 个“会改变吃子结果”的升级（守：正被一下打死、升了扛得住；攻：升了能打死原来打不死的子或能将军）
-+    { const rest = skipped.concat(cand.filter(c => !top.includes(c))).sort((x, y) => y.gain - x.gain);
-+      const F = BF.cloneState(S); F.turn = me === 'r' ? 'b' : 'r'; F.upgraded = false; F.freeUsed = false; F.jmLock = null;
-+      const thr = new Map(); try { for (const it of A.gen(F, true)) if (it.q && it.q.s === me && it.p) thr.set(it.q.id, Math.max(thr.get(it.q.id) || 0, A.atk(it.p))); } catch (e) { }
-+      let added = 0;
-+      for (const c of rest) { if (added >= 2) break;
-+        const f = c.at[0], r = c.at[1], p0 = S.board[r][f], p1 = c.S.board[r][f]; if (!p0 || !p1) continue;
-+        const m = thr.get(p0.id) || 0; let rel = m > 0 && p0.hp <= m && p1.hp > m;
-+        if (!rel) { const a0 = A.atk(p0), a1 = A.atk(p1), before = new Set();
-+          for (const mv of A.moveTargets(S, f, r)) { const q = S.board[mv.to[1]][mv.to[0]]; if (q && q.s !== me && (q.hp <= a0 || q.t === 'k')) before.add(q.id); }
-+          for (const mv of A.moveTargets(c.S, f, r)) { const q = c.S.board[mv.to[1]][mv.to[0]]; if (q && q.s !== me && (q.hp <= a1 || q.t === 'k') && !before.has(q.id)) { rel = true; break; } } }
-+        if (rel) { top.push(c); added++; } } }
-     return top;
-   }
-   // 根节点：返回一串要依次执行的行动（升级 → 拒马 → 主行动）
-@@ -389,7 +440,7 @@
+@@ -389,7 +413,7 @@
      let L = tick ? { ...L0, budget: Math.min(L0.budget, 1400) } : L0;   // 在主线程里算（开不了 Worker）时少想一会儿，免得卡画面
      let S = S0, last = now();
      const breathe = async () => { if (tick && now() - last > 12) { await tick(); last = now(); } };
 -    kdMe = S0.turn; nodes = 0; qMax = L.q; hist.clear(); killers.length = 0; upPly = -1; pfPly = -1; pfCache.clear(); upCache.clear(); pfAlias.clear(); pfUp.clear(); deadline = Infinity; nodeCap = Infinity;
-+    lmrOn = L.depth > 3; kdMe = S0.turn; nodes = 0; qMax = L.q; hist.clear(); killers.length = 0; upPly = -1; pfPly = -1; pfCache.clear(); upCache.clear(); upCacheChk.clear(); TTB.clear(); pfAlias.clear(); pfUp.clear(); deadline = Infinity; nodeCap = Infinity;
++    lmrOn = L.depth > 3; kdMe = S0.turn; nodes = 0; qMax = L.q; hist.clear(); killers.length = 0; upPly = -1; pfPly = -1; pfCache.clear(); upCache.clear(); TTB.clear(); pfAlias.clear(); pfUp.clear(); deadline = Infinity; nodeCap = Infinity;
      const fin0 = !!S0.final, chk0 = A.inCheck(S0, me);
      if (PFD && me === 'r' && L.depth >= 3 && S0.cnt.b < (S0.fx.pf || 0)) L = { ...L, depth: L.depth + PFD };   // 楚方技能被封的反击窗口：多算一层
      const byNodes = L.nodes > 0;   // 设了 nodes：按搜索量收手，完全不看时间（对打、考卷、漏着率用，机器快慢不影响结果）
