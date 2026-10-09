@@ -51,7 +51,17 @@ const Sfx = (() => {
     const vs = ctx.createGain(); vs.gain.value = 0.12; voiceBus.connect(vs); vs.connect(verb);
     loadSamples();
     startAmbient();
-    try { const a = document.createElement('audio'); a.setAttribute('playsinline', ''); a.loop = true; a.volume = 0.01; a.src = 'data:audio/wav;base64,UklGRiQAAABXQVZFZm10IBAAAAABAAEAQB8AAEAfAAABAAgAZGF0YQAAAAA='; a.play().catch(() => { }); } catch (e) { }
+    // 苹果手机开着静音键也要出声：后台循环放一段静音。只在苹果设备上做；放的是 1 秒真静音，不是空文件——
+    //   原来是 0 秒的空文件，循环播放时每秒从头重来上万次（10-09 实测 1.3 万次/秒），Windows 上会把整个浏览器窗口、连别的软件一起拖卡
+    //   （Ham：拖动窗口就卡死，只有我们的页面这样）
+    if (/iPhone|iPad|iPod/.test(navigator.userAgent) || (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1)) try {
+      const n = 8000, buf = new ArrayBuffer(44 + n), v = new DataView(buf), w = (o, t) => { for (let i = 0; i < t.length; i++) v.setUint8(o + i, t.charCodeAt(i)); };
+      w(0, 'RIFF'); v.setUint32(4, 36 + n, true); w(8, 'WAVE'); w(12, 'fmt '); v.setUint32(16, 16, true); v.setUint16(20, 1, true); v.setUint16(22, 1, true);
+      v.setUint32(24, 8000, true); v.setUint32(28, 8000, true); v.setUint16(32, 1, true); v.setUint16(34, 8, true); w(36, 'data'); v.setUint32(40, n, true);
+      new Uint8Array(buf, 44).fill(128);   // 8 位无符号，128 = 静音
+      const a = document.createElement('audio'); a.setAttribute('playsinline', ''); a.loop = true; a.volume = 0.01;
+      a.src = URL.createObjectURL(new Blob([buf], { type: 'audio/wav' })); a.play().catch(() => { });
+    } catch (e) { }
   }
   const now = () => ctx.currentTime;
   const ok = () => !!ctx;
