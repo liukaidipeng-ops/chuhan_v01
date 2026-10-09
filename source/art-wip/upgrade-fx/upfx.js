@@ -24,14 +24,19 @@ window.UPFX = (() => {
   function setup(o = {}) {
     clear();
     const { p, m, r, f } = findPiece(o.s || 'r', o.t || 'p', o.i || 0);
-    const lv0 = p.lv || 1, lv1 = o.lv || 2;
+    if (p.__lv0 == null) p.__lv0 = p.lv || 1;
+    const lv0 = o.from || (o.lv || 2) - 1, lv1 = o.lv || 2;
     p.lv = lv0; Board.decorate(m, p);
     const old = cloneDeep(m); old.position.copy(m.position); old.quaternion.copy(m.quaternion); m.parent.add(old);
     p.lv = lv1; Board.decorate(m, p);
     const neo = cloneDeep(m); neo.position.copy(m.position); neo.quaternion.copy(m.quaternion); m.parent.add(neo);
     m.visible = false;
+    // 脚下血圈不跟着棋子动：从新旧两份里拿掉，单独放一份在地上
+    const ringOf = o3 => { let r = null; o3.traverse(x => { if (x.userData && x.userData.hpBar) r = x; }); return r; };
+    const ro = ringOf(old); if (ro) ro.parent.remove(ro);
+    const rn = ringOf(neo); let ring = null; if (rn) { const wp = new THREE.Vector3(), wq = new THREE.Quaternion(); rn.getWorldPosition(wp); rn.getWorldQuaternion(wq); rn.parent.remove(rn); ring = rn; ring.position.copy(m.parent.worldToLocal(wp)); ring.quaternion.copy(wq); }
     const box = new THREE.Box3().setFromObject(old), y0 = box.min.y, y1 = box.max.y;
-    const fx = new THREE.Group(); m.parent.add(fx);
+    const fx = new THREE.Group(); m.parent.add(fx); if (ring) fx.add(ring);
     S = { p, m, old, neo, y0, y1, fx, lv1, C: LV[Math.min(4, lv1)], base: m.position.clone(), q0: m.quaternion.clone(), kind: o.kind || 'melt', items: {} };
     build(S.kind);
     return { y0, y1, at: [r, f] };
@@ -39,6 +44,7 @@ window.UPFX = (() => {
   function clear() {
     if (!S) return;
     for (const x of [S.old, S.neo, S.fx]) x.parent && x.parent.remove(x);
+    S.p.lv = S.p.__lv0; delete S.p.__lv0; Board.decorate(S.m, S.p);
     S.m.visible = true; S = null;
   }
   const add = (geo, mat) => { const x = new THREE.Mesh(geo, mat); S.fx.add(x); return x; };
@@ -70,23 +76,30 @@ window.UPFX = (() => {
         const g = new THREE.CylinderGeometry(0.432, 0.432, H * 0.96, 4, 1, true, k / 12 * PI * 2, PI * 2 / 12);
         const mesh = new THREE.Mesh(g, wood); const piv = new THREE.Group(); piv.add(mesh); S.fx.add(piv); I.chunks.push({ o: piv, a: (k + 0.5) / 12 * PI * 2 + PI / 2, top: 0, sp: Rr(), sp2: Rr() });
       }
-      I.cracks = add(new THREE.CircleGeometry(0.4, 40), new THREE.MeshBasicMaterial({ map: crackTex(), transparent: true, depthWrite: false, opacity: 0 })); I.cracks.rotation.x = -PI / 2;
+      I.cracks = add(new THREE.CircleGeometry(0.4, 40), new THREE.MeshBasicMaterial({ map: crackTex(), transparent: true, depthWrite: false, opacity: 0, blending: THREE.AdditiveBlending, toneMapped: false })); I.cracks.rotation.x = -PI / 2;
       I.flash = add(new THREE.SphereGeometry(0.5, 24, 16), glowMat(C.glow, 0));
-      S.old.visible = false;
+      S.old.visible = false; S.neo.visible = false;
     }
     if (kind === 'beam') {
       const tex = beamTex();
-      I.beam = add(new THREE.CylinderGeometry(0.5, 0.56, 3.2, 40, 1, true), new THREE.MeshBasicMaterial({ map: tex, color: C.glow, transparent: true, opacity: 0, blending: THREE.AdditiveBlending, depthWrite: false, side: THREE.DoubleSide, toneMapped: false }));
-      I.core = add(new THREE.CylinderGeometry(0.18, 0.22, 3.2, 24, 1, true), new THREE.MeshBasicMaterial({ map: tex, color: C.hot, transparent: true, opacity: 0, blending: THREE.AdditiveBlending, depthWrite: false, side: THREE.DoubleSide, toneMapped: false }));
+      I.beam = add(new THREE.CylinderGeometry(0.42, 0.5, 3.2, 48, 1, true), beamMat(C.glow, 0));
+      I.core = add(new THREE.CylinderGeometry(0.16, 0.2, 3.2, 32, 1, true), beamMat(C.hot, 0));
       I.pool = add(new THREE.CircleGeometry(0.75, 48), new THREE.MeshBasicMaterial({ map: poolTex(), color: C.glow, transparent: true, opacity: 0, blending: THREE.AdditiveBlending, depthWrite: false, toneMapped: false })); I.pool.rotation.x = -PI / 2;
       I.motes = [...Array(30)].map(() => add(new THREE.SphereGeometry(0.012, 6, 4), glowMat(C.hot)));
       I.shine = add(new THREE.PlaneGeometry(0.14, 0.9), glowMat(0xffffff, 0)); I.shine.rotation.x = -PI / 2;
     }
   }
+
+  function beamMat(color, a) {
+    return new THREE.ShaderMaterial({ transparent: true, depthWrite: false, blending: THREE.AdditiveBlending, side: THREE.DoubleSide, toneMapped: false,
+      uniforms: { uC: { value: new THREE.Color(color) }, uA: { value: a }, uT: { value: 0 } },
+      vertexShader: 'varying vec3 vN; varying vec3 vV; varying float vY; void main(){ vec4 wp = modelMatrix * vec4(position,1.); vN = normalize(mat3(modelMatrix) * normal); vV = normalize(cameraPosition - wp.xyz); vY = uv.y; gl_Position = projectionMatrix * viewMatrix * wp; }',
+      fragmentShader: 'uniform vec3 uC; uniform float uA; uniform float uT; varying vec3 vN; varying vec3 vV; varying float vY; void main(){ float f = pow(abs(dot(normalize(vN), vV)), 2.5); float fall = smoothstep(1.0, 0.25, vY) * smoothstep(0.0, 0.04, vY); float st = 0.85 + 0.15 * sin(vY * 40. - uT * 12.); gl_FragColor = vec4(uC * st, f * fall * uA); }' });
+  }
   function canvas(w, h, f) { const c = document.createElement('canvas'); c.width = w; c.height = h; f(c.getContext('2d'), w, h); const t = new THREE.CanvasTexture(c); t.colorSpace = THREE.SRGBColorSpace; return t; }
   const beamTex = () => canvas(64, 256, (g, w, h) => { const gr = g.createLinearGradient(0, 0, 0, h); gr.addColorStop(0, 'rgba(255,255,255,0)'); gr.addColorStop(0.55, 'rgba(255,255,255,.55)'); gr.addColorStop(1, 'rgba(255,255,255,1)'); g.fillStyle = gr; g.fillRect(0, 0, w, h); for (let i = 0; i < 18; i++) { g.fillStyle = `rgba(255,255,255,${0.05 + Math.random() * 0.12})`; g.fillRect(Math.random() * w, 0, 1 + Math.random() * 3, h); } });
   const poolTex = () => canvas(128, 128, (g, w) => { const gr = g.createRadialGradient(w / 2, w / 2, 0, w / 2, w / 2, w / 2); gr.addColorStop(0, 'rgba(255,255,255,.9)'); gr.addColorStop(0.5, 'rgba(255,255,255,.35)'); gr.addColorStop(1, 'rgba(255,255,255,0)'); g.fillStyle = gr; g.fillRect(0, 0, w, w); });
-  const crackTex = () => canvas(256, 256, (g, w) => { const R = rnd(5); g.strokeStyle = 'rgba(40,20,8,.9)'; g.lineWidth = 3; g.lineCap = 'round'; for (let k = 0; k < 8; k++) { const a = (k + 0.5) / 8 * PI * 2 + (R() - 0.5) * 0.2; let x = w / 2, y = w / 2; g.beginPath(); g.moveTo(x, y); for (let s = 0; s < 8; s++) { const aa = a + (R() - 0.5) * 0.5; x += Math.cos(aa) * w / 16; y += Math.sin(aa) * w / 16; g.lineTo(x, y); } g.stroke(); } g.strokeStyle = 'rgba(255,220,150,.7)'; g.lineWidth = 1; for (let k = 0; k < 6; k++) { g.beginPath(); g.arc(w / 2, w / 2, 10 + k * 3, 0, 7); } });
+  const crackTex = () => canvas(256, 256, (g, w) => { const R = rnd(5); g.shadowColor = 'rgba(255,220,140,1)'; g.shadowBlur = 10; g.strokeStyle = 'rgba(255,236,180,.95)'; g.lineWidth = 3; g.lineCap = 'round'; for (let k = 0; k < 8; k++) { const a = (k + 0.5) / 8 * PI * 2 + (R() - 0.5) * 0.2; let x = w / 2, y = w / 2; g.beginPath(); g.moveTo(x, y); for (let s = 0; s < 8; s++) { const aa = a + (R() - 0.5) * 0.5; x += Math.cos(aa) * w / 16; y += Math.sin(aa) * w / 16; g.lineTo(x, y); } g.stroke(); } g.strokeStyle = 'rgba(255,220,150,.7)'; g.lineWidth = 1; for (let k = 0; k < 6; k++) { g.beginPath(); g.arc(w / 2, w / 2, 10 + k * 3, 0, 7); } });
   // ---- 第 t 帧 ----
   function set(t) {
     if (!S) return; const I = S.items, C = S.C, b = S.base, H = S.y1 - S.y0;
@@ -105,12 +118,13 @@ window.UPFX = (() => {
       const pulse = Math.sin(cl(t, 0.82, 1) * PI); S.neo.traverse(o => { if (o.material && o.material.emissive) for (const m of [].concat(o.material)) { m.emissive = m.emissive || new THREE.Color(); m.emissive.set(C.glow); m.emissiveIntensity = 0.35 * pulse; } });
     }
     if (S.kind === 'flip') {
-      const up = cl(t, 0.05, 0.75), y = Math.sin(up * PI) * 0.75 * (1 - 0.15 * up), land = cl(t, 0.75, 1);
+      const up = cl(t, 0.05, 0.75), y = Math.sin(up * PI) * 0.42, land = cl(t, 0.75, 1);
       const ang = sm(up) * PI, bounce = Math.sin(land * PI * 2) * 0.04 * (1 - land);
       const q = new THREE.Quaternion().setFromAxisAngle(new V3(1, 0, 0), ang), q2 = S.q0.clone().premultiply(q);
-      for (const o of [S.old, S.neo]) { o.position.set(b.x, b.y + y + Math.max(0, bounce), b.z); }
-      // 旧的翻到一半看不见，新的从背面翻上来：新的多转 180°，这样落地时字朝上
-      S.old.quaternion.copy(q2); S.neo.quaternion.copy(S.q0.clone().premultiply(new THREE.Quaternion().setFromAxisAngle(new V3(1, 0, 0), ang + PI)));
+      // 绕棋子中心翻：旧的翻到一半看不见，新的从背面翻上来（多转 180°，落地时字朝上）
+      const ch = H / 2, qa = new THREE.Quaternion().setFromAxisAngle(new V3(1, 0, 0), ang), qb = new THREE.Quaternion().setFromAxisAngle(new V3(1, 0, 0), ang + PI);
+      const pivot = (o, qq) => { o.quaternion.copy(S.q0).premultiply(qq); const off = new V3(0, -ch, 0).applyQuaternion(qq); o.position.set(b.x + off.x, b.y + y + Math.max(0, bounce) + ch + off.y, b.z + off.z); };
+      pivot(S.old, qa); pivot(S.neo, qb);
       S.old.visible = ang < PI / 2; S.neo.visible = ang >= PI / 2;
       // 翻到半空时亮一下
       const mid = Math.exp(-Math.pow((ang - PI / 2) / 0.35, 2));
@@ -131,13 +145,13 @@ window.UPFX = (() => {
         if (!c.top) { c.o.position.set(b.x + x, Math.max(b.y, y - H * 0.5) , b.z + z); c.o.children[0].position.y = H * 0.5; }
         c.o.visible = burst < 0.98; opacity(c.o, 1 - cl(burst, 0.6, 0.98));
       });
-      S.neo.visible = true; const fl = burst > 0 ? Math.exp(-burst * 7) : 0; I.flash.material.opacity = fl * 0.9; put(I.flash, 0, S.y0 + H * 0.5, 0); I.flash.scale.setScalar(0.6 + burst * 1.6);
+      S.neo.visible = burst > 0; const fl = burst > 0 ? Math.exp(-burst * 7) : 0; I.flash.material.opacity = fl * 0.9; put(I.flash, 0, S.y0 + H * 0.5, 0); I.flash.scale.setScalar(0.6 + burst * 1.6);
     }
     if (S.kind === 'beam') {
       const inn = cl(t, 0.02, 0.22), hold = cl(t, 0.22, 0.7), out = cl(t, 0.7, 0.95), a = sm(inn) * (1 - sm(out));
       const drop = 1.6 * (1 - sm(inn)) + 1.6 * sm(out);
-      put(I.beam, 0, b.y + 1.6 + drop, 0); put(I.core, 0, b.y + 1.6 + drop, 0); I.beam.material.opacity = 0.55 * a; I.core.material.opacity = 0.8 * a; I.beam.rotation.y = t * 3;
-      put(I.pool, 0, b.y + 0.004, 0); I.pool.material.opacity = 0.9 * a;
+      put(I.beam, 0, b.y + 1.6 + drop, 0); put(I.core, 0, b.y + 1.6 + drop, 0); I.beam.material.uniforms.uA.value = 0.45 * a; I.core.material.uniforms.uA.value = 0.6 * a; I.beam.material.uniforms.uT.value = I.core.material.uniforms.uT.value = t * 3;
+      put(I.pool, 0, b.y + 0.004, 0); I.pool.material.opacity = 0.55 * a;
       const lift = Math.sin(cl(t, 0.18, 0.8) * PI) * 0.32, spin = sm(cl(t, 0.2, 0.75)) * PI * 2;
       for (const o of [S.old, S.neo]) { o.position.set(b.x, b.y + lift, b.z); o.quaternion.copy(S.q0).premultiply(new THREE.Quaternion().setFromAxisAngle(new V3(0, 1, 0), spin)); }
       const sw = t > 0.47; S.old.visible = !sw; S.neo.visible = sw;
