@@ -9,7 +9,7 @@ const Camp = (() => {
     b: { tent: 0x33302f, tent2: 0x242222, stripe: 0x8a2a1e, trim: 0xb08a3a, roof: 0x1d1b1b, felt: 0x3d3936, flag: '楚', lord: '項' },
   };
   const vcMat = Models.vcMat;
-  const BATCH = typeof location !== 'undefined' && /[?&]batch=1/.test(location.search);   // 兵营小队合批（td-002，待 Ham 看过）
+  const BATCH = !(typeof location !== 'undefined' && /[?&]batch=0/.test(location.search));   // 兵营小队合批（Ham 审批台 td-003 通过，默认开；?batch=0 退回原来的画法）
 
   // 把一组"人体尺度"零件摆到世界坐标
   function place(parts, x, z, ry = 0, k = K, y = 0) {
@@ -168,7 +168,6 @@ const Camp = (() => {
     const troops = [guards, sentries, archers];
     // 营门卫兵、望楼弓手、鼓手三小队合成一批画（各队照旧算动作，每帧把结果抄进合并的网格）：一营 48 次绘制 → 16 次（td-002）。
     //   列阵护卫（44 人）单独一批：要是也合进去，每个护卫都得多算另外三种兵的顶点，得不偿失
-    //   先只在网址带 ?batch=1 时启用，等 Ham 在审批台看过前后对比再改成默认
     scene.add(guards.group);
     const batch = BATCH ? new Models.TroopBatch([sentries, archers, drummers]) : null;
     if (batch) scene.add(batch.group); else scene.add(sentries.group, archers.group, drummers.group);
