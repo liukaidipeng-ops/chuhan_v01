@@ -9,6 +9,8 @@
 //     试出来比当前最好的还好，再按原层数重算。会改变走法，只能拿对打验收（同样搜索量，算得更深、赢得更多才算数）。
 //   性能剖析（固定 4 层，8 个局面 117 万节点，每节点 29 微秒）：引擎的走法生成 + 将军判断约 40%，每走一步复制整个局面约 20%（含回收内存），
 //     估值 6%，电脑自己的搜索代码不到 10%——大头在引擎（TD 的代码）。
+//   第 3 步 BFAI_DELTA=M（默认 0 = 关）：吃子静态搜索（占约 45% 时间）里，一个吃子就算全赚（打死就算整子、打不死算 0.45 个）再加 M 分
+//     也追不上当前最好的，就不去试走（省一次走子 + 复制局面）。只管普通走子吃子；技能、将帅不管。会改变走法，拿对打验收。
 'use strict';
 const fs = require('fs'), path = require('path'), os = require('os');
 const { execFileSync } = require('child_process');
@@ -18,7 +20,7 @@ function build(E, tag) {
   let s = src0;
   const rep = (a, b) => { const n = s.split(a).length - 1; if (n !== 1) throw new Error(`bfai_fast：锚点出现 ${n} 次：${a.slice(0, 80)}`); s = s.replace(a, () => b); };
   const on = (k, d) => E[k] == null ? d : !/^(0|false|off)$/i.test(String(E[k]));
-  const TT = on('BFAI_TT', true), TTMOVE = on('BFAI_TTMOVE', true), LMR = +(E.BFAI_LMR || 0);
+  const TT = on('BFAI_TT', true), TTMOVE = on('BFAI_TTMOVE', true), LMR = +(E.BFAI_LMR || 0), DELTA = +(E.BFAI_DELTA || 0);
   if (TT || TTMOVE) {
     rep("  function ab(S, depth, alpha, beta, ply, ext = 0) {",
       "  // 变体 fast：局面指纹（两个 32 位散列拼成 53 位的数）\n" +
@@ -65,6 +67,10 @@ function build(E, tag) {
       "      else if (depth >= 2 && mi > " + LMR + " && !inChk && it.a.k === 'mv' && !it.q && !A.inCheck(r.S, r.S.turn)) { v = -ab(r.S, depth - 2, -alpha - 0.01, -alpha, ply + 1, ext); if (v > alpha) v = -ab(r.S, depth - 1, -beta, -alpha, ply + 1, ext); }\n" +
       "      else v = -ab(r.S, depth - 1, -beta, -alpha, ply + 1, ext);");
   }
+  if (DELTA > 0) rep("      if (n >= 6) break;\n      const r = BF.attempt(S, it.a); if (!r || r.free) continue;\n      n++;",
+    "      if (n >= 6) break;\n" +
+    "      if (it.a.k === 'mv' && it.q && it.q.t !== 'k' && it.p && stand + baseVal(it.q) * (it.q.hp <= A.atk(it.p) ? 1 : 0.45) + " + DELTA + " < alpha) continue;   // 变体 fast：全赚也追不上，不试\n" +
+    "      const r = BF.attempt(S, it.a); if (!r || r.free) continue;\n      n++;");
   const out = path.join(os.tmpdir(), `bfai_fast_${rev}_${tag || 'env'}_${process.pid}.js`);
   fs.writeFileSync(out, s);
   process.on('exit', () => { try { fs.unlinkSync(out); } catch (e) { } });
