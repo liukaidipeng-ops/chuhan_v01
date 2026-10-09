@@ -21,7 +21,7 @@
     upgrade: { cost: { p: [3, 5, 8], a: [2, 3, 4], e: [2, 3, 5], n: [5, 7], c: [5, 7], r: [6, 8, 20] }, maxLevel: { r: 4, p: 4, a: 4, e: 4 }, autoByPlates: true, defaultMaxLevel: 3, maxPerTurn: 1, healOnUpgrade: true, cooldownOnUnlock: 1, killDiscount: 1, minCost: 1 },
     hp: [1, 2, 3, 4],
     hpByType: { p: [1, 2, 3, 3], a: [1, 2, 3, 3], e: [1, 2, 3, 3] }, // 兵、士、相/象四级不再加血
-    attack: { a: [1, 2, 2, 2] }, // 按等级的攻击力（一次攻击扣的血）；没列出的兵种都是 1
+    attack: { a: [1, 2, 2, 2], e: [1, 2, 2, 2] }, // 按等级的攻击力（一次攻击扣的血）；没列出的兵种都是 1。相 / 象二级起攻击 2（Ham 10-09 20:34：象二级 2 攻 2 血）
     skillLevel: 3, // 几级解锁兵种技能（单个技能可用 level 另定）
     skills: {
       juma: { cooldown: 2, duration: 1, damage: 1, free: true }, // free：不占行动，架完还要再走一步棋（这枚兵本回合不能动）
