@@ -8,6 +8,11 @@
   // 更新说明（设置里、大厅底部点「更新」查看；最新的放最前）
   const NEWS = [
     ['第六版', '2026 年 10 月', [
+      '技能模式改了「拒马」（Ham 定的）：架上拒马的两回合里这枚兵原地不动，不能走（回防、神速营也不行）；炮隔子打过来不挨反伤（拒马的矛够不着），车马兵士象撞上来照旧先挨 1 点；冷却从 2 回合改成 4 回合',
+      '「导出本局」里多带了电脑每一步当时的思考（算到几层、前几名候选和它预想的后续、有没有被一步杀保险换掉、筛掉了哪些升级），悔棋悔掉的那几步也留着——给数值部复盘、训练电脑用；电脑的走法没变',
+      '电脑上的大厅：三个圆按钮改成「人机 · 联机 · 本地」，联机放中间（手机上照旧竖排，联机在最上面）',
+      '本地双人换边改成像转盘一样转过去：慢慢起步、慢慢停下，棋子跟着一起转，字一直是正的（原来是一下子甩过去）',
+      '界面音效（你在试听台挑的）：电脑上鼠标移到大厅的三个圆形图标（联机大厅、人机对战、本地对战）上轻轻「叮」一下（玉片轻碰），点它们「嗒」一声（玉扣）；别的按钮、选项不出声。棋子显示选「棋子」+ 低特效时，落子声按棋子材质分开：木棋子像筹码落桌、银棋子「叮」、金棋子厚重的「当」、玉棋子像瓷碗轻磕（技能模式按等级：一级木、二级银、三级金、四级玉）',
       '技能模式电脑「霸王」变强了（数值部做的）：同样的思考时间能多算半层到一层（多数步能算到五层），和上一版对下 600 局赢 57.6%；每步还快了一点。电脑判断“谁在将军”也快了约两成，各模式结果不变',
       '修好：俯瞰、定盘（正上方看）时，进攻、吃子的震屏会让整张棋盘乱转几十度、来回抽动。原因是正上方往下看时镜头分不清哪边是“上”，一点点抖动就整盘转。现在正上方看时震屏只是整个画面轻轻平移一下，不转不歪；本地双人在正上方看时换边也改成平稳地转过去',
       '本地双人：棋盘自动转向——轮到谁下就转到谁那边；按「视」可以改成自由视角（不自动转）',
@@ -189,6 +194,20 @@
   Core.start();
   let lobbySpin = true;
   Core.onFrame(dt => { if (lobbySpin && !Core.Cam.cine) Core.Cam.theta += dt * 0.04; });
+  // 界面音效（Ham 10-09）：电脑上鼠标移到大厅那三个圆形图标（联机大厅、人机对战、本地对战）上轻响一下（只认鼠标，手机触屏不响），点它们再响一下。
+  //   别的按钮、选项都不响（Ham 10-10：不然吵死了）。以后要给别的按钮加，给它加 data-sfx
+  {
+    const UI_SEL = '#pMain .menu .btn, [data-sfx]';
+    const pick = e => { const el = e.target && e.target.closest ? e.target.closest(UI_SEL) : null; return el && !el.disabled && !el.closest('[data-nosfx]') ? el : null; };
+    let hov = null;
+    document.addEventListener('pointerover', e => {
+      if (e.pointerType !== 'mouse') return;
+      const el = pick(e); if (el === hov) return;
+      hov = el; if (el) Sfx.ui('hover');
+    }, true);
+    document.addEventListener('pointerout', e => { if (hov && !(e.relatedTarget && hov.contains(e.relatedTarget))) hov = null; }, true);
+    document.addEventListener('click', e => { if (pick(e)) Sfx.ui('click'); }, true);
+  }
   // 大厅现在是整屏不透明的（美术 M3），后面的三维场景看不见：大厅开着时不画，省电、省发热。开头先画几帧，把着色器编译掉、影子图画好，免得开局第一帧卡
   // （原来画 90 帧，慢手机上要占好几秒、正好压在刚打开页面的时候；编译着色器第一帧就做完了，画 3 帧够了）
   // 加载页进度：脚本都跑完、场景搭好是 95%，撤掉之前推到 100%
@@ -799,11 +818,12 @@
   // 技能模式的电脑放进 Web Worker 里算（和动画互不耽误）；开不了 Worker 就等动画放完在主线程分片算
   let bfW = null, bfWSeq = 0;
   const bfWait = new Map();
-  function bfThink(S, level, waitIdle) {
-    const local = async () => { await waitIdle(); return BFAI.think(S, level, () => new Promise(r => setTimeout(r, 0))); };
+  // trace：要不要电脑的思考记录（C62 A：对局里的电脑都记，导出时带上；分析不记）
+  function bfThink(S, level, waitIdle, trace) {
+    const local = async () => { await waitIdle(); BFAI.trace = !!trace; try { const seq = await BFAI.think(S, level, () => new Promise(r => setTimeout(r, 0))); bfThink.last = BFAI.think.last; return seq; } finally { BFAI.trace = false; } };
     if (bfW === null) {
       try {
-        const src = document.getElementById('eng').textContent + '\nself.onmessage=async e=>{const d=e.data;try{if(d.cfg){Object.assign(BF.CFG.beishui,d.cfg.beishui);if(d.cfg.r6)Object.assign(BF.CFG.r6,d.cfg.r6);BF.CFG.generalArts.fromRound=d.cfg.fromRound;BF.CFG.attack=d.cfg.attack;}const seq=await BFAI.think(d.S,d.level);postMessage({id:d.id,seq:seq,stat:BFAI.think.last});}catch(err){postMessage({id:d.id,err:String(err&&err.stack||err)});}};';
+        const src = document.getElementById('eng').textContent + '\nself.onmessage=async e=>{const d=e.data;try{BFAI.trace=!!d.trace;if(d.cfg){Object.assign(BF.CFG.beishui,d.cfg.beishui);if(d.cfg.r6)Object.assign(BF.CFG.r6,d.cfg.r6);BF.CFG.generalArts.fromRound=d.cfg.fromRound;BF.CFG.attack=d.cfg.attack;}const seq=await BFAI.think(d.S,d.level);postMessage({id:d.id,seq:seq,stat:BFAI.think.last});}catch(err){postMessage({id:d.id,err:String(err&&err.stack||err)});}};';
         bfW = new Worker(URL.createObjectURL(new Blob([src], { type: 'text/javascript' })));
         bfW.onmessage = e => { const w = bfWait.get(e.data.id); if (!w) return; bfWait.delete(e.data.id); if (e.data.err) w.rej(new Error(e.data.err)); else { bfThink.last = e.data.stat; w.res(e.data.seq); } };
         bfW.onerror = () => { bfW = false; for (const w of bfWait.values()) w.rej(new Error('worker')); bfWait.clear(); };
@@ -811,7 +831,7 @@
     }
     if (!bfW) return local();
     // 试验性的规则开关（背水一战等）也带给电脑线程：它那边有自己的一份配置
-    return new Promise((res, rej) => { const id = ++bfWSeq; bfWait.set(id, { res, rej }); bfW.postMessage({ id, S, level, cfg: { beishui: BF.CFG.beishui, r6: BF.CFG.r6, fromRound: BF.CFG.generalArts.fromRound, attack: BF.CFG.attack } }); }).catch(e => { console.warn('电脑线程出错，改在主线程算', e); return local(); });
+    return new Promise((res, rej) => { const id = ++bfWSeq; bfWait.set(id, { res, rej }); bfW.postMessage({ id, S, level, trace: !!trace, cfg: { beishui: BF.CFG.beishui, r6: BF.CFG.r6, fromRound: BF.CFG.generalArts.fromRound, attack: BF.CFG.attack } }); }).catch(e => { console.warn('电脑线程出错，改在主线程算', e); return local(); });
   }
   function cancelAI() { aiSeq++; if (aiThinking) { try { AI.cancel(); } catch (e) { } } aiThinking = false; }
   function maybeAI() {
@@ -826,9 +846,12 @@
       const waitIdle = async () => { await anim; while (busy) await Core.sleep(0.1); };
       (async () => {
         if (game.mustPass && game.mustPass()) return [{ k: 'pass' }];
-        return bfThink(BF.cloneState(game.S), lvl, waitIdle);
+        return bfThink(BF.cloneState(game.S), lvl, waitIdle, true);
       })().then(async seq => {
         if (id !== aiSeq || !seq) { if (id === aiSeq) { aiThinking = false; updateHud(); } return; }
+        // 思考记录按这一回合第一条行动的序号存（导出里的 think）
+        const tr = bfThink.last && bfThink.last.trace;
+        if (tr) { if (!game.__think) game.__think = {}; game.__think[game.entries.length] = tr; }
         const el = performance.now() - t0;
         if (el < minWait) await Core.sleep((minWait - el) / 1000);
         aiThinking = false;
@@ -922,7 +945,7 @@
   }
 
   // ---------- 开局 ----------
-  function setView(side, smooth) { viewSide = side; Core.Cam.setSide(side, !smooth); Board.faceViewer(side); Board.viewSide = side; paintCards(); }
+  function setView(side, smooth) { viewSide = side; Core.Cam.setSide(side, !smooth); Board.faceViewer(side, smooth); Board.viewSide = side; paintCards(); }
   let finaleHero = null;
   function clearFinale() { if (finaleHero) { try { if (finaleHero.dropped) Core.disposeTree(finaleHero.dropped); finaleHero.dispose(); } catch (e) { } finaleHero = null; } }
   async function startGame(m, side, o, { state = null, intro = true } = {}) {
@@ -1600,6 +1623,7 @@
     selMoves = game.legalFrom(f, r).map(m => { const q = game.at(m.to[0], m.to[1]); return { ...m, atk: !!(q && q.hp > game.atkOf(me)) }; });
     Board.showMoves(sel, withBad(bfDmg(selMoves), f, r), !!+opts.hints);
     if (game.frozen(me) && !selMoves.length) toast('这枚子刚用过背水一战，这一回合不能动', 2200);
+    else if (game.jmRooted && game.jmRooted(me) && !selMoves.length) toast('这枚兵正在拒马，拒马结束前不能移动', 2200);
     Sfx.select();
   }
   function bfClear() { Board.clearMoves(false); sel = null; selMoves = []; selBad = []; }
@@ -1698,7 +1722,7 @@
         if (e.e === 'kill') { const m = Board.pieces.get(e.id); if (m) m.visible = false; }
       }
       M.board = pv.S.board; M.sel = null;
-      Board.clearMoves(true); Sfx.place();
+      Board.clearMoves(true); Sfx.place(Board.pieces.get((game.at(hit.from[0], hit.from[1]) || {}).id));
       M.hint = BF.CFG.beishui.on ? BS_HINT[1] : '破釜沉舟 · 第二步：选子再走一步'; renderBar();
       return;
     }
@@ -1738,7 +1762,7 @@
       M.m1 = { from: hit.from, to: hit.to };
       const pv = game.bsFree(M.m1);
       bsShow(pv.ev); M.board = pv.S.board; M.seconds = pv.list; M.sel = null;
-      Board.clearMoves(true); Sfx.place();
+      Board.clearMoves(true); Sfx.place(Board.pieces.get((game.at(hit.from[0], hit.from[1]) || {}).id));
       { const me = game.at(hit.from[0], hit.from[1]), mv = me && pv.ev.filter(e => e.e === 'move' && e.id === me.id).pop();   // 第一步的落点留虚影、悬「一」、留路径（打不死被弹回的，虚影留在原地）
         Board.showStep({ from: hit.from, to: mv ? mv.to : hit.from, aim: hit.to, id: me && me.id }); }
       M.hint = BS_HINT[1]; renderBar();
@@ -1941,7 +1965,7 @@
     }
     if (sks) h += `<div class="tsks sv${SKV}">${sks}</div>`;
     if (p.lv < mx) { const cost = game.upgradeCost(p), base = game.baseCost(p); h += `<div class="tnx"><b>下一级</b>「${game.rankName(p, p.lv + 1)}」${lvGain(p, p.lv + 1)}<small>　或花 ${cost} 军功升级${base > cost ? `（杀敌抵了 ${base - cost}）` : ''}${halfNow(p) ? '，召回后首次半价' : ''}</small></div>`; }
-    if (game.jmActive(p)) h += '<em>拒马中：来攻的子先挨 1 点</em>';
+    if (game.jmActive(p)) h += '<em>拒马中：这枚兵不能移动；近身来攻的子先挨 1 点（炮隔子打不受影响）</em>';
     if (game.frozen(p)) h += '<em>背水一战后力竭：这回合不能动（被将军时可以去吃将军的子）</em>';
     if (p.s === 'b' && game.fx.sm) h += `<em>军心涣散：还有 ${game.fx.sm} 回合不能走</em>`;
     return h;
@@ -2446,6 +2470,12 @@
     Sfx.B.whoosh(0, 0.5, 0.3); Sfx.B.bell(0.1, 660, 0.08);
     for (const m of Board.pieces.values()) Fx.P.ink(m.position.clone().setY(Board.TOP + 0.1), 2, 0.3, 0.25, 0.5);
     await Core.sleep(0.25);
+    // 悔掉的分支留着（C62 A：Ham 悔棋往往正是找到了电脑的漏洞）：被悔掉的行动、电脑当时的思考记录
+    if (n < game.entries.length) {
+      const th = {}; for (const k of Object.keys(game.__think || {})) if (+k >= n) { th[k] = game.__think[k]; delete game.__think[k]; }
+      if (!game.__branches) game.__branches = [];
+      game.__branches.push({ at: n, t: Date.now(), entries: JSON.parse(JSON.stringify(game.entries.slice(n))), think: th });
+    }
     game.rebuild(n);
     rebuildNotes();
     Board.setPosition(game); Board.faceViewer(viewSide);
@@ -2459,6 +2489,7 @@
     busy++;
     anim = anim.then(async () => {
       if (game.bf) { await bfRewind(bfUndoTarget(plies)); return; }
+      { const n = game.history.length - plies; if (n >= 0 && plies > 0) { if (!game.__branches) game.__branches = []; game.__branches.push({ at: n, t: Date.now(), moves: game.history.slice(n).map(h => ({ from: h.from, to: h.to })) }); } }
       for (let i = 0; i < plies; i++) { const h = game.undo(); if (h) { notes.pop(); await Fx.undoMove(h, game.at(h.from[0], h.from[1])); } }
       const last = game.history[game.history.length - 1];
       Board.showLast(last ? last.from : null, last ? last.to : null);
@@ -3288,6 +3319,10 @@
     if (G.bf) { o.opts.bs = +opts.bs ? 1 : 0; o.opts.r6 = +opts.r6 ? 1 : 0; }   // 这一局用的哪套规则（重放要用）
     o.cfg = {};   // 调过的规则配置（游戏里没有调配置的入口，恒为空；留着给模拟工具对齐格式）
     o.result = G.result || null;
+    // C62 A：电脑每一回合的思考记录（键是这一回合第一条行动在 entries 里的序号）、悔掉的分支；C62 C：标了“这步笨”的
+    if (G.__think) o.think = G.__think;
+    if (G.__branches && G.__branches.length) o.branches = G.__branches;
+    if (G.__flags && G.__flags.length) o.flags = G.__flags;
     if (G.bf) {
       o.entries = G.entries;
       // 调试摆过子的局：起始局面不是标准开局，一并带上

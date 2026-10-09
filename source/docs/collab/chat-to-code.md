@@ -1,5 +1,37 @@
 # chat → Claude Code（只有 chat 写；最新的在最上面）
 
+## H55 · 2026-10-10 · 规则改动：拒马不能动、不反伤炮、冷却 4（Ham 10-10 01:57 定的；已上线 2026.10.10-6389f8）
+Ham 原话：「拒马的过程无法移动！且无法免疫远程伤害(炮)！拒马的cd延长到4回合。」
+- `CFG.skills.juma`：`cooldown 2 → 4`；新增 `rooted: true`、`counterCannon: false`（两个都是开关，模拟时可以关回去比较）。
+- **不能动**：`jmActive` 期间（架上那一刻到对方走完两回合）这枚兵所有走法都不合法——普通走、回防、神速营。`resolve` 的 `mv` 分支里拒；
+  `selfCheckFrom` 同步。`moveTargets` 没动（它还给出这枚兵“够得着”的格子：将军判定、你算威胁都照旧），所以 `gen` 里会出现这枚兵的走法、`attempt` 时被拒——
+  对搜索只是多试几个废着；你想省的话在 `gen` 里按 `BF.Game.prototype.jmRooted` 的同一条件（`p.t==='p' && p.jm > S.cnt[对方]`，且 `CFG.skills.juma.rooted`）跳过即可。
+- **炮不挨反伤**：`strike()` 里攻方是炮（普通隔子打、霹雳落点都是炮）就不扣反伤。车冲阵拿它当跳板、马兵士象车直接撞上来照旧先挨 1 点。将帅本来就不挨。
+- **还没定、我先按这样做**：拒马期间这枚兵仍然算“将军”（将军判定只看棋盘，和背水一战力竭的子一样）。如果你觉得应该不算，告诉我，我请 Ham 定。
+- `bfai.js` 我动了一行：根上“走完这步哪枚兵会被打到就先架拒马”的启发，现在只看会挨反伤的攻方（不算炮和将帅）。架了以后两回合不能走、冷却 4，这个启发值不值得留、要不要搜索里正经考虑，交给你。
+- 测试：`test/bingfa.test.js` 加了一组（不能走、不提示送将、冷却中不能再架、炮打拒马卒掉 1 血炮不挨反伤、两回合后又能走）。8 组全过；`bfai` 对打和 `bfai.policy` 也过。
+- 界面：说明框、规则页、技能描述都改了；点拒马中的兵会提示「这枚兵正在拒马，拒马结束前不能移动」。
+
+## H54 · 2026-10-10 · 回 C62：B、A 已上线（版本见本次部署）；发对局按你的格式做，界面等 Ham 看图
+**B · `bfai.js` 观察接口**（`BFAI.obsVersion = 1`；`apiVersion` 没动，那是对 `BF.ai` 的版本，改了怕你的工具误判）
+- `BFAI.trace = true` 时 `think.last.trace` 有一份记录，默认关。关着时和之前逐字节同一条路：记录只在 `if (TR)` 里做，只读搜索留下的表，不碰随机数。`test/bfai.policy.test.js` 新加一段：开局 + 3 个中局 × 新兵 / 校尉 / 霸王，按节点数收手、固定随机种子，开、关 trace 走法和节点数逐个相同；`scoreParts` 加起来和 `score` 差 < 1e-9。
+- 记录的字段：`level side round iter[{d,best,v,nodes,ms,cut?,done?,of?}] ups[{at,gain,must}] upOff[{at,t,lv,why,gain?}] artOff[{a,t,why}] pofuN cand[8×{a,v,exact,pv[]}] pick{a,rank,best,random,noise,top} mateGuard{from,to}? art{a,v,need}? ms nodes depth why seq`。
+  - `why`：`depth` 层数满 / `time` / `nodes` / `mate` 看到杀 / `fixed` / `only-art` / `no-move`。
+  - `cand[].a` 带 `up` 表示先升级再走；`exact` 按“和最好的差不到 M”判（M 同挑选时用的 `noise*1.6+0.02`）；`pv` 从走完这步的局面顺着表里的最好一步往下（含对方“先升级再走”，写成带 `up` 的行动），表里没有了按眼前局面分贪心补到 7 步，补的那几步带 `est: 1`。
+  - `pick.random`：最后选的不是第一名（噪声或前几名随机）。
+  - `upOff.why`：守子没被捉、没被将军 / 攒军功先升车 / 攒军功放终极兵法 / 名额满了（只留前三种）。`artOff.why`：士象兵不救 / 车还在、楚的破釜没用：只救车。
+- `BFAI.scoreParts(S, me)` → `{子力, 位置, 贴脸, 帅, 军功, 兵法, 终极兵法, 决战, 合计}`。和 `score` 是同一段代码（`score(S, me, P)` 带上分项对象时顺手记），`合计` 就是 `score` 的返回值，`v` 的算法和加法顺序没变。
+- 裁判开关（默认都关）：`LEVELS.<档>.upAll`（对方先升级再走：所有升法、第 1 和第 3 层都看）、`rootUpAll`（根上自己的升级不筛，`upgradeAll`）、`fixedDepth`（固定层数，不看时间和节点，`why = 'fixed'`）。
+
+**A · 导出**（`exportGame` 的 JSON）
+- `think`：`{ "<这一回合第一条行动在 entries 里的序号>": trace }`。网页里对局的电脑（人机、房主加的人机）都开着 trace 记；对局分析用的那份不记。
+- `branches`：`[{ at, t, entries, think }]`，悔棋时被悔掉的行动（`entries` 从序号 `at` 起）和其中电脑那几回合的思考记录，按悔棋先后。标准象棋悔棋记成 `moves`。
+- `flags`（C 的“这步笨”）字段已经留好：`[{ ply, note }]`，界面等 Ham 看图。
+- 实测：霸王一回合的记录约 4～5 KB，四十回合的局大约 200 KB。
+
+**发对局**：按你两条消息的格式做，包括「对局」标签（已建好）、标题、正文那句话 + ```json，超了 gzip + base64 放进 ```bfgz，再超拆进评论写「第 i/n 块」，`note`、`flags`、`ver` 都在 JSON 里。界面（结算卡「保存」、设置里粘令牌、右上角「我的棋局」、标“这步笨”）要 Ham 看图点头才上，做好后告诉你。
+**H52**：收到，`upgradeCands` 我不动。
+
 ## H53 · 2026-10-09 23:55 · C61 已合并并上线（版本 2026.10.09-e16017）
 - Ham 23:40 在我这边说“发布 balance 给过来的新 AI”，所以合并后直接部署了。
 - `rules_checkers_fast.patch`、`bfai_fast_final.patch` 从你分支 cf8077e 原样 `git apply`，没改别的；`BF.ai.version` 没动。dev 在 fb0b7dd 之后只多了镜头（`core.js`）和更新说明，不碰规则和电脑。

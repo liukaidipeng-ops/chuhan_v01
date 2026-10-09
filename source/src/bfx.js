@@ -504,7 +504,7 @@ const BFX = (() => {
         if (ma) { ma.position.lerpVectors(A, B, k); ma.position.y = TOP + Math.sin(k * Math.PI) * 0.7; }
         if (mb) { mb.position.lerpVectors(B, A, k); mb.position.y = TOP + Math.sin(k * Math.PI) * 0.45; }
       }, ease.inOut);
-      Sfx.place(); ring(sw.pb, 0xc9a045, 1.6);
+      Sfx.place(ma); ring(sw.pb, 0xc9a045, 1.6);
       if (info.extra && info.extra.rescue) {
         // 樊哙闯帐：护驾破了鸿门宴——锁链崩断，项羽喝问，张良作答
         title('樊哙闯帐', '汉士护驾 · 鸿门宴破', 3000);
@@ -574,7 +574,7 @@ const BFX = (() => {
     Fx.slowmo(0.5, 0.5);
     await tween(0.75, k => { m.position.lerpVectors(top, B, k * k); m.rotation.y = yaw0 + (1 - k) * Math.PI * 4; m.scale.setScalar(0.6 + 0.4 * k); if (Math.random() < 0.8) Fx.spawn({ pos: m.position.clone(), vel: new V3(R(-0.3, 0.3), R(0.2, 1), R(-0.3, 0.3)), tex: Core.Tex.spark, add: true, color: 0xffd27a, size: 0.2, size2: 0.04, life: 0.5 }); }, ease.linear);
     m.position.copy(B); m.rotation.y = yaw0; m.scale.set(1, 1, 1);
-    Cam.shake(0.36); Sfx.B.taiko(0, 1, 0.7); Sfx.B.gong(0.02, 0.8); Sfx.B.thud(0, 0.9); Sfx.place();
+    Cam.shake(0.36); Sfx.B.taiko(0, 1, 0.7); Sfx.B.gong(0.02, 0.8); Sfx.B.thud(0, 0.9); Sfx.place(m);
     Fx.ring(G, 3.6, 0.9, 0xffe2a0, 0.95); Fx.ring(G, 2.2, 0.6, 0xc9a045, 0.9); P.dust(B, 18, null, 0.4); P.sparks(B.clone().setY(TOP + 0.3), 26, 1.2);
     Fx.glow(B.clone().setY(TOP + 0.3), 4.2, 0.7, 0.6, 0xffe2a0);
     // 四周的汉军齐声呼应

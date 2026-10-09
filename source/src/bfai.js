@@ -39,7 +39,8 @@
     return v + 0.14 * Math.min(6, p.xp || 0);                // 攒着的甲片
   }
   // 局面分（站在 me 这一方看）：子力 + 位置（出子、过河、对着对方主帅的压力）+ 军功 + 兵法 + 决战
-  function score(S, me) {
+  //   P（可选，只给 scoreParts 用）：顺手把每一项记进分项里；v 的算法、加法顺序都不变，所以带不带 P 算出来的分一模一样
+  function score(S, me, P) {
     const b = S.board, fin = !!S.final;
     let kr = null, kb = null;
     for (let r = 0; r < 10; r++) for (let f = 0; f < 9; f++) { const p = b[r][f]; if (p && p.t === 'k') { if (p.s === 'r') kr = [f, r]; else kb = [f, r]; } }
@@ -55,12 +56,13 @@
     for (let r = 0; r < 10; r++) for (let f = 0; f < 9; f++) {
       const p = b[r][f]; if (!p) continue;
       const s = p.s, adv = s === 'r' ? r : 9 - r, ek = s === 'r' ? kb : kr;
-      let x;
+      let x, xb = 0, xp = 0;
       if (p.t === 'k') {
         if (fin) { const inside = f >= 3 && f <= 5 && adv >= 7; x = 6 + p.hp * 5 + adv * 0.35 + (inside ? 2.5 : 0) - Math.abs(f - 4) * 0.15; }
         else x = -0.22 * adv - (f !== 4 ? 0.12 : 0);          // 平时主帅老实待在原位
       } else {
         x = baseVal(p, s === 'r' ? hvB : hvR);
+        if (P) xb = x;
         const dk = ek ? Math.abs(f - ek[0]) + Math.abs(r - ek[1]) : 9;
         switch (p.t) {
           case 'r': x += (adv > 0 || (f !== 0 && f !== 8) ? 0.3 : 0) + 0.03 * Math.min(adv, 6) + (ek && (f === ek[0] || r === ek[1]) ? 0.35 : 0) + 0.04 * Math.max(0, 8 - dk); break;
@@ -71,6 +73,7 @@
         }
         if (p.jm && p.jm > S.cnt[other(s)]) x += 0.25;
         if (dk <= 4 && (p.t === 'r' || p.t === 'c' || p.t === 'n' || (p.t === 'p' && adv >= 5))) { if (s === 'r') attR++; else attB++; }
+        if (P) xp = x;
         // 砍不死的进攻子贴到对方主帅身边：这是这个游戏里最主要的杀法（升了级的车马兵贴脸将军，一级的士、帅拿它没办法）
         if (!fin && ek && dk <= 4 && p.hp > (s === 'r' ? dB : dR)) {
           if (p.t === 'r') x += dk <= 1 ? KD[0] : dk === 2 ? KD[1] : (f === ek[0] || r === ek[1]) ? KD[2] : 0;
@@ -79,20 +82,30 @@
         }
       }
       v += s === me ? x : -x;
+      if (P) { const g = s === me ? 1 : -1; if (p.t === 'k') P['帅'] += g * x; else { P['子力'] += g * xb; P['位置'] += g * (xp - xb); P['贴脸'] += g * (x - xp); } }
     }
-    v += 0.3 * (S.merit[me] - S.merit[other(me)]);           // 军功能换成血量和等级
+    const mt = 0.3 * (S.merit[me] - S.merit[other(me)]);   // 军功能换成血量和等级
+    v += mt; if (P) P['军功'] += mt;
     // 还没用的主帅兵法留着有价值（免得为了一个兵就把「召回良将」用掉）
     //   召回良将是汉军对付“被换掉一个大子”的保险，破釜沉舟是楚军的一次连击：都算一笔不小的本钱
     const art = s => (S.used.art[s] ? 0 : s === 'r' ? 4 : bsOn() ? BSV : 3);
-    v += art(me) - art(other(me));
+    const at_ = art(me) - art(other(me));
+    v += at_; if (P) P['兵法'] += at_;
     const sm = Math.max(0, S.fx.sm - S.cnt.b), hm = Math.max(0, S.fx.hm - S.cnt.r);
     // 终极兵法生效中：值多少看有多少进攻子已经压在对方主帅跟前（没人跟上，困住对方也白搭）
-    if (sm) v += (me === 'r' ? 1 : -1) * sm * (1.5 + 0.6 * Math.min(4, attR));
-    if (hm) v += (me === 'b' ? 1 : -1) * hm * (0.35 + 0.55 * Math.min(4, attB));
+    if (sm) { const u = (me === 'r' ? 1 : -1) * sm * (1.5 + 0.6 * Math.min(4, attR)); v += u; if (P) P['终极兵法'] += u; }
+    if (hm) { const u = (me === 'b' ? 1 : -1) * hm * (0.35 + 0.55 * Math.min(4, attB)); v += u; if (P) P['终极兵法'] += u; }
     const pf = Math.max(0, (S.fx.pf || 0) - S.cnt.b);
-    if (pf && (PFC || PFA)) v += (me === 'r' ? 1 : -1) * Math.min(1, pf / CFG.generalArts.pofu.skillLockRounds) * (PFC + PFA * Math.min(4, attR));
-    if (fin && S.occ) v += 7 * ((S.occ[me] || 0) - (S.occ[other(me)] || 0));
+    if (pf && (PFC || PFA)) { const u = (me === 'r' ? 1 : -1) * Math.min(1, pf / CFG.generalArts.pofu.skillLockRounds) * (PFC + PFA * Math.min(4, attR)); v += u; if (P) P['兵法'] += u; }
+    if (fin && S.occ) { const u = 7 * ((S.occ[me] || 0) - (S.occ[other(me)] || 0)); v += u; if (P) P['决战'] += u; }
     return v;
+  }
+  // 估值拆分（给复盘工具用，C62 B2）：子力 / 位置 / 贴脸 / 帅 / 军功 / 兵法 / 终极兵法 / 决战，和 score 是同一段代码算出来的；
+  //   各项相加和 合计（= score）只差浮点舍入（< 1e-9）
+  function scoreParts(S, me) {
+    const P = { '子力': 0, '位置': 0, '贴脸': 0, '帅': 0, '军功': 0, '兵法': 0, '终极兵法': 0, '决战': 0 };
+    P['合计'] = score(S, me, P);
+    return P;
   }
   // 这一步是不是直接分出了胜负（斩帅、夺营）
   function decided(S, ev) {
@@ -161,6 +174,8 @@
   const killers = [];
   let kdMe = null;   // 危险延伸只管“这一步是谁在想”的那一方（见 kdDanger）
   let upPly = -1;   // 在第几层考虑“对方先升级再走”（-1 = 不考虑）
+  let upAll = false;   // 裁判开关 LEVELS.<档>.upAll（只给复盘工具用，默认关）：对方“先升级再走”所有升法都看，第 1、第 3 层都看
+  const upAt = (S, ply) => (ply === upPly || (upAll && ply === 3 && upPly >= 0)) && !S.upgraded;
   let pfPly = -1;   // 在第几层考虑“对方（楚）用破釜沉舟连走两步”（-1 = 不考虑）
   const pfCache = new Map();   // 每个局面的破釜沉舟组合只算一次（逐层加深时重复用）
   const upCache = new Map();   // “对方先升级再走”的那几个局面，同样每个局面只生成一次
@@ -177,7 +192,7 @@
       const p = S.board[r][f]; if (!p || p.s !== side || p.t === 'k') continue;
       const T = A.upgradeState(S, [f, r]); if (T) ups.push({ S: T, g: score(T, side) - base, id: p.id });
     }
-    ups.sort((x, y) => y.g - x.g); ups = ups.slice(0, 3);
+    ups.sort((x, y) => y.g - x.g); if (!upAll) ups = ups.slice(0, 3);
     if (side === 'b' && PFX) for (const u of ups) { pfAlias.set(u.S, S); pfUp.set(u.S, u.id); }
     upCache.set(S, ups);
     return ups;
@@ -285,11 +300,11 @@
     }
     if (fewPieces(S) && stuck(S)) return -WIN + ply;
     // 查表——同一局面、同样剩余层数、同样的延伸次数和“这层要不要考虑对方升级 / 破釜”
-    const tkey = fp(S) + ':' + depth + ':' + ext + ':' + (ply === upPly && !S.upgraded ? 1 : 0) + (ply === pfPly ? 2 : 0), tte = TTB.get(tkey), a0 = alpha;
+    const tkey = fp(S) + ':' + depth + ':' + ext + ':' + (upAt(S, ply) ? 1 : 0) + (ply === pfPly ? 2 : 0), tte = TTB.get(tkey), a0 = alpha;
     if (tte) { const v = fromTT(tte.v, ply); if (tte.f === 0 || (tte.f === 1 && v >= beta) || (tte.f === 2 && v <= alpha)) return v; }
     let best = -INF, legal = 0, bm = null;
     // 对方应这一步时，也可能先花军功给某枚子升一级再走（多一点血：我方本来能吃掉的子就吃不掉了，打上去还会被弹回）
-    if (ply === upPly && !S.upgraded) {
+    if (upAt(S, ply)) {
       const ups = upsOf(S, side);
       for (const u of ups) {
         const v = ab(u.S, depth - extd, alpha, beta, ply, ext - extd);
@@ -385,7 +400,8 @@
   //   每一种升法都和“不升”一起进根节点的搜索，按同样的深度比——
   //   正被捉的子升了就打不死、来犯的反而被弹回；对方二级的车要杀进九宫贴脸将军，被它盯着的士得先升二级（攻击 2 才砍得死它）。
   //   这些都要往下算好几步才看得出来，浅浅比一下会漏掉。
-  function upgradeCands(S, L) {
+  //   rec（可选，思考记录用）：被筛掉的升级和原因记进去，不影响结果
+  function upgradeCands(S, L, rec) {
     if (S.upgraded) return [];
     const me = S.turn, U = CFG.ultimates, fin = !!S.final;
     const base = score(S, me), chk = A.inCheck(S, me), cand = [];
@@ -408,20 +424,73 @@
       // 守子：被捉、被将军才升；对方有两血进攻子逼近时，士可以先升到二级（攻击 2 才砍得死它），再往上只加血、不急
       // 守子升到三级、四级会解锁技能（飞越、护驾、铁甲禁卫、齐射 / 践踏）：值不值看搜索，这里只留一个名额给它（见下）
       const unlock = defender && !must && p.lv >= 2 && !(saving || hoard);
-      if (defender && !must && !unlock && !(p.t === 'a' && heavy && p.lv < 2)) continue;
-      if ((saving || hoard) && p.t !== 'r' && !must) continue;
+      if (defender && !must && !unlock && !(p.t === 'a' && heavy && p.lv < 2)) { if (rec) rec.push({ at: [f, r], t: p.t, lv: p.lv, why: '守子没被捉、没被将军' }); continue; }
+      if ((saving || hoard) && p.t !== 'r' && !must) { if (rec) rec.push({ at: [f, r], t: p.t, lv: p.lv, why: saving ? '攒军功先升车' : '攒军功放终极兵法' }); continue; }
       cand.push({ at: [f, r], S: T, gain: score(T, me) - base, must, unlock });
     }
     cand.sort((x, y) => (y.must ? 1 : 0) - (x.must ? 1 : 0) || y.gain - x.gain);
     // 前三个照旧；“守子升级解锁技能”的静态分低、排不进前三，另给一个名额（最多一个）
     const top = cand.filter(c => !c.unlock).slice(0, 3), ex = cand.find(c => c.unlock);
     if (ex) top.push(ex);
+    if (rec) for (const c of cand) if (!top.includes(c)) { const p = S.board[c.at[1]][c.at[0]]; rec.push({ at: c.at, t: p.t, lv: p.lv, gain: +c.gain.toFixed(2), why: '名额满了（只留前三种）' }); }
     return top;
   }
+  // 裁判开关 rootUpAll：根上自己的每一种升法都进搜索，不筛
+  function upgradeAll(S) {
+    if (S.upgraded) return [];
+    const me = S.turn, base = score(S, me), out = [];
+    for (let r = 0; r < 10; r++) for (let f = 0; f < 9; f++) {
+      const p = S.board[r][f]; if (!p || p.s !== me || p.t === 'k') continue;
+      const T = A.upgradeState(S, [f, r]); if (T) out.push({ at: [f, r], S: T, gain: score(T, me) - base, must: false, unlock: false });
+    }
+    return out.sort((x, y) => y.gain - x.gain);
+  }
+  // ---------- 思考记录（C62：BFAI.trace = true 时才记，默认关；只读搜索留下的表，不改任何会影响走法的东西，也不用随机数） ----------
+  // 表里找这个局面（剩余 d 层左右）记下的最好一步
+  function ttFind(S, d) {
+    const f = fp(S); let best = null;
+    for (let dd = d + 2; dd >= Math.max(1, d - 1); dd--) for (let ex = 0; ex <= 3; ex++) for (const fl of ['00', '10', '02', '12']) {
+      const e = TTB.get(f + ':' + dd + ':' + ex + ':' + fl);
+      if (e && e.m != null && (!best || dd > best.dd || (dd === best.dd && e.f === 0 && best.e.f !== 0))) best = { e, dd };
+    }
+    return best && best.e;
+  }
+  // 预想线：从 S 起顺着表里的最好一步往下走（最好的一步可能是“先升级再走”）；表里没有了就按眼前的局面分贪心补到 n 步（tail 标出来）
+  function pvOf(S0, dr, n = 8) {
+    const line = []; let S = S0, d = dr;
+    while (line.length < n && S) {
+      let e = d > 0 ? ttFind(S, d) : null, U = null;
+      if (d > 0 && (!e || e.m == null) && !S.upgraded) {
+        let bu = null;
+        for (let r = 0; r < 10; r++) for (let f = 0; f < 9; f++) {
+          const p = S.board[r][f]; if (!p || p.s !== S.turn || p.t === 'k') continue;
+          const T = A.upgradeState(S, [f, r]); if (!T) continue;
+          const e2 = ttFind(T, d); if (e2 && e2.m != null && (!bu || e2.v > bu.e.v)) bu = { T, e: e2, at: [f, r] };
+        }
+        if (bu) { U = bu; e = bu.e; }
+      }
+      const X = U ? U.T : S;
+      let a = null, R = null, tail = false;
+      if (e && e.m != null) { const it = A.gen(X, false).find(x => mkey(x.a) === e.m); if (it) { R = BF.attempt(X, it.a); if (R) a = it.a; } }
+      if (!a) {   // 表里没有：按走完的局面分挑一步（只是估计）
+        let bk = null; const side = S.turn;
+        for (const k of A.expand(S)) { if (k.a.k === 'pass') continue; const v = score(k.S, side); if (!bk || v > bk.v) bk = { k, v }; }
+        if (!bk) break; a = bk.k.a; R = { S: bk.k.S }; U = null; tail = true;
+      }
+      line.push(Object.assign(U ? { up: U.at } : {}, a, tail ? { est: 1 } : {}));
+      if (BF.evaluate(R.S).result) break;
+      S = R.S; d--;
+    }
+    return line;
+  }
+  const actOf = k => JSON.parse(JSON.stringify(k.up ? { up: k.up.at, ...k.a } : k.a));
   // 根节点：返回一串要依次执行的行动（升级 → 拒马 → 主行动）
   async function think(S0, level, tick) {
     const L0 = LEVELS[level] || LEVELS.mid, t0 = now(), me = S0.turn, seq = [];
     let L = tick ? { ...L0, budget: Math.min(L0.budget, 1400) } : L0;   // 在主线程里算（开不了 Worker）时少想一会儿，免得卡画面
+    const TR = BFAI.trace ? { v: 1, level, side: me, round: { ...S0.cnt }, iter: [] } : null;   // 思考记录（C62 A）
+    upAll = !!L.upAll;
+    if (L.fixedDepth) L = { ...L, depth: L.fixedDepth };   // 裁判开关：固定层数，不看时间也不看节点
     let S = S0, last = now();
     const breathe = async () => { if (tick && now() - last > 12) { await tick(); last = now(); } };
     lmrOn = L.depth > 3; kdMe = S0.turn; nodes = 0; qMax = L.q; hist.clear(); killers.length = 0; upPly = -1; pfPly = -1; pfCache.clear(); upCache.clear(); TTB.clear(); pfAlias.clear(); pfUp.clear(); deadline = Infinity; nodeCap = Infinity;
@@ -429,7 +498,8 @@
     if (PFD && me === 'r' && L.depth >= 3 && S0.cnt.b < (S0.fx.pf || 0)) L = { ...L, depth: L.depth + PFD };   // 楚方技能被封的反击窗口：多算一层
     const byNodes = L.nodes > 0;   // 设了 nodes：按搜索量收手，完全不看时间（对打、考卷、漏着率用，机器快慢不影响结果）
     // 新兵：凭眼前的局面分决定升不升（一半的时候懒得升）。校尉、霸王：把几种升法都放进搜索里比
-    let ups = upgradeCands(S, L);
+    let ups = L.rootUpAll ? upgradeAll(S) : upgradeCands(S, L, TR ? (TR.upOff = []) : null);
+    if (TR) TR.ups = ups.map(c => ({ at: c.at, gain: +c.gain.toFixed(2), must: !!c.must }));
     if (L.depth < 2) {
       const c = Math.random() <= L.up ? ups.find(x => x.must || x.gain > 0.25) : null;
       if (c) { seq.push({ k: 'up', at: c.at }); S = c.S; }
@@ -470,27 +540,31 @@
       const ok = k => { const t = tOf(k.a.id); return t === 'r' || ((!rook || S.used.art.b > 0) && (t === 'c' || t === 'n')); };
       const rest = kids.filter(k => !(k.a.k === 'art' && k.a.id != null) || ok(k));
       if (rest.some(k => k.a.k !== 'art')) { artOff = kids.filter(k => !rest.includes(k)); kids = rest; }   // 平时不救的召回留给下面的一步杀保险兜底
+      if (TR) TR.artOff = artOff.map(k => { const t = tOf(k.a.id); return { a: k.a, t, why: 'aep'.includes(t) ? '士象兵不救' : '车还在、楚的破釜没用：只救车' }; });
     }
     if (!kids.length) {
       // 普通着法一步都没有（被将死的样子），但背水一战还能解：就用它
-      if (pofu.length) { const k = pofu[0]; if (k.up) seq.push({ k: 'up', at: k.up.at }); seq.push(k.a); think.last = { nodes, ms: now() - t0, v: 0, n: 0, depth: 0, top: [] }; }
+      if (pofu.length) { const k = pofu[0]; if (k.up) seq.push({ k: 'up', at: k.up.at }); seq.push(k.a); }
+      think.last = { nodes, ms: now() - t0, v: 0, n: 0, depth: 0, top: [] };   // 没有着可走（将死 / 困毙）时也换一份，别留着上一步的
+      if (TR) { TR.why = pofu.length ? 'only-art' : 'no-move'; TR.seq = JSON.parse(JSON.stringify(seq)); think.last.trace = TR; }
       return seq;
     }
     for (const k of kids) { const w = decided(k.S, k.ev); k.done = !!w; k.q = w ? (w === me ? WIN : -WIN) : score(k.S, me); k.v = k.q; }
     kids.sort((x, y) => y.q - x.q);
-    let depthDone = 0;
+    let depthDone = 0, why = 'depth';
     const n0 = nodes;
     // 逐层加深：每一层都把上一层最好的着法排在最前面先算
     for (let d = 1; d <= L.depth; d++) {
       const soft = t0 + L.budget;
-      if (byNodes) {
+      if (L.fixedDepth) { deadline = Infinity; nodeCap = Infinity; }
+      else if (byNodes) {
         // 前两层一定算完（保证有着可走）；再往下每一层开始前看剩下的搜索量够不够，算到上限就停
-        if (d > 2 && nodes - n0 > L.nodes * 0.5) break;
+        if (d > 2 && nodes - n0 > L.nodes * 0.5) { why = 'nodes'; break; }
         nodeCap = d <= 2 ? Infinity : n0 + L.nodes;
       } else {
         // 慢的设备上按时间收手会算得太浅：没搜够 minNodes 之前不因为时间到了就停（最多拖到 1.5 倍时间）
         const thin = L.minNodes > 0 && nodes - n0 < L.minNodes;
-        if (d > 3 && !thin && now() - t0 > L.budget * 0.3) break;       // 剩下的时间不够再深一层了
+        if (d > 3 && !thin && now() - t0 > L.budget * 0.3) { why = 'time'; break; }       // 剩下的时间不够再深一层了
         deadline = d < 3 ? Infinity : d === 3 ? t0 + L.budget * 2 : thin ? t0 + L.budget * 1.5 : soft + L.budget * 0.3;   // 第 3 层也设个兜底（两倍预算）：个别局面枚举破釜组合特别慢，慢手机上别让一步拖到十秒
       }
       let alpha = -INF, n = 0, cut = false;
@@ -516,7 +590,7 @@
           if (k.nv > alpha) alpha = k.nv;
           n++;
           await breathe();
-          if (!byNodes && d > 3 && now() > soft && (!(L.minNodes > 0 && nodes - n0 < L.minNodes) || now() > t0 + L.budget * 1.5)) { cut = true; break; }
+          if (!L.fixedDepth && !byNodes && d > 3 && now() > soft && (!(L.minNodes > 0 && nodes - n0 < L.minNodes) || now() > t0 + L.budget * 1.5)) { cut = true; break; }
         }
       } catch (e) { if (e !== TIMEOUT) throw e; cut = true; }
       deadline = Infinity; nodeCap = Infinity;
@@ -529,6 +603,8 @@
         }
         for (const k of kids) k.nv = null;
         kids.sort((x, y) => y.v - x.v);
+        why = byNodes ? 'nodes' : 'time';
+        if (TR) TR.iter.push({ d, best: actOf(kids[0]), v: +kids[0].v.toFixed(3), done: n, of: kids.length, nodes: nodes - n0, ms: Math.round(now() - t0), cut: true });
         break;
       }
       for (const k of kids) { k.v = k.nv; k.nv = null; k.vg = !!k.gn; }
@@ -538,7 +614,8 @@
         kids.sort((x, y) => y.v - x.v);
       }
       depthDone = d;
-      if (kids[0].v > WIN / 2 || kids[0].v < -WIN / 2) break; // 已经看到杀棋 / 必败，不用再深
+      if (TR) TR.iter.push({ d, best: actOf(kids[0]), v: +kids[0].v.toFixed(3), nodes: nodes - n0, ms: Math.round(now() - t0) });
+      if (kids[0].v > WIN / 2 || kids[0].v < -WIN / 2) { why = 'mate'; break; } // 已经看到杀棋 / 必败，不用再深
     }
     const bestV = kids[0].v;
     for (const k of kids) {
@@ -552,6 +629,7 @@
     const pool = kids.slice().sort((x, y) => y.w - x.w);
     let pick = pool[0];
     if (L.top > 1 && pool.length > 1 && Math.random() < 0.3) { const c = pool.slice(0, L.top).filter(k => k.w > -50), i = Math.floor(Math.random() * c.length); if (c.length) pick = c[i]; }   // 前几名全是输棋（一个都不剩）时就用第一名，别挑出个空的
+    const pick0 = pick;
     // 破釜沉舟每局只有一次：留着杀车这样的大子——同样的深度下，比最好的普通走法多赚不到一个大子的量就先不用
     //   （对方的召回良将还在手里时，杀了车也会被救回来，搜索里算得到，自然就不急着用）
     if (pofu.length && bestV < WIN / 2) {
@@ -567,7 +645,7 @@
         }
       } catch (e) { if (e !== TIMEOUT) throw e; }
       deadline = Infinity; nodeCap = Infinity;
-      if (bp) { pick = bp; kids = kids.concat([bp]); }
+      if (bp) { pick = bp; kids = kids.concat([bp]); if (TR) TR.art = { a: actOf(bp), v: +bp.v.toFixed(3), need: +need.toFixed(3) }; }
     }
     // 一步杀保险：走完这一步以后，对方能不能一步将死我（可以先给一枚子升一级再走）；能就按排名往下换一个不送杀的
     //   （送一步杀等于必输，最多往下找 80 个；都送杀时再试平时不肯用的召回良将）。只在选中的这步送杀时才多花时间
@@ -586,11 +664,12 @@
       try {
         if (mate1(pick.S)) {
           const alt = pool.filter(k => k !== pick && k.S && !k.done).slice(0, 80).concat(artOff.filter(k => k.S)).find(k => !mate1(k.S));
-          if (alt) { pick = alt; think.mateGuard = (think.mateGuard || 0) + 1; }
+          if (alt) { if (TR) TR.mateGuard = { from: actOf(pick), to: actOf(alt) }; pick = alt; think.mateGuard = (think.mateGuard || 0) + 1; }
         }
       } catch (e) { }
     }
     // 拒马（不占行动）：走完这一步之后，哪枚能架拒马的兵会被对方打到，就先给它架上
+    //   Ham 10-10：拒马不反伤炮和将帅，只有被会挨反伤的子盯着才架（架了之后两回合不能走）
     if (pick.up) { seq.push({ k: 'up', at: pick.up.at }); S = pick.up.S; }
     if (L.depth >= 2 && !pick.done && !S.freeUsed && pick.a.k !== 'pass') {
       try {
@@ -600,7 +679,7 @@
           const p = S.board[r][f]; if (!p || p.s !== me || p.t !== 'p' || p.lv < ((CFG.skills.juma && CFG.skills.juma.level) || CFG.skillLevel)) continue;
           const q = T.board[r][f]; if (!q || q.id !== p.id) continue;                 // 这一步动的就是它
           let hit = false;
-          for (let r2 = 0; r2 < 10 && !hit; r2++) for (let f2 = 0; f2 < 9; f2++) { const e = T.board[r2][f2]; if (e && e.s !== me && A.moveTargets(T, f2, r2).some(m => m.to[0] === f && m.to[1] === r)) { hit = true; break; } }
+          for (let r2 = 0; r2 < 10 && !hit; r2++) for (let f2 = 0; f2 < 9; f2++) { const e = T.board[r2][f2]; if (e && e.s !== me && e.t !== 'k' && (e.t !== 'c' || CFG.skills.juma.counterCannon) && A.moveTargets(T, f2, r2).some(m => m.to[0] === f && m.to[1] === r)) { hit = true; break; } }
           if (!hit) continue;
           const J = A.jumaState(S, [f, r]);
           if (J && BF.attempt(J, pick.a)) { jm = { k: 'sk', at: [f, r] }; break; }
@@ -610,9 +689,19 @@
     }
     seq.push(pick.a);
     think.last = { nodes, ms: now() - t0, v: pick.v, n: kids.length, depth: depthDone, top: kids.slice(0, 5).map(k => [k.up ? { up: k.up.at, ...k.a } : k.a, +k.v.toFixed(2)]) };
+    if (TR) {
+      // 根上候选前 8 名：行动、分数、是不是准确分（和最好的差不到 M 才算准确，其余只是上界）、预想线
+      const Mw = (L.noise * 1.6 + 0.02) * 0.95;
+      try { TR.cand = kids.slice(0, 8).map(k => ({ a: actOf(k), v: +k.v.toFixed(3), exact: !k.off && (k === kids[0] || k.v > bestV - Mw), pv: k.S && !k.done ? pvOf(k.S, Math.max(0, depthDone - 1), 7) : [] })); } catch (e) { TR.cand = kids.slice(0, 8).map(k => ({ a: actOf(k), v: +k.v.toFixed(3) })); TR.pvErr = String(e); }
+      TR.pofuN = pofu.length;
+      TR.pick = { a: actOf(pick), rank: kids.indexOf(pick), best: actOf(kids[0]), random: pick0 !== kids[0], noise: L.noise, top: L.top };   // random：噪声或前几名随机让它没选第一名
+      Object.assign(TR, { ms: Math.round(now() - t0), nodes, depth: depthDone, why: L.fixedDepth ? 'fixed' : why, seq: JSON.parse(JSON.stringify(seq)) });
+      think.last.trace = TR;
+    }
     return seq;
   }
   // apiVersion：这份电脑用到的 BF.ai 接口版本（BF.ai.version）；工具拉历史版本对打时拿它核对
-  const BFAI = { think, score, LEVELS, apiVersion: 1 };
+  // obsVersion：观察接口（trace 思考记录、scoreParts、裁判开关 upAll / rootUpAll / fixedDepth）的版本，复盘工具按它判断能不能用（C62 B4）
+  const BFAI = { think, score, scoreParts, LEVELS, apiVersion: 1, obsVersion: 1, trace: false };
   if (typeof module !== 'undefined' && module.exports) module.exports = BFAI; else global.BFAI = BFAI;
 })(typeof window !== 'undefined' ? window : globalThis);
