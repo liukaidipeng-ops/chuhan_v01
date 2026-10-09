@@ -3,7 +3,8 @@
 const fs = require('fs'), SRC = '/home/user/chuhan_v01/source'; process.chdir(SRC);
 const { load } = require(SRC + '/tools/game_load.js'); const BF = global.BF;
 const SP = process.argv[2], names = process.argv.slice(3);
-const AIs = {}; for (const n of names) { AIs[n] = require(n === 'live' ? SRC + '/src/bfai.js' : SP + '/' + n + '.js'); AIs[n].LEVELS.mid = { ...AIs[n].LEVELS.mid, nodes: 60000 }; }
+const LV = process.env.LV || 'mid', NODES = +(process.env.NODES || 60000);   // 档位和每步节点数（默认校尉 6 万）
+const AIs = {}; for (const n of names) { AIs[n] = require(n === 'live' ? SRC + '/src/bfai.js' : SP + '/' + n + '.js'); AIs[n].LEVELS[LV] = { ...AIs[n].LEVELS[LV], nodes: NODES }; }
 const pos = [];
 for (const f of ['g1-mid', 'g2-hard', 'g3-hard']) {
   const text = fs.readFileSync('tools/dumbgames/' + f + '.txt', 'utf8'), n = JSON.parse(text.split('---DATA---\n')[1]).entries.length;
@@ -15,7 +16,7 @@ for (const f of ['g1-mid', 'g2-hard', 'g3-hard']) {
   for (const S of pos) {
     for (const n of names) {
       let a = 7; Math.random = () => { a = (a * 1103515245 + 12345) % 2147483648; return a / 2147483648; };
-      const t0 = Date.now(); const seq = await AIs[n].think(BF.cloneState(S), 'mid'); const L = AIs[n].think.last || {};
+      const t0 = Date.now(); const seq = await AIs[n].think(BF.cloneState(S), LV); const L = AIs[n].think.last || {};
       st[n].d.push(L.depth || 0); st[n].nodes += L.nodes || 0; st[n].ms += Date.now() - t0;
       const key = JSON.stringify(seq); if (n === names[0]) first.k = key; else if (key === first.k) st[n].same++;
     }
