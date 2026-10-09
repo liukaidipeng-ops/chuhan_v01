@@ -8,6 +8,7 @@
   // 更新说明（设置里、大厅底部点「更新」查看；最新的放最前）
   const NEWS = [
     ['第六版', '2026 年 10 月', [
+      '技能模式说明框里的技能分颜色：主动青、被动紫、没解锁的灰色；冷却中变暗，写着还剩几回合；每个技能都标上冷却时间',
       '技能模式：棋子说明框改版——生命（红）、攻击（橙）、功勋（金）做成三块大字；「甲片」改叫「功勋」，杀一个敌子得 1 点，说明框里写着攒满几点自动升级。汉军腰带上换成金边朱心的功勋牌，楚军仍是乌铁甲片',
       '联机、人机对局的结算曲分阵营：汉军赢了放新写的「礼乐」，楚军输了放新写的「乌江」（其余照旧）',
       '技能模式：兵的「拒马」二级就能用，架一次管两回合（对方来犯的子先挨 1 点）',
@@ -1880,7 +1881,8 @@
       $('upGo').onclick = () => fin(true); $('upNo').onclick = () => fin(false);
     });
   }
-  const SKV = Math.max(0, Math.min(3, +(Core.DIAG.get('sv') || 0)));   // 技能块的样式：0 = 朴素（Ham 选定前线上用这个），1～3 = 三版设计待 Ham 选
+  // 技能块的样式：Ham 10-09 审批台 td-009 选方案一（色带行）；其余保留作备选，网址 ?sv=0（朴素）/ 2（卡片 + 圆章）/ 3（印章块）调出来
+  const SKV = Math.max(0, Math.min(3, +(Core.DIAG.get('sv') || 1)));
   // 升级所需功勋：攒满这么多点（一杀一点）就自动晋升；已经满级返回 null
   const upNeed = p => { const U = BF.CFG.upgrade; if (!p || p.t === 'k' || p.lv >= BF.maxLvOf(p.t)) return null; return Math.ceil(game.baseCost(p) / (U.killDiscount || 1)); };
   // 生命、攻击、功勋三块大字（颜色区分：生命红、攻击橙、功勋金）
@@ -1910,7 +1912,9 @@
       const cls = p.lv < lv ? 'off' : cd ? 'cd' : c.passive ? 'pas' : 'act', kind = c.passive ? ' pv' : '';
       const st = cls === 'off' ? `${LVCN[lv]}级解锁` : cls === 'cd' ? `冷却中 · 还剩 <em>${cd}</em> 回合` : c.passive ? '被动 · 可用' : '主动 · 可用';
       const badge = cls === 'off' ? '锁' : cls === 'cd' ? cd : c.passive ? '被' : '用';
-      sks += `<div class="tsk ${cls}${kind}"><b class="sn">${BF.SKILL_CN[sk]}</b><i class="ss">${st}</i><u class="sb">${badge}</u><span class="sd">${BF.SKILL_DESC[sk]}</span></div>`;
+      // 技能本身的冷却时间（不是倒计时；Ham 10-09 td-009：有就写上）
+      const cdT = c.cooldown ? `<small class="sc">冷却时间 ${c.cooldown} 回合</small>` : '';
+      sks += `<div class="tsk ${cls}${kind}"><b class="sn">${BF.SKILL_CN[sk]}</b>${cdT}<i class="ss">${st}</i><u class="sb">${badge}</u><span class="sd">${BF.SKILL_DESC[sk]}</span></div>`;
     }
     if (sks) h += `<div class="tsks sv${SKV}">${sks}</div>`;
     if (p.lv < mx) { const cost = game.upgradeCost(p), base = game.baseCost(p); h += `<div class="tnx"><b>下一级</b>「${game.rankName(p, p.lv + 1)}」${lvGain(p, p.lv + 1)}<small>　或花 ${cost} 军功升级${base > cost ? `（功勋抵了 ${base - cost}）` : ''}${halfNow(p) ? '，召回后首次半价' : ''}</small></div>`; }
