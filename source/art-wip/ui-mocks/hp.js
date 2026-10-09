@@ -184,6 +184,36 @@ window.HP = (() => {
   }
   function glow(hp, max, s) { const p = new THREE.Mesh(new THREE.PlaneGeometry(1.4, 1.4), new THREE.MeshBasicMaterial({ map: glowTex(hp, max, s), transparent: true, depthWrite: false })); p.rotation.x = -Math.PI / 2; p.position.y = 0.004; return p; }
   let envCache = null; const ENV = () => { if (envCache) return envCache; for (const m of Board.pieces.values()) { const f = m.userData.faceSkin; if (f && f.envMap) return (envCache = f.envMap); } return null; };
+
+  // ===== 第三轮（059 批复）：立体光环挪到脚下；楚军换低饱和的蓝 =====
+  const CB = { r: C3.r, b: { m: 0x4d6c8c, hi: 0xa3b8cf, e: 0x14263a } };
+  function halo3b(hp, max, s) { const save = C3.b; C3.b = CB.b; const g = halo3(hp, max, s); C3.b = save; return g; }
+  // 乙 · 脚下贴地一圈：棋子外面、贴着棋盘的一圈珐琅条，有厚度和倒角
+  function footRing(hp, max, s) {
+    const g = new THREE.Group(), C = CB[s], R0 = 0.455, R1 = 0.56, gap = 0.2, span = (Math.PI * 2 - gap * max) / max;
+    const base = new THREE.Mesh(new THREE.RingGeometry(R0 - 0.01, R1 + 0.01, 72), new THREE.MeshStandardMaterial({ color: 0x2a221c, roughness: 0.9, transparent: true, opacity: 0.35, depthWrite: false }));
+    base.rotation.x = -Math.PI / 2; base.position.y = 0.003; g.add(base);
+    for (let i = 0; i < max; i++) {
+      const a0 = Math.PI / 2 + gap / 2 + i * (span + gap), on = i < hp;
+      const geo = new THREE.ExtrudeGeometry(sector(R0, R1, a0, a0 + span), { depth: on ? 0.026 : 0.005, bevelEnabled: true, bevelThickness: on ? 0.01 : 0.002, bevelSize: 0.008, bevelSegments: 3, curveSegments: 32 });
+      geo.rotateX(-Math.PI / 2);
+      const mm = new THREE.Mesh(geo, on ? std({ color: C.m, emissive: C.m, emissiveIntensity: 0.18 }) : new THREE.MeshStandardMaterial({ color: 0x2a221c, roughness: 0.9, transparent: true, opacity: 0.3, depthWrite: false }));
+      mm.position.y = 0.004; mm.castShadow = on; g.add(mm);
+    }
+    return g;
+  }
+  // 丙 · 底座圈：贴着棋子底边围一圈（像给棋子加了个底座），一点血一段
+  function plinth(hp, max, s) {
+    const g = new THREE.Group(), C = CB[s], R = 0.445, H = 0.07, gap = 0.18, span = (Math.PI * 2 - gap * max) / max;
+    for (let i = 0; i < max; i++) {
+      const a0 = gap / 2 + i * (span + gap), on = i < hp;
+      const geo = new THREE.CylinderGeometry(R + (on ? 0.02 : 0.008), R + (on ? 0.032 : 0.012), H, 40, 1, false, a0, span);
+      const mm = new THREE.Mesh(geo, on ? std({ color: C.m, emissive: C.m, emissiveIntensity: 0.18 }) : new THREE.MeshStandardMaterial({ color: 0x3a302a, roughness: 0.9 }));
+      mm.position.y = H / 2; mm.castShadow = on; g.add(mm);
+      if (on) { const lip = new THREE.Mesh(new THREE.TorusGeometry(R + 0.022, 0.006, 6, 40, span), new THREE.MeshStandardMaterial({ color: GOLDC, metalness: 1, roughness: 0.3, envMap: ENV() })); lip.rotation.x = Math.PI / 2; lip.rotation.z = -a0 + Math.PI / 2 - span; lip.position.y = H; g.add(lip); }
+    }
+    return g;
+  }
   function clear(m) { const d = m.userData.deco; if (!d) return; for (const c of [...d.children]) if (c.userData.hpBar || c.userData.mk) { d.remove(c); } }
   // style: cur / A / B / C / D；k = 尺寸倍数；fixed = 不随镜头远近变小（屏幕上固定大小，单位 px）
   function style(st, o = {}) {
@@ -195,7 +225,7 @@ window.HP = (() => {
       const d = m.userData.deco; if (!d) continue;
       const bar = d.children.find(c => c.userData.hpBar); if (!bar) continue;
       const { hp, max } = bar.userData.hpBar, s = m.userData.s; clear(m);
-      if ('HJFSG'.includes(st)) { const a = farAngle(m, up); const g = st === 'H' ? halo3(hp, max, s) : st === 'J' ? jewels(hp, max, s, a) : st === 'F' ? flags(hp, max, s, a) : st === 'S' ? stack(m, hp, max, s) : glow(hp, max, s); g.userData.mk = 1; d.add(g); continue; }
+      if ('HJFSGRKL'.includes(st)) { const a = farAngle(m, up); const g = st === 'R' ? halo3b(hp, max, s) : st === 'K' ? footRing(hp, max, s) : st === 'L' ? plinth(hp, max, s) : st === 'H' ? halo3(hp, max, s) : st === 'J' ? jewels(hp, max, s, a) : st === 'F' ? flags(hp, max, s, a) : st === 'S' ? stack(m, hp, max, s) : glow(hp, max, s); g.userData.mk = 1; d.add(g); continue; }
       if (st === 'D' || st === 'E') { const g = (st === 'E' ? ringE : ringD)(hp, max, s); g.userData.mk = 1; d.add(g); continue; }
       const t = st === 'A' ? texA(hp, max, s) : st === 'B' ? texB(hp, max, s) : texC(hp, max, s);
       const fixed = !!o.px, mat = new THREE.SpriteMaterial({ map: t, transparent: true, depthWrite: false, depthTest: false, sizeAttenuation: !fixed });
