@@ -5,6 +5,8 @@
 //   BFAI_ROOTREL=N：根上自己的升级候选再加最多 N 个“会改变吃子结果”的（守：正被一下打死、升了扛得住；攻：升了能打死原来打不死的子或能将军）。
 //     Ham 10-09 霸王局：第 29 回合最好是“升象 + 象吃炮”（象二级攻击 2，H50），线上的筛子“守子没被捉不升”把它挡掉了；旧规则下对电脑 57.2%（和不加一样）
 //     BFAI_ROOTATK=1：只补“升了攻击变大、能打死原来打不死的子”的（窄版：r26 宽版 47.2% 不划算；象 / 士二级、兵三级、车马炮 r6 表里升级加攻击）
+//   BFAI_RLMR=K：根上也少算——从第 K 个起，不吃子、不先升级、走完不将军、自己没被将军的走子，第 4 层起先少算一层，比门槛好才按原层数重算（只在霸王）。
+//     Ham 那局第 27 回合根上 90 个候选，10 万节点只算 2 层
 //   BFAI_CHKMUST=1：被将军时，相 / 象 / 兵升一级攻击变大的（象二级起攻击 2，H50；兵三级起攻击 2，r6）也算“保命的升级”（TD 在 H52 问的）
 'use strict';
 const fs = require('fs'), path = require('path'), os = require('os');
@@ -14,7 +16,7 @@ const src0 = execFileSync('git', ['show', rev + ':source/src/bfai.js'], { cwd: p
 function build(E, tag) {
   let s = src0;
   const rep = (a, b) => { const n = s.split(a).length - 1; if (n !== 1) throw new Error(`bfai_next：锚点出现 ${n} 次：${a.slice(0, 80)}`); s = s.replace(a, () => b); };
-  const LMR2 = +(E.BFAI_LMR2 || 0), NMP = +(E.BFAI_NMP || 0), CHKMUST = +(E.BFAI_CHKMUST || 0), ROOTREL = +(E.BFAI_ROOTREL || 0), ROOTATK = +(E.BFAI_ROOTATK || 0);
+  const LMR2 = +(E.BFAI_LMR2 || 0), NMP = +(E.BFAI_NMP || 0), CHKMUST = +(E.BFAI_CHKMUST || 0), ROOTREL = +(E.BFAI_ROOTREL || 0), ROOTATK = +(E.BFAI_ROOTATK || 0), RLMR = +(E.BFAI_RLMR || 0);
   if (LMR2) rep('{ v = -ab(r.S, depth - 2, -alpha - 0.01, -alpha, ply + 1, ext); if (v > alpha)', '{ v = -ab(r.S, depth - 2 - (mi > ' + LMR2 + ' && depth >= 4 ? 1 : 0), -alpha - 0.01, -alpha, ply + 1, ext); if (v > alpha)');
   if (NMP) {
     rep('    let best = -INF, legal = 0, bm = null;',
@@ -50,6 +52,13 @@ function build(E, tag) {
       "          for (const mv of A.moveTargets(c.S, f, r)) { const q = c.S.board[mv.to[1]][mv.to[0]]; if (q && q.s !== me && (q.hp <= a1 || q.t === 'k') && !before.has(q.id)) { rel = true; break; } } }\n" +
       "        if (rel" + (ROOTATK ? " && A.atk(p1) > A.atk(p0)" : "") + ") { top.push(c); added++; } } }\n" +
       "    return top;\n  }\n  // 裁判开关 rootUpAll");
+  }
+  if (RLMR) {
+    rep("      try {\n        for (const k of kids) {\n          if (k.off) { k.nv = -INF; n++; continue; }", "      try {\n        let ri = 0;   // 变体 next：根上靠后的安静着法先少算一层\n        for (const k of kids) {\n          if (k.off) { k.nv = -INF; n++; continue; }");
+    rep("          k.nv = k.done ? k.q : -ab(k.S, d - 1, -INF, -alpha + M, 1);",
+      "          if (k.done) k.nv = k.q;\n" +
+      "          else if (lmrOn && d >= 4 && ++ri > " + RLMR + " && !chk0 && k.a.k === 'mv' && !k.up && !S.board[k.a.to[1]][k.a.to[0]] && !A.inCheck(k.S, k.S.turn)) { k.nv = -ab(k.S, d - 2, -INF, -alpha + M, 1); if (k.nv > alpha - M) k.nv = -ab(k.S, d - 1, -INF, -alpha + M, 1); }\n" +
+      "          else k.nv = -ab(k.S, d - 1, -INF, -alpha + M, 1);");
   }
   if (tag === null) return s;
   const out = path.join(os.tmpdir(), `bfai_next_${rev}_${tag || 'env'}_${process.pid}.js`);

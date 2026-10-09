@@ -19,10 +19,26 @@ function parse(text) {
 //   导出里记了 opts.bs / opts.r6 就照它（TD 的导出从 C53 起才记）；没记的按顺序试：现行默认 → 背水关（破釜时代的对局）→ r6 开，
 //   取第一套能把整局重放完、结局也对得上的。applyRules 改的是全局 BF.CFG（引擎、电脑都看它），用完要恢复的请调 applyRules(null)。
 const DEFAULT_RULES = { bs: !!(BF.CFG.beishui && BF.CFG.beishui.on), r6: !!(BF.CFG.r6 && BF.CFG.r6.on) };
+// 规则年代（era）：2026-10-09 起 Ham 一天改好几次规则，老对局要按当时的数值才重放得了（导出里没记这些）。
+//   now = 现在的引擎默认；h51 = 拒马二级、管两回合、冷却 2、能动、反伤炮（H51～H55 之间）；h50 = 拒马三级、管一回合（H51 之前，象已经攻击 2）；
+//   pre = 再往前：象攻击 1、第 16 回合起才每回合进账、没有第三阶段。“升了级能解将不算将死”（H52）是代码，退不回去——老对局最后一步的结局可能对不上，见 detectRules
+const J0 = BF.CFG.skills && BF.CFG.skills.juma ? JSON.parse(JSON.stringify(BF.CFG.skills.juma)) : null;
+const AE0 = BF.CFG.attack && BF.CFG.attack.e ? BF.CFG.attack.e.slice() : undefined;
+const M0 = BF.CFG.merit ? { from: BF.CFG.merit.autoIncomeFromRound, p3: BF.CFG.merit.phase3FromRound } : null;
+const ERAS = {
+  now: () => {},
+  h51: J => Object.assign(J, { level: 2, cooldown: 2, duration: 2, rooted: false, counterCannon: true }),
+  h50: J => { Object.assign(J, { cooldown: 2, duration: 1, rooted: false, counterCannon: true }); delete J.level; },
+  pre: J => { Object.assign(J, { cooldown: 2, duration: 1, rooted: false, counterCannon: true }); delete J.level; if (BF.CFG.attack) delete BF.CFG.attack.e; if (BF.CFG.merit) { BF.CFG.merit.autoIncomeFromRound = 16; BF.CFG.merit.phase3FromRound = 0; } },
+};
 function applyRules(r) {
   const x = { ...DEFAULT_RULES, ...(r || {}) };
   if (BF.CFG.beishui) BF.CFG.beishui.on = !!x.bs;
   if (BF.CFG.r6) BF.CFG.r6.on = !!x.r6;
+  if (J0) { const J = BF.CFG.skills.juma; for (const k of Object.keys(J)) delete J[k]; Object.assign(J, JSON.parse(JSON.stringify(J0))); }
+  if (BF.CFG.attack) { if (AE0) BF.CFG.attack.e = AE0.slice(); else delete BF.CFG.attack.e; }
+  if (M0) { BF.CFG.merit.autoIncomeFromRound = M0.from; BF.CFG.merit.phase3FromRound = M0.p3; }
+  if (x.era && x.era !== 'now' && J0) ERAS[x.era](BF.CFG.skills.juma);
   return x;
 }
 function replayBF(data, n) {
@@ -34,19 +50,20 @@ function replayBF(data, n) {
 }
 function detectRules(data) {
   const o = data.opts || {};
-  if ('bs' in o || 'r6' in o) return { bs: !!o.bs, r6: !!o.r6 };
-  const tries = [{}, { bs: false }];
-  if (BF.CFG.r6) tries.push({ r6: true });
-  let err = null;
+  const base = ('bs' in o || 'r6' in o) ? [{ bs: !!o.bs, r6: !!o.r6 }] : [{}, { bs: false }].concat(BF.CFG.r6 ? [{ r6: true }] : []);
+  const tries = []; for (const era of Object.keys(ERAS)) for (const b of base) tries.push({ ...b, era });
+  let err = null, loose = null;
   for (const r of tries) {
     applyRules(r);
     try {
       const g = replayBF(data);
       const want = data.result, got = g.result;
-      if (want && (!got || got.winner !== want.winner || got.reason !== want.reason)) { err = new Error('结局对不上'); continue; }
+      if (want && (!got || got.winner !== want.winner || got.reason !== want.reason)) { err = new Error('结局对不上'); if (!loose) loose = r; continue; }
       return { ...DEFAULT_RULES, ...r };   // 写成明确的值：以后默认规则变了（比如 r6 默认打开），存下来的题照旧按当时的规则出
     } catch (e) { err = e; }
   }
+  // 整局重放得完、只是结局对不上（多半是 H52“升了级能解将”：当年判了将死，现在的引擎不判）：也能用，局面都是对的
+  if (loose) { applyRules(loose); return { ...DEFAULT_RULES, ...loose }; }
   applyRules(null);
   throw err || new Error('哪套规则都重放不了');
 }
