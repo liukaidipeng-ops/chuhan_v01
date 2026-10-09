@@ -8,6 +8,8 @@
   // 更新说明（设置里、大厅底部点「更新」查看；最新的放最前）
   const NEWS = [
     ['第六版', '2026 年 10 月', [
+      '技能模式电脑「霸王」变强了（数值部做的）：同样的思考时间能多算半层到一层（多数步能算到五层），和上一版对下 600 局赢 57.6%；每步还快了一点。电脑判断“谁在将军”也快了约两成，各模式结果不变',
+      '修好：俯瞰、定盘（正上方看）时，进攻、吃子的震屏会让整张棋盘乱转几十度、来回抽动。原因是正上方往下看时镜头分不清哪边是“上”，一点点抖动就整盘转。现在正上方看时震屏只是整个画面轻轻平移一下，不转不歪；本地双人在正上方看时换边也改成平稳地转过去',
       '本地双人：棋盘自动转向——轮到谁下就转到谁那边；按「视」可以改成自由视角（不自动转）',
       '一级木棋子换成牙黄面加色边，手机上汉方的字看得清；银、金棋子顶面的高光收小；二级以上的血条改成棋子脚下一圈立体血段',
       '联机房间：人机座位大字写档位（新兵 / 校尉 / 霸王），小字写「人机 ★★」；选档的下拉换成和按钮一样的样子',
@@ -1231,10 +1233,13 @@
       Core.Cam.to(center.clone().addScaledVector(toWin, 3.4).addScaledVector(side, 1.6).add(new THREE.Vector3(0, 1.9, 0)), center.clone().add(new THREE.Vector3(0, 0.35, 0)), 1.6, undefined, true);
     } else {
       const cp = Core.Cam.pos.clone();
-      faceYaw = Math.atan2(cp.x - center.x, cp.z - center.z);
+      // 正上方看时镜头几乎就在头顶，水平方向只差一点点，算出来的朝向是乱的：改用我方所在的那一边
+      const flat = cp.clone().sub(center); flat.y = 0;
+      if (flat.length() < 1) flat.copy(Core.Cam.homeDir());
+      faceYaw = Math.atan2(flat.x, flat.z);
       // 精简档：终局时镜头缓缓推近败方主帅（低特效不动）
       if (Fx.level === 'std') {
-        const d = cp.clone().sub(center); d.y = 0; d.normalize();
+        const d = flat.clone().normalize();
         Core.Cam.to(center.clone().addScaledVector(d, 4.6).add(new THREE.Vector3(0, 3.6, 0)), center.clone().add(new THREE.Vector3(0, 0.3, 0)), 2.6, undefined, true);
       }
     }
