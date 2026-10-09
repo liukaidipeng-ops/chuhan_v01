@@ -14,6 +14,9 @@
 //   BFAI_ROOTREL=N（默认 0 = 关）：根上自己的升级候选，除了原来的（前 3 名 + 救命的 + 一个解锁技能的），再加最多 N 个“会改变吃子结果”的：
 //     守——这枚子正被一下打死，升了扛得住；攻——升了能打死原来打不死的子，或者能将军。原来“快攒够钱升车就只肯升车、守子没被捉不升”的筛子会把这些挡掉
 //     （复盘：第一局 R23 升马再走更好，电脑在攒钱升车）。只加宽根上，比加宽对手模型便宜得多。
+//   BFAI_CHKUP（默认关）：被将军的一方，所有能升的升级都考虑（用户 2026-10-09：“被将的时候也要可以升级才行”）。
+//     原来：自己被将军时根上最多看 3 种升级、兵和相 / 象不看；搜索里对方被将军时只看静态收益前 3 名——会以为“将死了”，
+//     其实对方升一级就解了（复盘里“把局面看得太好”的那类）。被将军时合法应着很少，全看也不贵；两边一样（对称）。
 'use strict';
 const fs = require('fs'), path = require('path'), os = require('os');
 const { execFileSync } = require('child_process');
@@ -23,7 +26,7 @@ function build(E, tag) {
   let s = src0;
   const rep = (a, b) => { const n = s.split(a).length - 1; if (n !== 1) throw new Error(`bfai_fast：锚点出现 ${n} 次：${a.slice(0, 80)}`); s = s.replace(a, () => b); };
   const on = (k, d) => E[k] == null ? d : !/^(0|false|off)$/i.test(String(E[k]));
-  const TT = on('BFAI_TT', true), TTMOVE = on('BFAI_TTMOVE', true), LMR = +(E.BFAI_LMR || 0), DELTA = +(E.BFAI_DELTA || 0), ROOTREL = +(E.BFAI_ROOTREL || 0);
+  const TT = on('BFAI_TT', true), TTMOVE = on('BFAI_TTMOVE', true), LMR = +(E.BFAI_LMR || 0), DELTA = +(E.BFAI_DELTA || 0), ROOTREL = +(E.BFAI_ROOTREL || 0), CHKUP = on('BFAI_CHKUP', false);
   if (TT || TTMOVE) {
     rep("  function ab(S, depth, alpha, beta, ply, ext = 0) {",
       "  // 变体 fast：局面指纹（两个 32 位散列拼成 53 位的数）\n" +
@@ -99,6 +102,28 @@ function build(E, tag) {
       "          for (const mv of A.moveTargets(c.S, f, r)) { const q = c.S.board[mv.to[1]][mv.to[0]]; if (q && q.s !== me && (q.hp <= a1 || q.t === 'k') && !before.has(q.id)) { rel = true; break; } } }\n" +
       "        if (rel) { top.push(c); added++; } } }\n" +
       "    return top;");
+  }
+  if (CHKUP) {
+    // 搜索里：被将军的一方（不管第几层）把所有升级都试一遍；没被将军时照旧（只在第 1 层看对方前 3 名）
+    rep("    if (ply === upPly && !S.upgraded) {\n      const ups = upsOf(S, side);",
+      "    if ((ply === upPly || inChk) && !S.upgraded) {   // 变体 fast：被将军的一方所有升级都试\n      const ups = inChk ? upsChk(S, side) : upsOf(S, side);");
+    rep("  function upsOf(S, side) {",
+      "  // 变体 fast：被将军时的全部升级（不限前 3 名；每个局面只生成一次）\n" +
+      "  const upCacheChk = new Map();\n" +
+      "  function upsChk(S, side) {\n" +
+      "    let ups = upCacheChk.get(S); if (ups) return ups; ups = [];\n" +
+      "    for (let r = 0; r < 10; r++) for (let f = 0; f < 9; f++) { const p = S.board[r][f]; if (!p || p.s !== side || p.t === 'k') continue; const T = A.upgradeState(S, [f, r]); if (T) ups.push({ S: T, id: p.id, at: [f, r] }); }\n" +
+      "    if (side === 'b' && PFX) for (const u of ups) { pfAlias.set(u.S, S); pfUp.set(u.S, u.id); }\n" +
+      "    upCacheChk.set(S, ups); return ups;\n" +
+      "  }\n" +
+      "  function upsOf(S, side) {");
+    rep("pfCache.clear(); upCache.clear();", "pfCache.clear(); upCache.clear(); upCacheChk.clear();");
+    // 根上：自己被将军时所有升级都进搜索（兵、相 / 象也算，不限 3 种）
+    rep("      const T = A.upgradeState(S, [f, r]); if (!T) continue;",
+      "      const T = A.upgradeState(S, [f, r]); if (!T) continue;\n" +
+      "      if (chk) { cand.push({ at: [f, r], S: T, gain: score(T, me) - base, must: true, unlock: false }); continue; }   // 变体 fast：被将军时全都考虑");
+    rep("    const top = cand.filter(c => !c.unlock).slice(0, 3), ex = cand.find(c => c.unlock);",
+      "    if (chk) return cand;   // 变体 fast：被将军时全都考虑\n    const top = cand.filter(c => !c.unlock).slice(0, 3), ex = cand.find(c => c.unlock);");
   }
   const out = path.join(os.tmpdir(), `bfai_fast_${rev}_${tag || 'env'}_${process.pid}.js`);
   fs.writeFileSync(out, s);
