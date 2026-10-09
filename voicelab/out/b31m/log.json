@@ -1,0 +1,399 @@
+{
+ "batch": "b31m",
+ "key_present": true,
+ "key_len": 126,
+ "host": "https://api.minimax.cn",
+ "probe": [
+  {
+   "host": "https://api.minimax.cn",
+   "http": 200,
+   "code": 0,
+   "msg": "success"
+  }
+ ],
+ "jobs": [
+  {
+   "id": "r_win_m1",
+   "music": true,
+   "tried": [
+    {
+     "host": "https://api.minimax.cn",
+     "model": "music-3.0",
+     "http": 410,
+     "code": 2153,
+     "msg": "This Music API is no longer available to new users. Existing paying customers can continue to use the service. For new access, please try MiniMax Audio (https:/"
+    },
+    {
+     "host": "https://api.minimaxi.com",
+     "model": "music-3.0",
+     "http": 410,
+     "code": 2153,
+     "msg": "This Music API is no longer available to new users. Existing paying customers can continue to use the service. For new access, please try MiniMax Audio (https:/"
+    },
+    {
+     "host": "https://api.minimax.io",
+     "model": "music-3.0",
+     "http": 200,
+     "code": 2049,
+     "msg": "invalid api key"
+    },
+    {
+     "host": "https://api.minimax.io",
+     "model": "music-2.6",
+     "http": 200,
+     "code": 2049,
+     "msg": "invalid api key"
+    },
+    {
+     "host": "https://api.minimax.io",
+     "model": "music-2.5",
+     "http": 200,
+     "code": 2049,
+     "msg": "invalid api key"
+    },
+    {
+     "host": "https://api.minimax.io",
+     "model": "music-2.0",
+     "http": 200,
+     "code": 2049,
+     "msg": "invalid api key"
+    },
+    {
+     "host": "https://api.minimax.io",
+     "model": "music-1.5",
+     "http": 200,
+     "code": 2049,
+     "msg": "invalid api key"
+    }
+   ]
+  },
+  {
+   "id": "r_win_m2",
+   "music": true,
+   "tried": [
+    {
+     "host": "https://api.minimax.io",
+     "model": "music-3.0",
+     "http": 200,
+     "code": 2049,
+     "msg": "invalid api key"
+    },
+    {
+     "host": "https://api.minimax.io",
+     "model": "music-2.6",
+     "http": 200,
+     "code": 2049,
+     "msg": "invalid api key"
+    },
+    {
+     "host": "https://api.minimax.io",
+     "model": "music-2.5",
+     "http": 200,
+     "code": 2049,
+     "msg": "invalid api key"
+    },
+    {
+     "host": "https://api.minimax.io",
+     "model": "music-2.0",
+     "http": 200,
+     "code": 2049,
+     "msg": "invalid api key"
+    },
+    {
+     "host": "https://api.minimax.io",
+     "model": "music-1.5",
+     "http": 200,
+     "code": 2049,
+     "msg": "invalid api key"
+    }
+   ]
+  },
+  {
+   "id": "r_lose_m1",
+   "music": true,
+   "tried": [
+    {
+     "host": "https://api.minimax.io",
+     "model": "music-3.0",
+     "http": 200,
+     "code": 2049,
+     "msg": "invalid api key"
+    },
+    {
+     "host": "https://api.minimax.io",
+     "model": "music-2.6",
+     "http": 200,
+     "code": 2049,
+     "msg": "invalid api key"
+    },
+    {
+     "host": "https://api.minimax.io",
+     "model": "music-2.5",
+     "http": 200,
+     "code": 2049,
+     "msg": "invalid api key"
+    },
+    {
+     "host": "https://api.minimax.io",
+     "model": "music-2.0",
+     "http": 200,
+     "code": 2049,
+     "msg": "invalid api key"
+    },
+    {
+     "host": "https://api.minimax.io",
+     "model": "music-1.5",
+     "http": 200,
+     "code": 2049,
+     "msg": "invalid api key"
+    }
+   ]
+  },
+  {
+   "id": "r_lose_m2",
+   "music": true,
+   "tried": [
+    {
+     "host": "https://api.minimax.io",
+     "model": "music-3.0",
+     "http": 200,
+     "code": 2049,
+     "msg": "invalid api key"
+    },
+    {
+     "host": "https://api.minimax.io",
+     "model": "music-2.6",
+     "http": 200,
+     "code": 2049,
+     "msg": "invalid api key"
+    },
+    {
+     "host": "https://api.minimax.io",
+     "model": "music-2.5",
+     "http": 200,
+     "code": 2049,
+     "msg": "invalid api key"
+    },
+    {
+     "host": "https://api.minimax.io",
+     "model": "music-2.0",
+     "http": 200,
+     "code": 2049,
+     "msg": "invalid api key"
+    },
+    {
+     "host": "https://api.minimax.io",
+     "model": "music-1.5",
+     "http": 200,
+     "code": 2049,
+     "msg": "invalid api key"
+    }
+   ]
+  },
+  {
+   "id": "b_win_m1",
+   "music": true,
+   "tried": [
+    {
+     "host": "https://api.minimax.io",
+     "model": "music-3.0",
+     "http": 200,
+     "code": 2049,
+     "msg": "invalid api key"
+    },
+    {
+     "host": "https://api.minimax.io",
+     "model": "music-2.6",
+     "http": 200,
+     "code": 2049,
+     "msg": "invalid api key"
+    },
+    {
+     "host": "https://api.minimax.io",
+     "model": "music-2.5",
+     "http": 200,
+     "code": 2049,
+     "msg": "invalid api key"
+    },
+    {
+     "host": "https://api.minimax.io",
+     "model": "music-2.0",
+     "http": 200,
+     "code": 2049,
+     "msg": "invalid api key"
+    },
+    {
+     "host": "https://api.minimax.io",
+     "model": "music-1.5",
+     "http": 200,
+     "code": 2049,
+     "msg": "invalid api key"
+    }
+   ]
+  },
+  {
+   "id": "b_win_m2",
+   "music": true,
+   "tried": [
+    {
+     "host": "https://api.minimax.io",
+     "model": "music-3.0",
+     "http": 200,
+     "code": 2049,
+     "msg": "invalid api key"
+    },
+    {
+     "host": "https://api.minimax.io",
+     "model": "music-2.6",
+     "http": 200,
+     "code": 2049,
+     "msg": "invalid api key"
+    },
+    {
+     "host": "https://api.minimax.io",
+     "model": "music-2.5",
+     "http": 200,
+     "code": 2049,
+     "msg": "invalid api key"
+    },
+    {
+     "host": "https://api.minimax.io",
+     "model": "music-2.0",
+     "http": 200,
+     "code": 2049,
+     "msg": "invalid api key"
+    },
+    {
+     "host": "https://api.minimax.io",
+     "model": "music-1.5",
+     "http": 200,
+     "code": 2049,
+     "msg": "invalid api key"
+    }
+   ]
+  },
+  {
+   "id": "b_win_m3",
+   "music": true,
+   "tried": [
+    {
+     "host": "https://api.minimax.io",
+     "model": "music-3.0",
+     "http": 200,
+     "code": 2049,
+     "msg": "invalid api key"
+    },
+    {
+     "host": "https://api.minimax.io",
+     "model": "music-2.6",
+     "http": 200,
+     "code": 2049,
+     "msg": "invalid api key"
+    },
+    {
+     "host": "https://api.minimax.io",
+     "model": "music-2.5",
+     "http": 200,
+     "code": 2049,
+     "msg": "invalid api key"
+    },
+    {
+     "host": "https://api.minimax.io",
+     "model": "music-2.0",
+     "http": 200,
+     "code": 2049,
+     "msg": "invalid api key"
+    },
+    {
+     "host": "https://api.minimax.io",
+     "model": "music-1.5",
+     "http": 200,
+     "code": 2049,
+     "msg": "invalid api key"
+    }
+   ]
+  },
+  {
+   "id": "b_lose_m1",
+   "music": true,
+   "tried": [
+    {
+     "host": "https://api.minimax.io",
+     "model": "music-3.0",
+     "http": 200,
+     "code": 2049,
+     "msg": "invalid api key"
+    },
+    {
+     "host": "https://api.minimax.io",
+     "model": "music-2.6",
+     "http": 200,
+     "code": 2049,
+     "msg": "invalid api key"
+    },
+    {
+     "host": "https://api.minimax.io",
+     "model": "music-2.5",
+     "http": 200,
+     "code": 2049,
+     "msg": "invalid api key"
+    },
+    {
+     "host": "https://api.minimax.io",
+     "model": "music-2.0",
+     "http": 200,
+     "code": 2049,
+     "msg": "invalid api key"
+    },
+    {
+     "host": "https://api.minimax.io",
+     "model": "music-1.5",
+     "http": 200,
+     "code": 2049,
+     "msg": "invalid api key"
+    }
+   ]
+  },
+  {
+   "id": "b_lose_m2",
+   "music": true,
+   "tried": [
+    {
+     "host": "https://api.minimax.io",
+     "model": "music-3.0",
+     "http": 200,
+     "code": 2049,
+     "msg": "invalid api key"
+    },
+    {
+     "host": "https://api.minimax.io",
+     "model": "music-2.6",
+     "http": 200,
+     "code": 2049,
+     "msg": "invalid api key"
+    },
+    {
+     "host": "https://api.minimax.io",
+     "model": "music-2.5",
+     "http": 200,
+     "code": 2049,
+     "msg": "invalid api key"
+    },
+    {
+     "host": "https://api.minimax.io",
+     "model": "music-2.0",
+     "http": 200,
+     "code": 2049,
+     "msg": "invalid api key"
+    },
+    {
+     "host": "https://api.minimax.io",
+     "model": "music-1.5",
+     "http": 200,
+     "code": 2049,
+     "msg": "invalid api key"
+    }
+   ]
+  }
+ ]
+}
