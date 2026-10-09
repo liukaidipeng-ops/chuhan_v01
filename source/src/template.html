@@ -861,7 +861,7 @@ html:has(#endcard:not(.hidden)),html:has(#endcard:not(.hidden)) body,html:has(#e
 #mUp .up-tbl thead th{font-family:var(--es);font-weight:400;font-size:calc(12px * var(--fs,1));letter-spacing:.2em;padding:5px 10px}
 #mUp .up-tbl tbody th{width:4.2em;text-align:left;font-size:calc(15px * var(--fs,1));letter-spacing:.2em}
 #mUp .up-tbl td.to.gain{background:var(--k)}
-#mUp .up-tbl td.to.gain:after{content:"▲";margin-left:6px;font-family:var(--es);font-size:calc(11px * var(--fs,1));vertical-align:3px}
+#mUp .up-tbl td.to.gain:after{content:"▲";margin-left:6px;font-family:var(--es);font-size:calc(11px * var(--fs,1));vertical-align:3px;color:#5ccb7c}   /* 上涨的三角用绿色（Ham 10-09） */
 #mUp .up-new{list-style:none;margin:0 0 12px;padding:0;display:flex;flex-direction:column;gap:8px}
 #mUp .up-new:empty{display:none}
 #mUp .up-new li{padding:10px 12px;background:rgba(20,19,17,.22);box-shadow:inset 0 0 0 1.5px var(--c);color:var(--c);font-size:calc(14px * var(--fs,1));line-height:1.7}
@@ -893,19 +893,12 @@ html:has(#endcard:not(.hidden)),html:has(#endcard:not(.hidden)) body,html:has(#e
 #loading .big{color:var(--k);font-family:var(--ef);font-weight:900;font-size:calc(min(72px,13vw) * var(--fs,1));letter-spacing:.2em;padding-left:.2em;white-space:nowrap}
 #loading .bar{background:rgba(240,231,210,.25)}#loading .bar i{background:var(--c)}
 #loading .note{color:var(--c);font-family:var(--es)}
-/* 真实进度（美术 10-09，Ham：要真实的百分比，不然玩家以为自己卡了）。
-   脚本只管两样：#loading 上的 --p（0～1）和 #loadPct 里的数字；#loadTxt 写这一步在做什么，#loadSlow 在久没动静时写一句安心话。
-   没设 --p 的时候（比如脚本还没跑到）保持原来那条来回走的光，不会显示 0% 卡着。 */
-#loading .ld{display:flex;flex-direction:column;align-items:center;gap:12px;width:min(320px,72vw)}
-#loading .pct{font-family:var(--ef);font-weight:900;font-size:calc(34px * var(--fs,1));line-height:1;color:var(--c);font-variant-numeric:tabular-nums;letter-spacing:.04em;min-height:1em}
-#loading .pct:empty{visibility:hidden}
+/* 真实进度（美术 10-09，Ham：要真实进度，不然玩家以为卡了；10-09 又定：只要一条进度条，不要圆点、不要百分比，下面只写「研墨铺纸」）。
+   脚本只管 #loading 上的 --p（0～1）并给 #loading 加 real；没加 real 之前保持原来那条来回走的光。 */
+#loading .ld{display:flex;flex-direction:column;align-items:center;gap:14px;width:min(320px,72vw)}
 #loading .ld .bar{position:relative;width:100%;height:3px;overflow:hidden}
-#loading.real .ld .bar{overflow:visible}
 #loading.real .bar i{position:absolute;left:0;top:0;bottom:0;width:calc(var(--p,0) * 100%);animation:none;transform:none;transition:width .35s ease-out}
-/* 线头上一枚小棋子：米白圆点、墨色描边 */
-#loading.real .bar i:after{content:"";position:absolute;right:-7px;top:50%;width:14px;height:14px;margin-top:-7px;border-radius:50%;background:var(--c);box-shadow:0 0 0 2px var(--k),0 0 0 4px var(--c)}
-#loading .note{font-size:calc(14px * var(--fs,1));letter-spacing:.12em;text-align:center;font-variant-numeric:tabular-nums}
-#loading .slow{font-family:var(--es);font-size:calc(13px * var(--fs,1));color:rgba(240,231,210,.78);letter-spacing:.08em;text-align:center;min-height:1.4em}
+#loading .note{font-size:calc(14px * var(--fs,1));letter-spacing:.12em;text-align:center}
 
 /* ---------- 询问弹窗（悔棋、求和、退出对局的确认等共用） ---------- */
 #mAsk{--c:#f0e7d2;--k:#141311;--ef:"EB","Noto Serif SC","Source Han Serif SC","Noto Serif CJK SC","Songti SC","STSong","SimSun",serif;--es:"PingFang SC","Noto Sans SC","Noto Sans CJK SC","Microsoft YaHei",sans-serif;
@@ -1068,7 +1061,7 @@ html:has(#endcard:not(.hidden)),html:has(#endcard:not(.hidden)) body,html:has(#e
 <div id="paper"></div>
 <div id="vignette"></div>
 
-<div id="loading"><div class="big">技能新象棋</div><div class="ld"><div class="pct" id="loadPct"></div><div class="bar"><i id="loadBar"></i></div><div class="note" id="loadTxt">研墨铺纸…</div><div class="slow" id="loadSlow"></div></div></div>
+<div id="loading"><div class="big">技能新象棋</div><div class="ld"><div class="bar"><i id="loadBar"></i></div><div class="note" id="loadTxt">研墨铺纸…</div></div></div>
 
 <!-- 对局界面 -->
 <div id="hud" class="hidden">
