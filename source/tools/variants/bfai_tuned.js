@@ -6,7 +6,8 @@
 const fs = require('fs'), path = require('path'), os = require('os');
 const ROOT = path.join(__dirname, '..', '..');
 function build(E, tag) {
-  let s = require('./bfai_next.js').source({});   // 底版：线上电脑（f998d98，新规则）
+  // 底版：f998d98 的线上电脑（H54 观察接口之前；之后 score 多了分项参数，文字锚点对不上）。对打的对手用 git:f998d98，两边同底版
+  let s = require('child_process').execFileSync('git', ['show', 'f998d98:source/src/bfai.js'], { cwd: ROOT, encoding: 'utf8' });
   const a = '  function score(S, me) {';
   if (s.split(a).length !== 2) throw new Error('bfai_tuned：找不到 score()');
   const feats = JSON.stringify(path.join(ROOT, 'tools/tune/feats.js'));

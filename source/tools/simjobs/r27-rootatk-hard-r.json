@@ -1,0 +1,3 @@
+{ "args": "--games 300 --seed 3000 --level hard --nodes hard=100000 --ai-r tools/variants/bfai_next.js --ai-b src/bfai.js",
+  "env": { "BFAI_ROOTREL": "1", "BFAI_ROOTATK": "1" }, "chunks": 48,
+  "note": "新规则：根上补 1 个“升了攻击变大、能打死原来打不死的子”的升级（窄版；g4 第 29 回合升象吃炮）执汉 对 线上，霸王" }
