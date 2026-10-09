@@ -11,6 +11,9 @@
 //     估值 6%，电脑自己的搜索代码不到 10%——大头在引擎（TD 的代码）。
 //   第 3 步 BFAI_DELTA=M（默认 0 = 关）：吃子静态搜索（占约 45% 时间）里，一个吃子就算全赚（打死就算整子、打不死算 0.45 个）再加 M 分
 //     也追不上当前最好的，就不去试走（省一次走子 + 复制局面）。只管普通走子吃子；技能、将帅不管。会改变走法，拿对打验收。
+//   BFAI_ROOTREL=N（默认 0 = 关）：根上自己的升级候选，除了原来的（前 3 名 + 救命的 + 一个解锁技能的），再加最多 N 个“会改变吃子结果”的：
+//     守——这枚子正被一下打死，升了扛得住；攻——升了能打死原来打不死的子，或者能将军。原来“快攒够钱升车就只肯升车、守子没被捉不升”的筛子会把这些挡掉
+//     （复盘：第一局 R23 升马再走更好，电脑在攒钱升车）。只加宽根上，比加宽对手模型便宜得多。
 'use strict';
 const fs = require('fs'), path = require('path'), os = require('os');
 const { execFileSync } = require('child_process');
@@ -20,7 +23,7 @@ function build(E, tag) {
   let s = src0;
   const rep = (a, b) => { const n = s.split(a).length - 1; if (n !== 1) throw new Error(`bfai_fast：锚点出现 ${n} 次：${a.slice(0, 80)}`); s = s.replace(a, () => b); };
   const on = (k, d) => E[k] == null ? d : !/^(0|false|off)$/i.test(String(E[k]));
-  const TT = on('BFAI_TT', true), TTMOVE = on('BFAI_TTMOVE', true), LMR = +(E.BFAI_LMR || 0), DELTA = +(E.BFAI_DELTA || 0);
+  const TT = on('BFAI_TT', true), TTMOVE = on('BFAI_TTMOVE', true), LMR = +(E.BFAI_LMR || 0), DELTA = +(E.BFAI_DELTA || 0), ROOTREL = +(E.BFAI_ROOTREL || 0);
   if (TT || TTMOVE) {
     rep("  function ab(S, depth, alpha, beta, ply, ext = 0) {",
       "  // 变体 fast：局面指纹（两个 32 位散列拼成 53 位的数）\n" +
@@ -71,6 +74,28 @@ function build(E, tag) {
     "      if (n >= 6) break;\n" +
     "      if (it.a.k === 'mv' && it.q && it.q.t !== 'k' && it.p && stand + baseVal(it.q) * (it.q.hp <= A.atk(it.p) ? 1 : 0.45) + " + DELTA + " < alpha) continue;   // 变体 fast：全赚也追不上，不试\n" +
     "      const r = BF.attempt(S, it.a); if (!r || r.free) continue;\n      n++;");
+  if (ROOTREL > 0) {
+    rep("    const base = score(S, me), chk = A.inCheck(S, me), cand = [];", "    const base = score(S, me), chk = A.inCheck(S, me), cand = [], skipped = [];");
+    rep("      if (defender && !must && !unlock && !(p.t === 'a' && heavy && p.lv < 2)) continue;\n      if ((saving || hoard) && p.t !== 'r' && !must) continue;\n      cand.push({ at: [f, r], S: T, gain: score(T, me) - base, must, unlock });",
+      "      const keep0 = !(defender && !must && !unlock && !(p.t === 'a' && heavy && p.lv < 2)) && !((saving || hoard) && p.t !== 'r' && !must);\n" +
+      "      if (!keep0) { skipped.push({ at: [f, r], S: T, gain: score(T, me) - base, must, unlock }); continue; }   // 变体 fast：筛掉的先记着\n" +
+      "      cand.push({ at: [f, r], S: T, gain: score(T, me) - base, must, unlock });");
+    rep("    const top = cand.filter(c => !c.unlock).slice(0, 3), ex = cand.find(c => c.unlock);\n    if (ex) top.push(ex);\n    return top;",
+      "    const top = cand.filter(c => !c.unlock).slice(0, 3), ex = cand.find(c => c.unlock);\n    if (ex) top.push(ex);\n" +
+      "    // 变体 fast：再加最多 " + ROOTREL + " 个“会改变吃子结果”的升级（守：正被一下打死、升了扛得住；攻：升了能打死原来打不死的子或能将军）\n" +
+      "    { const rest = skipped.concat(cand.filter(c => !top.includes(c))).sort((x, y) => y.gain - x.gain);\n" +
+      "      const F = BF.cloneState(S); F.turn = me === 'r' ? 'b' : 'r'; F.upgraded = false; F.freeUsed = false; F.jmLock = null;\n" +
+      "      const thr = new Map(); try { for (const it of A.gen(F, true)) if (it.q && it.q.s === me && it.p) thr.set(it.q.id, Math.max(thr.get(it.q.id) || 0, A.atk(it.p))); } catch (e) { }\n" +
+      "      let added = 0;\n" +
+      "      for (const c of rest) { if (added >= " + ROOTREL + ") break;\n" +
+      "        const f = c.at[0], r = c.at[1], p0 = S.board[r][f], p1 = c.S.board[r][f]; if (!p0 || !p1) continue;\n" +
+      "        const m = thr.get(p0.id) || 0; let rel = m > 0 && p0.hp <= m && p1.hp > m;\n" +
+      "        if (!rel) { const a0 = A.atk(p0), a1 = A.atk(p1), before = new Set();\n" +
+      "          for (const mv of A.moveTargets(S, f, r)) { const q = S.board[mv.to[1]][mv.to[0]]; if (q && q.s !== me && (q.hp <= a0 || q.t === 'k')) before.add(q.id); }\n" +
+      "          for (const mv of A.moveTargets(c.S, f, r)) { const q = c.S.board[mv.to[1]][mv.to[0]]; if (q && q.s !== me && (q.hp <= a1 || q.t === 'k') && !before.has(q.id)) { rel = true; break; } } }\n" +
+      "        if (rel) { top.push(c); added++; } } }\n" +
+      "    return top;");
+  }
   const out = path.join(os.tmpdir(), `bfai_fast_${rev}_${tag || 'env'}_${process.pid}.js`);
   fs.writeFileSync(out, s);
   process.on('exit', () => { try { fs.unlinkSync(out); } catch (e) { } });
