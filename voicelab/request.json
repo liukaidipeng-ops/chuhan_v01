@@ -1,88 +1,53 @@
 {
- "batch": "b29",
+ "batch": "b31m",
  "list_voices": false,
  "hosts": [
-  "https://api.minimax.cn"
+  "https://api.minimax.cn",
+  "https://api.minimaxi.com",
+  "https://api.minimax.io"
  ],
- "jobs": [
+ "music_hosts": [
+  "https://api.minimax.cn",
+  "https://api.minimaxi.com",
+  "https://api.minimax.io"
+ ],
+ "jobs": [],
+ "music": [
   {
-   "id": "real_h_r_a0_m1__1",
-   "voice": "Japanese_GenerousIzakayaOwner",
-   "text": "樊哙来了，都让开！！",
-   "vol": 1.9,
-   "speed": 0.88,
-   "emotion": "angry",
-   "modify": {
-    "pitch": -28,
-    "timbre": -45,
-    "intensity": -100
-   },
-   "tone": [
-    "樊哙/(fan2)(kuai4)",
-    "哙来/(kuai4)(lai2)"
-   ]
+   "id": "r_win_m1",
+   "prompt": "中国古代宫廷礼乐风格的纯器乐短曲，汉军大胜凯旋：编钟、建鼓、笛子与古筝齐奏，明亮庄严，宫调五声音阶，节奏稳健，全曲约15秒，结尾一声大锣收住。"
   },
   {
-   "id": "real_h_r_a0_m2__1",
-   "voice": "Japanese_GenerousIzakayaOwner",
-   "text": "跟紧沛公，寸步不离！！",
-   "vol": 1.9,
-   "speed": 0.88,
-   "emotion": "angry",
-   "modify": {
-    "pitch": -28,
-    "timbre": -45,
-    "intensity": -100
-   },
-   "tone": [
-    "沛公/(pei4)(gong1)"
-   ]
+   "id": "r_win_m2",
+   "prompt": "中国古风史诗纯器乐短曲，汉高祖《大风歌》的气魄：低沉号角开场，战鼓渐强，弦乐与唢呐奏出开阔昂扬的五声旋律，胜利豪迈，全曲约15秒，结尾大鼓与锣齐鸣。"
   },
   {
-   "id": "real_h_r_a0_a2__1",
-   "voice": "Japanese_GenerousIzakayaOwner",
-   "text": "生彘肩都吃得，还怕你！！",
-   "vol": 2.1,
-   "speed": 0.88,
-   "emotion": "angry",
-   "modify": {
-    "pitch": -28,
-    "timbre": -45,
-    "intensity": -100
-   },
-   "tone": [
-    "彘肩/(zhi4)(jian1)"
-   ]
+   "id": "r_lose_m1",
+   "prompt": "中国古风悲伤纯器乐短曲，汉军战败：二胡低声如泣，古琴拨弦，远处闷鼓，缓慢，五声音阶，落寞苍凉，全曲约20秒，结尾一声轻锣渐弱。"
   },
   {
-   "id": "real_h_r_a0_k1__1",
-   "voice": "Japanese_GenerousIzakayaOwner",
-   "text": "屠狗也不过如此！",
-   "vol": 2.0,
-   "speed": 0.88,
-   "emotion": "happy",
-   "modify": {
-    "pitch": -28,
-    "timbre": -45,
-    "intensity": -100
-   }
+   "id": "r_lose_m2",
+   "prompt": "中国古风哀婉纯器乐短曲，残阳下的败军：洞箫独奏，琵琶轻拨，风声，节奏很慢，惆怅克制，全曲约20秒，渐弱结束。"
   },
   {
-   "id": "real_h_r_a0_s_hujia__1",
-   "voice": "Japanese_GenerousIzakayaOwner",
-   "text": "沛公快走，哙来挡！！",
-   "vol": 2.1,
-   "speed": 0.88,
-   "emotion": "angry",
-   "modify": {
-    "pitch": -28,
-    "timbre": -45,
-    "intensity": -100
-   },
-   "tone": [
-    "沛公/(pei4)(gong1)",
-    "哙来/(kuai4)(lai2)"
-   ]
+   "id": "b_win_m1",
+   "prompt": "中国古风霸气纯器乐短曲，西楚霸王项羽大胜：重型战鼓密集擂动，低沉号角，琵琶急促轮指，羽调式五声音阶，粗犷雄浑，全曲约15秒，结尾三声齐鼓和一声大锣。"
+  },
+  {
+   "id": "b_win_m2",
+   "prompt": "中国古风战争纯器乐短曲，楚军破釜沉舟后的大胜：鼓点由慢到快，唢呐高亢，铜锣与钹，羽调式，激昂狂放，全曲约15秒，结尾干脆收住。"
+  },
+  {
+   "id": "b_win_m3",
+   "prompt": "中国古风史诗纯器乐短曲，江东子弟凯旋：厚重的弦乐群、大鼓、号角与古筝，羽调式，宽广豪迈，全曲约15秒，结尾锣声。"
+  },
+  {
+   "id": "b_lose_m1",
+   "prompt": "中国古风悲壮纯器乐短曲，垓下之围、四面楚歌：远处笛声与埙，二胡呜咽，羽调式，悲凉，节奏缓慢，全曲约20秒，结尾低沉钟声渐弱。"
+  },
+  {
+   "id": "b_lose_m2",
+   "prompt": "中国古风悲怆纯器乐短曲，霸王别姬、乌江自刎：古琴与箫，江水声，缓慢沉重，羽调式，英雄末路，全曲约20秒，结尾渐弱。"
   }
  ]
 }
