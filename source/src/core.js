@@ -59,9 +59,13 @@ const Core = (() => {
     if (c.width !== Math.floor(w * pr) || c.height !== Math.floor(h * pr) || size.x !== w || size.y !== h) renderer.setDrawingBufferSize(w, h, pr);
     camera.aspect = w / h;
     camera.fov = w / h < 0.8 ? 58 : 42;
-    camera.updateProjectionMatrix();
+    camera.updateProjectionMatrix(); applyShift();
     try { if (!Cam.cine) Cam.radius = Cam.view ? Cam.fitTop() : Cam.fitRadius(); } catch (e) { /* 初始化时 Cam 尚未定义 */ }
   }
+  // 画面整体挪一挪（对局分析的面板挡住一边时，把棋盘往另一边让）：fx、fy 是画面宽、高的几分之几，正数 = 内容往左 / 往上
+  let shiftF = [0, 0];
+  function applyShift() { const w = window.innerWidth, h = window.innerHeight; if (shiftF[0] || shiftF[1]) camera.setViewOffset(w, h, Math.round(w * shiftF[0]), Math.round(h * shiftF[1]), w, h); else camera.clearViewOffset(); }
+  function viewShift(fx = 0, fy = 0) { shiftF = [fx, fy]; applyShift(); }
   let resizeT = 0;
   const resizeSoon = () => { clearTimeout(resizeT); resizeT = setTimeout(resize, 200); };
   window.addEventListener('resize', resizeSoon);
@@ -437,7 +441,7 @@ const Core = (() => {
     gpu: GPU, softGL, DIAG, get parallelGL() { return parallelGL; }, get userQ() { return userQ; },
     isMobile,
     renderer, scene, camera, sun, hemi, Time, onFrame, tween, sleep, ease, Cam, canvasTex, Tex, rnd, inkBlot,
-    toon, outlineMat, outlineShared, inked, merge, M4, disposeTree, compileBg,
+    toon, outlineMat, outlineShared, inked, merge, M4, disposeTree, compileBg, viewShift,
     start() { clock.start(); loop(); },
     get nUpdaters() { return updaters.size + frameHooks.length; },   // 每帧要跑的回调有几个（查泄漏用）
     // 取走这段时间的帧统计：[帧数, 平均毫秒, 超过 40 毫秒的帧数]，取完清零

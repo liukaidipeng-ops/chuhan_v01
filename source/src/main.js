@@ -1273,7 +1273,7 @@
       const tune = (mode === 'host' || mode === 'guest' || mode === 'ai' || W) && result.winner ? { side: persp === 'win' ? result.winner : mySide } : null;
       await Ending.play(result, {
         again: W ? () => { Ending.hideCard(); toast('等待棋手开新局…'); } : requestAgain, againText: W ? '继 续 观 战' : '',
-        lobby: toLobby, persp, tune, instant: endSkip || slain, review: startReplay,
+        lobby: toLobby, persp, tune, instant: endSkip || slain, review: startReplay, analyze: anaOk(game) ? anaOpen : null,
         mine: mode === 'local' || W || aiBoth() || !result.winner ? '' : (persp === 'win' ? '你 胜 了' : '你 败 了'),
       });
       if (pendingRestart) { const st = pendingRestart; pendingRestart = null; restart(st === true ? undefined : st); if (mode === 'host') Net.send({ t: 'restart', state: snapshot() }); }
@@ -1286,6 +1286,7 @@
   }
   let pendingRestart = null;
   function restart(state) {
+    anaTok++;   // 正在分析的停下
     if (RP) exitReplay(true);
     Ending.hideCard(); Core.Time.skip = false; pendingJ = null;
     startGame(mode, mySide, mode !== 'host' && state && state.opts ? state.opts : opts, { state, intro: true });   // 再来一局：客人、观众都用房主带来的选项（规则记号在里面）
@@ -1306,7 +1307,7 @@
     Fx.clearMarks(); Board.setPosition(game); Board.faceViewer(viewSide); Board.clearMoves(); Fx.ply = game.history.length;
     const last = game.history[game.history.length - 1];
     Board.showLast(last && last.from ? last.from : null, last && last.to ? last.to : null);
-    rebuildNotes(); rpPaint(); updateHud();
+    rebuildNotes(); rpPaint(); updateHud(); anaFollow();
   }
   async function rpStep() {
     if (!RP || RP.busy || RP.k >= RP.n) return;
@@ -1326,7 +1327,7 @@
       }
     } catch (err) { console.error(err); }
     Core.Time.skip = false; Core.Time.scale = 1; Core.Cam.cine = false; document.body.classList.remove('cine');
-    if (RP) { RP.busy = false; rpPaint(); updateHud(); }
+    if (RP) { RP.busy = false; rpPaint(); updateHud(); anaFollow(); }
   }
   async function rpPlay() {
     if (!RP) return;
@@ -1340,7 +1341,7 @@
     $('rpBar').querySelector('[data-rp="play"]').textContent = RP.playing ? '❚❚ 暂停' : '▶ 播放';
     $('rpBar').querySelectorAll('[data-rp]').forEach(b => { const a = b.dataset.rp; b.disabled = a !== 'exit' && a !== 'play' && RP.busy || ((a === 'prev' || a === 'first') && RP.k === 0) || ((a === 'next' || a === 'last') && RP.k >= RP.n); });
   }
-  function startReplay() {
+  function startReplay(quiet) {
     if (RP || !game) return;
     Ending.hideCard();
     clearFinale(); Camp.reset();
@@ -1350,13 +1351,13 @@
     $('hud').classList.remove('hidden');
     setView(viewSide);
     rpShow(0);
-    toast('复盘：用下方按钮逐步前进、后退或自动播放', 2600);
+    if (quiet !== true) toast('复盘：用下方按钮逐步前进、后退或自动播放', 2600);
   }
   async function exitReplay(silent) {
     if (!RP) return;
     const real = RP.real; RP.playing = false;
     while (RP && RP.busy) await new Promise(r => setTimeout(r, 100));
-    RP = null; $('rpBar').classList.add('hidden');
+    RP = null; $('rpBar').classList.add('hidden'); anaClose();
     game = real; Fx.clearMarks(); Board.setPosition(game); Board.faceViewer(viewSide); rebuildNotes(); updateHud();
     if (!silent) $('endcard').classList.remove('hidden');
   }
@@ -1371,6 +1372,148 @@
     else if (a === 'first') rpShow(0);
     else if (a === 'last') rpShow(RP.n);
   });
+
+  // ---------- 对局分析（Ham 10-09 22:36）：结算界面「分析」——局势曲线、每步电脑认为最好的走法、哪步是错棋 ----------
+  //   做法：把每一步走之前的局面交给电脑各算一遍（标准象棋用人机引擎，技能模式用技能电脑），得到「这一方最好的一步」和局面分 V（轮到的一方看）。
+  //   第 i 步损失 = V(走之前) + V(走之后，对方看)：走了最好的一步损失约 0，走坏了对方的分涨上来。按损失分五档：最佳 / 好棋 / 缓着 / 失误 / 错棋
+  //   技能模式按「一回合」算（升级 + 主行动 + 拒马算一回合）。揭棋看不见暗子，不做分析
+  const ANA = {
+    std: { cut: [0, 20, 50, 120], scale: 300, cap: 1500, time: 450 },     // 引擎分：车约 200、马炮约 90、兵 10～40
+    bf: { cut: [0, 0.5, 1.2, 3], scale: 6, cap: 40, time: 0 },            // 技能电脑的分：车 9、马炮 4 多、兵 1 多
+    tags: ['最佳', '好棋', '缓着', '失误', '错棋'], cls: ['best', 'good', 'slow', 'miss', 'err'],
+  };
+  let anaTok = 0;
+  const anaOk = g => !!g && !g.jq;
+  // 每一步（技能模式是每一回合）：{ side, note, k0（从第几条记录起）, k1（到第几条为止，复盘用）, mv（主行动，画线用） }
+  function anaSteps(real) {
+    const out = [];
+    if (real.bf) {
+      const g = new BF.Game(); g.reset(real.base); let cur = null;
+      real.entries.forEach((e, i) => {
+        if (!cur) cur = { side: g.turn, notes: [], k0: i, S: BF.cloneState(g.S), mv: null };
+        cur.notes.push(bfNote(g, e));
+        if (e.k !== 'up') cur.mv = e.from ? { from: e.from, to: e.to } : e.at ? { from: e.at, to: e.to || e.at } : cur.mv;
+        if (!g.apply(e)) return;
+        if (g.ends[g.ends.length - 1]) { cur.k1 = i + 1; cur.note = cur.notes.join(' '); out.push(cur); cur = null; }
+      });
+      if (cur) { cur.k1 = real.entries.length; cur.note = cur.notes.join(' '); out.push(cur); }
+      out.endS = BF.cloneState(g.S);
+    } else {
+      const g = real.jq ? new XQ.Game(real.opts) : new XQ.Game();
+      real.history.forEach((h, i) => { out.push({ side: g.turn, note: noteOf(g.board, h, h.rv), k0: i, k1: i + 1, mv: { from: h.from, to: h.to } }); g.play({ from: h.from, to: h.to, rv: h.rv }); });
+    }
+    return out;
+  }
+  // 算一个局面：{ v（轮到的一方看）, best（主行动 from/to）, bestNote }
+  async function anaPos(real, steps, i) {
+    if (real.bf) {
+      const S = i < steps.length ? steps[i].S : steps.endS;
+      const g = new BF.Game(); g.reset(BF.cloneState(S));
+      if (g.status.result) return { v: -9000, over: true };
+      const seq = await bfThink(BF.cloneState(S), 'ana', async () => { });
+      const st = bfThink.last || {};
+      let note = [], best = null;
+      for (const a of seq || []) { note.push(bfNote(g, a)); if (a.k !== 'up') best = a.from ? { from: a.from, to: a.to } : a.at ? { from: a.at, to: a.to || a.at } : null; if (!g.apply(a)) break; }
+      return { v: st.v || 0, best, bestNote: note.filter(Boolean).join(' ') };
+    }
+    const moves = real.history.slice(0, i).map(h => ({ from: h.from, to: h.to }));
+    const r = await AI.analyzePos(moves, ANA.std.time);
+    if (!r || r.over) return { v: -10000, over: true };
+    let bestNote = '';
+    if (r.best) { const g = new XQ.Game(); for (const h of real.history.slice(0, i)) g.play({ from: h.from, to: h.to }); bestNote = notation(g.board, r.best); }
+    return { v: r.score, best: r.best, bestNote };
+  }
+  function anaOpen() {
+    const real = RP ? RP.real : game;
+    if (!anaOk(real)) { toast('揭棋看不见暗子，这一局没法分析'); return; }
+    if (!RP) startReplay(true);
+    $('ana').classList.remove('hidden'); document.body.classList.add('anaOn');
+    // 面板挡住一边：电脑上棋盘往左让一点，手机上往上让一点
+    const narrow = window.innerWidth <= 760; Core.viewShift(narrow ? 0 : Math.min(0.16, 200 / window.innerWidth), narrow ? 0.17 : 0);
+    if (!real.__ana) anaStart(real); else anaPaint();
+  }
+  function anaClose() { $('ana').classList.add('hidden'); document.body.classList.remove('anaOn'); Board.showStep(null); Core.viewShift(0, 0); }
+  async function anaStart(real) {
+    const tok = ++anaTok, M = real.bf ? ANA.bf : ANA.std;
+    const steps = anaSteps(real), n = steps.length;
+    const A = real.__ana = { steps, V: new Array(n + 1).fill(null), done: 0, n, bf: !!real.bf, sel: -1 };
+    anaPaint();
+    for (let i = 0; i <= n; i++) {
+      let r;
+      try { r = await anaPos(real, steps, i); } catch (e) { console.error(e); r = { v: 0 }; }
+      if (tok !== anaTok || real.__ana !== A) return;   // 已经换了一局 / 关掉了
+      A.V[i] = r;
+      if (i < n) { steps[i].best = r.best; steps[i].bestNote = r.bestNote; }
+      if (i > 0) anaGrade(A, i - 1, M);
+      A.done = i + 1; anaPaint();
+    }
+  }
+  // 给第 i 步打分：损失 = V(i) + V(i+1)（分数先压到 ±cap，杀棋算到头）
+  function anaGrade(A, i, M) {
+    const c = v => Math.max(-M.cap, Math.min(M.cap, v)), s = A.steps[i];
+    const loss = c(A.V[i].v) + c(A.V[i + 1].v);
+    const same = s.best && s.mv && s.best.from[0] === s.mv.from[0] && s.best.from[1] === s.mv.from[1] && s.best.to[0] === s.mv.to[0] && s.best.to[1] === s.mv.to[1];
+    let g = 4; for (let k = 1; k < 4; k++) if (loss <= M.cut[k]) { g = k; break; }
+    if (same && g <= 2) g = 0;   // 走的就是电脑认为最好的那步
+    s.loss = loss; s.grade = g;
+  }
+  // 局势：汉（红）方看的优势，压到 -1..1
+  const anaAdv = (A, i) => { const r = A.V[i]; if (!r) return null; const side = i < A.steps.length ? A.steps[i].side : (A.steps.length ? (A.steps[A.steps.length - 1].side === 'r' ? 'b' : 'r') : 'r'); const M = A.bf ? ANA.bf : ANA.std; const v = (side === 'r' ? 1 : -1) * r.v; return Math.tanh(v / M.scale); };
+  function anaPaint() {
+    const real = RP ? RP.real : game, A = real && real.__ana; if (!A) return;
+    const SN = { r: SIDE_CN.r, b: SIDE_CN.b };
+    $('anaProg').textContent = A.done > A.n ? `共 ${A.n} ${A.bf ? '回合' : '步'}` : `分析中 ${A.done} / ${A.n + 1}…`;
+    // 汇总：每方各档几步、准确率（最佳 + 好棋占多少）
+    const sum = { r: [0, 0, 0, 0, 0], b: [0, 0, 0, 0, 0] };
+    for (const s of A.steps) if (s.grade != null) sum[s.side][s.grade]++;
+    $('anaSum').innerHTML = ['r', 'b'].map(s => { const t = sum[s].reduce((a, b) => a + b, 0), acc = t ? Math.round((sum[s][0] + sum[s][1]) / t * 100) : 0;
+      return `<div class="as ${s}"><b>${SN[s]}方</b><span class="acc">${t ? acc + '%' : '—'}</span><small>准确率</small>` + ANA.tags.map((x, g) => sum[s][g] ? `<i class="g${g}">${x} ${sum[s][g]}</i>` : '').join('') + '</div>'; }).join('');
+    // 局势曲线：上面汉优（红）、下面楚优（墨绿）；错棋红点、失误橙点
+    const W = 360, H = 112, n = Math.max(1, A.n), X = i => 6 + (W - 12) * i / n, Y = a => H / 2 - a * (H / 2 - 8);
+    const pts = []; for (let i = 0; i <= A.n; i++) { const a = anaAdv(A, i); if (a == null) break; pts.push([X(i), Y(a)]); }
+    let svg = `<rect x="0" y="0" width="${W}" height="${H / 2}" class="bgR"/><rect x="0" y="${H / 2}" width="${W}" height="${H / 2}" class="bgB"/><line x1="0" x2="${W}" y1="${H / 2}" y2="${H / 2}" class="mid"/>`;
+    if (pts.length > 1) {
+      const line = pts.map((p, i) => (i ? 'L' : 'M') + p[0].toFixed(1) + ' ' + p[1].toFixed(1)).join(' ');
+      const area = line + ` L${pts[pts.length - 1][0].toFixed(1)} ${H / 2} L${pts[0][0].toFixed(1)} ${H / 2} Z`;
+      svg += `<clipPath id="anaTop"><rect x="0" y="0" width="${W}" height="${H / 2}"/></clipPath><clipPath id="anaBot"><rect x="0" y="${H / 2}" width="${W}" height="${H / 2}"/></clipPath>`;
+      svg += `<path d="${area}" class="aR" clip-path="url(#anaTop)"/><path d="${area}" class="aB" clip-path="url(#anaBot)"/><path d="${line}" class="ln"/>`;
+    }
+    A.steps.forEach((s, i) => { if (s.grade >= 3 && pts[i + 1]) svg += `<circle cx="${pts[i + 1][0].toFixed(1)}" cy="${pts[i + 1][1].toFixed(1)}" r="${s.grade === 4 ? 4.2 : 3.4}" class="d${s.grade}"/>`; });
+    if (A.sel >= 0 && A.sel <= A.n) svg += `<line x1="${X(A.sel).toFixed(1)}" x2="${X(A.sel).toFixed(1)}" y1="2" y2="${H - 2}" class="cur"/>`;
+    svg += `<text x="6" y="14" class="lbR">${SN.r}优</text><text x="6" y="${H - 6}" class="lbB">${SN.b}优</text>`;
+    $('anaChart').innerHTML = svg; $('anaChart').setAttribute('viewBox', `0 0 ${W} ${H}`);
+    // 每一步
+    $('anaList').innerHTML = A.steps.map((s, i) => {
+      const g = s.grade, tag = g == null ? '<i class="tg wait">…</i>' : `<i class="tg g${g}">${ANA.tags[g]}</i>`;
+      const bm = g != null && g >= 2 && s.bestNote ? `<span class="bm">应走 ${s.bestNote}</span>` : '';
+      return `<div class="ar${A.sel === i ? ' on' : ''}" data-i="${i}"><span class="no">${A.bf ? i + 1 : Math.floor(i / 2) + 1}${A.bf ? '' : s.side === 'r' ? '.' : '…'}</span><span class="sd ${s.side}">${SN[s.side]}</span><span class="mv">${s.note || ''}</span>${tag}${bm}</div>`;
+    }).join('');
+    const on = $('anaList').querySelector('.ar.on'); if (on && !anaPaint.noScroll) on.scrollIntoView({ block: 'nearest' });
+  }
+  // 复盘走到哪一步，分析面板跟着亮哪一行，棋盘上画出这一步电脑认为最好的走法
+  function anaFollow() {
+    Board.showStep(null);
+    if (!RP || $('ana').classList.contains('hidden')) return;
+    const A = RP.real.__ana; if (!A) return;
+    const i = A.steps.findIndex(s => s.k0 === RP.k);
+    A.sel = i; const s = A.steps[i];
+    if (s && s.best) Board.showStep({ from: s.best.from, to: s.best.to, seal: '佳' });
+    anaPaint();
+  }
+  // 点某一步：棋盘回到这一步走之前，标出实际走的（落点框）和电脑认为最好的（墨绿的路 + 「佳」）
+  function anaPick(i) {
+    const real = RP ? RP.real : game, A = real && real.__ana; if (!A || !RP || RP.busy) return;
+    const s = A.steps[i]; if (!s) return;
+    anaPaint.noScroll = true; rpShow(s.k0); anaPaint.noScroll = false;
+    if (s.mv) Board.showLast(s.mv.from, s.mv.to);
+  }
+  $('anaList').addEventListener('click', e => { const r = e.target.closest('.ar'); if (r) anaPick(+r.dataset.i); });
+  $('anaChart').addEventListener('click', e => {
+    const real = RP ? RP.real : game, A = real && real.__ana; if (!A || !A.n) return;
+    const b = $('anaChart').getBoundingClientRect(), i = Math.round((e.clientX - b.left) / b.width * A.n);
+    anaPick(Math.max(0, Math.min(A.n - 1, i)));
+  });
+  $('anaX').onclick = () => anaClose();
   function toLobby() {
     Net.close(); store.del('host');
     location.href = location.pathname;
@@ -3386,7 +3529,7 @@
   window.__xq = {
     get busy() { return busy; }, get started() { return started; }, get game() { return game; }, get mode() { return mode; }, get aiThinking() { return aiThinking; },
     doMove, startGame, finishGame, Ending, Fx, Board, Core, Camp, Squads, Spect, setView, onData, Net, requestUndo, sendEmote, get clock() { return clock; }, get opts() { return opts; }, joinRoom, notation, get notes() { return notes; }, aiSay,
-    doBF, bfButton, bfClick, get bfMode() { return bfMode; }, BF, BFX, specGo, specFlick, exportGame,
+    doBF, bfButton, bfClick, get bfMode() { return bfMode; }, BF, BFX, specGo, specFlick, exportGame, anaOpen, anaPick, get RP() { return RP; },
     get badN() { return badN; }, get JK() { return JK; }, get JC() { return JC; }, get pendingJ() { return pendingJ; }, get jqBad() { return jqBad; }, jqReady, capChip, XQ,
   };
   if (location.hash === '#local') { startGame('local', 'r', { undo: 3, total: 15, step: 60, hints: 1 }, { intro: false }); return; }

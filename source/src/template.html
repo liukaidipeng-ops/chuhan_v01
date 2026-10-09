@@ -475,6 +475,27 @@ body.cine #hud>*{opacity:0!important;pointer-events:none!important}
 #rpBar{position:fixed;left:50%;transform:translateX(-50%);bottom:calc(16px + var(--safe-b));z-index:12;display:flex;align-items:center;gap:6px;padding:8px 10px;background:rgba(27,24,21,.92);border:1px solid rgba(217,184,119,.55);border-radius:6px;box-shadow:0 8px 24px rgba(0,0,0,.35);max-width:calc(100vw - 16px);flex-wrap:wrap;justify-content:center}
 #rpBar button{min-width:44px;height:38px;border:none;border-radius:4px;background:linear-gradient(#3a332c,#25201c);color:#f1e3c2;font-size:calc(15px * var(--fs,1));letter-spacing:.05em;cursor:pointer;box-shadow:inset 0 0 0 1px rgba(217,184,119,.35)}
 #rpBar button.pl{min-width:96px;background:linear-gradient(#b0301f,#7f2015);color:#fff3dc}
+/* 对局分析（Ham 10-09 22:36）：电脑右侧一栏、手机底部一块；墨底金边，和说明框一套 */
+#ana{position:fixed;z-index:13;right:12px;top:calc(64px + var(--safe-t,0px));bottom:calc(84px + var(--safe-b));width:min(372px,calc(100vw - 24px));display:flex;flex-direction:column;background:rgba(24,20,18,.95);color:#f1e3c2;border:1px solid rgba(217,184,119,.7);border-radius:6px;box-shadow:0 10px 30px rgba(0,0,0,.4),inset 0 0 0 3px rgba(24,20,18,.9),inset 0 0 0 4px rgba(217,184,119,.22);padding:10px 12px;font-size:calc(13px * var(--fs,1))}
+#ana .anaH{display:flex;align-items:center;gap:8px;margin-bottom:6px}#ana .anaH b{font-size:calc(16px * var(--fs,1));letter-spacing:.25em;color:#ffd98a}#ana #anaProg{flex:1;color:#bfae8a;font-size:calc(12px * var(--fs,1))}
+#ana #anaX{border:none;background:none;color:#d9c79c;font-size:18px;cursor:pointer;padding:0 4px}
+#anaSum{display:flex;gap:6px;margin-bottom:6px}#anaSum .as{flex:1;padding:4px 7px 5px;border-radius:4px;background:rgba(255,255,255,.04);border:1px solid rgba(217,184,119,.25);line-height:1.45}
+#anaSum .as.r{border-left:3px solid #e2462c}#anaSum .as.b{border-left:3px solid #3f8a5e}#anaSum b{margin-right:6px}#anaSum .acc{font-size:calc(18px * var(--fs,1));font-weight:bold;color:#fff}#anaSum small{color:#bfae8a;margin-left:3px}
+#anaSum i{display:inline-block;font-style:normal;font-size:calc(11px * var(--fs,1));margin:2px 4px 0 0;padding:0 5px;border-radius:8px}
+#anaChart{width:100%;height:auto;display:block;cursor:pointer;margin-bottom:6px;border-radius:4px}
+#anaChart .bgR{fill:rgba(226,70,44,.07)}#anaChart .bgB{fill:rgba(63,138,94,.08)}#anaChart .mid{stroke:rgba(217,184,119,.45);stroke-width:1;stroke-dasharray:3 3}
+#anaChart .aR{fill:rgba(226,70,44,.45)}#anaChart .aB{fill:rgba(63,138,94,.5)}#anaChart .ln{fill:none;stroke:#f1e3c2;stroke-width:1.4}
+#anaChart .d4{fill:#ff4b3a;stroke:#1b1714;stroke-width:1}#anaChart .d3{fill:#ffa640;stroke:#1b1714;stroke-width:1}#anaChart .cur{stroke:#ffd98a;stroke-width:1.5}
+#anaChart text{font-size:10px;fill:#bfae8a}#anaChart .lbR{fill:#ff9c90}#anaChart .lbB{fill:#7fc79a}
+#anaList{flex:1;overflow-y:auto;min-height:0;margin:0 -4px;padding:0 4px}
+#anaList .ar{display:flex;flex-wrap:wrap;align-items:center;gap:0 6px;padding:4px 6px;border-radius:3px;cursor:pointer;line-height:1.5}
+#anaList .ar:hover{background:rgba(255,255,255,.05)}#anaList .ar.on{background:rgba(255,217,138,.14);box-shadow:inset 2px 0 0 #ffd98a}
+#anaList .no{width:2.4em;color:#9d917a;text-align:right;font-variant-numeric:tabular-nums}#anaList .sd{font-size:calc(11px * var(--fs,1));padding:0 4px;border-radius:2px;color:#fff}#anaList .sd.r{background:#a8321f}#anaList .sd.b{background:#2f6a4a}
+#anaList .mv{flex:1;min-width:6em}#anaList .bm{flex-basis:100%;padding-left:3.6em;color:#8fe0bd;font-size:calc(12px * var(--fs,1))}
+#ana .tg,#anaSum i{font-style:normal;font-size:calc(11px * var(--fs,1));padding:0 6px;border-radius:9px;white-space:nowrap}
+#ana .g0{background:rgba(63,199,181,.25);color:#7fe3d5}#ana .g1{background:rgba(110,190,120,.22);color:#a6e0ad}#ana .g2{background:rgba(200,190,150,.18);color:#d9cfa8}#ana .g3{background:rgba(255,166,64,.25);color:#ffc27a}#ana .g4{background:rgba(255,75,58,.28);color:#ff9c90}#ana .tg.wait{color:#7d7360}
+body.anaOn #log{display:none}
+@media (max-width:760px){#ana{left:8px;right:8px;width:auto;top:auto;bottom:calc(150px + var(--safe-b));height:36vh;padding:8px 10px}#anaChart{max-height:72px}#anaSum .as{padding:3px 6px}}
 #rpBar button.x{background:transparent;box-shadow:inset 0 0 0 1px rgba(217,184,119,.55)}
 #rpBar button:disabled{opacity:.35;cursor:default}
 #rpInfo{color:#f1e3c2;font-size:calc(14px * var(--fs,1));letter-spacing:.08em;padding:0 6px;font-family:var(--num);white-space:nowrap}
@@ -1422,6 +1443,7 @@ html:has(#endcard:not(.hidden)),html:has(#endcard:not(.hidden)) body,html:has(#e
 <div id="verse"></div>
 <div id="fade"></div>
 <div id="endcard" class="hidden"></div>
+<div id="ana" class="hidden"><div class="anaH"><b>对局分析</b><span id="anaProg"></span><button id="anaX" title="收起">✕</button></div><div id="anaSum"></div><svg id="anaChart" viewBox="0 0 360 112" preserveAspectRatio="none"></svg><div id="anaList"></div></div>
 <div id="rpBar" class="hidden"><button data-rp="first" title="回到开局">|◀</button><button data-rp="prev" title="后退一步">◀</button><button data-rp="play" class="pl">▶ 播放</button><button data-rp="next" title="前进一步">▶</button><button data-rp="last" title="跳到终局">▶|</button><span id="rpInfo"></span><button data-rp="exit" class="x">退出复盘</button></div>
 <button class="btn small hidden" id="skip">跳过 ▸▸</button>
 <div id="toast"></div>

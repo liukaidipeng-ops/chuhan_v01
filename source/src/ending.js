@@ -589,7 +589,7 @@ const Ending = (() => {
   }
 
   // ======================================================================
-  function endCard(info, loserSide, onAgain, onLobby, mine, againText, onReview) {
+  function endCard(info, loserSide, onAgain, onLobby, mine, againText, onReview, onAnalyze) {
     const el = $('endcard');
     el.innerHTML = '';
     const cols = document.createElement('div'); cols.className = 'cols';
@@ -606,6 +606,7 @@ const Ending = (() => {
     const b2 = document.createElement('button'); b2.className = 'btn'; b2.textContent = '返 回 大 厅'; b2.onclick = onLobby;
     row.append(b1);
     if (onReview) { const b3 = document.createElement('button'); b3.className = 'btn'; b3.textContent = '复 盘'; b3.onclick = onReview; row.append(b3); }
+    if (onAnalyze) { const b4 = document.createElement('button'); b4.className = 'btn'; b4.textContent = '分 析'; b4.onclick = onAnalyze; row.append(b4); }
     row.append(b2); el.appendChild(row);
     el.classList.remove('hidden');
   }
@@ -655,7 +656,7 @@ const Ending = (() => {
     if (result.reason === 'occupy') info.cols.splice(2, 0, [(result.loser === 'b' ? '楚' : '漢') + '營被奪']);   // 决战·夺营：大营被对方主帅占住
     $('skip').classList.add('hidden');
     $('fade').style.transition = 'none'; $('fade').style.opacity = 1;
-    endCard(info, result.loser, callbacks.again, callbacks.lobby, callbacks.mine, callbacks.againText, callbacks.review);
+    endCard(info, result.loser, callbacks.again, callbacks.lobby, callbacks.mine, callbacks.againText, callbacks.review, callbacks.analyze);
     const tn = callbacks.tune;
     if (!(tn && typeof EndTunes !== 'undefined' && EndTunes.play(tn.side, callbacks.persp || 'win'))) Sfx.Music.stinger(callbacks.persp || 'win');
     requestAnimationFrame(() => { $('fade').style.transition = 'opacity 1s'; $('fade').style.opacity = 0; });

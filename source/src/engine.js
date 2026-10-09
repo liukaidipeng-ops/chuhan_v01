@@ -497,6 +497,14 @@ function XQEngineFactory() {
     }
     return { move: toCoord(pick), score: res.score, depth: res.depth, nodes: res.nodes };
   }
+  // 对局分析（Ham 10-09 22:36）：给一个局面（从开局起已走的着法），算这一方最好的一步和局面分（轮到的一方看，正 = 它占优）。time 毫秒
+  function analyzePos(moves, time = 400) {
+    setPosition(moves);
+    const lm = legalMoves();
+    if (!lm.length) return { best: null, score: -MATE, depth: 0, over: true };   // 被将死 / 困毙：这一方输了
+    const res = rootSearch(40, time, lm.length === 1);   // 只有一步可走时也要算出分数（不走捷径）
+    return { best: res.best ? toCoord(res.best) : null, score: res.score, depth: res.depth };
+  }
   // 供测试：perft
   function perft(depth) {
     if (depth === 0) return 1;
@@ -504,7 +512,7 @@ function XQEngineFactory() {
     for (let i = 0; i < n; i++) { if (!tryMove(buf[i])) continue; c += depth === 1 ? 1 : perft(depth - 1); undoMove(); }
     return c;
   }
-  return { think, setPosition, perft, legalMoves: () => legalMoves().map(toCoord), evaluate, LEVELS };
+  return { think, analyzePos, setPosition, perft, legalMoves: () => legalMoves().map(toCoord), evaluate, LEVELS, MATE, WIN };
 }
 
 // ===== 主线程封装：优先放进 Web Worker，失败则同步计算 =====
@@ -515,7 +523,7 @@ const AI = (() => {
     if (worker || local) return;
     try {
       const src = '(' + XQEngineFactory.toString() + ')';
-      const code = `const E = ${src}(); onmessage = e => { const d = e.data; let r; try { r = E.think(d.moves, d.level); } catch (err) { r = { move: null, err: String(err) }; } postMessage({ id: d.id, r }); };`;
+      const code = `const E = ${src}(); onmessage = e => { const d = e.data; let r; try { r = d.an ? E.analyzePos(d.moves, d.time) : E.think(d.moves, d.level); } catch (err) { r = { move: null, err: String(err) }; } postMessage({ id: d.id, r }); };`;
       worker = new Worker(URL.createObjectURL(new Blob([code], { type: 'text/javascript' })));
       worker.onmessage = e => { if (pending && e.data.id === pending.id) { const p = pending; pending = null; p.res(e.data.r); } };
       worker.onerror = () => { worker = null; local = XQEngineFactory(); if (pending) { const p = pending; pending = null; p.res(local.think(p.moves, p.level, { time: 1500 })); } };
@@ -529,6 +537,13 @@ const AI = (() => {
       const ms = moves.map(m => ({ from: m.from, to: m.to }));
       if (!worker) return new Promise(res => setTimeout(() => res(local.think(ms, level, level === 'hard' ? { time: 2000 } : {})), 30));
       return new Promise(res => { pending = { id, res, moves: ms, level }; worker.postMessage({ id, moves: ms, level }); });
+    },
+    // 对局分析：一个局面的最好一步和局面分（见 analyzePos）。和 think 共用一个工作线程（分析时不会有电脑在想）
+    analyzePos(moves, time = 400) {
+      ensure();
+      const id = ++seq, ms = moves.map(m => ({ from: m.from, to: m.to }));
+      if (!worker) return new Promise(res => setTimeout(() => res(local.analyzePos(ms, time)), 0));
+      return new Promise(res => { pending = { id, res, moves: ms, level: 'hard' }; worker.postMessage({ id, an: 1, moves: ms, time }); });
     },
     // 取消正在进行的思考：直接终止工作线程，避免占用后续计算
     cancel() { if (pending && worker) { try { worker.terminate(); } catch (e) { } worker = null; } pending = null; },
