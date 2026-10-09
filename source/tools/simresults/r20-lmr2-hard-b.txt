@@ -1,0 +1,98 @@
+# r20-lmr2-hard-b（GitHub Actions 运行 37908682745）
+# 请求：{"args":"--games 150 --seed 3000 --level hard --nodes hard=100000 --ai-r git:4db9f8c --ai-b tools/variants/bfai_fast.js","env":{"BFAI_LMR":"2"},"chunks":30,"note":"线上执汉 对 提速版（LMR=2）执楚，霸王 10 万节点"}
+# 收到 30/30 段
+== current | hard vs hard  [汉 git:4db9f8c | 楚 tools/variants/bfai_fast.js] | 150 局 | 0s ==
+胜负：汉 59  楚 91  和/超时 0   汉方胜率（分胜负的局）39.3%  95%CI 32–47%
+结局：b:checkmate 91  r:checkmate 59
+回合：平均 49.3  中位 48  P90 74  60 回合内结束 78.7%  进入决战 0.0%
+将死 150 局：将军的子有 2 血以上 92.0%（其中贴在帅将身边 69.3%），双将 8.0%
+攻防指标：车参与的将死 63.3%（三级以上的车 48.0%）；贴脸将死 71.3%；被将死的一方开局 4 个士象，终局平均丢 1.71 个（丢 0/1/2/3/4 个的局：28/39/41/32/10）
+士象技能（两方合计，每局平均次数）：护驾 1.60，铁甲禁卫 0.56，飞越 0.19，齐射 0.04，践踏打中 0.02，反击 0.00
+行动（用过的局占比 / 每局平均次数）  汉 | 楚
+  破釜沉舟         0.0%   0.00 |  42.7%   0.43
+  召回良将        40.7%   0.41 |   0.0%   0.00
+  召回后马上升级     32.7%   0.33 |   0.0%   0.00
+  普通走子       100.0%  45.63 | 100.0%  45.25
+  停着           0.0%   0.00 |   1.3%   0.01
+  冲阵          23.3%   0.33 |  16.0%   0.20
+  飞越           4.7%   0.05 |  10.7%   0.13
+  护驾          46.7%   0.93 |  40.7%   0.67
+  拒马          41.3%   1.83 |  53.3%   2.43
+  霹雳          24.0%   0.33 |  22.7%   0.29
+  齐射           2.7%   0.04 |   0.0%   0.00
+  踏营          26.7%   0.44 |  28.0%   0.59
+  终极兵法         1.3%   0.01 |   6.0%   0.06
+  回防(被动)       2.0%   0.03 |   6.0%   0.08
+  铁甲禁卫(被动)    21.3%   0.33 |  18.0%   0.23
+  神速营(被动)     13.3%   0.17 |  25.3%   0.37
+升级（* = 甲片自动晋升）  汉 | 楚 （用过的局占比 / 每局平均）
+  a2     82.7%  1.35 |  79.3%  1.26
+  a3     64.0%  0.98 |  56.7%  0.83
+  a4     34.7%  0.45 |  37.3%  0.48
+  c2     94.7%  1.27 |  82.7%  1.08
+  c3     69.3%  0.83 |  56.7%  0.65
+  e2     44.7%  0.53 |  47.3%  0.55
+  e2*     0.0%  0.00 |   2.0%  0.02
+  e3     24.0%  0.25 |  35.3%  0.39
+  e4      6.7%  0.07 |  10.0%  0.10
+  n2     89.3%  1.43 |  90.0%  1.35
+  n3     58.7%  0.75 |  64.0%  0.82
+  p2     99.3%  2.29 | 100.0%  2.53
+  p3     56.7%  0.92 |  72.7%  1.17
+  p4     20.0%  0.29 |  29.3%  0.39
+  r2     82.7%  1.14 |  77.3%  1.01
+  r3     44.7%  0.53 |  47.3%  0.50
+  r4     11.3%  0.11 |   8.7%  0.09
+击杀来源（每局平均）  汉 | 楚
+  普通吃子         6.21 |   6.73
+  冲阵           0.19 |   0.09
+  飞越           0.00 |   0.01
+  践踏           0.00 |   0.01
+  霹雳           0.21 |   0.24
+  齐射           0.03 |   0.00
+  踏营           0.08 |   0.11
+  回防(被动)       0.01 |   0.01
+  铁甲禁卫(被动)     0.09 |   0.05
+造成伤害但没打死（每局平均）  汉 | 楚
+  强攻           3.94 |   4.16
+  冲阵           0.19 |   0.15
+  飞越           0.01 |   0.03
+  践踏           0.00 |   0.01
+  霹雳           0.30 |   0.20
+  齐射           0.01 |   0.00
+  踏营           0.03 |   0.05
+军功来源（每局平均）  汉 | 楚
+  击杀       19.7 |   21.8
+  哀兵        7.2 |    6.8
+  回合       34.0 |   34.1
+  将军        6.8 |    6.3
+  过河        0.9 |    1.1
+终极兵法：汉用 2 局（平均第 72.5 回合，用了的局胜 100.0%）  楚用 9 局（第 61.7 回合，胜 88.9%）  护驾破鸿门宴 2 局
+主帅兵法：汉召回 61 局（第 32.6 回合，胜 29.5%）  楚背水 64 局（第 36.6 回合，胜 35.9%）
+召回的子（61 次）：炮 6、马 1、车 54；死时 1 级 43、2 级 13、3 级 5；回来 1 级 43、2 级 18；召回的子第一次升级：当场 49 次（平均花 5.1）、之后手动 7 次（召回后平均 3.6 回合、平均花 5.1）、甲片自动 0 次；没升过 5 次；死时一级的那些局汉胜 27.9%（43 局），二级以上 33.3%（18 局）
+少子才能用的主帅兵法（汉召回）：轮到自己时满足用的条件（车马炮比对方少；第三版还要至少丢了一半）过 79 局，第一次平均第 30.7 回合；真用了 61 局（胜 29.5%）
+少子才能用的主帅兵法（楚背水）：轮到自己时满足用的条件（车马炮比对方少；第三版还要至少丢了一半）过 84 局，第一次平均第 28.4 回合；真用了 64 局（胜 35.9%）
+车马炮持续落后（自己走完还少、到下回合还少）：汉 75 局（50.0%，第一次平均第 27.4 回合、平均落后 12.1 回合；这些局汉胜 29.3%；其中用了主帅兵法 53 局、胜 30.2%） | 楚 90 局（60.0%，第一次平均第 21.9 回合、平均落后 21.0 回合；这些局楚胜 48.9%；其中用了主帅兵法 59 局、胜 35.6%）
+手动升级时的血量（升级回满血，掉了血再升更划算）：汉 满血 90.2%、掉过血 9.8%（只剩 1 血 9.3%），共 1930 次 | 楚 满血 88.2%、掉过血 11.8%（只剩 1 血 11.3%），共 1978 次
+先有二级车的一方：两边都有的 91 局里先到的胜 57.1%；只有一方有的 42 局里有的一方胜 81.0%
+背水前后（64 局，分数 + 汉优；背水没有封锁期，这里的“之后”只是汉方紧接着的一手）：背水那一手汉方 -7.19 分（子力 -4.89）；汉方随后一手 +1.15 分；这些局汉胜 64.1%
+首次升到 N 级（平均回合 / 出现的局占比）  汉 | 楚
+  2 级  第 3.0 回合 100.0% | 第 2.4 回合 100.0%
+  3 级  第 23.2 回合 93.3% | 第 21.6 回合 96.0%
+  4 级  第 44.8 回合 45.3% | 第 41.0 回合 55.3%
+局面分随回合（汉方视角，正 = 汉优）/ 军功 / 等级总和
+  R5（150 局在下）分 0.44  军功 汉 1.2 楚 1.0  等级 汉 0.9 楚 0.9
+  R10（149 局在下）分 0.57  军功 汉 2.3 楚 1.9  等级 汉 1.2 楚 1.3
+  R15（149 局在下）分 0.87  军功 汉 2.5 楚 2.4  等级 汉 2.0 楚 2.1
+  R20（149 局在下）分 0.85  军功 汉 4.4 楚 4.1  等级 汉 3.4 楚 3.8
+  R30（132 局在下）分 0.72  军功 汉 4.4 楚 4.4  等级 汉 6.4 楚 7.1
+  R40（101 局在下）分 1.75  军功 汉 5.2 楚 5.7  等级 汉 8.5 楚 9.4
+翻盘（某回合落后 ≥ T 分的一方最后赢了）
+  R10≥2：41 局，落后方赢 20（48.8%），和 0
+  R10≥4：12 局，落后方赢 6（50.0%），和 0
+  R20≥2：97 局，落后方赢 34（35.1%），和 0
+  R20≥4：64 局，落后方赢 22（34.4%），和 0
+  R30≥2：107 局，落后方赢 28（26.2%），和 0
+  R30≥4：84 局，落后方赢 16（19.0%），和 0
+每步平均 2326ms
+（合并 30 份：/home/runner/work/chuhan_v01/chuhan_v01/parts/r20-lmr2-hard-b-0.json、/home/runner/work/chuhan_v01/chuhan_v01/parts/r20-lmr2-hard-b-1.json、/home/runner/work/chuhan_v01/chuhan_v01/parts/r20-lmr2-hard-b-2.json、/home/runner/work/chuhan_v01/chuhan_v01/parts/r20-lmr2-hard-b-3.json、/home/runner/work/chuhan_v01/chuhan_v01/parts/r20-lmr2-hard-b-4.json、/home/runner/work/chuhan_v01/chuhan_v01/parts/r20-lmr2-hard-b-5.json、/home/runner/work/chuhan_v01/chuhan_v01/parts/r20-lmr2-hard-b-6.json、/home/runner/work/chuhan_v01/chuhan_v01/parts/r20-lmr2-hard-b-7.json、/home/runner/work/chuhan_v01/chuhan_v01/parts/r20-lmr2-hard-b-8.json、/home/runner/work/chuhan_v01/chuhan_v01/parts/r20-lmr2-hard-b-9.json、/home/runner/work/chuhan_v01/chuhan_v01/parts/r20-lmr2-hard-b-10.json、/home/runner/work/chuhan_v01/chuhan_v01/parts/r20-lmr2-hard-b-11.json、/home/runner/work/chuhan_v01/chuhan_v01/parts/r20-lmr2-hard-b-12.json、/home/runner/work/chuhan_v01/chuhan_v01/parts/r20-lmr2-hard-b-13.json、/home/runner/work/chuhan_v01/chuhan_v01/parts/r20-lmr2-hard-b-14.json、/home/runner/work/chuhan_v01/chuhan_v01/parts/r20-lmr2-hard-b-15.json、/home/runner/work/chuhan_v01/chuhan_v01/parts/r20-lmr2-hard-b-16.json、/home/runner/work/chuhan_v01/chuhan_v01/parts/r20-lmr2-hard-b-17.json、/home/runner/work/chuhan_v01/chuhan_v01/parts/r20-lmr2-hard-b-18.json、/home/runner/work/chuhan_v01/chuhan_v01/parts/r20-lmr2-hard-b-19.json、/home/runner/work/chuhan_v01/chuhan_v01/parts/r20-lmr2-hard-b-20.json、/home/runner/work/chuhan_v01/chuhan_v01/parts/r20-lmr2-hard-b-21.json、/home/runner/work/chuhan_v01/chuhan_v01/parts/r20-lmr2-hard-b-22.json、/home/runner/work/chuhan_v01/chuhan_v01/parts/r20-lmr2-hard-b-23.json、/home/runner/work/chuhan_v01/chuhan_v01/parts/r20-lmr2-hard-b-24.json、/home/runner/work/chuhan_v01/chuhan_v01/parts/r20-lmr2-hard-b-25.json、/home/runner/work/chuhan_v01/chuhan_v01/parts/r20-lmr2-hard-b-26.json、/home/runner/work/chuhan_v01/chuhan_v01/parts/r20-lmr2-hard-b-27.json、/home/runner/work/chuhan_v01/chuhan_v01/parts/r20-lmr2-hard-b-28.json、/home/runner/work/chuhan_v01/chuhan_v01/parts/r20-lmr2-hard-b-29.json）
