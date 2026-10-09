@@ -99,7 +99,10 @@ const LB2 = (() => {
     const R = o.rig || { hipsY: 1.0, chest: 0.26, shX: 0.2, shY: 0.19, neck: 0.25, head: 0.07, L1: 0.3, L2: 0.26 };
     const hips = joint('hips', root, 0, R.hipsY, 0), chest = joint('chest', hips, 0, R.chest, 0), neck = joint('neck', chest, 0, R.neck, 0.0), head = joint('head', neck, 0, R.head, R.headZ ?? 0.012);
     const KEY = keyTex();
-    const robeMap = robeTex(C.robe, C.robeD); robeMap.repeat.set(6, 8);
+    const robeMap = robeTex(st === 5 ? 0x8f2a1c : C.robe, st === 5 ? 0x6a1d13 : C.robeD); robeMap.repeat.set(6, 8);
+    // 第五阶段：下摆撕开几道口子（V 字），镶边跟着断开
+    const NOTCH = st === 5 ? [[0.5, 0.2, 0.13], [-0.95, 0.13, 0.1], [2.5, 0.11, 0.09], [-2.2, 0.08, 0.07]] : [];
+    const notch = a => { let h = 0; for (const [a0, hh, w] of NOTCH) { let d = Math.abs(((a - a0 + PI) % TAU + TAU) % TAU - PI); if (d < w) h = Math.max(h, hh * (1 - d / w)); } return h; };
     const weaveN = TOON ? null : cv(256, 256, (g, w, h) => { const im = g.createImageData(w, h), d = im.data; for (let y = 0; y < h; y++) for (let x = 0; x < w; x++) { const i = (y * w + x) * 4, a = Math.sin(x * PI / 4) * (((y >> 2) & 1) ? 1 : -1), b = Math.sin(y * PI / 4) * (((x >> 2) & 1) ? -1 : 1); d[i] = 128 + a * 40; d[i + 1] = 128 + b * 40; d[i + 2] = 255; d[i + 3] = 255; } g.putImageData(im, 0, 0); }, false);
     if (weaveN) { weaveN.wrapS = weaveN.wrapT = THREE.RepeatWrapping; weaveN.repeat.set(60, 80); }
     const robeMat = TOON ? M(0xffffff, { map: robeMap }) : new THREE.MeshPhysicalMaterial({ map: robeMap, color: 0xa89088, roughness: 0.82, sheen: 0.7, sheenColor: new THREE.Color(0.9, 0.45, 0.35), sheenRoughness: 0.45, normalMap: weaveN, normalScale: new THREE.Vector2(0.35, 0.35) }), keyMat = (rep) => { const t = KEY.clone(); t.needsUpdate = true; t.repeat.set(rep, 1); return M(0xffffff, { map: t }); };
@@ -126,12 +129,19 @@ const LB2 = (() => {
     const robeN = (a, y) => { const [rx, rz] = ringAt(y); return V(Math.sin(a) / rx, 0, Math.cos(a) / rz).normalize(); };
     // 领口：前面开成 V 字（外襟在左、里襟在右，中间露出中衣）
     const neckTop = a => { const aa = ((a + PI) % TAU + TAU) % TAU - PI, x = Math.abs(aa); return x >= 1.2 ? 1.55 : 1.55 - (1.55 - 1.405) * Math.pow(1 - x / 1.2, 1.1); };
-    const robeGeo = gridGeo(192, 90, (u, v) => { const a = u * TAU, y = Math.min(neckTop(a), 1.55 - v * (1.55 - 0.02)), p = robeP(a, y); return [p.x, p.y, p.z]; });
+    const robeGeo = gridGeo(192, 90, (u, v) => { const a = u * TAU, y = Math.max(0.02 + notch(a), Math.min(neckTop(a), 1.55 - v * (1.55 - 0.02))), p = robeP(a, y); return [p.x, p.y, p.z]; });
     put(root, robeGeo, robeMat, 0.007);
     // 中衣：袍子里面一层米白，V 字领口里看得到
     put(root, gridGeo(96, 10, (u, v) => { const a = u * TAU, y = 1.545 - v * 0.2, p = robeP(a, y, -0.006); return [p.x, p.y, p.z]; }), M(C.inner, { rough: 0.85 }), 0.003);
     // 下摆的回纹镶边
-    put(root, gridGeo(192, 6, (u, v) => { const y = 0.13 - v * 0.112, p = robeP(u * TAU, y, 0.0035); return [p.x, p.y, p.z]; }), keyMat(22), 0.005);
+    put(root, gridGeo(192, 6, (u, v) => { const a = u * TAU, y = Math.max(0.018 + notch(a) * 1.02, 0.13 - v * 0.112), p = robeP(a, y, 0.0035); return [p.x, p.y, p.z]; }), keyMat(22), 0.005);
+    if (st === 5) {   // 下裳溅满泥：一层半透明的泥点盖在袍子外面，越往下越密
+      const mud = cv(512, 512, (g, w, h) => { g.clearRect(0, 0, w, h); for (let i = 0; i < 900; i++) { const t = Math.pow(rnd(), 0.6), y = h * (1 - t) * 0.98; g.fillStyle = `rgba(${86 + rnd() * 30 | 0},${66 + rnd() * 18 | 0},${44 + rnd() * 10 | 0},${0.35 + 0.5 * t})`; g.beginPath(); g.ellipse(rnd() * w, y, 2 + rnd() * 9 * (0.5 + t), 1 + rnd() * 4, rnd() * 3, 0, TAU); g.fill(); } const gr = g.createLinearGradient(0, 0, 0, h); gr.addColorStop(0, 'rgba(90,68,44,.55)'); gr.addColorStop(0.18, 'rgba(90,68,44,.15)'); gr.addColorStop(0.5, 'rgba(90,68,44,0)'); g.fillStyle = gr; g.fillRect(0, 0, w, h); });
+      mud.wrapS = THREE.RepeatWrapping; mud.repeat.set(4, 1);
+      const mm = TOON ? Core.toon(0xffffff, { unique: true, map: mud }) : new THREE.MeshStandardMaterial({ map: mud, roughness: 0.95 }); mm.transparent = true; mm.depthWrite = false;
+      const mg = gridGeo(192, 30, (u, v) => { const a = u * TAU, y = Math.max(0.02 + notch(a) + 0.002, 0.55 - v * 0.53), p = robeP(a, y, 0.004); return [p.x, p.y, p.z]; });
+      const mmesh = new THREE.Mesh(mg, mm); mmesh.renderOrder = 2; root.add(mmesh);
+    }
     // 大带（黑地，上下金线）+ 两条垂下的绅
     put(root, gridGeo(128, 3, (u, v) => { const y = 1.055 - v * 0.055, p = robeP(u * TAU, y, 0.006); return [p.x, p.y, p.z]; }), M(C.trim), 0.004);
     for (const yy of [1.052, 1.003]) put(root, gridGeo(128, 1, (u, v) => { const y = yy - v * 0.005, p = robeP(u * TAU, y, 0.0095); return [p.x, p.y, p.z]; }), M(C.gold, { metal: 0.6, rough: 0.4 }), 0);
@@ -190,6 +200,22 @@ const LB2 = (() => {
       if (s < 0) { const c = new THREE.Mesh(new THREE.CircleGeometry(0.022, 24), M(C.robe)); c.position.copy(p).addScaledVector(n, 0.001).add(V(0.012, 0.006, 0)); c.lookAt(c.position.clone().add(n)); root.add(c); }
     }
 
+    // 第一阶段：玉圭的底端和两只手的握点（胸口坐标）；左手在下托着圭底，右手在上
+    const GUI0 = V(0, -0.15, 0.27), GRIP = { 1: [0, -0.15 + 0.045, 0.27], '-1': [0, -0.15 + 0.1, 0.27] };
+    const capX = (r, l, x, y, z, rz = 0) => ({ geo: new THREE.CapsuleGeometry(r, l, 4, 10), color: C.skin, m: Core.M4(x, y, z, 0, 0, PI / 2 + rz) });
+    function fist(s) {   // 握着竖直的圭：掌在 s 一侧，四指从前面包过去，拇指压在上面；手腕往外后方接袖口
+      const H = [{ geo: roundBox(0.032, 0.088, 0.072, 0.013), color: C.skin, m: Core.M4(s * 0.034, 0, -0.004) }];
+      [0.03, 0.01, -0.01, -0.03].forEach((y, k) => H.push(capX(0.0095, 0.044 - (k === 3 ? 0.008 : 0), s * 0.004, y, 0.023)));
+      H.push({ geo: new THREE.CapsuleGeometry(0.0105, 0.036, 4, 10), color: C.skin, m: Core.M4(s * 0.012, 0.05, 0.014, 0, 0, s * 0.95) });
+      H.push({ geo: new THREE.CylinderGeometry(0.026, 0.028, 0.07, 14), color: C.skin, m: Core.M4(s * 0.07, -0.004, -0.03, 0, 0, PI / 2) });
+      return H;
+    }
+    function openHand(s) {   // 张开的手（挂在腕上，y 朝下是前臂方向）：掌 + 微弯的四指 + 拇指
+      const H = [{ geo: roundBox(0.075, 0.085, 0.03, 0.013), color: C.skin, m: Core.M4(0, -0.05, 0.004) }];
+      for (let f = 0; f < 4; f++) { const x = (f - 1.5) * 0.018, l = [0.042, 0.048, 0.045, 0.036][f]; H.push({ geo: taper([V(x, -0.088, 0.004), V(x, -0.088 - l * 0.6, 0.01), V(x, -0.088 - l, 0.022)], 0.0092, 0.0078, 8, 8), color: C.skin, m: new THREE.Matrix4() }); }
+      H.push({ geo: taper([V(-s * 0.032, -0.03, 0.012), V(-s * 0.048, -0.058, 0.026), V(-s * 0.05, -0.08, 0.036)], 0.0105, 0.008, 8, 8), color: C.skin, m: new THREE.Matrix4() });
+      return H;
+    }
     // —— 胳膊 + 大袖（袂）——
     const arms = {};
     for (const s of [-1, 1]) {
@@ -199,11 +225,20 @@ const LB2 = (() => {
       put(sh, up, robeMat, 0.007);
       put(sh, new THREE.SphereGeometry(0.076, 32, 20), robeMat, 0.007);
       put(el, new THREE.SphereGeometry(0.096, 32, 20), robeMat, 0.007);
+      const torn = st === 5 && s === -1;
+      if (torn) {   // 第五阶段右袖撕破：外袍只剩到肘，锯齿口；露出白色中衣的窄袖
+        put(el, gridGeo(24, 8, (u, v) => { const a = u * TAU, r = 0.046 - 0.006 * v; return [Math.sin(a) * r, -v * (R.L2 + 0.01), Math.cos(a) * r]; }), M(C.inner), 0.005);
+        let sd = 31; const rr = () => (sd = (sd * 16807) % 2147483647) / 2147483647, jag = []; for (let i = 0; i <= 40; i++) jag.push(i % 2 ? 0.02 + rr() * 0.05 : rr() * 0.02);
+        const rag = gridGeo(40, 6, (u, v) => { const a = u * TAU, i = Math.round(u * 40), r = 0.1 + 0.012 * v, L = 0.03 + (0.11 - jag[i]) * v; return [Math.sin(a) * r, 0.02 - L, Math.cos(a) * r]; });
+        put(el, rag, M(0xffffff, { map: robeMap, side: THREE.DoubleSide }), 0.006);
+      }
       // 袂：挂在肘上的大袋子。bagHolder 在 update 里转：x 顺着前臂、y 朝上，袋子总是往下垂
-      const holder = new THREE.Group(); el.add(holder);
-      const len = R.L2 + 0.04, DROP = 0.46;
+      const holder = new THREE.Group(); if (!torn) el.add(holder);
+      const len = R.L2 + 0.04, DROP = 0.42;
       const sect = (u) => {   // 截面：上面一段圆弧包着前臂，下面垂成一个 U 形
-        const r = 0.096 + 0.008 * u, D = r + DROP * Math.pow(sstep(0, 1, u * 1.15), 0.9) * (0.35 + 0.65 * u), wb = 0.05 - 0.018 * u;
+        // 圆袂：袖子最低处在前臂中段，往袖口收上去（袖口比袖身小）
+        const shp = u < 0.5 ? 0.3 + 0.7 * Math.pow(Math.sin(PI * u), 0.8) : 1 - 0.55 * sstep(0.5, 1, u);
+        const r = 0.096 + 0.008 * u, D = r + DROP * shp, wb = 0.05 - 0.016 * u;
         const P = [];
         for (let i = 0; i <= 8; i++) { const t = i / 8 * PI / 2; P.push([r * Math.cos(t), r * Math.sin(t)]); }        // 上弧（前半）
         for (let i = 1; i <= 10; i++) { const t = i / 10; P.push([-t * (D - wb), r + (wb - r) * t]); }                   // 前面一片往下
@@ -233,19 +268,21 @@ const LB2 = (() => {
       // strip 的宽度方向是 n×t，袖口这一圈 t 在截面里，n×t 正好顺着前臂
       put(holder, cuff, keyMat(1), 0.004);
       const hole = new THREE.Shape(); S1.P.forEach(([y, z], i) => i ? hole.lineTo(z * 0.97, y * 0.97 + S1.D * 0.03) : hole.moveTo(z * 0.97, y * 0.97 + S1.D * 0.03));
-      const hm = new THREE.Mesh(new THREE.ShapeGeometry(hole, 4), M(0x3a0d08, { side: THREE.DoubleSide })); hm.position.x = len - 0.004; hm.rotation.y = PI / 2; holder.add(hm);
-      arms[s] = { holder, el };
-      // 手：手掌 + 四指（弯着握）+ 拇指
-      const hand = new THREE.Group(); wr.add(hand); J['hand' + s] = hand;
-      if (!o.noHands) { const H = [];
-      H.push({ geo: roundBox(0.075, 0.085, 0.032, 0.014), color: C.skin, m: Models.M4 ? Models.M4(0, -0.045, 0.004) : new THREE.Matrix4().makeTranslation(0, -0.045, 0.004) });
-      for (let f = 0; f < 4; f++) {
-        const x = (f - 1.5) * 0.018, l = [0.042, 0.048, 0.045, 0.036][f];
-        const pts = [V(x, -0.085, 0.004), V(x, -0.085 - l * 0.55, 0.012), V(x, -0.085 - l * 0.8, 0.034), V(x, -0.085 - l * 0.65, 0.052)];
-        H.push({ geo: taper(pts, 0.0092, 0.0078, 8, 10), color: C.skin, m: new THREE.Matrix4() });
+      const hm = new THREE.Mesh(new THREE.ShapeGeometry(hole, 4), M(0x6e1a12, { side: THREE.DoubleSide })); hm.position.x = len - 0.004; hm.rotation.y = PI / 2; holder.add(hm);
+      // 袖口里露出一截白色中衣袖
+      const inn = put(holder, new THREE.CylinderGeometry(0.052, 0.056, 0.07, 24, 1, true), M(C.inner, { side: THREE.DoubleSide }), 0.003); inn.rotation.z = PI / 2; inn.position.set(len - 0.02, 0.008, 0);
+      if (!torn) arms[s] = { holder, el };
+      // 手
+      const hand = new THREE.Group(); J['hand' + s] = hand;
+      if (st === 1) { chest.add(hand); hand.position.set(...GRIP[s]); } else { wr.add(hand); if (st === 5 && s === -1) { hand.position.set(0, -0.055, 0.01); J.grip = hand; } }
+      if (!o.noHands) hand.add(VG(st === 1 || (st === 5 && s === -1) ? fist(s) : openHand(s), 0.0035, 0.55));
+      if (st === 5 && s === -1) {   // 马鞭：竹节鞭杆、几道红缨，鞭梢一截软绳
+        const W = [{ geo: new THREE.CylinderGeometry(0.0075, 0.01, 0.66, 8), color: 0x3a2416, m: Core.M4(0, 0.22, 0) }];
+        for (let k = 0; k < 6; k++) W.push({ geo: new THREE.TorusGeometry(0.0095, 0.0025, 6, 12), color: 0x6a4a2a, m: Core.M4(0, -0.06 + k * 0.1, 0, PI / 2) });
+        for (let k = 0; k < 3; k++) W.push({ geo: new THREE.SphereGeometry(0.016, 10, 8), color: C.sash, m: Core.M4(0, 0.24 + k * 0.12, 0, 0, 0, 0, 1, 0.55, 1) });
+        W.push({ geo: taper([V(0, 0.55, 0), V(0.03, 0.66, 0.01), V(0.09, 0.7, 0.02), V(0.15, 0.66, 0.03)], 0.004, 0.0015, 6, 12), color: 0x2a1a10, m: new THREE.Matrix4() });
+        hand.add(VG(W, 0.003, 0.6));
       }
-      H.push({ geo: taper([V(s * -0.03, -0.035, 0.012), V(s * -0.045, -0.06, 0.03), V(s * -0.04, -0.08, 0.05)], 0.011, 0.008, 8, 8), color: C.skin, m: new THREE.Matrix4() });
-      hand.add(VG(H, 0.004, 0.55)); }
     }
 
     // —— 头 ——
@@ -260,7 +297,7 @@ const LB2 = (() => {
       const gg = new THREE.ExtrudeGeometry(sp, { depth: 0.012, bevelEnabled: true, bevelSize: 0.004, bevelThickness: 0.004, bevelSegments: 2 }); gg.translate(0, 0, -0.006);
       const gui = put(new THREE.Group(), gg, M(C.jade, { rough: 0.25 }), 0.005).parent;
       const ridge = new THREE.Mesh(new THREE.BoxGeometry(0.004, 0.29, 0.004), M(0xd8ece0)); ridge.position.set(0, 0.15, 0.012); gui.add(ridge);
-      J.gui = gui; root.add(gui);
+      J.gui = gui; chest.add(gui); gui.position.copy(GUI0);
     }
 
     // —— 姿势：手的目标点 + 肘的朝向（胸口坐标），两节胳膊反解 ——
@@ -276,8 +313,9 @@ const LB2 = (() => {
       return [q1, new THREE.Quaternion().setFromUnitVectors(DOWN, fore)];
     }
     const POSES = {
-      gui: { arms: { '-1': [[-0.03, -0.1, 0.27], [-0.6, -0.3, -0.05]], '1': [[0.03, -0.1, 0.27], [0.6, -0.3, -0.05]] }, head: [0.03, 0, 0] },
+      gui: { arms: { '-1': [[-0.075, -0.15 + 0.1 - 0.008, 0.235], [-0.42, -0.35, -0.05]], '1': [[0.075, -0.15 + 0.045 - 0.008, 0.235], [0.42, -0.35, -0.05]] }, head: [0.03, 0, 0] },
       stand: { arms: { '-1': [[-0.3, -0.5, 0.08], [-0.6, -0.2, -0.3]], '1': [[0.3, -0.5, 0.08], [0.6, -0.2, -0.3]] } },
+      flee: { arms: { '-1': [[-0.36, 0.44, 0.16], [-0.8, 0.05, -0.3]], '1': [[0.3, -0.36, 0.16], [0.75, -0.3, 0.05]] }, chest: [0.05, 0.14, 0], head: [0.02, -0.14, 0.04] },
     };
     const ARM = ['sh-1', 'el-1', 'sh1', 'el1'], BODY = ['chest', 'head', 'neck', 'hips'];
     let qF = {}, qT = {}, eF = {}, eT = {}, t = 1, dur = 0.01;
@@ -293,14 +331,19 @@ const LB2 = (() => {
       if (t < 1) { t = Math.min(1, t + dt / dur); const e = t * t * (3 - 2 * t); for (const k of ARM) J[k].quaternion.slerpQuaternions(qF[k], qT[k], e); for (const k of BODY) { const a = eF[k], b = eT[k]; J[k].rotation.set(a[0] + (b[0] - a[0]) * e, a[1] + (b[1] - a[1]) * e, a[2] + (b[2] - a[2]) * e); } }
       root.updateMatrixWorld(true);
       for (const s of [-1, 1]) {
-        const A = arms[s]; const e0 = V(), w0 = V(); A.el.getWorldPosition(e0); J['wr' + s].getWorldPosition(w0);
-        const xa = w0.clone().sub(e0).normalize(), up = V(0, 1, 0), ya = up.clone().sub(xa.clone().multiplyScalar(up.dot(xa))); if (ya.lengthSq() < 1e-4) ya.set(0, 0, 1); ya.normalize();
+        const A = arms[s]; if (!A) continue; const e0 = V(), w0 = V(); A.el.getWorldPosition(e0); J['wr' + s].getWorldPosition(w0);
+        const xa = w0.clone().sub(e0).normalize(), up = V(0, 1, 0), steep = Math.abs(xa.y);
+        // 前臂越竖，袖袋越贴着胳膊垂（袋子压扁）；快竖直时袋子朝前外侧，不往背后甩
+        let ya = up.clone().sub(xa.clone().multiplyScalar(up.dot(xa)));
+        const fb = V(s * 0.4, 0, 0.9); root.localToWorld(fb).sub(root.getWorldPosition(V())); fb.sub(xa.clone().multiplyScalar(fb.dot(xa)));
+        ya.lerp(fb.normalize().multiplyScalar(-1), sstep(0.5, 0.9, steep)); if (ya.lengthSq() < 1e-4) ya.set(0, 0, 1); ya.normalize();
+        A.holder.scale.y = 1 - 0.68 * sstep(0.45, 0.85, steep);
         tm.makeBasis(xa, ya, xa.clone().cross(ya)); const qw = new THREE.Quaternion().setFromRotationMatrix(tm);
         A.el.getWorldQuaternion(tq); A.holder.quaternion.copy(tq.invert().multiply(qw));
       }
-      if (J.gui) { const a = V(), b = V(); J['hand-1'].getWorldPosition(a); J['hand1'].getWorldPosition(b); const m = a.add(b).multiplyScalar(0.5); root.worldToLocal(m); J.gui.position.set(m.x, m.y - 0.13, m.z + 0.04); }
+      if (J.grip) { const d = V(-0.35, 0.9, -0.22).normalize(), qw = new THREE.Quaternion().setFromUnitVectors(V(0, 1, 0), d); J.grip.parent.getWorldQuaternion(tq); J.grip.quaternion.copy(tq.invert().multiply(qw)); }
     }
-    setPose(st === 1 ? 'gui' : 'stand', 0.01); update(0.1);
+    setPose(st === 1 ? 'gui' : st === 5 ? 'flee' : 'stand', 0.01); update(0.1);
     if (!TOON) root.traverse(m => { if (m.isMesh) { m.castShadow = m.receiveShadow = true; } });
     root.userData.kind = 'liubang2';
     return { group: root, J, setPose, update, POSES };
@@ -382,6 +425,14 @@ const LB2 = (() => {
       for (let k = 0; k < 4; k++) { const z = faceZ(-0.35) + 0.008; const pts = [V(s * 0.005, HY - SY * 0.33 - k * 0.0015, z), V(s * 0.024, HY - SY * 0.37, z - 0.006), V(s * 0.036, HY - SY * 0.47 - k * 0.005, z - 0.016)]; B.push({ geo: taper(pts, 0.0058, 0.0012, 6, 8), color: C.beard, m: new THREE.Matrix4() }); }
       for (let k = 0; k < 5; k++) { const t = k / 4, y = HY - SY * (0.28 + t * 0.4), x = s * SX * (0.93 - t * 0.25), z = 0.02 + t * 0.045; const pts = [V(x, y, z), V(x * 0.97, y - 0.025, z + 0.008), V(x * 0.9, y - 0.05, z + 0.014)]; B.push({ geo: taper(pts, 0.007, 0.0015, 6, 6), color: C.beard, m: new THREE.Matrix4() }); }
     }
+    if (st === 5) {
+      seed = 57;
+      for (const [x0, z0, len, sw] of [[0.075, 0.03, 0.2, 0.02], [0.08, -0.02, 0.26, 0.03], [-0.074, 0.03, 0.18, -0.02], [-0.08, -0.03, 0.24, -0.025], [0.04, -0.08, 0.3, 0.01], [-0.03, -0.085, 0.28, -0.01], [0.0, -0.09, 0.32, 0.0], [0.06, -0.06, 0.22, 0.02]]) {
+        const y0 = HY + SY * 0.62, pts = [V(x0 * 0.6, y0 + 0.02, z0 * 0.6), V(x0 * 1.12, y0 - 0.04, z0 * 1.05), V(x0 * 1.2 + sw, y0 - len * 0.55, z0 * 1.1), V(x0 * 1.25 + sw * 2, y0 - len, z0 * 1.12 - 0.01)];
+        B.push({ geo: taper(pts, 0.0055, 0.0015, 6, 12), color: C.beard, m: new THREE.Matrix4() });
+      }
+      B.push({ geo: taper([V(-0.02, HY + SY * 0.75, SZ * 0.55), V(-0.04, HY + SY * 0.45, SZ * 0.95), V(-0.03, HY + SY * 0.15, SZ * 1.02)], 0.004, 0.0012, 6, 10), color: C.beard, m: new THREE.Matrix4() });   // 一绺垂到额前
+    }
     head.add(VG(B, 0.0028, 0.7));
   }
   // 脸：画在球的经纬 UV 上
@@ -400,12 +451,13 @@ const LB2 = (() => {
       for (let k = 0; k < 8; k++) { const y = 0.12 - k * 0.045; blob(-0.1 - k * 0.006, y, 26 + k * 2, 'rgba(120,70,50,.16)'); blob(0.1 + k * 0.006, y, 22 + k * 2, 'rgba(120,70,50,.08)'); }
       for (const s of [-1, 1]) {
         // 眉：粗、略上挑，一根根画
-        for (let k = 0; k < 26; k++) { const t = k / 25, x = s * (0.12 + t * 0.42), y = 0.24 + 0.045 * Math.sin(t * PI) - 0.02 * t; line([[x, y - 0.025], [x + s * 0.035, y + 0.012]], 4.5, 'rgba(32,26,22,.85)'); }
+        for (let k = 0; k < 26; k++) { const t = k / 25, x = s * (0.12 + t * 0.42), y = st === 5 ? 0.3 - 0.08 * t + 0.02 * Math.sin(t * PI) : 0.24 + 0.045 * Math.sin(t * PI) - 0.02 * t; line([[x, y - 0.025], [x + s * 0.035, y + 0.012]], 4.5, 'rgba(32,26,22,.85)'); }   // 第五阶段眉头往上挑（惊慌）
         // 眼：杏眼，上眼皮厚（双线），黑瞳带高光；眼袋、鱼尾纹
         const ey = 0.085;
-        fill([[s * 0.15, ey], [s * 0.24, ey + 0.045], [s * 0.36, ey + 0.05], [s * 0.47, ey + 0.012], [s * 0.36, ey - 0.03], [s * 0.24, ey - 0.032]], '#f2ece0');
-        const ir = P(s * 0.3, ey + 0.006); g.fillStyle = '#4a2c18'; g.beginPath(); g.arc(ir[0], ir[1], 13, 0, TAU); g.fill();
-        g.fillStyle = '#120c08'; g.beginPath(); g.arc(ir[0], ir[1], 6.5, 0, TAU); g.fill(); g.fillStyle = 'rgba(255,255,255,.9)'; g.beginPath(); g.arc(ir[0] - 4, ir[1] - 5, 3, 0, TAU); g.fill();
+        const op = st === 5 ? 1.45 : 1;   // 第五阶段眼睛睁大
+        fill([[s * 0.15, ey], [s * 0.24, ey + 0.045 * op], [s * 0.36, ey + 0.05 * op], [s * 0.47, ey + 0.012], [s * 0.36, ey - 0.03 * op], [s * 0.24, ey - 0.032 * op]], '#f2ece0');
+        const ir = P(s * 0.3, ey + 0.006); g.fillStyle = '#4a2c18'; g.beginPath(); g.arc(ir[0], ir[1], st === 5 ? 11 : 13, 0, TAU); g.fill();
+        g.fillStyle = '#120c08'; g.beginPath(); g.arc(ir[0], ir[1], st === 5 ? 5 : 6.5, 0, TAU); g.fill(); g.fillStyle = 'rgba(255,255,255,.9)'; g.beginPath(); g.arc(ir[0] - 4, ir[1] - 5, 3, 0, TAU); g.fill();
         line([[s * 0.13, ey + 0.002], [s * 0.24, ey + 0.05], [s * 0.37, ey + 0.056], [s * 0.49, ey + 0.016]], 6.5, '#15110e');   // 上眼线
         line([[s * 0.17, ey + 0.07], [s * 0.3, ey + 0.095], [s * 0.45, ey + 0.06]], 2.5, 'rgba(90,50,35,.55)');                // 双眼皮
         line([[s * 0.18, ey - 0.035], [s * 0.3, ey - 0.042], [s * 0.42, ey - 0.02]], 2, 'rgba(100,60,40,.4)');                  // 下眼皮
@@ -418,8 +470,15 @@ const LB2 = (() => {
       for (let k = 0; k < 3; k++) line([[-0.2, 0.37 + k * 0.05], [0, 0.38 + k * 0.05], [0.2, 0.37 + k * 0.05]], 2.2, 'rgba(110,60,40,.3)');      // 抬头纹
       line([[-0.03, 0.2], [-0.02, 0.15]], 2, 'rgba(110,60,40,.35)'); line([[0.03, 0.2], [0.02, 0.15]], 2, 'rgba(110,60,40,.35)');                 // 川字
       // 嘴：唇色、唇线
-      fill([[-0.15, -0.45], [-0.05, -0.415], [0, -0.425], [0.05, -0.415], [0.15, -0.45], [0.06, -0.51], [-0.06, -0.51]], hex(C.lip));
-      line([[-0.16, -0.452], [-0.06, -0.465], [0, -0.458], [0.06, -0.465], [0.16, -0.452]], 4, '#3a1a14');
+      if (st === 5) {   // 张着嘴：唇、黑的口腔、一排上牙；脸上蹭了泥
+        fill([[-0.17, -0.44], [-0.06, -0.405], [0, -0.415], [0.06, -0.405], [0.17, -0.44], [0.1, -0.58], [-0.1, -0.58]], hex(C.lip));
+        fill([[-0.13, -0.445], [0, -0.43], [0.13, -0.445], [0.08, -0.55], [-0.08, -0.55]], '#2a0e0a');
+        fill([[-0.1, -0.445], [0, -0.433], [0.1, -0.445], [0.09, -0.47], [-0.09, -0.47]], '#ece4d4');
+        for (const [x, y, r] of [[0.42, -0.12, 30], [-0.5, 0.02, 22], [0.25, 0.42, 18]]) blob(x, y, r, 'rgba(95,72,48,.45)');
+      } else {
+        fill([[-0.15, -0.45], [-0.05, -0.415], [0, -0.425], [0.05, -0.415], [0.15, -0.45], [0.06, -0.51], [-0.06, -0.51]], hex(C.lip));
+        line([[-0.16, -0.452], [-0.06, -0.465], [0, -0.458], [0.06, -0.465], [0.16, -0.452]], 4, '#3a1a14');
+      }
       // 头发：发际线以上、后脑全是发
       g.fillStyle = hex(C.beard); g.fillRect(0, 0, w, h * 0.17);
       g.fillRect(w * 0.5, 0, w * 0.5, h * 0.56); g.fillRect(0, 0, w * 0.07, h * 0.56);
