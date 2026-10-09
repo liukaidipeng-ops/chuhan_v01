@@ -1894,8 +1894,8 @@
       $('upGo').onclick = () => fin(true); $('upNo').onclick = () => fin(false);
     });
   }
-  // 技能块的样式：Ham 10-09 审批台 td-009 选方案一（色带行）；其余保留作备选，网址 ?sv=0（朴素）/ 2（卡片 + 圆章）/ 3（印章块）调出来
-  const SKV = Math.max(0, Math.min(3, +(Core.DIAG.get('sv') || 1)));
+  // 技能块的样式：Ham 10-09 审批台 td-009 先选方案一，22:20 改选方案三（印章块）；其余保留作备选，网址 ?sv=0（朴素）/ 1（色带行）/ 2（卡片 + 圆章）调出来
+  const SKV = Math.max(0, Math.min(3, +(Core.DIAG.get('sv') || 3)));
   // 升级所需功勋：攒满这么多点（一杀一点）就自动晋升；已经满级返回 null
   const upNeed = p => { const U = BF.CFG.upgrade; if (!p || p.t === 'k' || p.lv >= BF.maxLvOf(p.t)) return null; return Math.ceil(game.baseCost(p) / (U.killDiscount || 1)); };
   // 生命、攻击、功勋三块大字（颜色区分：生命红、攻击橙、功勋金）

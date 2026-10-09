@@ -201,9 +201,9 @@ input.code{font-size:calc(30px * var(--fs,1));letter-spacing:.4em;text-align:cen
 #tip .sv2 .tsk.cd{background:rgba(var(--c),.06);border-color:rgba(var(--c),.28)}#tip .sv2 .tsk.cd .sn,#tip .sv2 .tsk.cd .sd{opacity:.5}#tip .sv2 .tsk.cd .sb{color:#fff;font-size:calc(18px * var(--fs,1));background:rgba(var(--c),.35)}
 #tip .sv2 .tsk.off{border-style:dashed;background:rgba(138,131,120,.08)}
 /* 三：左边一枚印章（技能名竖排），冷却时印章压暗、上面是剩几回合 */
-#tip .sv3 .tsk{display:grid;grid-template-columns:28px 1fr;column-gap:8px;padding:4px 7px 4px 4px;border-radius:3px;background:rgba(var(--c),.09)}
-#tip .sv3 .sc{grid-column:2;margin-left:0}#tip .sv3 .sn{grid-row:1/4;align-self:stretch;writing-mode:vertical-rl;text-orientation:upright;display:flex;align-items:center;justify-content:center;background:rgb(var(--c));color:#1b1714;border-radius:3px;letter-spacing:.05em;font-size:calc(13px * var(--fs,1));padding:4px 0;min-height:44px}
-#tip .sv3 .ss{grid-column:2}#tip .sv3 .sd{grid-column:2}#tip .sv3 .sb{display:none}
+#tip .sv3 .tsk{display:grid;grid-template-columns:28px auto 1fr;column-gap:8px;padding:4px 7px 4px 4px;border-radius:3px;background:rgba(var(--c),.09)}
+#tip .sv3 .sc{grid-column:3;grid-row:1;margin-left:10px;align-self:center}#tip .sv3 .sn{grid-row:1/3;align-self:stretch;writing-mode:vertical-rl;text-orientation:upright;display:flex;align-items:center;justify-content:center;background:rgb(var(--c));color:#1b1714;border-radius:3px;letter-spacing:.05em;font-size:calc(13px * var(--fs,1));padding:4px 0;min-height:44px}
+#tip .sv3 .ss{grid-column:2;grid-row:1}#tip .sv3 .sd{grid-column:2/4;grid-row:2}#tip .sv3 .sb{display:none}
 #tip .sv3 .tsk.cd .sn{background:rgba(var(--c),.28);color:rgba(255,255,255,.22)}#tip .sv3 .tsk.cd .sb{display:flex;position:absolute;left:4px;top:4px;bottom:4px;width:28px;align-items:center;justify-content:center;font-size:calc(20px * var(--fs,1));font-weight:bold;color:#fff}
 #tip .sv3 .tsk.cd .sd{color:#958a73}
 #tip .sv3 .tsk.off .sn{background:none;border:1px dashed #8a8378;color:#8a8378}
