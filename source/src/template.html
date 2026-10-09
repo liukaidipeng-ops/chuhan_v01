@@ -494,8 +494,94 @@ body.cine #hud>*{opacity:0!important;pointer-events:none!important}
 #anaList .mv{flex:1;min-width:6em}#anaList .bm{flex-basis:100%;padding-left:3.6em;color:#8fe0bd;font-size:calc(12px * var(--fs,1))}
 #ana .tg,#anaSum i{font-style:normal;font-size:calc(11px * var(--fs,1));padding:0 6px;border-radius:9px;white-space:nowrap}
 #ana .g0{background:rgba(63,199,181,.25);color:#7fe3d5}#ana .g1{background:rgba(110,190,120,.22);color:#a6e0ad}#ana .g2{background:rgba(200,190,150,.18);color:#d9cfa8}#ana .g3{background:rgba(255,166,64,.25);color:#ffc27a}#ana .g4{background:rgba(255,75,58,.28);color:#ff9c90}#ana .tg.wait{color:#7d7360}
+#anaList .xb{border:1px solid rgba(143,224,189,.6);background:rgba(63,138,94,.25);color:#bff0d6;border-radius:3px;font-size:calc(11px * var(--fs,1));padding:0 7px;line-height:1.6;cursor:pointer;margin-left:2px}#anaList .xb:hover{background:rgba(63,138,94,.5)}
+#ana.det #anaSum,#ana.det #anaChart,#ana.det #anaList{display:none}
+#anaDet{flex:1;overflow-y:auto;min-height:0;line-height:1.65}#anaDet .dh{display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin-bottom:8px}#anaDet .dh span{flex:1}
+#anaDet .db{border:1px solid rgba(217,184,119,.55);background:rgba(255,255,255,.05);color:#f1e3c2;border-radius:3px;padding:2px 10px;cursor:pointer;font-size:calc(12px * var(--fs,1))}#anaDet .db:hover{background:rgba(255,255,255,.12)}
+#anaDet .db.b{border-color:#3f8a5e;color:#bff0d6}#anaDet .db.r{border-color:#b0301f;color:#ffc2b8}
+#anaDet .dp{display:flex;gap:8px;margin:0 0 8px}#anaDet .dp em{flex:none;font-style:normal;font-size:calc(11px * var(--fs,1));color:#1b1714;background:#d9b877;border-radius:2px;padding:0 5px;height:1.6em;line-height:1.6em;margin-top:.15em;white-space:nowrap}#anaDet .dp p{margin:0}#anaDet .dp b{color:#ffd98a;font-weight:normal}
+#anaDet .dd{display:flex;gap:8px;margin-top:4px;flex-wrap:wrap}#anaDet .dw{color:#bfae8a;padding:12px 0}
+#anaDet.demo .dd button{opacity:.4;pointer-events:none}#anaDet.demo .dp,#anaDet.demo .dd{display:none}#anaDet.demo::after{content:attr(data-k);display:block;margin-top:8px;padding:6px 8px;border-radius:4px;background:rgba(63,138,94,.25);color:#bff0d6}
+/* —— 分析面板 · 方案一「战报长卷」：底部横卷，米黄纸、两头卷轴；上面水墨局势，下面一根根竹简 —— */
+#ana.v1{left:24px;right:24px;width:auto;top:auto;bottom:calc(82px + var(--safe-b));height:236px;display:grid;grid-template-columns:132px 1fr;grid-template-rows:24px 64px 1fr;column-gap:14px;padding:8px 22px 8px;color:#2a2118;border:none;border-radius:2px;
+  background:linear-gradient(rgba(122,90,51,.12),rgba(122,90,51,0) 8%,rgba(122,90,51,0) 92%,rgba(122,90,51,.14)),linear-gradient(#f4e9cf,#ead9b3);box-shadow:0 12px 30px rgba(0,0,0,.45),inset 0 0 0 1px rgba(122,90,51,.45),inset 0 3px 0 rgba(255,255,255,.4)}
+#ana.v1::before,#ana.v1::after{content:'';position:absolute;top:-6px;bottom:-6px;width:12px;border-radius:6px;background:linear-gradient(90deg,#3b2414,#7a4a26 45%,#3b2414);box-shadow:0 2px 6px rgba(0,0,0,.5)}#ana.v1::before{left:-10px}#ana.v1::after{right:-10px}
+#ana.v1 .anaH{grid-column:1/3;margin:0}#ana.v1 .anaH b{color:#8a2414;letter-spacing:.4em}#ana.v1 #anaProg{color:#7a5a33}#ana.v1 #anaX{color:#7a5a33}
+#ana.v1 #anaSum{grid-column:1;grid-row:2/4;flex-direction:column;gap:8px;margin:2px 0 0}
+#ana.v1 .lp{position:relative;padding:6px 8px 6px 46px;border-radius:3px;background:linear-gradient(#2b211a,#1a1410);color:#f1e3c2;border:1px solid #c9a045;box-shadow:inset 0 0 0 2px #1a1410,inset 0 0 0 3px rgba(201,160,69,.35);line-height:1.2}
+#ana.v1 .lp b{position:absolute;left:7px;top:9px;width:30px;height:30px;display:grid;place-items:center;border-radius:3px;font-size:18px;color:#fff3dc}#ana.v1 .lp.r b{background:#a8321f}#ana.v1 .lp.b b{background:#2f2a24;box-shadow:inset 0 0 0 1px #8c7a5a}
+#ana.v1 .lp span{font-size:22px;font-weight:bold;color:#ffd98a;font-family:var(--num)}#ana.v1 .lp span small{font-size:12px}#ana.v1 .lp em{font-style:normal;font-size:11px;color:#bfae8a;margin-left:4px}#ana.v1 .lp i{display:block;font-style:normal;font-size:11px;color:#d9c79c;margin:2px 0 0;padding:0;border-radius:0;background:none;white-space:normal;letter-spacing:0}
+#ana.v1 #anaChart{grid-column:2;grid-row:2;height:64px;margin:0;border-radius:0}
+#ana.v1 #anaChart .rv{stroke:rgba(122,90,51,.55);stroke-width:1;stroke-dasharray:6 4}#ana.v1 #anaChart .rt{font-size:11px;fill:#8c6a3c;letter-spacing:.2em}#ana.v1 #anaChart .ln{fill:none;stroke:#2a2118;stroke-width:2.4;stroke-linecap:round;stroke-linejoin:round}
+#ana.v1 #anaChart g rect{stroke:#fff3dc;stroke-width:1}#ana.v1 #anaChart .st4 rect{fill:#b0301f}#ana.v1 #anaChart .st3 rect{fill:#c8761f}#ana.v1 #anaChart g text{font-size:10px;fill:#fff3dc;font-weight:bold}#ana.v1 #anaChart .cur{stroke:#8a2414;stroke-width:1.5}
+#ana.v1 #anaList{grid-column:2;grid-row:3;display:flex;gap:5px;overflow-x:auto;overflow-y:hidden;margin:0;padding:6px 2px 4px;align-items:flex-start}
+#ana.v1 #anaList .ar.sl{flex:none;writing-mode:vertical-rl;width:30px;height:104px;padding:16px 0 4px;gap:0;flex-wrap:nowrap;justify-content:flex-start;align-items:center;border-radius:3px;color:#2a2118;line-height:1.1;position:relative;
+  background:linear-gradient(transparent 11px,rgba(90,60,20,.35) 11px 12px,transparent 12px calc(100% - 14px),rgba(90,60,20,.3) calc(100% - 14px) calc(100% - 13px),transparent 0),linear-gradient(90deg,#bf9a5a,#e3c78c 35%,#d6b679 70%,#b58f50);box-shadow:0 1px 2px rgba(60,40,10,.4);transition:transform .15s}
+#ana.v1 #anaList .ar.sl.r{border-top:3px solid #a8321f}#ana.v1 #anaList .ar.sl.b{border-top:3px solid #2a2622}
+#ana.v1 #anaList .ar.sl:hover{background-color:transparent;filter:brightness(1.05)}#ana.v1 #anaList .ar.sl.on{transform:translateY(-5px);box-shadow:0 0 0 2px #8a2414,0 4px 10px rgba(60,20,10,.4)}
+#ana.v1 #anaList .sl .no{position:absolute;top:1px;left:0;right:0;writing-mode:horizontal-tb;text-align:center;width:auto;font-size:10px;color:#5d4526}
+#ana.v1 #anaList .sl .mv{flex:none;min-width:0;font-size:13px;letter-spacing:.06em}
+#ana.v1 #anaList .sl .tg{writing-mode:horizontal-tb;margin-block-start:auto;margin-top:auto;width:18px;height:18px;padding:0;border-radius:2px;display:grid;place-items:center;font-size:11px;font-weight:bold;color:#fff3dc}
+#ana.v1 #anaList .sl .tg.g0{background:#2f7d5f}#ana.v1 #anaList .sl .tg.g1{background:#5f8a3e}#ana.v1 #anaList .sl .tg.g2{background:#9c8a5c}#ana.v1 #anaList .sl .tg.g3{background:#c8761f}#ana.v1 #anaList .sl .tg.g4{background:#b0301f}#ana.v1 #anaList .sl .tg.wait{background:none;color:#7a5a33}
+#ana.v1 #anaList .sl .xb{writing-mode:horizontal-tb;position:absolute;bottom:-20px;left:50%;transform:translateX(-50%);margin:0;padding:0 5px;background:#8a2414;border-color:#8a2414;color:#fff3dc}
+#ana.v1 #anaList .sl.bad{background:linear-gradient(transparent 11px,rgba(90,60,20,.35) 11px 12px,transparent 12px calc(100% - 14px),rgba(90,60,20,.3) calc(100% - 14px) calc(100% - 13px),transparent 0),linear-gradient(90deg,#c29358,#e8c28f 35%,#dcae7a 70%,#b8844e)}
+#ana.v1 #anaList .sl:has(.xb){margin-bottom:22px}
+#ana.v1.det #anaChart,#ana.v1.det #anaList{display:none}#ana.v1.det #anaSum{display:flex}
+#ana.v1 #anaDet{grid-column:2;grid-row:2/4;columns:2 300px;column-gap:26px;column-rule:1px solid rgba(122,90,51,.3);color:#2a2118;overflow-y:auto}
+#ana.v1 #anaDet .dh,#ana.v1 #anaDet .dd,#ana.v1 #anaDet .dw{column-span:all}#ana.v1 #anaDet .dp{break-inside:avoid}#ana.v1 #anaDet .dp b{color:#8a2414;font-weight:bold}#ana.v1 #anaDet .dp em{background:#7a5a33;color:#f4e9cf}
+#ana.v1 #anaDet .db{color:#2a2118;border-color:rgba(122,90,51,.6);background:rgba(255,255,255,.35)}#ana.v1 #anaDet .db.b{color:#1f5f45;border-color:#2f7d5f}#ana.v1 #anaDet .db.r{color:#8a2414;border-color:#b0301f}#ana.v1 #anaDet .dw{color:#7a5a33}
+#ana.v1 .tg.g0{background:#2f7d5f;color:#fff}#ana.v1 .tg.g1{background:#5f8a3e;color:#fff}#ana.v1 .tg.g2{background:#9c8a5c;color:#fff}#ana.v1 .tg.g3{background:#c8761f;color:#fff}#ana.v1 .tg.g4{background:#b0301f;color:#fff}
+/* —— 方案二「古谱朱批」：米黄纸页，竖排记谱从右往左读，朱笔圈点、夹注「宜……」 —— */
+#ana.v2{background:radial-gradient(ellipse at 30% 20%,rgba(255,255,255,.35),transparent 60%),linear-gradient(#f1e5c8,#e8d8b2);color:#1f1a14;border:1px solid #6b4f2c;box-shadow:0 10px 30px rgba(0,0,0,.45),inset 0 0 0 5px #efe2c4,inset 0 0 0 6px #9c2a1a,inset 0 0 0 8px #efe2c4,inset 0 0 0 9px rgba(156,42,26,.5)}
+#ana.v2 .anaH{padding:2px 4px}#ana.v2 .anaH b{color:#9c2a1a;letter-spacing:.35em;font-size:calc(17px * var(--fs,1))}#ana.v2 #anaProg{color:#7a5a33}#ana.v2 #anaX{color:#6b4f2c}
+#ana.v2 #anaSum{align-items:center;gap:10px;padding:0 4px}
+#ana.v2 .sl{width:52px;height:52px;flex:none;display:grid;grid-template-rows:auto auto;place-items:center;align-content:center;border-radius:4px;font-weight:bold;line-height:1.05;transform:rotate(-3deg)}
+#ana.v2 .sl.r{border:2.5px solid #b0301f;color:#b0301f}#ana.v2 .sl.b{background:#b0301f;color:#f8ead0;transform:rotate(2deg)}
+#ana.v2 .sl b{font-size:13px;margin:0}#ana.v2 .sl span{font-size:21px;font-family:var(--num)}
+#ana.v2 .lgd{flex:1;font-size:11px;color:#6b4f2c;line-height:1.7}#ana.v2 .lgd i{font-style:normal;color:#b0301f;font-weight:bold;margin-right:1px}
+#ana.v2 #anaChart{height:22px;margin:2px 0 6px}#ana.v2 #anaChart .frame{fill:none;stroke:#6b4f2c;stroke-width:.8}#ana.v2 #anaChart .dot{fill:#b0301f}#ana.v2 #anaChart .cur{fill:none;stroke:#b0301f;stroke-width:1.5}
+#ana.v2 #anaList{writing-mode:vertical-rl;overflow-x:auto;overflow-y:hidden;margin:0;padding:6px 4px;line-height:34px;border-top:1px solid rgba(107,79,44,.45);border-bottom:1px solid rgba(107,79,44,.45);background:repeating-linear-gradient(to left,transparent 0 33px,rgba(156,42,26,.18) 33px 34px)}
+#ana.v2 #anaList .ar{display:inline;padding:0;border-radius:0;font-size:calc(15px * var(--fs,1));letter-spacing:.08em;cursor:pointer;color:#1f1a14}
+#ana.v2 #anaList .ar.b .mv{color:#3a3128}
+#ana.v2 #anaList .ar .no{display:inline;width:auto;text-align:start;font-size:calc(11px * var(--fs,1));color:#8c6a3c;margin-block-start:.6em}#ana.v2 #anaList .ar .no:empty{display:none}
+#ana.v2 #anaList .ar .mv{display:inline;min-width:0;flex:none}
+#ana.v2 #anaList .mk{font-style:normal;color:#b0301f;font-weight:bold;margin:0 .1em .35em}#ana.v2 #anaList .mk.m0,#ana.v2 #anaList .mk.m1{color:#c0503a}
+#ana.v2 #anaList .bm{display:inline;padding:0;flex:none;font-size:calc(11px * var(--fs,1));color:#b0301f;margin-block-end:.6em}
+#ana.v2 #anaList .ar:hover .mv{background:rgba(156,42,26,.08)}#ana.v2 #anaList .ar.on .mv{background:rgba(156,42,26,.16);box-shadow:inset -2px 0 0 #b0301f}
+#ana.v2 #anaList .xb{writing-mode:horizontal-tb;display:inline-block;margin:.2em 0 .5em;padding:0 4px;line-height:1.5;background:#b0301f;border-color:#b0301f;color:#fff3e0;font-size:11px}
+#ana.v2 #anaDet{color:#1f1a14}#ana.v2 #anaDet .dp em{background:#9c2a1a;color:#fff1d8}#ana.v2 #anaDet .dp b{color:#9c2a1a;font-weight:bold}#ana.v2 #anaDet .db{color:#1f1a14;border-color:rgba(107,79,44,.6);background:rgba(255,255,255,.4)}#ana.v2 #anaDet .db.b{color:#1f5f45}#ana.v2 #anaDet .db.r{color:#9c2a1a}#ana.v2 #anaDet .dw{color:#7a5a33}#ana.v2 #anaDet.demo::after{background:rgba(156,42,26,.1);color:#9c2a1a}
+#ana.v2 .tg.g0,#ana.v2 .tg.g1{background:none;color:#c0503a;border:1px solid #c0503a}#ana.v2 .tg.g2{background:none;color:#8c6a3c;border:1px solid #8c6a3c}#ana.v2 .tg.g3,#ana.v2 .tg.g4{background:#b0301f;color:#fff1d8}
+/* —— 方案三「沙盘兵势」：不挡棋盘——底部一条兵势河 + 一排兵符；选中的那一步弹一张军情签 —— */
+#ana.v3{left:max(12px,calc(50% - 470px));right:max(12px,calc(50% - 470px));width:auto;top:auto;bottom:calc(82px + var(--safe-b));height:auto;display:grid;grid-template-columns:150px 1fr;grid-template-rows:40px auto;column-gap:12px;row-gap:4px;padding:6px 12px 8px;background:rgba(24,20,18,.9)}
+#ana.v3 .anaH{grid-column:1;grid-row:1;margin:0;flex-wrap:wrap;gap:0 6px;line-height:1.2}#ana.v3 .anaH b{font-size:14px;letter-spacing:.2em}#ana.v3 #anaProg{font-size:11px}#ana.v3 #anaX{position:absolute;right:6px;top:2px}
+#ana.v3 #anaSum{grid-column:1;grid-row:2;margin:0;gap:6px}#ana.v3 .bd{flex:1;padding:1px 6px;border-radius:3px;font-size:13px;font-weight:bold;color:#fff;white-space:nowrap;text-align:center}#ana.v3 .bd b{font-weight:normal;font-size:11px;margin-right:4px;opacity:.85}#ana.v3 .bd.r{background:#8a2a1a}#ana.v3 .bd.b{background:#2f5a40}
+#ana.v3 #anaChart{grid-column:2;grid-row:1;height:40px;margin:0 6px 0 0;border-radius:0}#ana.v3 #anaChart .rv{fill:rgba(120,170,200,.35)}#ana.v3 #anaChart .aR{fill:rgba(226,70,44,.6)}#ana.v3 #anaChart .aB{fill:rgba(63,160,100,.6)}#ana.v3 #anaChart .ln{fill:none;stroke:#f1e3c2;stroke-width:1.2}#ana.v3 #anaChart .cur{stroke:#ffd98a;stroke-width:2}
+#ana.v3 #anaList{grid-column:2;grid-row:2;display:flex;gap:2px;overflow-x:auto;overflow-y:hidden;margin:0 6px 0 0;padding:2px 0;align-items:flex-end;min-height:30px}
+#ana.v3 #anaList .ar.tk{flex:1 1 0;min-width:7px;max-width:22px;height:20px;padding:0;border-radius:2px 2px 8px 8px;background:#3a332c;position:relative;display:block;transition:height .12s}
+#ana.v3 #anaList .ar.tk.r{box-shadow:inset 0 2px 0 #e2462c}#ana.v3 #anaList .ar.tk.b{box-shadow:inset 0 2px 0 #4fae78}
+#ana.v3 #anaList .ar.tk i{position:absolute;inset:3px 1px 1px;border-radius:1px 1px 7px 7px;display:grid;place-items:center;font-style:normal;font-size:10px;font-weight:bold;color:#fff;padding:0}
+#ana.v3 #anaList .tk .g0{background:#3fc7b5}#ana.v3 #anaList .tk .g1{background:#6ebe78}#ana.v3 #anaList .tk .g2{background:#b9ab7c}#ana.v3 #anaList .tk .g3{background:#ff9a2e}#ana.v3 #anaList .tk .g4{background:#ff4b3a}
+#ana.v3 #anaList .ar.tk:hover{height:24px;background:#4a4239}#ana.v3 #anaList .ar.tk.on{height:28px;outline:2px solid #ffd98a;outline-offset:1px}
+#ana.v3.det #anaSum{display:flex}#ana.v3.det #anaChart{display:block}#ana.v3.det #anaList{display:flex}
+#anaCur{display:none}
+#ana.v3 #anaCur,#ana.v3 #anaDet{position:fixed;right:16px;top:calc(104px + var(--safe-t,0px));width:min(330px,calc(100vw - 32px));background:rgba(24,20,18,.95);border:1px solid rgba(217,184,119,.75);border-radius:6px;box-shadow:0 10px 30px rgba(0,0,0,.45),inset 0 0 0 3px rgba(24,20,18,.9),inset 0 0 0 4px rgba(217,184,119,.22);padding:10px 12px}
+#ana.v3 #anaCur:not(.hidden){display:block}#ana.v3 #anaCur .ch{display:flex;align-items:center;gap:6px;flex-wrap:wrap;font-size:15px}#ana.v3 #anaCur .ch b{color:#bfae8a;font-weight:normal;font-size:12px}#ana.v3 #anaCur .ch .tg{margin-left:auto}
+#ana.v3 #anaCur .sd{font-size:11px;padding:0 4px;border-radius:2px;color:#fff}#ana.v3 #anaCur .sd.r{background:#a8321f}#ana.v3 #anaCur .sd.b{background:#2f6a4a}
+#ana.v3 #anaCur .cb{margin-top:6px;color:#d9cfa8}#ana.v3 #anaCur .cb b{color:#8fe0bd;font-weight:normal}
+#ana.v3 #anaCur .xb{margin-top:8px;border:1px solid rgba(143,224,189,.6);background:rgba(63,138,94,.25);color:#bff0d6;border-radius:3px;padding:2px 12px;cursor:pointer}
+#ana.v3 #anaDet{width:min(390px,calc(100vw - 32px));max-height:calc(100vh - 330px);overflow-y:auto}
+@media (max-width:760px){
+  #ana.v1{left:14px;right:14px;bottom:calc(158px + var(--safe-b));height:auto;grid-template-columns:1fr;grid-template-rows:22px auto 56px auto;padding:6px 14px}
+  #ana.v1 #anaSum{grid-column:1;grid-row:2;flex-direction:row}#ana.v1 .lp{flex:1;padding-left:40px}#ana.v1 .lp b{width:26px;height:26px;font-size:15px;top:7px}#ana.v1 .lp span{font-size:18px}#ana.v1 .lp i{display:none}
+  #ana.v1 #anaChart{grid-column:1;grid-row:3;height:56px}#ana.v1 #anaList{grid-column:1;grid-row:4}#ana.v1 #anaList .ar.sl{height:104px}
+  #ana.v1 #anaDet{grid-column:1;grid-row:3/5;max-height:34vh}
+  #ana.v3{bottom:calc(158px + var(--safe-b));grid-template-columns:1fr;grid-template-rows:auto 34px auto}#ana.v3 .anaH{grid-row:1}#ana.v3 #anaSum{grid-row:1;justify-self:end;width:150px;margin-right:24px}#ana.v3 #anaChart{grid-column:1;grid-row:2;height:34px}#ana.v3 #anaList{grid-column:1;grid-row:3}
+  #ana.v3 #anaCur,#ana.v3 #anaDet{left:8px;right:8px;width:auto;top:calc(96px + var(--safe-t,0px))}#ana.v3 #anaDet{max-height:calc(100vh - 360px)}
+}
+body.anaOn.anaWide #cardMe{display:none}
+#ana.v1 #anaDet{padding-left:4px}
 body.anaOn #log{display:none}
-@media (max-width:760px){#ana{left:8px;right:8px;width:auto;top:auto;bottom:calc(150px + var(--safe-b));height:36vh;padding:8px 10px}#anaChart{max-height:72px}#anaSum .as{padding:3px 6px}}
+@media (max-width:760px){#ana{left:8px;right:8px;width:auto;top:auto;bottom:calc(158px + var(--safe-b));height:36vh;padding:8px 10px}#anaChart{max-height:72px}#anaSum .as{padding:3px 6px}}
 #rpBar button.x{background:transparent;box-shadow:inset 0 0 0 1px rgba(217,184,119,.55)}
 #rpBar button:disabled{opacity:.35;cursor:default}
 #rpInfo{color:#f1e3c2;font-size:calc(14px * var(--fs,1));letter-spacing:.08em;padding:0 6px;font-family:var(--num);white-space:nowrap}
@@ -1483,7 +1569,7 @@ html:has(#endcard:not(.hidden)),html:has(#endcard:not(.hidden)) body,html:has(#e
 <div id="verse"></div>
 <div id="fade"></div>
 <div id="endcard" class="hidden"></div>
-<div id="ana" class="hidden"><div class="anaH"><b>对局分析</b><span id="anaProg"></span><button id="anaX" title="收起">✕</button></div><div id="anaSum"></div><svg id="anaChart" viewBox="0 0 360 112" preserveAspectRatio="none"></svg><div id="anaList"></div></div>
+<div id="ana" class="hidden"><div class="anaH"><b>对局分析</b><span id="anaProg"></span><button id="anaX" title="收起">✕</button></div><div id="anaDet" class="hidden"></div><div id="anaCur" class="hidden"></div><div id="anaSum"></div><svg id="anaChart" viewBox="0 0 360 112" preserveAspectRatio="none"></svg><div id="anaList"></div></div>
 <div id="rpBar" class="hidden"><button data-rp="first" title="回到开局">|◀</button><button data-rp="prev" title="后退一步">◀</button><button data-rp="play" class="pl">▶ 播放</button><button data-rp="next" title="前进一步">▶</button><button data-rp="last" title="跳到终局">▶|</button><span id="rpInfo"></span><button data-rp="exit" class="x">退出复盘</button></div>
 <button class="btn small hidden" id="skip">跳过 ▸▸</button>
 <div id="toast"></div>

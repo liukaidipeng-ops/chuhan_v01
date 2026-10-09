@@ -505,6 +505,39 @@ function XQEngineFactory() {
     const res = rootSearch(40, time, lm.length === 1);   // 只有一步可走时也要算出分数（不走捷径）
     return { best: res.best ? toCoord(res.best) : null, score: res.score, depth: res.depth };
   }
+  // 对局分析 · 详解：同一个局面再细算一遍，给出
+  //   best / score：最好的一步和分数；actualScore：实际走的那步的分数（根上每步都按完整窗口算，分数可比）
+  //   bestPV：最好的一步往下几步；refute：实际走完以后双方各自最好的应法往下几步；after：实际走完后对方看的分
+  //   threat：这一方如果“停一手”，对方最想走什么（= 对方已经在威胁什么）；被将军时没有
+  //   往下的每一步都是在那个局面上重新搜一遍得到的（不顺着置换表捡——表里深处的记录可能是别的分支留下的，会编出不存在的丢子）
+  function lineSearch(moves, first, n, per) {
+    const seq = moves.slice(), out = [], scores = [];
+    if (first) { seq.push(first); out.push(first); }
+    while (out.length < n) {
+      setPosition(seq); if (!legalMoves().length) break;
+      const r = rootSearch(40, per, false); if (!r.best) break;
+      const m = toCoord(r.best); seq.push(m); out.push(m); scores.push(r.score);
+    }
+    return { line: out, scores };
+  }
+  function explainPos(moves, actual, time = 1200) {
+    setPosition(moves);
+    if (!legalMoves().length) return { over: true };
+    const res = rootSearch(40, time, true);
+    const am = actual ? fromCoord(actual) : 0, ent = res.moves.find(m => m.mv === am);
+    const per = Math.round(time * 0.13);
+    const out = { best: res.best ? toCoord(res.best) : null, score: res.score, depth: res.depth, actualScore: ent ? ent.v : null,
+      bestPV: res.best ? lineSearch(moves, toCoord(res.best), 7, per).line : [], alts: res.moves.slice(0, 4).map(m => ({ mv: toCoord(m.mv), v: m.v })) };
+    if (am) { const L = lineSearch(moves, actual, 7, per); out.refute = L.line.slice(1); out.after = L.scores.length ? L.scores[0] : -MATE; }
+    setPosition(moves);
+    if (!checked(sd)) {
+      nullMove();
+      const r3 = rootSearch(40, Math.round(time * 0.35), true);
+      if (r3.best) out.threat = { mv: toCoord(r3.best), score: r3.score };
+      undoNull();
+    }
+    return out;
+  }
   // 供测试：perft
   function perft(depth) {
     if (depth === 0) return 1;
@@ -512,7 +545,7 @@ function XQEngineFactory() {
     for (let i = 0; i < n; i++) { if (!tryMove(buf[i])) continue; c += depth === 1 ? 1 : perft(depth - 1); undoMove(); }
     return c;
   }
-  return { think, analyzePos, setPosition, perft, legalMoves: () => legalMoves().map(toCoord), evaluate, LEVELS, MATE, WIN };
+  return { think, analyzePos, explainPos, setPosition, perft, legalMoves: () => legalMoves().map(toCoord), evaluate, LEVELS, MATE, WIN };
 }
 
 // ===== 主线程封装：优先放进 Web Worker，失败则同步计算 =====
@@ -523,7 +556,7 @@ const AI = (() => {
     if (worker || local) return;
     try {
       const src = '(' + XQEngineFactory.toString() + ')';
-      const code = `const E = ${src}(); onmessage = e => { const d = e.data; let r; try { r = d.an ? E.analyzePos(d.moves, d.time) : E.think(d.moves, d.level); } catch (err) { r = { move: null, err: String(err) }; } postMessage({ id: d.id, r }); };`;
+      const code = `const E = ${src}(); onmessage = e => { const d = e.data; let r; try { r = d.ex ? E.explainPos(d.moves, d.actual, d.time) : d.an ? E.analyzePos(d.moves, d.time) : E.think(d.moves, d.level); } catch (err) { r = { move: null, err: String(err) }; } postMessage({ id: d.id, r }); };`;
       worker = new Worker(URL.createObjectURL(new Blob([code], { type: 'text/javascript' })));
       worker.onmessage = e => { if (pending && e.data.id === pending.id) { const p = pending; pending = null; p.res(e.data.r); } };
       worker.onerror = () => { worker = null; local = XQEngineFactory(); if (pending) { const p = pending; pending = null; p.res(local.think(p.moves, p.level, { time: 1500 })); } };
@@ -544,6 +577,13 @@ const AI = (() => {
       const id = ++seq, ms = moves.map(m => ({ from: m.from, to: m.to }));
       if (!worker) return new Promise(res => setTimeout(() => res(local.analyzePos(ms, time)), 0));
       return new Promise(res => { pending = { id, res, moves: ms, level: 'hard' }; worker.postMessage({ id, an: 1, moves: ms, time }); });
+    },
+    // 对局分析 · 详解（见 explainPos）
+    explainPos(moves, actual, time = 1200) {
+      ensure();
+      const id = ++seq, ms = moves.map(m => ({ from: m.from, to: m.to })), am = actual && { from: actual.from, to: actual.to };
+      if (!worker) return new Promise(res => setTimeout(() => res(local.explainPos(ms, am, time)), 0));
+      return new Promise(res => { pending = { id, res, moves: ms, level: 'hard' }; worker.postMessage({ id, ex: 1, moves: ms, actual: am, time }); });
     },
     // 取消正在进行的思考：直接终止工作线程，避免占用后续计算
     cancel() { if (pending && worker) { try { worker.terminate(); } catch (e) { } worker = null; } pending = null; },
