@@ -1188,11 +1188,15 @@ const Squads = (() => {
     if (def.setPose) def.setPose('ready');
     // 兵法·拒马：攻方先撞上木桩
     if (c.counter) {
-      if (def.setPose) def.setPose('brace');
+      if (def.setPose) def.setPose(def.troop ? 'pike' : 'brace');
+      if (def.troop) def.troop.actAll('thrust', 0.3, 0.1);
       const hitAt = B.clone().addScaledVector(d, -0.55);
       await charge(att, hitAt);
+      if (def.troop) def.troop.actAll('thrust', 0.25, 0.08);
       Sfx.B.stab(0, 0.5); Sfx.B.woodbreak(0.05, 0.35); Cam.shake(0.14);
       Fx.P.blood(att.center(0.25), 14, 0.7, d.clone().negate()); Fx.P.wood(hitAt, 8, d.clone().negate(), 0.6);
+      if (att.troop) att.troop.actAll('hit', 0.3, 0.12);
+      popAt(att.center(0.7), '-1');   // 攻方先挨一下：掉 1 点血
       if (counterDie) {
         await att.die('stab', d.clone().negate(), 1, att.center(0));
         await sleep(0.6);
@@ -1202,8 +1206,9 @@ const Squads = (() => {
         if (tgt) await Fx.rise(tgt, B, 0.4);
         return;
       }
+      // 余血再战：往后踉跄半步站稳（不转身，脸一直朝着守方——原来是转身走回起点，再冲时背对着守方），再冲上去
+      await stagger(att, hitAt.clone().addScaledVector(d, -0.4), yawA);
       await sleep(0.2);
-      await retreat(att, A); // 余血再战：退回起点重新冲锋
     }
     if (c.survive) def.die = (hit, dir, power, center) => hurtSquad(def, hit, dir, power, center);
     if (cine && t !== 'c') {
@@ -1255,6 +1260,24 @@ const Squads = (() => {
     speedUp(sq, 1);
     await walkPath(sq, [from, to], Math.max(0.35, from.distanceTo(to) / 2.2));
     speedUp(sq, 0);
+  }
+  // 挨了一下往后踉跄几步：只挪位置不转身，最后把脸转正到 yaw
+  async function stagger(sq, to, yaw) {
+    if (!sq.anchor) return;
+    const from = sq.anchor.clone();
+    if (sq.setPose && sq.troop) sq.setPose('stagger');
+    await tween(0.45, k => { sq.anchor.lerpVectors(from, to, k); }, ease.out);
+    if (yaw != null) await turnTo(sq, yaw, 0.12);
+    if (sq.setPose && sq.troop) sq.setPose('ready');
+  }
+  // 在某个三维位置上方飘一个字（掉血的「-1」）
+  function popAt(p, text, cls = 'dmg') {
+    try {
+      const v = p.clone().project(Core.camera); if (v.z > 1) return;
+      const el = document.createElement('div'); el.className = 'gainpop ' + cls; el.textContent = text;
+      el.style.left = (v.x + 1) / 2 * innerWidth + 'px'; el.style.top = (1 - v.y) / 2 * innerHeight + 'px';
+      document.body.appendChild(el); setTimeout(() => el.remove(), 1700);
+    } catch (e) { }
   }
   async function retreat(sq, A) {
     if (!sq.anchor || sq.mode === 'battery') return;
@@ -1351,6 +1374,11 @@ const Squads = (() => {
       if (st.flag) scene.remove(st.flag.group);
       if (st.ring) { scene.remove(st.ring); st.ring.material.dispose(); }
     }
+    // 拒马生效：这一队摆枪阵；失效了回到待机
+    function pikeOn(st, on) {
+      if (!!st.pike === on || !st.sq.troop) return;
+      st.pike = on; st.sq.setPose(on ? 'pike' : 'idle');
+    }
     function showDisc(m, show) {
       const [body, face, band] = m.children;
       if (body) body.visible = show; if (face) face.visible = show;
@@ -1358,20 +1386,21 @@ const Squads = (() => {
       const d = m.userData.deco; if (d) for (const c of d.children) if (c.userData.skin) c.visible = show;
     }
     function reconcile() {
-      const g = Board.lastGame, lvOf = new Map();
-      if (g && g.bf) for (const row of g.board) for (const p of row) if (p) lvOf.set(p.id, p.lv || 1);
+      const g = Board.lastGame, lvOf = new Map(), jmOf = new Set();
+      if (g && g.bf) for (const row of g.board) for (const p of row) if (p) { lvOf.set(p.id, p.lv || 1); if (p.t === 'p' && g.jmActive && g.jmActive(p)) jmOf.add(p.id); }
       for (const m of [...map.keys()]) if (!m.parent || Board.pieces.get(m.userData.id) !== m) drop(m);
       for (const m of Board.pieces.values()) {
         const u = m.userData;
         if (u.h || !u.t || u.t === 'h') { drop(m); continue; }
         const lv = g && g.bf ? lvOf.get(u.id) || 1 : 0, key = u.s + u.t + lv + (u.t === 'k' && finalMode ? 'F' : '');
         const st = map.get(m);
-        if (st && st.key === key) continue;
+        if (st && st.key === key) { pikeOn(st, jmOf.has(u.id)); continue; }
         drop(m);
         noRankFlag = true;
         let sq; try { sq = make(u.t, u.s, new V3(m.position.x, TOP, m.position.z), faceYaw(u.s), 'move', lv || 1, lv); } finally { noRankFlag = false; }
         const ns = { sq, key, k: 0, ph: Math.random() * 6.28 }; vis(ns, 0.001);
         if (sq.setPose && sq.troop) sq.setPose('idle');
+        pikeOn(ns, jmOf.has(u.id));
         if (sq.crew) sq.crew.setPose('idle');           // 炮手：站定，不再原地踏步
         if (sq.horse && !sq.mounted) sq.horse.speed = 0;
         // 一面写着棋子字的旗：由领头的背在身后（帅将的旗由随从擎着，只留「帥 / 將」一面）

@@ -399,17 +399,20 @@ const BFX = (() => {
     const name = BF.SKILL_CN[sk];
     if (cine() || Fx.level === 'std') title(name, (side === 'r' ? '汉军' : '楚军') + XQ.NAMES[side][P0.t], 1500);
     if (sk === 'juma') {
-      const A = Board.pos(at[0], at[1]);
+      // 拒马（Ham 10-09）：几级就几个兵，齐喝一声、压低重心、长矛端平摆成枪阵；模型模式下立在棋盘上的那一队直接摆，拒马生效期间一直保持
+      const A = Board.pos(at[0], at[1]), m = Board.pieces.get(P0.id);
       shotAt(at, 2.4, 1.5);
-      const sq = Squads.make('p', side, A, side === 'r' ? 0 : Math.PI, 'defend', P0.lv);
-      Fx.sink(Board.pieces.get(P0.id));
-      await sq.appear(); if (sq.setPose) sq.setPose('brace');
-      for (let i = 0; i < 4; i++) Sfx.B.wood(i * 0.15, 0.4);
-      Sfx.B.shout(0.2, 6, 0.08, 0.5);
+      const stand = Squads.Stand.on && m ? Squads.Stand.sq(m) : null;
+      const sq = stand || Squads.make('p', side, A, side === 'r' ? 0 : Math.PI, 'defend', P0.lv);
+      if (!stand) { Fx.sink(m); await sq.appear(); }
+      if (sq.troop) { sq.setPose('ready'); await sleep(0.2); sq.troop.actAll('thrust', 0.3, 0.12); }
+      Sfx.B.shout(0.05, 6, 0.08, 0.5);
+      await sleep(0.25);
+      if (sq.setPose) sq.setPose(sq.troop ? 'pike' : 'brace');
+      for (let i = 0; i < 4; i++) Sfx.B.wood(0.1 + i * 0.15, 0.4);
       for (let i = 0; i < 10; i++) { const a = i / 10 * 6.28; P.dust(A.clone().add(new V3(Math.cos(a) * 0.5, 0, Math.sin(a) * 0.5)), 1, null, 0.15); }
-      await sleep(1.0);
-      await sq.dissolve();
-      await Fx.rise(Board.pieces.get(P0.id), A, 0.35);
+      await sleep(1.1);
+      if (!stand) { await sq.dissolve(); await Fx.rise(m, A, 0.35); }
     } else if (sk === 'chongzhen') {
       // 冲阵：冲到跳板前狠撞一下（跳板挨 1 点），再腾空越过它，落到它身后一格；身后打不死就撞完退回原位
       const m = Board.pieces.get(P0.id), land = info.extra.land || to;

@@ -242,6 +242,8 @@ const Models = (() => {
         case 'run': walk = 1.25; rate = 2.5; set({ crouch: 0.02, lean: 0.22, twist: 0, sway: 0, hx: -0.15, hy: 0, aW: kp.aW - 0.2, wAbs: kp.wAbs + 0.3, aS: kp.aS - 0.2, sAbs: kp.sAbs }); break;
         case 'charge': walk = 1.35; rate = 2.7; set({ crouch: 0.04, lean: 0.3, twist: 0, sway: 0, hx: -0.25, hy: 0, aW: kp.chargeW, wAbs: kp.chargeAbs, aS: -1.0, sAbs: 0.2 }); break;
         case 'brace': set({ crouch: 0.12, lean: 0.12, twist: 0, hx: -0.1, aW: kp.chargeW + 0.1, wAbs: kp.chargeAbs, aS: -1.25, sAbs: 0.05 }); break;
+        // 拒马枪阵（Ham 10-09）：重心压低、半侧身，长矛端平朝前、矛尖略向上，盾护在身前
+        case 'pike': set({ crouch: 0.42, lean: 0.24, twist: -0.18, sway: 0, hx: -0.22, hy: 0, aW: kp.chargeW + 0.18, wAbs: kp.chargeAbs - 0.28, aS: -1.35, sAbs: 0.08 }); break;
         case 'aim': set({ crouch: 0.05, lean: 0.05, aW: -1.45, wAbs: Math.PI / 2 - 0.05, aS: -1.45, aSz: 0.3, sAbs: 0, hx: 0.05 }); break;
         case 'aimUp': set({ crouch: 0.05, lean: -0.1, aW: -2.0, wAbs: Math.PI / 2 - 0.55, aS: -2.0, aSz: 0.3, sAbs: 0, hx: -0.25 }); break;
         case 'bow': set({ crouch: 0.02, lean: -0.05, aS: -1.55, aSz: 0.1, sAbs: -0.4, aW: -1.5, aWz: 0.9, wAbs: Math.PI / 2 - 0.3, hx: -0.2 }); break;
