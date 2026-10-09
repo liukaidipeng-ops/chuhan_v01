@@ -308,6 +308,17 @@
     }
     if (!legal) {
       if (pfHit) return best;                   // 普通着法解不了将，但背水一战的两步解得了：不是将死
+      // 升了级才解得了将，也不算将死（Ham 10-09 规则）：被将军、本回合还没升过级，把每一种升法都试一遍（上面的升级名额只看前三种）
+      if (inChk && !S.upgraded) {
+        let bu = -INF;
+        for (let r = 0; r < 10; r++) for (let f = 0; f < 9; f++) {
+          const p = S.board[r][f]; if (!p || p.s !== side || p.t === 'k') continue;
+          const T = A.upgradeState(S, [f, r]); if (!T) continue;
+          const v = ab(T, depth - extd, alpha, beta, ply, ext - extd); if (v > bu) bu = v;
+          if (bu >= beta) return bu;
+        }
+        if (bu > -INF) return bu;
+      }
       const r = BF.attempt(S, { k: 'pass' });
       if (!r) return -WIN + ply;                // 将死 / 困毙
       return -ab(r.S, depth - 1, -beta, -alpha, ply + 1, ext);
