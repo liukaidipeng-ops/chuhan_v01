@@ -1375,10 +1375,22 @@ const Board = (() => {
     }
   }
   // 棋子朝向：让字朝向当前观看方
-  function faceViewer(side) {
-    for (const m of pieces.values()) m.rotation.y = side === 'b' ? Math.PI : 0;
+  // follow = true：镜头正在转过来（Core.Cam.spinning），棋子跟着镜头一起转，转完摆正
+  let faceHook = null;
+  function faceViewer(side, follow) {
+    const to = side === 'b' ? Math.PI : 0;
+    if (faceHook) { faceHook(); faceHook = null; }
     Board.viewSide = side;
     waterMat.uniforms.uBoard.value.z = side === 'b' ? 1 : 0;
+    if (follow && Core.Cam.spinning) {
+      faceHook = Core.onFrame(() => {
+        if (Core.Cam.spinning) { for (const m of pieces.values()) m.rotation.y = Core.Cam.theta; return; }
+        for (const m of pieces.values()) m.rotation.y = to;
+        if (faceHook) { faceHook(); faceHook = null; }
+      });
+      return;
+    }
+    for (const m of pieces.values()) m.rotation.y = to;
   }
 
   // ---------- 标记 ----------
