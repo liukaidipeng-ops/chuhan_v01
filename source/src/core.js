@@ -118,7 +118,7 @@ const Core = (() => {
       this.theta = this.homeTheta; this.phi = this.view ? 0.001 : 0.72;   // 正上方时 phi 不能是 0（lookAt 会翻）
       this.target.copy(this.home0);
       this.radius = this.view ? this.fitTop() : this.fitRadius();
-      if (snap) { this.pos.copy(this.orbitPos()); this.look.copy(this.target); }   // snap=false：镜头从现在的位置滑过去
+      if (snap) { this.pos.copy(this.orbitPos()); this.look.copy(this.target); this.upTh = this.theta; }   // snap=false：镜头从现在的位置滑过去
     },
     setView(v, side) { this.view = v; this.setSide(side, false); },
     homeDir() { return new THREE.Vector3(Math.sin(this.homeTheta), 0, Math.cos(this.homeTheta)); },
@@ -163,14 +163,26 @@ const Core = (() => {
         this.look.lerp(this.target, 1 - Math.exp(-dt * 10));
       }
       camera.position.copy(this.pos);
+      const lk = this.lk || (this.lk = new THREE.Vector3()); lk.copy(this.look);
       if (this.shakeAmp > 0.001) {
         const a = this.shakeAmp;
-        camera.position.x += (Math.random() - 0.5) * a;
-        camera.position.y += (Math.random() - 0.5) * a;
-        camera.position.z += (Math.random() - 0.5) * a;
+        const sx = (Math.random() - 0.5) * a, sy = (Math.random() - 0.5) * a, sz = (Math.random() - 0.5) * a;
+        // 正上方看（俯瞰 / 定盘）：镜头和注视点一起挪 = 整个画面平移一下，不转、不歪
+        //   （10-09 Ham：顶视图进攻时抖得剧烈又不自然——原来只挪镜头不挪注视点，正上方往下看时一点点偏移就让画面整个转几十度）
+        if (this.view && !this.cine) { camera.position.x += sx; camera.position.z += sz; lk.x += sx; lk.z += sz; }
+        else { camera.position.x += sx; camera.position.y += sy; camera.position.z += sz; }
         this.shakeAmp *= Math.exp(-dt * 7);
       }
-      camera.lookAt(this.look);
+      // 镜头的“上方”：正上方往下看时，竖直方向和视线平行，lookAt 定不出画面朝向，只能靠水平方向那一点点偏移去猜，
+      // 稍一抖就整盘转。所以正上方看时用“我方在下、对方在上”的方向当上方（翻转时转过去而不是跳过去）；斜着看还是竖直向上
+      let dth = this.theta - (this.upTh ?? this.theta); dth = Math.atan2(Math.sin(dth), Math.cos(dth));
+      this.upTh = (this.upTh ?? this.theta) + dth * (1 - Math.exp(-dt * 8));
+      if (this.view) {
+        const dx = lk.x - camera.position.x, dy = lk.y - camera.position.y, dz = lk.z - camera.position.z;
+        const h = Math.hypot(dx, dz) / (Math.hypot(dx, dy, dz) || 1), k = Math.min(1, Math.max(0, (h - 0.08) / 0.27)), w = k * k * (3 - 2 * k);
+        camera.up.set(-Math.sin(this.upTh) * (1 - w), w, -Math.cos(this.upTh) * (1 - w)).normalize();
+      } else camera.up.set(0, 1, 0);
+      camera.lookAt(lk);
     },
   };
 
