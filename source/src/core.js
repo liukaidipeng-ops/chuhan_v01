@@ -437,6 +437,7 @@ const Core = (() => {
   function disposeTree(o) {
     o.traverse(c => {
       if (c.geometry && !c.geometry.userData.keep) c.geometry.dispose();
+      if (c.isSkinnedMesh && c.userData.fused && c.skeleton) c.skeleton.dispose();   // 合成网格的骨头贴图
     });
     if (o.parent) o.parent.remove(o);
   }
