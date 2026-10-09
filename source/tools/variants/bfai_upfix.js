@@ -10,15 +10,20 @@
 //      守——这枚子本来一下就会被打死，升了扛得住；攻——升了以后能打死原来打不死的子（或者能将军）。
 //      BFAI_UP3REL=M（默认 0）：第 3 层对方也能先升级，但只看这类“会改变结果”的升级，最多 M 个（不像 BFAI_UP3 那样把前 3 名全带上）。
 //      （三局复盘：最大的几次崩盘里，对手升守子扛住一击〔第二局 R4、第一局 R21〕、第二手才升级吃子〔第三局 R17、R29〕）
+//   5. BFAI_ROOTALL=1（默认关）：陪练用——根上自己的升级不筛（线上电脑快攒够钱升车时只肯升车、守子没被捉不升、只留前 3 名），
+//      像真人一样什么时候升什么都考虑。对手模型不变。用来测“对会用升级的对手”时改法值不值。
 'use strict';
 const fs = require('fs'), path = require('path'), os = require('os');
 const { execFileSync } = require('child_process');
 const rev = process.env.BFAI_UP_BASE || 'ecf1ddd';
-let s = execFileSync('git', ['show', rev + ':source/src/bfai.js'], { cwd: path.join(__dirname, '..', '..'), encoding: 'utf8' });
+const src0 = execFileSync('git', ['show', rev + ':source/src/bfai.js'], { cwd: path.join(__dirname, '..', '..'), encoding: 'utf8' });
+// 按一组开关（E：和环境变量同名的键）生成一份电脑；tag 不同的可以在同一个进程里各生成一份（对打时一边是陪练、一边是要测的版本）
+function build(E, tag) {
+let s = src0;
 const rep = (a, b) => { const n = s.split(a).length - 1; if (n !== 1) throw new Error(`bfai_upfix：锚点出现 ${n} 次：${a.slice(0, 80)}`); s = s.replace(a, () => b); };
-const E = process.env, on = k => E[k] == null || !/^(0|false|off)$/i.test(String(E[k]));
+const on = k => E[k] == null || !/^(0|false|off)$/i.test(String(E[k]));
 const UP3 = on('BFAI_UP3'), NEAR = E.BFAI_UPNEAR != null ? +E.BFAI_UPNEAR : 2, MATEG = on('BFAI_MATEG');
-const REL = +(E.BFAI_UPREL || 0), REL3 = +(E.BFAI_UP3REL || 0);
+const REL = +(E.BFAI_UPREL || 0), REL3 = +(E.BFAI_UP3REL || 0), ROOTALL = on('BFAI_ROOTALL') && !!E.BFAI_ROOTALL;
 rep("    ups.sort((x, y) => y.g - x.g); ups = ups.slice(0, 3);",
   "    ups.sort((x, y) => y.g - x.g);\n" +
   "    { const keep = ups.slice(0, 3);   // 变体 upfix：离对方帅将两格以内的子的升级另给名额\n" +
@@ -67,7 +72,14 @@ if (MATEG) rep("    // 拒马（不占行动）：走完这一步之后",
   "      try { if (mate1(pick.S)) { const alt = pool.filter(k => k !== pick && k.S && !k.done).slice(0, 80).concat(artOff.filter(k => k.S)).find(k => !mate1(k.S)); if (alt) { pick = alt; think.mateGuard = (think.mateGuard || 0) + 1; } else think.mateGuardMiss = (think.mateGuardMiss || 0) + 1; } } catch (e) { think.mateGuardErr = String(e && e.stack || e); }\n" +
   "    }\n" +
   "    // 拒马（不占行动）：走完这一步之后");
-const out = E.BFAI_UP_OUT || path.join(os.tmpdir(), `bfai_upfix_${rev}_${process.pid}.js`);
+if (ROOTALL) {
+  rep("      if (defender && !must && !unlock && !(p.t === 'a' && heavy && p.lv < 2)) continue;\n      if ((saving || hoard) && p.t !== 'r' && !must) continue;\n", "      // 变体 upfix 陪练：根上自己的升级不筛\n");
+  rep("    const top = cand.filter(c => !c.unlock).slice(0, 3), ex = cand.find(c => c.unlock);\n    if (ex) top.push(ex);\n    return top;", "    return cand;   // 变体 upfix 陪练：全都看");
+}
+const out = (!tag && E.BFAI_UP_OUT) || path.join(os.tmpdir(), `bfai_upfix_${rev}_${tag || 'env'}_${process.pid}.js`);
 fs.writeFileSync(out, s);
-if (!E.BFAI_UP_OUT) process.on('exit', () => { try { fs.unlinkSync(out); } catch (e) { } });
-module.exports = require(out);
+if (tag || !E.BFAI_UP_OUT) process.on('exit', () => { try { fs.unlinkSync(out); } catch (e) { } });
+return require(out);
+}
+module.exports = build(process.env, '');
+module.exports.make = (opts, tag) => build(opts, tag);
