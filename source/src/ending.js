@@ -123,9 +123,9 @@ const Ending = (() => {
   function shot(O, p, l, dur = 0) {
     const P = O.clone().add(p), L = O.clone().add(l);
     if (dur <= 0) { Cam.cine = true; Cam.pos.copy(P); Cam.look.copy(L); return Promise.resolve(); }
-    return Cam.to(P, L, dur);
+    return Cam.to(P, L, dur, undefined, true);   // 终局演出：正上方视角时也照走镜头
   }
-  function dolly(O, p, l, dur) { return Cam.to(O.clone().add(p), O.clone().add(l), dur, ease.linear); }
+  function dolly(O, p, l, dur) { return Cam.to(O.clone().add(p), O.clone().add(l), dur, ease.linear, true); }
 
   // ======================================================================
   //  垓下（楚败·序）：夜，四面楚歌
@@ -656,7 +656,8 @@ const Ending = (() => {
     $('skip').classList.add('hidden');
     $('fade').style.transition = 'none'; $('fade').style.opacity = 1;
     endCard(info, result.loser, callbacks.again, callbacks.lobby, callbacks.mine, callbacks.againText, callbacks.review);
-    Sfx.Music.stinger(callbacks.persp || 'win');
+    const tn = callbacks.tune;
+    if (!(tn && typeof EndTunes !== 'undefined' && EndTunes.play(tn.side, callbacks.persp || 'win'))) Sfx.Music.stinger(callbacks.persp || 'win');
     requestAnimationFrame(() => { $('fade').style.transition = 'opacity 1s'; $('fade').style.opacity = 0; });
   }
   function finish() {

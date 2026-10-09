@@ -13,7 +13,8 @@
     finalKingHp: 3, // 决战时帅将的生命
     finalOccupyRounds: 3, // 决战：帅将进了对方九宫，对方再走这么多步还没把它打死 / 它自己没走出去，就算夺营获胜
     merit: {
-      start: 3, cap: 30, autoIncomeFromRound: 16, autoIncomePerRound: 1,
+      // 分阶段进账（Ham 10-09 22:17）：第 15 回合起进入第二阶段，每回合双方各 +1；第 45 回合起第三阶段，每回合各 +2。进入时界面有提示
+      start: 3, cap: 30, autoIncomeFromRound: 15, autoIncomePerRound: 1, phase3FromRound: 45, phase3PerRound: 2,
       killReward: { p: 1, a: 2, e: 2, n: 3, c: 3, r: 5 }, killRewardPerLevel: 1,
       checkReward: 1, pawnCrossRiverReward: 1, lostPieceCompensation: 1,
     },
@@ -21,10 +22,10 @@
     upgrade: { cost: { p: [3, 5, 8], a: [2, 3, 4], e: [2, 3, 5], n: [5, 7], c: [5, 7], r: [6, 8, 20] }, maxLevel: { r: 4, p: 4, a: 4, e: 4 }, autoByPlates: true, defaultMaxLevel: 3, maxPerTurn: 1, healOnUpgrade: true, cooldownOnUnlock: 1, killDiscount: 1, minCost: 1 },
     hp: [1, 2, 3, 4],
     hpByType: { p: [1, 2, 3, 3], a: [1, 2, 3, 3], e: [1, 2, 3, 3] }, // 兵、士、相/象四级不再加血
-    attack: { a: [1, 2, 2, 2] }, // 按等级的攻击力（一次攻击扣的血）；没列出的兵种都是 1
+    attack: { a: [1, 2, 2, 2], e: [1, 2, 2, 2] }, // 按等级的攻击力（一次攻击扣的血）；没列出的兵种都是 1。相 / 象二级起攻击 2（Ham 10-09 20:34：象二级 2 攻 2 血）
     skillLevel: 3, // 几级解锁兵种技能（单个技能可用 level 另定）
     skills: {
-      juma: { cooldown: 2, duration: 1, damage: 1, free: true }, // free：不占行动，架完还要再走一步棋（这枚兵本回合不能动）
+      juma: { level: 2, cooldown: 2, duration: 2, damage: 1, free: true }, // 二级可用、管两回合（Ham 10-09 审批台 td-006）。free：不占行动，架完还要再走一步棋（这枚兵本回合不能动）
       shensu: { level: 4, passive: true, move: true, cooldown: 5, range: 2 }, // 兵四级被动：八方向直线 1～2 格，可越子，只能落空格
       huifang: { level: 4, passive: true, move: true, cooldown: 2 }, // 兵四级被动：可后退一格
       jinwei: { level: 4, passive: true, move: true, cooldown: 2 }, // 士四级被动「铁甲禁卫」：九宫内上下左右走一格
@@ -85,8 +86,9 @@
     if (p.lv === 4 && p.nm == null) { const N = S.named || (S.named = { r: {}, b: {} }), i = N[p.s][p.t] || 0; if (i < (((HERO_CN[p.s] || {})[p.t] || []).length)) { p.nm = i; N[p.s][p.t] = i + 1; } }
   }
   // 技能说明（界面悬停 / 长按用）
+  //   Ham 10-09 审批台 td-006：说明保留原文，只换践踏；拒马用 Ham 给的原话
   const SKILL_DESC = {
-    juma: '原地架矛，不占行动，架完还能再走一步。对方下一步来犯的敌子先挨 1 点伤害。',
+    juma: '本回合原地驻营架矛，其他棋子还能继续行动。对方来犯棋子先挨一点伤害。持续两回合。',
     chongzhen: '撞开前方第一枚子（它挨 1 点），冲到它身后一格；那格有子，能杀就杀，杀不了就扣血退回。',
     shensu: '八个方向疾行 1～2 格，可以越子，只能落在空格。',
     huifang: '可以后退一格。',
@@ -95,7 +97,7 @@
     feiyue: '这一步无视塞象眼（仍不能过河）。',
     pili: '炮击一个敌子，落点四周二级以上的敌子各扣 1 点。',
     qishe: '不动身，射斜线 1～2 格内的一个敌子，扣 1 点。',
-    jianta: '攻击或吃掉敌子后就地跺脚：那一格周围一圈（含斜向）的敌子各扣 1 点，只剩 1 血的直接踩死。走到空格不触发。',
+    jianta: '攻击或吃子后，落点周围一圈的敌子各扣 1 点。',
     hujia: '与帅（将）互换位置，可解将；鸿门宴期间可救出汉王。',
   };
   // 每枚子的开局位置（复活用）
@@ -537,8 +539,12 @@
     if (inCheckS(S, opp)) { addMerit(S, side, CFG_CUR.merit.checkReward, ev, '将军'); ev.push({ e: 'check', s: opp }); }
     S.upgraded = false; S.freeUsed = false; S.jmLock = null;
     S.turn = opp;
-    if (side === 'b' && round(S) >= CFG_CUR.merit.autoIncomeFromRound) {
-      addMerit(S, 'r', CFG_CUR.merit.autoIncomePerRound, ev, '回合'); addMerit(S, 'b', CFG_CUR.merit.autoIncomePerRound, ev, '回合');
+    const M = CFG_CUR.merit, rd = round(S);
+    if (side === 'b' && rd >= M.autoIncomeFromRound) {
+      const p3 = M.phase3FromRound && rd >= M.phase3FromRound, per = p3 ? M.phase3PerRound : M.autoIncomePerRound;
+      if (rd === M.autoIncomeFromRound) ev.push({ e: 'phase', n: 2, round: rd, per: M.autoIncomePerRound });   // 刚进第二 / 第三阶段：界面弹提示
+      if (M.phase3FromRound && rd === M.phase3FromRound) ev.push({ e: 'phase', n: 3, round: rd, per: M.phase3PerRound });
+      addMerit(S, 'r', per, ev, '回合'); addMerit(S, 'b', per, ev, '回合');
     }
   }
   // 试走：不合法返回 null；合法返回结算后的新状态（不改原状态）
@@ -783,10 +789,21 @@
     if (S.merit[side] < U.cost || S.used.ult[side] >= U[side === 'r' ? 'simian' : 'hongmen'].usesPerGame) return false;
     return !!attempt(S, { k: 'ult' });
   }
-  function hasAnyAction(S) {
+  // noUp：不算“先升级再走”（upEscape 里升完级再查一遍时用）
+  function hasAnyAction(S, noUp) {
     if (legalMoves(S, S.turn).length) return true;
     for (let r = 0; r < 10; r++) for (let f = 0; f < 9; f++) { const p = S.board[r][f]; if (p && p.s === S.turn && skillActions(S, f, r).length) return true; }
     if (reviveOptions(S).length || pofuFirst(S).length || ultReady(S)) return true;
+    return !noUp && upEscape(S);
+  }
+  // 升了级才解得了将，也不算将死（Ham 10-09 22:14）：本回合还没升过级，挨个试“给一枚子升一级”，升完有路可走就不是将死。
+  //   例：二血车贴脸将军，帅身边两个一级士砍不死它；军功够升一个士（二级攻击 2），升完就能把车砍掉
+  function upEscape(S) {
+    if (S.upgraded) return false;
+    for (let r = 0; r < 10; r++) for (let f = 0; f < 9; f++) {
+      const p = S.board[r][f]; if (!p || p.s !== S.turn || p.t === 'k') continue;
+      const T = upgradeState(S, [f, r]); if (T && hasAnyAction(T, true)) return true;
+    }
     return false;
   }
   // 普通走子里“非攻击”的（空格或只剩 1 点的敌子）——困毙只看这些
@@ -800,7 +817,7 @@
     if (S.final) for (const s of ['r', 'b']) if (!findKing(S.board, s)) return { result: { winner: other(s), loser: s, reason: 'kingdead' } };
     if (S.final && S.occ) for (const s of [opp, side]) if (S.occ[s] >= CFG_CUR.finalOccupyRounds) return { result: { winner: s, loser: other(s), reason: 'occupy' } };
     if (inCheckS(S, side)) {
-      if (!hasAnyAction(S)) return { result: { winner: opp, loser: side, reason: 'checkmate' } };
+      if (!hasAnyAction(S, true)) return upEscape(S) ? { check: true, upOnly: true } : { result: { winner: opp, loser: side, reason: 'checkmate' } };
       return { check: true };
     }
     // 四面楚歌：楚军没被将军时可以走将，也可以直接停着
@@ -986,6 +1003,7 @@
     simianCount() { return simianCount(this.S); }
     cdLeft(p, sk) { if (!p) return 0; const k = sk ? cdKey(p, sk) : 'cd'; return Math.max(0, (p[k] || 0) - this.S.cnt[p.s]); }
     mustPass() { return !!this.status.mustPass; }
+    upOnly() { return !this.result && !!this.status.upOnly; }   // 被将军、只有先升级才解得了将
     mayPass() { return !this.result && !!(this.status.mustPass || this.status.mayPass); }
     quietPlies() { return 0; }
   }
@@ -1057,7 +1075,7 @@
     const lvOf = k => (cfg.skills[k] && cfg.skills[k].level) || cfg.skillLevel;
     return {
       hp: hpTbl(t, cfg)[lv - 1], atk: (atkTbl(t, cfg)[lv - 1] || 1),
-      skill: sk && lv >= cfg.skillLevel ? sk : null, skills: t === 'k' ? [] : SKILLS_OF(t, s).filter(k => lv >= lvOf(k)),
+      skill: sk && lv >= lvOf(sk) ? sk : null, skills: t === 'k' ? [] : SKILLS_OF(t, s).filter(k => lv >= lvOf(k)),
       maxLv: t === 'k' ? 1 : (cfg.upgrade.maxLevel[t] || cfg.upgrade.defaultMaxLevel),
     };
   }

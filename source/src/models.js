@@ -53,6 +53,15 @@ const Models = (() => {
     s.moveTo(0, 0); s.quadraticCurveTo(0.28, 0.05, 0.3, 0.26); s.quadraticCurveTo(0.2, 0.12, 0.02, 0.12); s.lineTo(0, 0);
     return new THREE.ExtrudeGeometry(s, { depth: 0.02, bevelEnabled: false });
   }
+  function buBlade() { // 卜字戟的横刃（援）连着顺杆下垂的胡，一整片；原点在杆轴上、胡的最下端，刃朝 +x
+    const s = new THREE.Shape();
+    s.moveTo(0.03, 0); s.lineTo(0.03, 0.42);
+    s.quadraticCurveTo(0.25, 0.49, 0.47, 0.515); s.lineTo(0.56, 0.49); s.lineTo(0.5, 0.45);
+    s.quadraticCurveTo(0.3, 0.36, 0.13, 0.31); s.quadraticCurveTo(0.1, 0.17, 0.1, 0.04); s.lineTo(0.03, 0);
+    const g = new THREE.ExtrudeGeometry(s, { depth: 0.018, bevelEnabled: false });
+    g.translate(0, 0, -0.009);
+    return g;
+  }
   function daoBlade(len = 0.72, w = 0.2) { // 长柄大刀的刀头（偃月形）
     const s = new THREE.Shape();
     s.moveTo(0, 0); s.lineTo(0.05, 0);
@@ -393,6 +402,83 @@ const Models = (() => {
       Object.assign(u.J, { lLz: 0.2 + Math.random() * 0.2, aWz: 0.4 + Math.random() * 0.8, aSz: -0.4 - Math.random() * 0.8 });
     }
     dispose() { Core.disposeTree(this.group); }
+  }
+  // ---------- 几队小兵合成一批画（10-09 Ham 审批台 td-002 选 A）----------
+  //   每队照旧自己算动作（Troop.update），只是不各自上场画：每帧把各队的实例矩阵、颜色抄进一套合并的实例网格（sync）。
+  //   同一部位各队的几何拼成一块，每个顶点记着属于第几队（aKind），每个实例记着自己是第几队（iKind）；
+  //   着色器里不是这一队的顶点缩到一点，不出像素。原来一营四队 × 每队 16 块 = 64 次绘制，合成后 16 次，样子不变
+  function kindPatch(sh) {
+    sh.vertexShader = 'attribute float aKind;\nattribute float iKind;\n' + sh.vertexShader.replace('#include <project_vertex>', 'if (abs(aKind - iKind) > 0.5) transformed = vec3(0.0);\n#include <project_vertex>');
+  }
+  const kindMats = new Map();
+  function kindMat(base) {
+    if (kindMats.has(base)) return kindMats.get(base);
+    const m = base.clone(), prev = base.onBeforeCompile;
+    if (base.userData.thick) m.userData.thick = base.userData.thick;
+    m.onBeforeCompile = (sh, r) => { if (prev) prev.call(base, sh, r); kindPatch(sh); };
+    m.customProgramCacheKey = () => 'troopBatch|' + base.uuid;
+    kindMats.set(base, m); return m;
+  }
+  let kindDepth = null;
+  function kindDepthMat() {
+    if (kindDepth) return kindDepth;
+    kindDepth = new THREE.MeshDepthMaterial({ depthPacking: THREE.RGBADepthPacking });
+    kindDepth.onBeforeCompile = kindPatch; kindDepth.customProgramCacheKey = () => 'troopBatchDepth';
+    return kindDepth;
+  }
+  class TroopBatch {
+    constructor(troops) {
+      this.troops = troops; this.group = new THREE.Group();
+      this.total = troops.reduce((n, t) => n + t.count, 0);
+      this.meshes = {}; this.outlines = {};
+      const iKind = new Float32Array(this.total); let o = 0;
+      troops.forEach((t, k) => { iKind.fill(k, o, o + t.count); o += t.count; });
+      for (const p of PARTS) {
+        const subs = troops.map((t, k) => t.meshes[p] ? [t.meshes[p].geometry, k] : null).filter(Boolean);
+        if (!subs.length) continue;
+        let n = 0; for (const [g] of subs) n += g.attributes.position.count;
+        const geo = new THREE.BufferGeometry();
+        for (const name of ['position', 'normal', 'color']) {
+          const arr = new Float32Array(n * 3); let off = 0;
+          for (const [g] of subs) { arr.set(g.attributes[name].array, off); off += g.attributes[name].array.length; }
+          geo.setAttribute(name, new THREE.BufferAttribute(arr, 3));
+        }
+        const ak = new Float32Array(n); let off = 0;
+        for (const [g, k] of subs) { const c = g.attributes.position.count; ak.fill(k, off, off + c); off += c; }
+        geo.setAttribute('aKind', new THREE.BufferAttribute(ak, 1));
+        geo.setAttribute('iKind', new THREE.InstancedBufferAttribute(iKind, 1));
+        geo.computeBoundingSphere();
+        const shadow = troops.some(t => t.meshes[p] && t.meshes[p].castShadow);
+        const m = new THREE.InstancedMesh(geo, kindMat(vcMat), this.total);
+        m.frustumCulled = false; m.castShadow = shadow; if (shadow) m.customDepthMaterial = kindDepthMat();
+        m.instanceMatrix.setUsage(THREE.DynamicDrawUsage);
+        for (let i = 0; i < this.total; i++) m.setColorAt(i, new THREE.Color(1, 1, 1));
+        this.group.add(m); this.meshes[p] = m;
+        if (troops.some(t => t.outlines[p])) {
+          const ol = new THREE.InstancedMesh(geo, kindMat(outlineShared), this.total);
+          ol.frustumCulled = false; ol.instanceMatrix.setUsage(THREE.DynamicDrawUsage);
+          this.group.add(ol); this.outlines[p] = ol;
+        }
+      }
+      this.sync();
+    }
+    // 把各队这一帧的矩阵、颜色抄过来（各队 update 之后调）
+    sync() {
+      for (const p in this.meshes) {
+        const M = this.meshes[p], O = this.outlines[p], mm = M.instanceMatrix.array, om = O && O.instanceMatrix.array, cc = M.instanceColor.array;
+        let off = 0;
+        for (const t of this.troops) {
+          const src = t.meshes[p], n = t.count;
+          if (src) {
+            mm.set(src.instanceMatrix.array, off * 16);
+            if (src.instanceColor) cc.set(src.instanceColor.array, off * 3);
+            if (om) { if (t.outlines[p]) om.set(t.outlines[p].instanceMatrix.array, off * 16); else om.fill(0, off * 16, (off + n) * 16); }
+          } else { mm.fill(0, off * 16, (off + n) * 16); if (om) om.fill(0, off * 16, (off + n) * 16); }
+          off += n;
+        }
+        M.instanceMatrix.needsUpdate = true; M.instanceColor.needsUpdate = true; if (O) O.instanceMatrix.needsUpdate = true;
+      }
+    }
   }
   // 静态士兵网格（战象塔上的弓手、战车上的甲士等）
   function soldierStatic(side, kind, pose = {}, scale = 1) {
@@ -1057,15 +1143,15 @@ const Models = (() => {
     const weapon = new THREE.Group(); AR.hand.add(weapon);
     let scabbard = null, sheathed = null;
     if (isX) {
-      // 霸王戟：握点在杆中下部
+      // 霸王戟（卜字戟，秦汉式：顶上直刺，一侧横出一刃、刃根顺杆下垂成胡；Ham 10-09 art-044 定）：握点在杆中下部
       weapon.add(inkedMerged([
         P(cyl(0.03, 0.034, 2.45, 10), 0x2a1c14, 0, 0.32, 0),
-        P(tor(0.036, 0.012, 10), gd, 0, 1.2, 0, PI / 2), P(tor(0.036, 0.012, 10), gd, 0, -0.5, 0, PI / 2),
+        P(tor(0.036, 0.012, 10), gd, 0, -0.5, 0, PI / 2),
         P(cone(0.04, 0.2, 8), gd, 0, -1.0, 0, PI),
-        P(cyl(0.05, 0.05, 0.1, 10), gd, 0, 1.56, 0), P(cone(0.085, 0.24, 10), rd, 0, 1.4, 0, PI),
-        P(cone(0.055, 0.46, 8), steel, 0, 1.82, 0, 0, 0, 0, 1, 1, 0.45),
-        { geo: jiShape(), color: steel, m: M4(0, 1.36, -0.014, 0, 0, 0, 1.45, 1.45, 1.4) },
-        { geo: jiShape(), color: steel, m: M4(0, 1.36, 0.014, 0, PI, 0, 1.1, 1.1, 1.4) },
+        P(cyl(0.042, 0.048, 0.46, 10), gd, 0, 1.35, 0), P(tor(0.05, 0.012, 10), gd, 0, 1.58, 0, PI / 2),   // 铜銎（套在杆头）
+        P(cone(0.085, 0.24, 10), rd, 0, 1.0, 0, PI),   // 缨，挂在銎下
+        P(cone(0.055, 0.46, 8), steel, 0, 1.82, 0, 0, 0, 0, 1, 1, 0.45),   // 刺
+        { geo: buBlade(), color: steel, m: M4(0, 1.12, 0) },   // 援 + 胡
       ], 0.014));
       scabbard = new THREE.Group(); scabbard.position.set(-0.36, 0.17, 0.12); scabbard.rotation.z = 0.5; hips.add(scabbard);
       scabbard.add(inkedMerged([P(box(0.05, 0.9, 0.04), 0x2a1a12, 0, -0.4, 0), P(cyl(0.02, 0.02, 0.22, 6), 0x3a2616, 0, 0.14, 0), P(box(0.14, 0.04, 0.06), gd, 0, 0, 0), P(box(0.06, 0.05, 0.05), gd, 0, -0.84, 0)]));
@@ -1181,7 +1267,7 @@ const Models = (() => {
   return {
     // 汉相用「文臣虎骑」还是原来的谋士车驾：TIGER_ON 是默认值；网址带 ?tiger=1 / ?tiger=0 可以临时换
     TIGER: typeof location !== 'undefined' && (/[?&]tiger=1/.test(location.search) || (TIGER_ON && !/[?&]tiger=0/.test(location.search))),
-    SIDE, C, G, P, inkedMerged, soldierPartGeos, soldierStatic, Troop, Army: Troop, PARTS, POSES,
+    SIDE, C, G, P, inkedMerged, soldierPartGeos, soldierStatic, Troop, Army: Troop, TroopBatch, PARTS, POSES,
     makeHorse, makeRider, makeCavalry, cavalryStaticGeo, makeChariot, makeCannon, makeElephant, makeAdvisorCart, makeBoat, makeBoatman,
     makeHero, makeXiangYu, makeWuzhui, makeLiuBang, makeBanner, vcMat, jiShape,
     soldierGeo: (side, kind) => soldierPartGeos(side, kind).body,

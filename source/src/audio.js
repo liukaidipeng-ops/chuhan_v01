@@ -18,22 +18,22 @@ const Sfx = (() => {
   }
   // —— 录音素材 ——
   const samples = {};
-  function b64(b) { const s = atob(b); const u = new Uint8Array(s.length); for (let i = 0; i < s.length; i++) u[i] = s.charCodeAt(i); return u.buffer; }
+  // 素材在网页旁边的 sfx.bin 里（不内嵌，首屏快）：脚本一跑就开始取，声音解锁以后再解码。取到之前要放的声音就跳过
+  const SFXP = window.SFX_PACK || null;
+  let sfxBin = null;
+  const sfxP = SFXP && !NOAUDIO && typeof fetch === 'function' ? fetch(SFXP.url).then(r => { if (!r.ok) throw 0; return r.arrayBuffer(); }).then(b => { sfxBin = b; return b; }).catch(() => null) : Promise.resolve(null);
   function loadSamples() {
-    const src = window.SFX_CLIPS || {};
-    for (const [id, list] of Object.entries(src)) {
-      samples[id] = [];
-      list.forEach((d, i) => { try { ctx.decodeAudioData(b64(d), buf => { samples[id][i] = buf; }, () => { }); } catch (e) { } });
-    }
+    sfxP.then(bin => {
+      if (!bin || !ctx) return;
+      for (const [id, list] of Object.entries(SFXP.idx)) {
+        samples[id] = [];
+        list.forEach(([o, n], i) => { try { ctx.decodeAudioData(bin.slice(o, o + n), buf => { samples[id][i] = buf; }, () => { }); } catch (e) { } });
+      }
+    });
   }
-  function init() {
-    if (NOAUDIO) return;
-    if (ctx) { if (ctx.state === 'suspended') ctx.resume(); return; }
-    const AC = window.AudioContext || window.webkitAudioContext;
-    if (!AC) return;
-    ctx = new AC();
-    try { if (navigator.audioSession) navigator.audioSession.type = 'playback'; } catch (e) { }
-    master = ctx.createGain(); master.gain.value = enabled ? 1 : 0;
+  // 混音台：总线（音效 / 配乐 / 配音）→ 混响、压缩 → 出声。现场的声音和离线渲染（renderOffline）共用这一套
+  function buildGraph(masterGain = 1) {
+    master = ctx.createGain(); master.gain.value = masterGain;
     comp = ctx.createDynamicsCompressor(); comp.threshold.value = -14; comp.knee.value = 8; comp.ratio.value = 4; comp.attack.value = 0.004; comp.release.value = 0.2;
     master.connect(comp); comp.connect(ctx.destination);
     verb = ctx.createConvolver(); verb.buffer = makeIR();
@@ -44,9 +44,36 @@ const Sfx = (() => {
     sfxSend = ctx.createGain(); sfxSend.gain.value = 0.2; sfxBus.connect(sfxSend); sfxSend.connect(verb);
     const ms = ctx.createGain(); ms.gain.value = 0.5; musicBus.connect(ms); ms.connect(verb);
     const vs = ctx.createGain(); vs.gain.value = 0.12; voiceBus.connect(vs); vs.connect(verb);
+  }
+  // 离线渲染：把 fn() 里排的声音画进一段 sec 秒的音频（不出声），返回 AudioBuffer。出试听样用（tools/tunes.py）
+  async function renderOffline(fn, sec, rate = 44100) {
+    const live = { ctx, master, comp, verb, sfxBus, musicBus, voiceBus, sfxSend, nb: _nb };
+    const off = new OfflineAudioContext(2, Math.ceil(sec * rate), rate);
+    ctx = off; _nb = null; buildGraph(1);
+    try { fn(); } finally { ({ ctx, master, comp, verb, sfxBus, musicBus, voiceBus, sfxSend } = live); _nb = live.nb; }
+    return off.startRendering();
+  }
+  function init() {
+    if (NOAUDIO) return;
+    if (ctx) { if (ctx.state === 'suspended') ctx.resume(); return; }
+    const AC = window.AudioContext || window.webkitAudioContext;
+    if (!AC) return;
+    ctx = new AC();
+    try { if (navigator.audioSession) navigator.audioSession.type = 'playback'; } catch (e) { }
+    buildGraph(enabled ? 1 : 0);
     loadSamples();
     startAmbient();
-    try { const a = document.createElement('audio'); a.setAttribute('playsinline', ''); a.loop = true; a.volume = 0.01; a.src = 'data:audio/wav;base64,UklGRiQAAABXQVZFZm10IBAAAAABAAEAQB8AAEAfAAABAAgAZGF0YQAAAAA='; a.play().catch(() => { }); } catch (e) { }
+    // 苹果手机开着静音键也要出声：后台循环放一段静音。只在苹果设备上做；放的是 1 秒真静音，不是空文件——
+    //   原来是 0 秒的空文件，循环播放时每秒从头重来上万次（10-09 实测 1.3 万次/秒），Windows 上会把整个浏览器窗口、连别的软件一起拖卡
+    //   （Ham：拖动窗口就卡死，只有我们的页面这样）
+    if (/iPhone|iPad|iPod/.test(navigator.userAgent) || (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1)) try {
+      const n = 8000, buf = new ArrayBuffer(44 + n), v = new DataView(buf), w = (o, t) => { for (let i = 0; i < t.length; i++) v.setUint8(o + i, t.charCodeAt(i)); };
+      w(0, 'RIFF'); v.setUint32(4, 36 + n, true); w(8, 'WAVE'); w(12, 'fmt '); v.setUint32(16, 16, true); v.setUint16(20, 1, true); v.setUint16(22, 1, true);
+      v.setUint32(24, 8000, true); v.setUint32(28, 8000, true); v.setUint16(32, 1, true); v.setUint16(34, 8, true); w(36, 'data'); v.setUint32(40, n, true);
+      new Uint8Array(buf, 44).fill(128);   // 8 位无符号，128 = 静音
+      const a = document.createElement('audio'); a.setAttribute('playsinline', ''); a.loop = true; a.volume = 0.01;
+      a.src = URL.createObjectURL(new Blob([buf], { type: 'audio/wav' })); a.play().catch(() => { });
+    } catch (e) { }
   }
   const now = () => ctx.currentTime;
   const ok = () => !!ctx;
@@ -55,7 +82,7 @@ const Sfx = (() => {
   function out(dest, pan) { if (pan === undefined || !ctx.createStereoPanner) return dest; const p = ctx.createStereoPanner(); p.pan.value = Math.max(-1, Math.min(1, pan)); p.connect(dest); return p; }
   function env(g, T, a, peak, dec, hold = 0) { g.gain.setValueAtTime(0.0001, T); g.gain.exponentialRampToValueAtTime(Math.max(0.0002, peak), T + a); if (hold) g.gain.setValueAtTime(Math.max(0.0002, peak), T + a + hold); g.gain.exponentialRampToValueAtTime(0.0001, T + a + hold + dec); }
   // 播放录音。i = 指定第几段（不给就随机挑一段）；dur = 放到第几秒收住，最后 fade 秒淡出
-  function smp(id, { t = 0, vol = 0.5, rate = 1, rj = 0.08, pan, dest, loop = false, dur, lp, i, fade = 0.3 } = {}) {
+  function smp(id, { t = 0, vol = 0.5, rate = 1, rj = 0.08, pan, dest, loop = false, dur, lp, i, fade = 0.3, off = 0 } = {}) {   // off：从这段声音的第几秒开始放
     if (!ok()) return;
     const list = samples[id]; if (!list || !list.length) return;
     const buf = list[i == null ? Math.floor(Math.random() * list.length) : i % list.length]; if (!buf) return;
@@ -66,7 +93,7 @@ const Sfx = (() => {
     let node = s;
     if (lp) { const f = ctx.createBiquadFilter(); f.type = 'lowpass'; f.frequency.value = lp; s.connect(f); node = f; }
     node.connect(g); g.connect(out(dest || sfxBus, pan ?? R(-0.4, 0.4)));
-    s.start(T);
+    s.start(T, Math.max(0, off));
     if (dur) { g.gain.setValueAtTime(vol, T + Math.max(0, dur - fade)); g.gain.linearRampToValueAtTime(0.0001, T + dur); s.stop(T + dur + 0.05); }
   }
   // 把一段录音铺满 dur 秒：录音不够长就接着再放一遍（首尾交叠一点），到点淡出
@@ -311,7 +338,17 @@ const Sfx = (() => {
     cannon: {
       move(dur = 1) { const w = after(0.75); B.wheels(w, dur, 0.25); for (let k = 0; k * 0.7 < dur; k++) B.creak(w + k * 0.7, 0.07); return w; },
       ready() { B.creak(0.1, 0.08); },
-      fire(i, lv = 0) { B.fuse(0, 0.14); B.bigCannon(0.14, 1, lv === 1); B.whistle(0.4, 0.9); },
+      // 炮弹在空中的呼啸：试听台 b19 Ham 挑的两条（降调投弹哨音 + 破空风声；投石机甩出石弹），对齐成刚好在落地那一刻收尾。fl = 从点火到落地的真实秒数
+      fire(i, lv = 0, fl = 0.9) {
+        B.fuse(0, 0.14); B.bigCannon(0.14, 1, lv === 1);
+        // Ham 在 b23 里挑了四种，随机出：八（降调哨音 + 破空风声）、五（投石机甩出石弹）、五加大一倍、原来的合成哨音
+        const list = samples.shellw, kind = Math.floor(Math.random() * 4);
+        if (!ok() || !list || list.length < 2 || kind === 3) { B.whistle(0.4, 0.9); return; }
+        const k = kind === 0 ? 0 : 1, buf = list[k], gain = [0.51, 1.32, 2.64][kind] * (lv === 1 ? 0.7 : 1);
+        let t = fl - buf.duration, off = 0;
+        if (t < 0.3) { off = 0.3 - t; t = 0.3; }   // 飞得比哨音短：从中间放起，开头让给炮响
+        smp('shellw', { i: k, t, off, vol: gain, rj: 0.02 });
+      },
       explode(big, lv = 0) { const sm = lv === 1; B.blast(0, big ? 1 : 0.75, sm); smp('rockfall', { t: 0.35, vol: (big ? 0.3 : 0.18) * (sm ? 0.6 : 1) }); },
       destroy() { B.boom(0.1, 0.7); B.woodbreak(0.05, 0.6); B.metalfall(0.3, 0.5); smp('metalfall', { t: 0.6, vol: 0.3, rate: 0.7 }); },
       impact() { B.blast(0, 0.9); },
@@ -592,10 +629,13 @@ const Sfx = (() => {
   }
 
   const S = {
-    init, B, U, unit, river, Music, pluck, hurt, smp,
+    init, B, U, unit, river, Music, pluck, hurt, smp, renderOffline,
+    // 给配乐脚本（endtunes.js）用的一套合成小工具；bus() 取当下的配乐总线（离线渲染时是离线那一套）
+    kit: { N, voiceOsc, pluck, tn, nz, taikoTo, shimeTo, hornTo, B, smp, bus: () => musicBus, now: () => (ctx ? ctx.currentTime : 0) },
     // 兵种台词开口：delay 秒后开始说，说 dur 秒。不带参数 = 这一步没有台词
     line(delay = 0, dur = 0) { cue = ok() && dur > 0 ? now() + delay + dur : 0; }, lineLeft,
-    get ctx() { return ctx; }, get voiceBus() { return voiceBus; },
+    get ctx() { return ctx; }, get nSamples() { return Object.values(samples).reduce((a, l) => a + l.filter(Boolean).length, 0); },   // 已经解码好的素材段数（自测用）
+    get voiceBus() { return voiceBus; },
     get enabled() { return enabled; },
     set enabled(v) { enabled = v; if (master) master.gain.setTargetAtTime(v ? 1 : 0, now(), 0.05); },
     setVol(k, v) { vol[k] = v; const bus = { sfx: sfxBus, music: musicBus, voice: voiceBus }[k]; if (bus) bus.gain.setTargetAtTime(v, now(), 0.05); },
@@ -636,26 +676,32 @@ const Sfx = (() => {
 // ===== 配音：内嵌 MP3，按台词编号播放 =====
 const Voice = (() => {
   const LINES = window.VOICE_LINES || {};
-  const CLIPS = window.VOICE_CLIPS || {};
   const SPK = { narr: '', xiang: '项王', liu: '汉王', elder: '乌江亭长' };
-  // 两套配音：原版（内嵌在页面里）和写实版（单独一个包，选了才取；没取到之前先用原版顶着）
-  const REAL = window.VOICE_REAL || null;
+  // 两套配音各是网页旁边的一个包（不内嵌，首屏快）：写实版（默认）和原版，选了哪套才取哪套。
+  // 当前这套还没取到、另一套已经在手里，就先拿另一套顶着
+  //   第三个包 rbf：技能模式专用的句子（升级、四级名将、技能），只录了写实版，进技能模式才取（Voice.loadBF）
+  const PK = { real: window.VOICE_REAL || null, orig: window.VOICE_ORIG || null, rbf: (window.VOICE_REAL || {}).bf || null }, bin = { real: null, orig: null, rbf: null }, binP = { real: null, orig: null, rbf: null };
+  const REAL = PK.real;
   const bufs = new Map(), durs = new Map();
-  let enabled = true, cur = null, barkSrc = null, mode = 'orig', pack = null, packP = null;
-  function loadPack() {
-    if (pack || !REAL) return Promise.resolve();
-    if (!packP) packP = fetch(REAL.url).then(r => { if (!r.ok) throw 0; return r.arrayBuffer(); }).then(b => { pack = b; }).catch(() => { packP = null; });
-    return packP;
+  let enabled = true, cur = null, barkSrc = null, mode = 'orig';
+  function loadPack(k = mode) {
+    const P = PK[k]; if (bin[k] || !P) return Promise.resolve();
+    if (!binP[k]) binP[k] = fetch(P.url).then(r => { if (!r.ok) throw 0; return r.arrayBuffer(); }).then(b => { bin[k] = b; }).catch(() => { setTimeout(() => { binP[k] = null; }, 30000); });   // 没取到：半分钟后才再试（别每句台词都去取一遍）
+    return binP[k];
   }
-  const useReal = id => mode === 'real' && pack && REAL.idx[id];
+  // 这一句现在从哪个包里放：[包名, 位置, 长度]
+  function where(id) {
+    for (const k of mode === 'real' ? ['real', 'rbf', 'orig'] : ['orig', 'rbf', 'real']) { const P = PK[k], e = P && bin[k] && P.idx[id]; if (e) return [k, e[0], e[1]]; }
+    return null;
+  }
   const barkCut = () => { if (barkSrc) { try { barkSrc.stop(); } catch (e) { } barkSrc = null; } };
-  function b64ToBuf(b64) { const bin = atob(b64); const u = new Uint8Array(bin.length); for (let i = 0; i < bin.length; i++) u[i] = bin.charCodeAt(i); return u.buffer; }
   function decode(id) {
-    const real = useReal(id), key = (real ? 'R:' : 'O:') + id;
+    const w = where(id); if (!w) return Promise.resolve(null);
+    const key = w[0] + ':' + id;
     if (bufs.has(key)) return bufs.get(key);
     const ctx = Sfx.ctx;
-    if (!ctx || (!real && !CLIPS[id])) return Promise.resolve(null);
-    const raw = real ? pack.slice(real[0], real[0] + real[1]) : b64ToBuf(CLIPS[id]);
+    if (!ctx) return Promise.resolve(null);
+    const raw = bin[w[0]].slice(w[1], w[1] + w[2]);
     const p = new Promise(res => { try { ctx.decodeAudioData(raw, b => { durs.set(key, b.duration); res(b); }, () => res(null)); } catch (e) { res(null); } });
     bufs.set(key, p);
     return p;
@@ -664,18 +710,19 @@ const Voice = (() => {
     LINES, SPK,
     get enabled() { return enabled; }, set enabled(v) { enabled = v; if (!v) this.cancel(); },
     // 配音风格：'real' 写实版 / 'orig' 原版
-    get mode() { return mode; }, set mode(v) { mode = v === 'real' && REAL ? 'real' : 'orig'; if (mode === 'real') loadPack(); },
-    get realReady() { return !!pack; },
-    preload(ids) { const go = () => (ids || Object.keys(CLIPS)).forEach(decode); if (mode === 'real' && !pack) loadPack().then(go); else go(); },
-    has(id) { return !!LINES[id] || !!(REAL && REAL.idx[id]); },
-    playable(id) { return !!(CLIPS[id] || useReal(id)); },   // 这一句现在放得出来吗（只在写实版里有的句子：选了原版、或者包还没取到，就放不出来）   // 写实版里单独有的句子（比如虎骑的台词）也算
+    get mode() { return mode; }, set mode(v) { mode = v === 'real' && REAL ? 'real' : 'orig'; if (enabled) loadPack(); },   // 配音关着就不取
+    get realReady() { return !!bin.real; },
+    preload(ids) { const go = () => (ids || Object.keys(LINES)).forEach(decode); if (!bin[mode]) loadPack().then(go); else go(); },
+    has(id) { return !!LINES[id] || !!(REAL && REAL.idx[id]) || !!(PK.rbf && PK.rbf.idx[id]); },
+    loadBF() { if (enabled) loadPack('rbf'); },   // 开技能模式的局时先把技能模式的句子取来
+    playable(id) { const w = where(id); if (!w && enabled) { if (PK.rbf && PK.rbf.idx[id]) loadPack('rbf'); else if (mode === 'orig' && PK.real && PK.real.idx[id]) loadPack('real'); } return !!w; },   // 这一句现在放得出来吗（两个包都还没取到、或者取到的包里没有这句，就放不出来）。原版配音里没有的句子（升级、名将、技能的台词只录了写实版）：顺手把写实包取来，下次就有
     speaker(id) { return SPK[(LINES[id] || {}).spk] ?? ''; },
     text(id) { return (mode === 'real' && REAL.text[id]) || (LINES[id] || {}).text || ''; },
     async play(id, { onDur, minDur = 0, rate = 1 } = {}) {
       const est = Math.max(minDur, this.text(id).length * 0.24 + 0.6);
       if (!enabled || !Sfx.ctx) { onDur && onDur(est); return Core.sleep(est); }
-      // 写实版的包还在路上：主帅、旁白最多等它两秒半（免得一局里前一句原版、后一句写实），再不来就先用原版
-      if (mode === 'real' && !pack) await Promise.race([loadPack(), new Promise(r => setTimeout(r, 2500))]);
+      // 这套配音的包还在路上：主帅、旁白最多等它两秒半（免得一局里前一句原版、后一句写实），再不来就有什么用什么
+      if (!bin[mode]) await Promise.race([loadPack(), new Promise(r => setTimeout(r, 2500))]);
       const buf = await decode(id);
       if (!buf) { onDur && onDur(est); return Core.sleep(est); }
       const ctx = Sfx.ctx;
@@ -691,10 +738,10 @@ const Voice = (() => {
     cancel() { if (cur) { try { cur.stop(); } catch (e) { } cur = null; } barkCut(); },
     get busy() { return !!cur; },   // 主帅 / 旁白正在说话
     // 这句有多长（秒）：解码过就是准的，还没解码先按字数估，顺手开始解码
-    dur(id) { const k = (useReal(id) ? 'R:' : 'O:') + id; if (durs.has(k)) return durs.get(k); decode(id); return this.text(id).replace(/[，。！？、…—\s]/g, '').length * 0.2 + 0.45; },
+    dur(id) { const w = where(id), k = w && w[0] + ':' + id; if (k && durs.has(k)) return durs.get(k); decode(id); return this.text(id).replace(/[，。！？、…—\s]/g, '').length * 0.2 + 0.45; },
     // 兵种台词：单独一路，不打断主帅/旁白，也不被它们打断；新的一句会接替上一句
     async bark(id, { vol = 0.9, pan = 0, skipIfBusy = false } = {}) {
-      if (!enabled || !Sfx.ctx || !(CLIPS[id] || useReal(id))) return;
+      if (!enabled || !Sfx.ctx || !where(id)) return;
       if (skipIfBusy && cur) return;
       const buf = await decode(id); if (!buf) return;
       const ctx = Sfx.ctx;

@@ -118,7 +118,7 @@
   const fewPieces = S => { let n = 0; for (const row of S.board) for (const p of row) if (p && p.s === S.turn) n++; return n <= 4; };
 
   // ---------- 搜索 ----------
-  let nodes = 0, deadline = Infinity, qMax = 3;
+  let nodes = 0, deadline = Infinity, qMax = 3, lmrOn = false;
   let nodeCap = Infinity;   // 测试用的“按搜索量收手”：搜过这么多节点就停（LEVELS.<档>.nodes），不看时间，结果可复现
   const TIMEOUT = { timeout: true };
   const hist = new Map();                     // 历史启发：哪些安静着法以前造成过剪枝
@@ -257,6 +257,22 @@
     }
     return false;
   }
+  // 局面指纹（两个 32 位散列拼成 53 位的数）
+  const TTB = new Map();
+  function fp(S) {
+    let h1 = 2166136261, h2 = 5381;
+    const mix = x => { h1 = Math.imul(h1 ^ x, 16777619); h2 = (Math.imul(h2, 33) ^ x) | 0; };
+    const mixS = t => { for (let i = 0; i < t.length; i++) mix(t.charCodeAt(i)); };
+    for (let r = 0; r < 10; r++) for (let f = 0; f < 9; f++) {
+      const p = S.board[r][f]; if (!p) continue;
+      mix(1000 + r * 9 + f);
+      for (const k in p) { mixS(k); const v = p[k]; if (typeof v === 'number') { mix(v | 0); mix(Math.round(v * 4096) | 0); } else if (typeof v === 'string') { mix(7); mixS(v); } else if (typeof v === 'boolean') mix(v ? 3 : 5); else if (v == null) mix(9); else mixS(JSON.stringify(v)); }
+    }
+    mixS(JSON.stringify([S.turn, S.cnt, S.merit, S.used, S.fx, S.crossed, S.dead, S.upgraded, S.ckHist, S.freeUsed, S.jmLock, S.final, S.occ, S.named]));
+    return (h1 >>> 0) * 2097152 + ((h2 >>> 0) & 2097151);
+  }
+  const toTT = (v, ply) => (v > WIN / 2 ? v + ply : v < -WIN / 2 ? v - ply : v), fromTT = (v, ply) => (v > WIN / 2 ? v - ply : v < -WIN / 2 ? v + ply : v);
+  const mkey = a => (a.k === 'mv' ? hk(a) : JSON.stringify(a));
   function ab(S, depth, alpha, beta, ply, ext = 0) {
     if (++nodes > nodeCap || ((nodes & 63) === 0 && now() > deadline)) throw TIMEOUT;
     const side = S.turn, inChk = A.inCheck(S, side);
@@ -268,24 +284,31 @@
       else return qs(S, alpha, beta, ply, 0);
     }
     if (fewPieces(S) && stuck(S)) return -WIN + ply;
-    let best = -INF, legal = 0;
+    // 查表——同一局面、同样剩余层数、同样的延伸次数和“这层要不要考虑对方升级 / 破釜”
+    const tkey = fp(S) + ':' + depth + ':' + ext + ':' + (ply === upPly && !S.upgraded ? 1 : 0) + (ply === pfPly ? 2 : 0), tte = TTB.get(tkey), a0 = alpha;
+    if (tte) { const v = fromTT(tte.v, ply); if (tte.f === 0 || (tte.f === 1 && v >= beta) || (tte.f === 2 && v <= alpha)) return v; }
+    let best = -INF, legal = 0, bm = null;
     // 对方应这一步时，也可能先花军功给某枚子升一级再走（多一点血：我方本来能吃掉的子就吃不掉了，打上去还会被弹回）
     if (ply === upPly && !S.upgraded) {
       const ups = upsOf(S, side);
       for (const u of ups) {
         const v = ab(u.S, depth - extd, alpha, beta, ply, ext - extd);
-        if (v > best) best = v;
+        if (v > best) { best = v; bm = null; }
         if (v > alpha) alpha = v;
-        if (alpha >= beta) return best;
+        if (alpha >= beta) { if (TTB.size < 300000) TTB.set(tkey, { v: toTT(best, ply), f: 1, m: null }); return best; }
       }
     }
-    const list = order(A.gen(S, false), killers[ply]);
+    const list = order(A.gen(S, false), killers[ply]); let mi = 0;
+    if (tte && tte.m != null) { const i = list.findIndex(it => mkey(it.a) === tte.m); if (i > 0) { const x = list[i]; list.splice(i, 1); list.unshift(x); } }   // 上次最好的一步先算
     for (const it of list) {
       const r = BF.attempt(S, it.a); if (!r || r.free) continue;
-      legal++;
+      legal++; mi++;
       const w = decided(r.S, r.ev);
-      const v = w ? (w === side ? WIN - ply : -WIN + ply) : -ab(r.S, depth - 1, -beta, -alpha, ply + 1, ext);
-      if (v > best) best = v;
+      let v;   // 排在后面的安静着法先少算一层试一下
+      if (w) v = w === side ? WIN - ply : -WIN + ply;
+      else if (lmrOn && ply >= 1 && depth >= 2 && mi > 2 && !inChk && it.a.k === 'mv' && !it.q && !A.inCheck(r.S, r.S.turn)) { v = -ab(r.S, depth - 2, -alpha - 0.01, -alpha, ply + 1, ext); if (v > alpha) v = -ab(r.S, depth - 1, -beta, -alpha, ply + 1, ext); }
+      else v = -ab(r.S, depth - 1, -beta, -alpha, ply + 1, ext);
+      if (v > best) { best = v; bm = it.a; }
       if (v > alpha) alpha = v;
       if (alpha >= beta) {
         if (!it.q && it.a.k === 'mv') { const k = hk(it.a); killers[ply] = k; hist.set(k, Math.min(300, (hist.get(k) || 0) + depth * depth)); }
@@ -308,10 +331,22 @@
     }
     if (!legal) {
       if (pfHit) return best;                   // 普通着法解不了将，但背水一战的两步解得了：不是将死
+      // 升了级才解得了将，也不算将死（Ham 10-09 规则）：被将军、本回合还没升过级，把每一种升法都试一遍（上面的升级名额只看前三种）
+      if (inChk && !S.upgraded) {
+        let bu = -INF;
+        for (let r = 0; r < 10; r++) for (let f = 0; f < 9; f++) {
+          const p = S.board[r][f]; if (!p || p.s !== side || p.t === 'k') continue;
+          const T = A.upgradeState(S, [f, r]); if (!T) continue;
+          const v = ab(T, depth - extd, alpha, beta, ply, ext - extd); if (v > bu) bu = v;
+          if (bu >= beta) return bu;
+        }
+        if (bu > -INF) return bu;
+      }
       const r = BF.attempt(S, { k: 'pass' });
       if (!r) return -WIN + ply;                // 将死 / 困毙
       return -ab(r.S, depth - 1, -beta, -alpha, ply + 1, ext);
     }
+    if (TTB.size < 300000) TTB.set(tkey, { v: toTT(best, ply), f: best <= a0 ? 2 : best >= beta ? 1 : 0, m: bm ? mkey(bm) : null });   // 记下来
     return best;
   }
 
@@ -389,7 +424,7 @@
     let L = tick ? { ...L0, budget: Math.min(L0.budget, 1400) } : L0;   // 在主线程里算（开不了 Worker）时少想一会儿，免得卡画面
     let S = S0, last = now();
     const breathe = async () => { if (tick && now() - last > 12) { await tick(); last = now(); } };
-    kdMe = S0.turn; nodes = 0; qMax = L.q; hist.clear(); killers.length = 0; upPly = -1; pfPly = -1; pfCache.clear(); upCache.clear(); pfAlias.clear(); pfUp.clear(); deadline = Infinity; nodeCap = Infinity;
+    lmrOn = L.depth > 3; kdMe = S0.turn; nodes = 0; qMax = L.q; hist.clear(); killers.length = 0; upPly = -1; pfPly = -1; pfCache.clear(); upCache.clear(); TTB.clear(); pfAlias.clear(); pfUp.clear(); deadline = Infinity; nodeCap = Infinity;
     const fin0 = !!S0.final, chk0 = A.inCheck(S0, me);
     if (PFD && me === 'r' && L.depth >= 3 && S0.cnt.b < (S0.fx.pf || 0)) L = { ...L, depth: L.depth + PFD };   // 楚方技能被封的反击窗口：多算一层
     const byNodes = L.nodes > 0;   // 设了 nodes：按搜索量收手，完全不看时间（对打、考卷、漏着率用，机器快慢不影响结果）
@@ -403,7 +438,7 @@
     if (L.depth >= 3) upPly = 1;
     const pfGuard = me === 'r' && L.depth >= 2 && !S.used.art.b;   // 汉军：对方的破釜沉舟还在手里，每一步都提防它
     if (pfGuard) pfPly = 1;
-    let kids = A.expand(S), pofu = [];
+    let kids = A.expand(S), pofu = [], artOff = [];
     // “先升级再走”的走法：记下它对应的“不升级走同一步”（base）、是不是升的那枚子自己出手（own）
     const keyOf = a => JSON.stringify(a), plain = new Map(kids.map(k => [keyOf(k.a), k]));
     for (const c of ups) for (const k of A.expand(c.S)) {
@@ -434,7 +469,7 @@
       let rook = false; for (const row of S.board) for (const p of row) if (p && p.s === 'r' && p.t === 'r') rook = true;
       const ok = k => { const t = tOf(k.a.id); return t === 'r' || ((!rook || S.used.art.b > 0) && (t === 'c' || t === 'n')); };
       const rest = kids.filter(k => !(k.a.k === 'art' && k.a.id != null) || ok(k));
-      if (rest.some(k => k.a.k !== 'art')) kids = rest;
+      if (rest.some(k => k.a.k !== 'art')) { artOff = kids.filter(k => !rest.includes(k)); kids = rest; }   // 平时不救的召回留给下面的一步杀保险兜底
     }
     if (!kids.length) {
       // 普通着法一步都没有（被将死的样子），但背水一战还能解：就用它
@@ -534,6 +569,27 @@
       deadline = Infinity; nodeCap = Infinity;
       if (bp) { pick = bp; kids = kids.concat([bp]); }
     }
+    // 一步杀保险：走完这一步以后，对方能不能一步将死我（可以先给一枚子升一级再走）；能就按排名往下换一个不送杀的
+    //   （送一步杀等于必输，最多往下找 80 个；都送杀时再试平时不肯用的召回良将）。只在选中的这步送杀时才多花时间
+    //   用户导出的第二局第 17 回合：霸王档走完给楚留了“升卒 + 贴脸”一步杀——升卒的走法不在搜索的升级名额里，搜索看不见
+    if (L.depth >= 2 && !fin0 && pick && pick.S && !pick.done) {
+      const mate1 = T => {
+        if (!T || T.final) return false;
+        const opp = T.turn, st = [T];
+        if (!T.upgraded) for (let r = 0; r < 10; r++) for (let f = 0; f < 9; f++) { const p = T.board[r][f]; if (p && p.s === opp && p.t !== 'k') { const U = A.upgradeState(T, [f, r]); if (U) st.push(U); } }
+        for (const X of st) for (const e of A.gen(X, false)) {
+          const R = BF.attempt(X, e.a); if (!R || R.free || !A.inCheck(R.S, me)) continue;
+          const ev = BF.evaluate(R.S); if (ev && ev.result && ev.result.winner === opp) return true;
+        }
+        return false;
+      };
+      try {
+        if (mate1(pick.S)) {
+          const alt = pool.filter(k => k !== pick && k.S && !k.done).slice(0, 80).concat(artOff.filter(k => k.S)).find(k => !mate1(k.S));
+          if (alt) { pick = alt; think.mateGuard = (think.mateGuard || 0) + 1; }
+        }
+      } catch (e) { }
+    }
     // 拒马（不占行动）：走完这一步之后，哪枚能架拒马的兵会被对方打到，就先给它架上
     if (pick.up) { seq.push({ k: 'up', at: pick.up.at }); S = pick.up.S; }
     if (L.depth >= 2 && !pick.done && !S.freeUsed && pick.a.k !== 'pass') {
@@ -541,7 +597,7 @@
         const T = pick.S;
         let jm = null;
         for (let r = 0; r < 10 && !jm; r++) for (let f = 0; f < 9; f++) {
-          const p = S.board[r][f]; if (!p || p.s !== me || p.t !== 'p' || p.lv < 3) continue;
+          const p = S.board[r][f]; if (!p || p.s !== me || p.t !== 'p' || p.lv < ((CFG.skills.juma && CFG.skills.juma.level) || CFG.skillLevel)) continue;
           const q = T.board[r][f]; if (!q || q.id !== p.id) continue;                 // 这一步动的就是它
           let hit = false;
           for (let r2 = 0; r2 < 10 && !hit; r2++) for (let f2 = 0; f2 < 9; f2++) { const e = T.board[r2][f2]; if (e && e.s !== me && A.moveTargets(T, f2, r2).some(m => m.to[0] === f && m.to[1] === r)) { hit = true; break; } }

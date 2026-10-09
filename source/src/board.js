@@ -485,29 +485,24 @@ const Board = (() => {
   })();
   const pieceWood = new THREE.MeshStandardMaterial({ map: Tex.wood, color: 0xf4dcbc, roughness: 0.45, metalness: 0.0 });
   const faceCache = {};
+  // 木棋子字面（美术 M13，Ham 14:30「木棋子颜色太深了，移动端汉方看不清楚」→ 选「牙黄面加色边」）：牙黄面铺满，外粗内细两道色边，字粗楷不描边
   function faceTex(s, t) {
     const key = s + t;
     if (faceCache[key]) return faceCache[key];
     const ch = XQ.NAMES[s][t];
-    const col = s === 'r' ? '#a3241a' : '#1c1a18';
+    const col = s === 'r' ? '#b3241a' : '#1a1714';   // 汉朱、楚墨
     return (faceCache[key] = canvasTex(512, 512, (g, w) => {
       g.clearRect(0, 0, w, w);
       const c = w / 2;
-      const ring = (r, lw, color, d = 0) => { g.strokeStyle = color; g.lineWidth = lw; g.beginPath(); g.arc(c + d, c + d, r, 0, 7); g.stroke(); };
-      // 刻痕双圈 + 联珠纹
-      ring(w * 0.452, 12, 'rgba(60,30,10,.45)', 3); ring(w * 0.452, 10, col);
-      ring(w * 0.372, 6, 'rgba(60,30,10,.4)', 2); ring(w * 0.372, 5, col);
-      for (let i = 0; i < 40; i++) {
-        const a = i / 40 * Math.PI * 2, x = c + Math.cos(a) * w * 0.412, y = c + Math.sin(a) * w * 0.412;
-        g.fillStyle = 'rgba(60,30,10,.35)'; g.beginPath(); g.arc(x + 1.5, y + 1.5, 5.5, 0, 7); g.fill();
-        g.fillStyle = '#b8914a'; g.beginPath(); g.arc(x, y, 5, 0, 7); g.fill();
-      }
-      g.font = `bold 300px ${FONT}`; g.textAlign = 'center'; g.textBaseline = 'middle'; g.lineJoin = 'round';
-      g.fillStyle = 'rgba(70,35,10,.5)'; g.fillText(ch, c + 6, c + 22);
-      g.strokeStyle = '#c9a045'; g.lineWidth = 11; g.strokeText(ch, c, c + 16);
-      g.strokeStyle = 'rgba(255,236,170,.6)'; g.lineWidth = 3; g.strokeText(ch, c - 1, c + 14);
+      const ring = (r, lw, color) => { g.strokeStyle = color; g.lineWidth = lw; g.beginPath(); g.arc(c, c, r, 0, 7); g.stroke(); };
+      // 牙黄面：左上略亮，往外渐深
+      const gr = g.createRadialGradient(c * 0.8, c * 0.75, 10, c, c, w * 0.48);
+      gr.addColorStop(0, '#f1e4c0'); gr.addColorStop(1, '#e6d3a4');
+      g.fillStyle = gr; g.beginPath(); g.arc(c, c, w * 0.47, 0, 7); g.fill();
+      // 色边：外圈一道粗边 + 里面一道细圈，和字同色
+      ring(w * 0.47, 14, col); ring(w * 0.452, 10, col); ring(w * 0.372, 5, col);
+      g.font = `bold 310px ${FONT}`; g.textAlign = 'center'; g.textBaseline = 'middle';
       g.fillStyle = col; g.fillText(ch, c, c + 16);
-      g.fillStyle = 'rgba(255,240,210,.14)'; g.fillText(ch, c - 3, c + 12);
     }));
   }
   // 揭棋暗子：漆面背（汉为朱漆、楚为黑漆），金边祥云，中间极淡地印着所在位置的兵种
@@ -631,6 +626,11 @@ const Board = (() => {
   const rivetGeo = new THREE.SphereGeometry(0.009, 8, 6); rivetGeo.userData.keep = true;
   const plateFrame = new THREE.MeshStandardMaterial({ color: 0xd8a945, metalness: 0.8, roughness: 0.3, emissive: 0x2a1a04 });
   const plateOff = new THREE.MeshStandardMaterial({ color: 0x3b3633, metalness: 0.1, roughness: 0.9 });
+  // 记功牌（Ham 10-09：「甲片」去掉，一律叫「军功」（td-010）；审批台 td-007：汉方用金边朱心圆牌 + 朱红绶带，楚方仍是乌铁甲片）
+  const medalGeo = new THREE.CylinderGeometry(0.036, 0.036, 0.012, 24); medalGeo.rotateX(Math.PI / 2); medalGeo.userData.keep = true;
+  const medalCoreGeo = new THREE.CylinderGeometry(0.02, 0.02, 0.006, 20); medalCoreGeo.rotateX(Math.PI / 2); medalCoreGeo.userData.keep = true;
+  const medalRibGeo = new THREE.BoxGeometry(0.03, 0.026, 0.006); medalRibGeo.userData.keep = true;
+  const medalRed = new THREE.MeshStandardMaterial({ color: 0xc8321e, metalness: 0.2, roughness: 0.45, emissive: 0x2a0602 });
   const starGeo = (() => {
     const sh = new THREE.Shape();
     for (let i = 0; i < 10; i++) { const a = -Math.PI / 2 + i * Math.PI / 5, r = i % 2 ? 0.026 : 0.06; i ? sh.lineTo(Math.cos(a) * r, Math.sin(a) * r) : sh.moveTo(Math.cos(a) * r, Math.sin(a) * r); }
@@ -649,6 +649,25 @@ const Board = (() => {
   });
   let feastTex = null;
   // 头顶血条：细长胶囊，左端金色菱形饰；汉军朱红、楚军暗绿；亮格 = 剩余生命，暗格 = 已掉的血（朝向镜头）
+  // 脚下血圈（美术 M17）：汉朱红、楚低饱和蓝；有血的段是凸起的珐琅，掉了的压平、半透明暗色。几何体、材质按键缓存（不随棋子释放）
+  const HPC = { r: 0xb8382b, b: 0x4d6c8c };
+  const hpSector = (R0, R1, a0, a1) => { const sh = new THREE.Shape(); sh.absarc(0, 0, R1, a0, a1, false); sh.absarc(0, 0, R0, a1, a0, true); sh.closePath(); return sh; };
+  const ringCache = new Map();
+  const ringGet = (k, mk) => { let v = ringCache.get(k); if (!v) { v = mk(); if (v.isBufferGeometry) v.userData.keep = true; ringCache.set(k, v); } return v; };
+  function footRing(hp, max, s, W = 0.045, D = 0.013, GAP = 0.3) {
+    const g = new THREE.Group(), R0 = 0.452, R1 = R0 + W, span = (Math.PI * 2 - GAP * max) / max;
+    const baseGeo = ringGet('bg', () => { const q = new THREE.RingGeometry(R0 - 0.006, R1 + 0.006, 72); q.rotateX(-Math.PI / 2); return q; });
+    const dim = ringGet('mOff', () => new THREE.MeshStandardMaterial({ color: 0x2a221c, roughness: 0.9, transparent: true, opacity: 0.35, depthWrite: false }));
+    const base = new THREE.Mesh(baseGeo, dim); base.position.y = 0.003; g.add(base);
+    for (let i = 0; i < max; i++) {
+      const a0 = Math.PI / 2 + GAP / 2 + i * (span + GAP), on = i < hp, bs = Math.min(0.008, W * 0.12);
+      const geo = ringGet(`g${max}_${i}_${on ? 1 : 0}`, () => { const q = new THREE.ExtrudeGeometry(hpSector(R0 + bs, R1 - bs, a0, a0 + span), { depth: on ? D : 0.004, bevelEnabled: true, bevelThickness: on ? D * 0.4 : 0.002, bevelSize: bs, bevelSegments: 3, curveSegments: 32 }); q.rotateX(-Math.PI / 2); return q; });
+      const mat = on ? ringGet('mOn' + s, () => new THREE.MeshPhysicalMaterial({ color: HPC[s], emissive: HPC[s], emissiveIntensity: 0.18, roughness: 0.38, metalness: 0.05, clearcoat: 0.6, clearcoatRoughness: 0.18 }))
+        : ringGet('mLost', () => new THREE.MeshStandardMaterial({ color: 0x2a221c, roughness: 0.9, transparent: true, opacity: 0.3, depthWrite: false }));
+      const mm = new THREE.Mesh(geo, mat); mm.position.y = 0.004; mm.castShadow = on; g.add(mm);
+    }
+    return g;
+  }
   const hpTexCache = new Map();
   const HP_COL = { r: ['#ff8a66', '#e2462c', '#9c1f12'], b: ['#7fc79a', '#3f8a5e', '#1b4a31'] };
   function hpTex(hp, max, side) {
@@ -696,7 +715,7 @@ const Board = (() => {
   //   boxAz / boxEl / boxI / zen = 斜上方柔光箱的方位半宽、仰角范围、亮度，天顶灯亮度（决定金属顶面那块高光有多大、多亮）
   //   domeM = 金属顶面的弧度（略微隆起，高光才是一块有形状的光斑，而不是整面发白）
   //   jade = 玉面纹理：gu 谷纹 / pu 蒲纹 / yun 云纹 / su 素面
-  const SK = { boxAz: [9, 14], boxEl: [33, 39, 51, 56], boxI: [1.2, 3.0], zen: 2.4, domeM: 0.2, anisoTop: 0.16, envS: 0.9, envG: 0.82, jade: 'yun' };   // 顶面高光占比：银约 35%、金约 25%；白玉用云纹
+  const SK = { boxAz: [5.5, 8.5], boxEl: [33, 39, 51, 56], boxI: [0.9, 2.3], zen: 2.0, domeM: 0.5, anisoTop: 0.16, envS: 0.9, envG: 0.82, jade: 'yun' };   // 顶面高光占比：银约 35%、金约 25%；白玉用云纹
   try { const o = JSON.parse(localStorage.getItem('xq3d-sk') || 'null'); if (o) Object.assign(SK, o); } catch (e) { }
   function studioEnv() {
     const W = 512, H = 256, lin = new Float32Array(W * H * 3);
@@ -755,12 +774,17 @@ const Board = (() => {
     const w = hc.width, h = hc.height, src = hc.getContext('2d').getImageData(0, 0, w, h).data;
     return mkCanvas(w, h, g => {
       const im = g.createImageData(w, h), d = im.data;
-      const H = (x, y) => { if (wrapX) x = (x + w) % w; else x = Math.max(0, Math.min(w - 1, x)); y = Math.max(0, Math.min(h - 1, y)); return src[(y * w + x) * 4] / 255; };
-      for (let y = 0; y < h; y++) for (let x = 0; x < w; x++) {
-        let nx = -(H(x + 1, y) - H(x - 1, y)) * k, ny = (H(x, y + 1) - H(x, y - 1)) * k, nz = 1;
+      // 左右上下邻居的下标先算好（原来每个像素调四次取样函数，大贴图开页面时要多花半秒多）
+      const xl = new Int32Array(w), xr = new Int32Array(w), kk = k / 255;
+      for (let x = 0; x < w; x++) { xl[x] = wrapX ? (x - 1 + w) % w : Math.max(0, x - 1); xr[x] = wrapX ? (x + 1) % w : Math.min(w - 1, x + 1); }
+      for (let y = 0; y < h; y++) {
+        const r0 = y * w, ru = Math.min(h - 1, y + 1) * w, rd = Math.max(0, y - 1) * w;
+        for (let x = 0; x < w; x++) {
+        let nx = -(src[(r0 + xr[x]) * 4] - src[(r0 + xl[x]) * 4]) * kk, ny = (src[(ru + x) * 4] - src[(rd + x) * 4]) * kk, nz = 1;
         if (dome) { nx += ((x + 0.5) / w * 2 - 1) * dome; ny -= ((y + 0.5) / h * 2 - 1) * dome; }
-        const l = Math.hypot(nx, ny, nz), i = (y * w + x) * 4;
+        const l = Math.sqrt(nx * nx + ny * ny + nz * nz), i = (r0 + x) * 4;
         d[i] = (nx / l * 0.5 + 0.5) * 255; d[i + 1] = (ny / l * 0.5 + 0.5) * 255; d[i + 2] = (nz / l * 0.5 + 0.5) * 255; d[i + 3] = 255;
+        }
       }
       g.putImageData(im, 0, 0);
     });
@@ -1233,21 +1257,27 @@ const Board = (() => {
     // 棋身：一级木、二级乌银错花、三级錾金、四级羊脂白玉金丝嵌；升级后的字换成掐丝珐琅
     applySkin(m, d, p.lv, p);
     if (face && face.material) face.material.color.set(o.dim ? 0x8f8a84 : 0xffffff);
-    // 腰带甲片 = 攒下的击杀数（每片抵下次升级 1 功，升级时用掉）
+    // 腰带上的牌 = 这枚子自己记的军功（击杀数，每点抵下次升级 1 功，攒满自动升级，升级时用掉）
     const nx = Math.min(8, p.xp || 0);
     for (let i = 0; i < nx; i++) {
       const a = (i - (nx - 1) / 2) * 0.26;
-      const pl = new THREE.Mesh(plateGeo, plateOn);
-      pl.position.set(Math.sin(a) * 0.4305, PH * 0.6, Math.cos(a) * 0.4305); pl.rotation.y = a;
-      const fr = new THREE.Mesh(plateFrameGeo, plateFrame); fr.position.z = -0.003; pl.add(fr);
-      const rv = new THREE.Mesh(rivetGeo, plateFrame); rv.position.z = 0.007; rv.scale.z = 0.5; pl.add(rv);
+      let pl;
+      if (p.s === 'r') {   // 汉：金边朱心圆牌，上面一截朱红绶带
+        pl = new THREE.Mesh(medalGeo, plateFrame); pl.position.set(Math.sin(a) * 0.437, PH * 0.6, Math.cos(a) * 0.437); pl.rotation.y = a;
+        const cr = new THREE.Mesh(medalCoreGeo, medalRed); cr.position.z = 0.006; pl.add(cr);
+        const rb = new THREE.Mesh(medalRibGeo, medalRed); rb.position.set(0, 0.045, -0.002); pl.add(rb);
+      } else {
+        pl = new THREE.Mesh(plateGeo, plateOn);
+        pl.position.set(Math.sin(a) * 0.4305, PH * 0.6, Math.cos(a) * 0.4305); pl.rotation.y = a;
+        const fr = new THREE.Mesh(plateFrameGeo, plateFrame); fr.position.z = -0.003; pl.add(fr);
+        const rv = new THREE.Mesh(rivetGeo, plateFrame); rv.position.z = 0.007; rv.scale.z = 0.5; pl.add(rv);
+      }
       pl.userData.plate = i; d.add(pl);
     }
     if (p.lv >= 2 || kingF) {
-      const tx = hpTex(p.hp, max, p.s), sc = (window.innerWidth <= 760 ? 1.25 : 1) * 0.0028;
-      const sp = new THREE.Sprite(new THREE.SpriteMaterial({ map: tx, transparent: true, depthWrite: false }));
-      sp.scale.set(tx.userData.w * sc, tx.userData.h * sc, 1); sp.position.y = PH + 0.34; sp.renderOrder = 6;
-      sp.userData.hpBar = { hp: p.hp, max }; d.add(sp);
+      // 血条：棋子脚下贴着棋盘一圈立体血段，一点血一段（美术 M17，Ham 审批台 059 / 063 / 066 / 069）
+      const ring = footRing(p.hp, max, p.s);
+      ring.userData.hpBar = { hp: p.hp, max }; d.add(ring);
     }
     if (o.jm) {
       for (let i = 0; i < 10; i++) {
@@ -1315,7 +1345,7 @@ const Board = (() => {
       const e = enamelFace('r', 'p', 'gold'), fm = phys({ transparent: true, metalness: 1, roughness: 1, clearcoat: 0.8, clearcoatRoughness: 0.08, map: e.map, roughnessMap: e.orm, metalnessMap: e.orm, aoMap: e.orm, polygonOffset: true, polygonOffsetFactor: -2, ...(envTex ? { envMap: envTex } : {}) });
       tmp.add(new THREE.Mesh(faceGeo, fm));
       tmp.position.set(0, -50, 0); scene.add(tmp);
-      Core.renderer.compile(scene, Core.camera);
+      Core.compileBg(tmp, Core.camera, 300, scene);   // 只编这几种升级材质（用场景的灯光），放后台编；原来是同步把整个场景编一遍，有的电脑上整个浏览器会卡住
       scene.remove(tmp); prewarmSkins.keep = fm; // 留着这份材质：一释放，刚编好的着色器也会被删掉
     } catch (e) { console.warn('prewarmSkins', e); }
   }
@@ -1576,6 +1606,18 @@ const Board = (() => {
         markRoot.add(e, c); moveDots.push(e, c);
       }
     }
+    // 落子确认：选中的那枚棋子在落点上留一个蓝色虚影，再点一次才走（Ham 10-09）
+    if (moves.ghost && sel) {
+      // 落点标记（Ham 10-09 11:37）：虚影底下一个小标记，点明落在哪
+      markRoot.add(pointMark(moves.ghost[0], moves.ghost[1], 1));
+      const g = ghostOf(sel, moves.ghost, false);
+      if (g) {
+        markRoot.add(g);
+        // 呼吸：透明度在 0.22～0.46 之间一明一暗，约 1.6 秒一下（Ham 10-09：虚影再淡一点，原来 0.32～0.72）；虚影被清掉（确认、取消、换子）时跟着停
+        let t = 0; const mats = g.userData.mats;
+        const off = Core.onFrame(dt => { if (!g.parent) { off(); if (g.userData.drop) g.userData.drop(); return; } t += dt; const k = GHOST_A + 0.12 * Math.sin(t * Math.PI * 2 / 1.6); for (const m of mats) m.opacity = m.userData.o0 * k; });
+      }
+    }
     // 选定的技能目标：一个转着的瞄准圈把它框住
     if (moves.aim) {
       const [f, r] = moves.aim;
@@ -1694,7 +1736,98 @@ const Board = (() => {
     requestAnimationFrame(fade);
   }
   // immediate=true：立即落回棋盘（走子时用）
+  // 虚影：把选中的那枚棋子照原样复制一份——木身、字面、金边、棋子款式的装饰都在，只是半透明（Ham 10-09：不要单色）。
+  // 材质一律克隆：clearMoves 会把 markRoot 里的材质全 dispose 掉，挂原材质会把原棋子连带释放。贴图是共用的，dispose 材质不碰贴图。
+  // 模型显示模式下棋盘上的圆棋子是藏起来的（squads.showDisc），虚影照样画圆棋子：落点上要的是「这枚子」的样子。
+  // bad=true：点到走不了的地方，同样的虚影带一点红。
+  const GHOST_RED = new THREE.Color(0xd8341f);
+  const GHOST_A = 0.34;   // 虚影平均的透明度（乘在原材质上）
+  // 落点标记（Ham 10-09 选了第三案「朱红折角」）：四个直角，和棋盘上炮位、兵位的折角记号一个样子；比棋子大一圈，虚影盖不住
+  let markT = null;
+  function markTex() {
+    if (markT) return markT;
+    markT = canvasTex(256, 256, (g, w) => {
+      g.clearRect(0, 0, w, w); const c = w / 2, d = w * 0.36, l = w * 0.11;
+      g.strokeStyle = '#c8321f'; g.globalAlpha = 0.92; g.lineWidth = w * 0.026; g.lineCap = 'square';
+      for (const sx of [-1, 1]) for (const sy of [-1, 1]) { g.beginPath(); g.moveTo(c + sx * d, c + sy * (d - l)); g.lineTo(c + sx * d, c + sy * d); g.lineTo(c + sx * (d - l), c + sy * d); g.stroke(); }
+    });
+    markT.colorSpace = THREE.SRGBColorSpace;
+    return markT;
+  }
+  function pointMark(f, r, op = 1) {
+    const m = decal(markTex(), 0xffffff, 1.25, X(f), Z(r), TOP + 0.0062, op);
+    m.renderOrder = 5; return m;
+  }
+  // 电脑上鼠标移到能走的点：那里显示同样的标记（淡一点）。main.js 的 pointermove 调 hoverMark([f, r]) / hoverMark(null)
+  let hoverMk = null, hoverAt = '';
+  function hoverMark(at) {
+    const key = at ? at[0] + ',' + at[1] : '';
+    if (key === hoverAt) return; hoverAt = key;
+    if (hoverMk) { scene.remove(hoverMk); hoverMk.material.dispose(); hoverMk = null; }
+    if (at) { hoverMk = pointMark(at[0], at[1], 0.6); scene.add(hoverMk); }
+  }
+  // 走不了的虚影染红（10-09 Ham：再红一点）：颜色往朱红拉七成，再加一层红色自发光
+  const ghostMat = (m, bad, mats) => {
+    const c = m.clone(); c.transparent = true; c.depthWrite = false; c.userData = Object.assign({}, m.userData, { o0: m.opacity == null ? 1 : m.opacity });
+    if (bad) { if (c.color) c.color.lerp(GHOST_RED, 0.7); if (c.emissive) { c.emissive.setHex(0xa0180a); c.emissiveIntensity = 0.9; } }
+    mats.push(c); return c;
+  };
+  // 兵种模型模式（10-09 Ham：虚影要是兵种模型的虚影）：在落点另立一队同样的兵马（同兵种、同等级、同朝向），材质全换成半透明的克隆。
+  // 返回一个空的容器 Group 放进 markRoot；容器被清掉（clearMoves）或 flashBad 播完时，userData.drop() 把这一队收掉、克隆的材质释放。
+  function squadGhost(src, at, bad) {
+    const SQ = typeof Squads !== 'undefined' ? Squads : null;
+    if (!SQ || !SQ.Stand || !SQ.Stand.on || !SQ.Stand.sq(src)) return null;
+    const u = src.userData; if (!u.t || u.h) return null;
+    let lv = 0;
+    if (lastGame && lastGame.bf) for (const row of lastGame.board) for (const p of row) if (p && p.id === u.id) lv = p.lv || 1;
+    let sq;
+    try { sq = SQ.make(u.t, u.s, new THREE.Vector3(X(at[0]), TOP, Z(at[1])), SQ.yawOf(new THREE.Vector3(0, 0, u.s === 'r' ? -1 : 1)), 'move', lv || 1, lv); } catch (e) { return null; }
+    if (sq.setPose && sq.troop) sq.setPose('idle'); if (sq.crew) sq.crew.setPose('idle'); if (sq.horse && !sq.mounted) sq.horse.speed = 0;
+    if (sq.flags) for (const f of sq.flags) scene.remove(f.group);   // 旗子不要：落点上看清人马就够了
+    const parts = [sq, sq.guard, sq.crew].filter(Boolean);
+    for (const q of parts) { if (q.setVis) q.setVis(1); if (q.updaters) for (const f of q.updaters) try { f(0); } catch (e) { } }   // 先跑一帧，各个兵马站到位（不然有的部件还停在世界原点）
+    const mats = [], roots = parts.map(q => q.group).filter(Boolean);
+    // 描墨边的那层（背面外扩）不进虚影：半透明时它会从身体里透出来，整队发黑
+    for (const r of roots) r.traverse(o => { if (o.material && !Array.isArray(o.material) && o.material.side === THREE.BackSide) { o.visible = false; return; } if (o.material) { o.material = Array.isArray(o.material) ? o.material.map(m => ghostMat(m, bad, mats)) : ghostMat(o.material, bad, mats); o.castShadow = false; o.renderOrder = 6; } });
+    const g = new THREE.Group(); g.userData.mats = mats;
+    let gone = false;
+    g.userData.drop = () => { if (gone) return; gone = true; try { if (sq.guard) sq.guard.dispose(); sq.dispose(); } catch (e) { } for (const m of mats) m.dispose(); };   // 炮的炮手由 Cannon.dispose 一起收
+    for (const m of mats) m.opacity = m.userData.o0 * GHOST_A;
+    return g;
+  }
+  function ghostOf(sel, at, bad) {
+    const src = meshAt(sel[0], sel[1]); if (!src) return null;
+    const sg = squadGhost(src, at, bad); if (sg) return sg;
+    const mats = [];
+    const cm = m => ghostMat(m, bad, mats);
+    const skinned = !!src.userData.skinned;
+    const copy = (o, depth, idx) => {
+      const d = o.isMesh ? new THREE.Mesh(o.geometry, Array.isArray(o.material) ? o.material.map(cm) : cm(o.material)) : new THREE.Group();
+      d.position.copy(o.position); d.quaternion.copy(o.quaternion); d.scale.copy(o.scale);
+      // 照「圆棋子模式」该有的显隐：木身、字面总在；金边在没换款式时才有；款式装饰照它自己的
+      d.visible = depth === 1 && idx <= 1 ? true : depth === 1 && idx === 2 ? !skinned : (o.userData && o.userData.skin) ? true : o.visible;
+      o.children.forEach((c, k) => { if (c.isMesh || c.isGroup || c.type === 'Object3D') d.add(copy(c, depth + 1, k)); });
+      return d;
+    };
+    const g = copy(src, 0, 0); g.visible = true;
+    g.position.set(X(at[0]), TOP, Z(at[1])); g.rotation.set(0, src.rotation.y, 0); g.renderOrder = 6;
+    for (const m of mats) m.opacity = m.userData.o0 * GHOST_A;
+    g.userData.mats = mats;
+    return g;
+  }
+  // 点到走不了的地方：那里出一个带红的虚影，呼吸一下就淡出（约 1 秒）
+  function flashBad(sel, at) {
+    const g = sel && ghostOf(sel, at, true); if (!g) return;
+    scene.add(g); let t = 0; const mats = g.userData.mats, T = 1.0;
+    const off = Core.onFrame(dt => {
+      t += dt;
+      const fade = t < 0.45 ? 1 : Math.max(0, 1 - (t - 0.45) / (T - 0.45)), k = (0.5 + 0.18 * Math.cos(t * Math.PI * 2 / 0.5)) * fade;
+      for (const m of mats) m.opacity = m.userData.o0 * k;
+      if (t >= T) { off(); scene.remove(g); if (g.userData.drop) g.userData.drop(); else for (const m of mats) m.dispose(); }
+    });
+  }
   function clearMoves(immediate = true) {
+    hoverMark(null);
     if (hovered) {
       if (immediate) { hovered.position.y = TOP; hovered.rotation.x = hovered.rotation.z = 0; }
       else dropping.add(hovered);
@@ -1809,7 +1942,7 @@ const Board = (() => {
   })();
   return {
     root, TOP, PH, HALF, X, Z, pos, setPosition, syncPosition, pieces, piecesRoot, makePiece, faceViewer,
-    showMoves, clearMoves, showZone, showBad, showStep, setGlow, showLast, pick, meshAt, get hovered() { return hovered; }, ringTex, glowTex, wakes, water, waterMat, decal, flatGeo, pine, deco, FONT,
+    showMoves, clearMoves, flashBad, hoverMark, showZone, showBad, showStep, setGlow, showLast, pick, meshAt, get hovered() { return hovered; }, ringTex, glowTex, wakes, water, waterMat, decal, flatGeo, pine, deco, FONT,
     viewSide: 'r', setSkin, dress, get lastGame() { return lastGame; }, skinTune, get SK() { return SK; }, pieceWood, RZ, BZ, BX, BRIDGE_X, faceTex, backTex, setFace, makeRiver, mtTex, decorate, decorateAll, reconcile, plateGeo, plateOn,
   };
 })();

@@ -8,12 +8,25 @@ const Core = (() => {
   const canvas = document.getElementById('gl');
   // 画质档位：手机/低端设备自动降级
   const isMobile = matchMedia('(pointer:coarse)').matches || /Android|iPhone|iPad|Mobile/i.test(navigator.userAgent);
-  let quality = 'high';
-  try { const q = localStorage.getItem('xq3d-quality'); if (q) quality = JSON.parse(q); else if (isMobile) quality = 'mid'; } catch (e) { if (isMobile) quality = 'mid'; }
-  const renderer = new THREE.WebGLRenderer({ canvas, antialias: quality !== 'low', powerPreference: 'high-performance' });
-  const prFor = q => Math.min(window.devicePixelRatio, q === 'high' ? 2 : q === 'mid' ? 1.5 : 1);
-  renderer.setPixelRatio(prFor(quality));
+  let quality = 'high', userQ = false;
+  // 浏览器到底用没用显卡：硬件加速关了（或者显卡被浏览器拉黑）时，画图全靠 CPU 软算，再好的电脑也会非常卡。
+  // 先用一个小画布问一下显卡名字；软算的话，没自己选过画质的人直接从「低」开始
+  const GPU = (() => { try { const c = document.createElement('canvas'), gl = c.getContext('webgl2') || c.getContext('webgl'); if (!gl) return ''; const e = gl.getExtension('WEBGL_debug_renderer_info'), n = String(gl.getParameter(e ? e.UNMASKED_RENDERER_WEBGL : gl.RENDERER)); const L = gl.getExtension('WEBGL_lose_context'); L && L.loseContext(); return n; } catch (e) { return ''; } })();
+  const softGL = /swiftshader|llvmpipe|softpipe|basic render|software/i.test(GPU);
+  try { const q = localStorage.getItem('xq3d-quality'); if (q) { quality = JSON.parse(q); userQ = true; } else if (isMobile) quality = 'mid'; } catch (e) { if (isMobile) quality = 'mid'; }
+  if (softGL && !userQ) quality = 'low';
+  // 排查用的开关（网址后面加，例如 ?noaa&lowp）：noaa 关多重采样抗锯齿，lowp 不点名要独立显卡。10-09 查 Ham 电脑上窗口卡死用
+  const DIAG = new URLSearchParams(location.search);
+  const renderer = new THREE.WebGLRenderer({ canvas, antialias: quality !== 'low' && !DIAG.has('noaa'), powerPreference: DIAG.has('lowp') ? 'default' : 'high-performance' });
+  // 像素比：按画质封顶，再按“整张画布最多多少像素”封顶。大屏、高分屏全屏时画布能有上千万像素（还带多重采样），
+  //   显卡（尤其集成显卡）吃不消，会拖累整台电脑（10-09 Ham：高配电脑卡、拖成独立窗口时所有软件都卡住）
+  const PX_BUDGET = { high: 3.7e6, mid: 2.4e6, low: 1.4e6 };
+  const prFor = q => {
+    const cap = q === 'high' ? 2 : q === 'mid' ? 1.5 : 1, area = Math.max(1, window.innerWidth * window.innerHeight);
+    return Math.max(0.75, Math.min(window.devicePixelRatio || 1, cap, Math.sqrt((PX_BUDGET[q] || PX_BUDGET.mid) / area)));
+  };
   renderer.localClippingEnabled = true;
+  renderer.debug.checkShaderErrors = false;   // 线上不查着色器报错：查一次要同步等显卡编完，第一次画东西时会卡
   renderer.shadowMap.enabled = quality !== 'low';
   renderer.shadowMap.type = THREE.PCFSoftShadowMap;
   renderer.toneMapping = THREE.ACESFilmicToneMapping;
@@ -29,7 +42,7 @@ const Core = (() => {
   scene.add(hemi);
   const sun = new THREE.DirectionalLight(0xfff0dc, 2.6);
   sun.position.set(-6, 14, 7);
-  sun.castShadow = true;
+  sun.castShadow = quality !== 'low';
   sun.shadow.mapSize.set(quality === 'high' ? 2048 : 1024, quality === 'high' ? 2048 : 1024);
   const sc = sun.shadow.camera;
   sc.left = -9; sc.right = 9; sc.top = 9; sc.bottom = -9; sc.near = 1; sc.far = 40;
@@ -37,15 +50,23 @@ const Core = (() => {
   sun.shadow.normalBias = 0.02;
   scene.add(sun, sun.target);
 
+  // 窗口大小变了：重新分配画布（显卡上一整块内存）。拖动窗口、把标签拖成独立窗口时 resize 一秒几十次，
+  //   每次都重新分配会把显卡拖垮（整台电脑卡住、窗口发白）。所以等窗口停下来 0.2 秒再一次性分配；这期间画面先拉伸着显示。
+  //   尺寸和像素比都没变就不动（给 canvas.width 赋同样的值也会清空重分配）
   function resize() {
-    const w = window.innerWidth, h = window.innerHeight;
-    renderer.setSize(w, h, false);
+    const w = window.innerWidth, h = window.innerHeight, pr = prFor(quality);
+    const c = renderer.domElement, size = renderer.getSize(new THREE.Vector2());
+    if (c.width !== Math.floor(w * pr) || c.height !== Math.floor(h * pr) || size.x !== w || size.y !== h) renderer.setDrawingBufferSize(w, h, pr);
     camera.aspect = w / h;
     camera.fov = w / h < 0.8 ? 58 : 42;
     camera.updateProjectionMatrix();
-    try { if (!Cam.cine) Cam.radius = Cam.fitRadius(); } catch (e) { /* 初始化时 Cam 尚未定义 */ }
+    try { if (!Cam.cine) Cam.radius = Cam.view ? Cam.fitTop() : Cam.fitRadius(); } catch (e) { /* 初始化时 Cam 尚未定义 */ }
   }
-  window.addEventListener('resize', resize);
+  let resizeT = 0;
+  const resizeSoon = () => { clearTimeout(resizeT); resizeT = setTimeout(resize, 200); };
+  window.addEventListener('resize', resizeSoon);
+  // 拖到另一块屏幕（像素比变了）也要重算
+  (function watchDpr() { try { const m = matchMedia(`(resolution: ${window.devicePixelRatio || 1}dppx)`); m.addEventListener('change', () => { resizeSoon(); watchDpr(); }, { once: true }); } catch (e) { } })();
   resize();
 
   // ---------- 时间与补间 ----------
@@ -81,6 +102,7 @@ const Core = (() => {
     home0: new THREE.Vector3(0, 0, 0.2),
     theta: 0, phi: 0.72, radius: 14.5,
     homeTheta: 0,
+    view: 0,   // 视角三档（美术 M11，Ham 定的名字）：0 沙盘（斜着看，能转能拖能缩放）/ 1 俯瞰（正上方，能拖能缩放、不能转）/ 2 定盘（正上方，锁住）
     cine: false,
     pos: new THREE.Vector3(), look: new THREE.Vector3(),
     shakeAmp: 0,
@@ -91,13 +113,14 @@ const Core = (() => {
         Math.cos(this.theta) * Math.sin(this.phi)).multiplyScalar(this.radius).add(this.target);
       return p;
     },
-    setSide(side) {
+    setSide(side, snap = true) {
       this.homeTheta = side === 'b' ? Math.PI : 0;
-      this.theta = this.homeTheta; this.phi = 0.72;
+      this.theta = this.homeTheta; this.phi = this.view ? 0.001 : 0.72;   // 正上方时 phi 不能是 0（lookAt 会翻）
       this.target.copy(this.home0);
-      this.radius = this.fitRadius();
-      this.pos.copy(this.orbitPos()); this.look.copy(this.target);
+      this.radius = this.view ? this.fitTop() : this.fitRadius();
+      if (snap) { this.pos.copy(this.orbitPos()); this.look.copy(this.target); this.upTh = this.theta; }   // snap=false：镜头从现在的位置滑过去
     },
+    setView(v, side) { this.view = v; this.setSide(side, false); },
     homeDir() { return new THREE.Vector3(Math.sin(this.homeTheta), 0, Math.cos(this.homeTheta)); },
     // 按屏幕宽高比算出能完整看到棋盘宽度的距离（竖屏手机会自动拉远）
     fitRadius() {
@@ -105,8 +128,16 @@ const Core = (() => {
       const hh = Math.atan(Math.tan(camera.fov * Math.PI / 360) * a);
       return Math.max(14.5, 5.4 / Math.tan(hh) + 3.5);
     },
+    // 正上方看时，能看全整张棋盘（含边框，留一点边）的距离
+    fitTop() {
+      const v = Math.tan(camera.fov * Math.PI / 360), a = window.innerWidth / window.innerHeight;
+      return Math.max(6.9 / v, 5.6 / (v * a));
+    },
     // 平滑移动到某个机位
-    async to(pos, look, dur = 1, e = ease.inOut) {
+    async to(pos, look, dur = 1, e = ease.inOut, force = false) {
+      // 俯瞰 / 定盘（正上方看）时不跟特写镜头跑：只等同样长的时间（演出节奏不变），镜头不动。终局的镜头（force）照走
+      //   （10-09 Ham：顶视图吃子的时候非常晃）
+      if (this.view && !force) return tween(dur, () => { }, e);
       this.cine = true;
       const id = this.moveId = (this.moveId || 0) + 1;
       const p0 = this.pos.clone(), l0 = this.look.clone();
@@ -117,7 +148,7 @@ const Core = (() => {
       await this.to(p, this.target.clone(), dur);
       this.cine = false;
     },
-    shake(a) { this.shakeAmp = Math.max(this.shakeAmp, a); },
+    shake(a) { this.shakeAmp = Math.max(this.shakeAmp, this.view ? a * 0.2 : a); },   // 正上方看时震屏只留两成
     // 平移：沿屏幕的左右 / 前后在地面上挪动注视点（dx、dy 是屏幕像素）
     panBy(dx, dy) {
       const k = this.radius * 0.0016, c = Math.cos(this.theta), s = Math.sin(this.theta);
@@ -132,14 +163,26 @@ const Core = (() => {
         this.look.lerp(this.target, 1 - Math.exp(-dt * 10));
       }
       camera.position.copy(this.pos);
+      const lk = this.lk || (this.lk = new THREE.Vector3()); lk.copy(this.look);
       if (this.shakeAmp > 0.001) {
         const a = this.shakeAmp;
-        camera.position.x += (Math.random() - 0.5) * a;
-        camera.position.y += (Math.random() - 0.5) * a;
-        camera.position.z += (Math.random() - 0.5) * a;
+        const sx = (Math.random() - 0.5) * a, sy = (Math.random() - 0.5) * a, sz = (Math.random() - 0.5) * a;
+        // 正上方看（俯瞰 / 定盘）：镜头和注视点一起挪 = 整个画面平移一下，不转、不歪
+        //   （10-09 Ham：顶视图进攻时抖得剧烈又不自然——原来只挪镜头不挪注视点，正上方往下看时一点点偏移就让画面整个转几十度）
+        if (this.view && !this.cine) { camera.position.x += sx; camera.position.z += sz; lk.x += sx; lk.z += sz; }
+        else { camera.position.x += sx; camera.position.y += sy; camera.position.z += sz; }
         this.shakeAmp *= Math.exp(-dt * 7);
       }
-      camera.lookAt(this.look);
+      // 镜头的“上方”：正上方往下看时，竖直方向和视线平行，lookAt 定不出画面朝向，只能靠水平方向那一点点偏移去猜，
+      // 稍一抖就整盘转。所以正上方看时用“我方在下、对方在上”的方向当上方（翻转时转过去而不是跳过去）；斜着看还是竖直向上
+      let dth = this.theta - (this.upTh ?? this.theta); dth = Math.atan2(Math.sin(dth), Math.cos(dth));
+      this.upTh = (this.upTh ?? this.theta) + dth * (1 - Math.exp(-dt * 8));
+      if (this.view) {
+        const dx = lk.x - camera.position.x, dy = lk.y - camera.position.y, dz = lk.z - camera.position.z;
+        const h = Math.hypot(dx, dz) / (Math.hypot(dx, dy, dz) || 1), k = Math.min(1, Math.max(0, (h - 0.08) / 0.27)), w = k * k * (3 - 2 * k);
+        camera.up.set(-Math.sin(this.upTh) * (1 - w), w, -Math.cos(this.upTh) * (1 - w)).normalize();
+      } else camera.up.set(0, 1, 0);
+      camera.lookAt(lk);
     },
   };
 
@@ -158,7 +201,9 @@ const Core = (() => {
       const dx = e.clientX - drag.x, dy = e.clientY - drag.y;
       drag.moved += Math.abs(dx) + Math.abs(dy);
       drag.x = e.clientX; drag.y = e.clientY;
+      if (Cam.view === 2) return;   // 定盘：锁住
       if (drag.pan) { Cam.panBy(dx, dy); return; }
+      if (Cam.view === 1) { if (drag.moved > 6) Cam.panBy(dx, dy); return; }   // 俯瞰：拖 = 平移，不转
       if (drag.moved > 6) {
         Cam.theta -= dx * 0.005;
         Cam.phi = Math.min(1.35, Math.max(0.25, Cam.phi - dy * 0.004));
@@ -166,7 +211,7 @@ const Core = (() => {
     });
     window.addEventListener('pointerup', () => { Core.lastDragMoved = drag ? drag.moved : twoF ? 99 : 0; drag = null; });
     canvas.addEventListener('wheel', e => {
-      if (Cam.cine) return;
+      if (Cam.cine || Cam.view === 2) { e.preventDefault(); return; }
       Cam.radius = Math.min(30, Math.max(7, Cam.radius * (1 + Math.sign(e.deltaY) * 0.08)));
       e.preventDefault();
     }, { passive: false });
@@ -174,8 +219,8 @@ const Core = (() => {
       if (e.touches.length === 2) {
         const [a, b] = e.touches;
         const d = Math.hypot(a.clientX - b.clientX, a.clientY - b.clientY), cx = (a.clientX + b.clientX) / 2, cy = (a.clientY + b.clientY) / 2;
-        if (pinch && !Cam.cine) Cam.radius = Math.min(30, Math.max(7, Cam.radius * pinch / d));
-        if (mid && !Cam.cine) Cam.panBy(cx - mid.x, cy - mid.y);      // 双指一起拖 = 平移画面
+        if (pinch && !Cam.cine && Cam.view !== 2) Cam.radius = Math.min(30, Math.max(7, Cam.radius * pinch / d));
+        if (mid && !Cam.cine && Cam.view !== 2) Cam.panBy(cx - mid.x, cy - mid.y);      // 双指一起拖 = 平移画面
         pinch = d; mid = { x: cx, y: cy }; drag = null; twoF = true;
       }
     }, { passive: true });
@@ -185,22 +230,29 @@ const Core = (() => {
   // ---------- 主循环 ----------
   const clock = new THREE.Clock();
   let frameHooks = [];
+  // 帧时间（真实的，不封顶）：自动降画质和 ?perf 面板用
+  const ft = { n: 0, sum: 0, slow: 0, last: performance.now() };
+  let nap = 0;
   function loop() {
     requestAnimationFrame(loop);
-    const raw = Math.min(clock.getDelta(), 0.05);
+    { const t = performance.now(), d = t - ft.last; ft.last = t; if (Core.render && d < 1000) { ft.n++; ft.sum += d; if (d > 40) ft.slow++; } }
+    let raw = Math.min(clock.getDelta(), 0.05);
+    // 大厅整屏盖着、场景不画的时候（main.js 设 sleepy）：动画每 0.1 秒才推一次——兵营里的小兵、旗子照样在动，
+    // 补间照样走完，只是省下九成的脚本时间（手机待在大厅时省电、不发热）
+    if (Core.sleepy) { nap += raw; if (nap < 0.1) return; raw = Math.min(nap, 0.15); nap = 0; } else nap = 0;
     const dt = Time.hold ? 0 : raw * (Time.skip ? 14 : Time.scale) * Time.boost;   // hold：暂停，演出全部定住
     Time.t += dt;
     for (const u of Array.from(updaters)) u(dt);
     for (const h of frameHooks) h(dt, raw);
     Cam.update(raw);
-    if (Core.render) renderer.render(scene, camera);
+    if (Core.render && !held) renderer.render(scene, camera);   // held：换影子开关后，新着色器还在后台编，先停画（不然当场同步编、卡住）
   }
 
   // ---------- 贴图工具 ----------
-  function canvasTex(w, h, draw, opts = {}) {
+  function canvasTex(w, h, draw, opts = {}) {   // opts.read：以后要读它的像素（放在内存里，不放显卡上）
     const c = document.createElement('canvas');
     c.width = w; c.height = h;
-    const g = c.getContext('2d');
+    const g = c.getContext('2d', opts.read ? { willReadFrequently: true } : undefined);
     draw(g, w, h);
     const t = new THREE.CanvasTexture(c);
     if (opts.color !== false) t.colorSpace = THREE.SRGBColorSpace;
@@ -377,13 +429,31 @@ const Core = (() => {
     if (o.parent) o.parent.remove(o);
   }
 
+  // 在后台把一个场景要用的着色器编好，编好了再画（第一次画就不用当场等显卡编译，电脑上编一批能卡住好几秒）。
+  //   浏览器支持「并行编译」就问它编好没有；不支持的，先把编译命令发出去，过一会儿（显卡那边在编）再画
+  let held = 0;
+  //   lit：用哪个场景的灯光编（只编一小撮物体时传整个场景，编出来的才是场景里真正要用的那一版）
+  const parallelGL = (() => { try { return renderer.extensions.has('KHR_parallel_shader_compile'); } catch (e) { return false; } })();
+  function compileBg(sc, cam, ms = 1200, lit = null) {
+    try {
+      if (parallelGL) return renderer.compileAsync(sc, cam, lit).catch(() => { });
+      renderer.compile(sc, cam, lit); renderer.getContext().flush();
+    } catch (e) { }
+    return new Promise(r => setTimeout(r, ms));
+  }
+
   return {
     get quality() { return quality; },
-    setQuality(q) { quality = q; try { localStorage.setItem('xq3d-quality', JSON.stringify(q)); } catch (e) { } renderer.setPixelRatio(prFor(q)); renderer.shadowMap.enabled = q !== 'low'; resize(); },
+    setQuality(q, keep = true) { quality = q; if (keep) try { localStorage.setItem('xq3d-quality', JSON.stringify(q)); } catch (e) { } const sh = q !== 'low'; if (sh) renderer.shadowMap.enabled = true; if (sun.castShadow !== sh) { sun.castShadow = sh; held++; const un = () => { held--; }; compileBg(scene, camera, 600).then(un); } resize(); },   // keep=false：只这一次打开页面有效（自动降画质用）。
+    // 影子用太阳的 castShadow 开关：三维库会发现灯光变了、自动重编着色器，当场生效（原来改 shadowMap.enabled 要下次打开才生效）
+    gpu: GPU, softGL, DIAG, get parallelGL() { return parallelGL; }, get userQ() { return userQ; },
     isMobile,
     renderer, scene, camera, sun, hemi, Time, onFrame, tween, sleep, ease, Cam, canvasTex, Tex, rnd, inkBlot,
-    toon, outlineMat, outlineShared, inked, merge, M4, disposeTree,
+    toon, outlineMat, outlineShared, inked, merge, M4, disposeTree, compileBg,
     start() { clock.start(); loop(); },
+    get nUpdaters() { return updaters.size + frameHooks.length; },   // 每帧要跑的回调有几个（查泄漏用）
+    // 取走这段时间的帧统计：[帧数, 平均毫秒, 超过 40 毫秒的帧数]，取完清零
+    takeFrames() { const r = [ft.n, ft.n ? ft.sum / ft.n : 0, ft.slow]; ft.n = ft.sum = ft.slow = 0; return r; },
     addHook(fn) { frameHooks.push(fn); },
     lastDragMoved: 0,
     render: (() => { try { return !localStorage.getItem('xq3d-norender'); } catch (e) { return true; } })(),

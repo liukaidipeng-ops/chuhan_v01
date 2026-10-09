@@ -1,0 +1,61 @@
+/* 观战席四个样子（053 选 B：不用按钮，点观战席坐过去、点空座位坐回来） */
+#pWait .specs{display:flex;align-items:center;justify-content:center;gap:12px;flex-wrap:wrap;margin:0 0 14px;font-family:var(--es)}
+#pWait .specs>b{font-family:var(--ef);font-weight:900;letter-spacing:.3em;padding-left:.3em}
+#pWait .specs .tip{flex-basis:100%;text-align:center;font-size:calc(13px * var(--fs,1));letter-spacing:.06em;opacity:.75}
+#pWait .specs [data-sit]{cursor:pointer}
+/* 甲 · 名牌 */
+#pWait .specs.v1 .list{display:flex;gap:8px;flex-wrap:wrap;justify-content:center}
+#pWait .specs.v1 i{font-style:normal;display:inline-flex;align-items:center;gap:7px;min-height:34px;padding:0 14px 0 8px;border:2px solid var(--c);font-size:calc(15px * var(--fs,1));letter-spacing:.08em;white-space:nowrap}
+#pWait .specs.v1 i:before{content:"";flex:none;width:16px;height:16px;border-radius:50%;background:var(--c)}
+#pWait .specs.v1 i.me{background:var(--c);color:var(--k);font-weight:900}#pWait .specs.v1 i.me:before{background:var(--g)}
+#pWait .specs.v1 i.open{border-style:dashed}#pWait .specs.v1 i.open:before{content:"+";background:none;width:16px;height:16px;display:flex;align-items:center;justify-content:center;font:900 18px/1 var(--es)}
+/* 乙 · 小棋子：观众是一枚枚小圆子，名字写在子上 */
+#pWait .specs.v2{flex-direction:column;gap:10px}
+#pWait .specs.v2 .list{display:flex;gap:14px;flex-wrap:wrap;justify-content:center}
+#pWait .specs.v2 i{--s:66px;font-style:normal;width:var(--s);height:var(--s);border-radius:50%;display:flex;flex-direction:column;align-items:center;justify-content:center;background:var(--c);color:var(--k);font:900 calc(var(--s)*.27) var(--ef);letter-spacing:.04em;box-shadow:inset 0 0 0 3px var(--c),inset 0 0 0 4.5px var(--k);white-space:nowrap}
+#pWait .specs.v2 i small{font:600 calc(var(--s)*.15) var(--es);letter-spacing:0;margin-top:1px}
+#pWait .specs.v2 i.me{outline:2px solid var(--c);outline-offset:4px;box-shadow:inset 0 0 0 3px var(--c),inset 0 0 0 4.5px var(--g)}
+#pWait .specs.v2 i.open{background:none;color:var(--c);border:2px dashed var(--c);box-shadow:none;font-size:calc(var(--s)*.2)}
+@media (max-width:640px){#pWait .specs.v2 i{--s:54px}}
+/* 丙 · 长凳：画一条板凳，观众是小人剪影坐在上面 */
+#pWait .specs.v3{flex-direction:column;gap:6px}
+#pWait .specs.v3 .bench{position:relative;display:flex;gap:16px;justify-content:center;align-items:flex-end;padding:0 30px 10px;border-bottom:7px solid var(--c);min-width:min(420px,90%)}
+#pWait .specs.v3 .bench:before,#pWait .specs.v3 .bench:after{content:"";position:absolute;bottom:-21px;width:7px;height:14px;background:var(--c);left:18px}
+#pWait .specs.v3 .bench:after{left:auto;right:18px}
+#pWait .specs.v3 i{font-style:normal;display:flex;flex-direction:column;align-items:center;gap:2px;font-size:calc(14px * var(--fs,1));letter-spacing:.06em;white-space:nowrap}
+#pWait .specs.v3 i svg{width:40px;height:44px;display:block}
+#pWait .specs.v3 i.me{font-weight:900}#pWait .specs.v3 i.me span{background:var(--c);color:var(--k);padding:0 6px}
+#pWait .specs.v3 i.open{opacity:.8}
+#pWait .specs.v3 .tip{margin-top:16px}
+/* 丁 · 名单：电脑上竖排放在棋盘格右边一格里；手机上一行字 */
+#pWait .specs.v4{display:block;margin:0}
+#pWait .specs.v4 .box{position:absolute;right:3.5%;top:50%;transform:translateY(-50%);width:18%;min-width:150px;border:2px solid var(--c);background:var(--g);padding:10px 0 6px}
+#pWait .specs.v4 .box b{display:block;text-align:center;font:900 calc(16px * var(--fs,1)) var(--ef);letter-spacing:.3em;padding:0 0 8px .3em;border-bottom:2px solid var(--c);margin:0 0 4px}
+#pWait .specs.v4 .box b em{font-style:normal;font-size:.8em;letter-spacing:0;margin-left:4px;opacity:.8}
+#pWait .specs.v4 i{font-style:normal;display:flex;align-items:center;gap:8px;padding:6px 14px;font-size:calc(15px * var(--fs,1));letter-spacing:.08em}
+#pWait .specs.v4 i:before{content:"";flex:none;width:9px;height:9px;border-radius:50%;background:var(--c)}
+#pWait .specs.v4 i.me{background:var(--c);color:var(--k);font-weight:900}#pWait .specs.v4 i.me:before{background:var(--g)}
+#pWait .specs.v4 i.open{opacity:.8;border-top:1px dashed var(--c);margin-top:4px;padding-top:8px}#pWait .specs.v4 i.open:before{content:"+";background:none;width:9px;font:900 15px/1 var(--es);display:flex;justify-content:center}
+#pWait .specs.v4 .tip{display:none}
+@media (max-width:640px){
+  #pWait .specs.v4 .box{position:static;transform:none;width:auto;min-width:0;margin:0 0 14px;display:flex;flex-wrap:wrap;align-items:center;gap:0 4px;padding:6px 10px;background:none}
+  #pWait .specs.v4 .box b{display:inline;border:0;padding:0 6px 0 .3em;margin:0;font-size:calc(14px * var(--fs,1))}
+  #pWait .specs.v4 i{padding:4px 8px;font-size:calc(14px * var(--fs,1))}#pWait .specs.v4 i.open{border:0;margin:0;padding-top:4px;text-decoration:underline;text-underline-offset:3px}
+}
+/* 盖掉旧的 #lobby .specs i 细框 */
+#lobby #pWait .specs i{margin:0;border-radius:0;background:none;color:inherit}
+#lobby #pWait .specs.v1 i{border:2px solid var(--c)}#lobby #pWait .specs.v1 i.me{background:var(--c);color:var(--k)}#lobby #pWait .specs.v1 i.open{border-style:dashed}
+#lobby #pWait .specs.v2 i{border:0;background:var(--c);color:var(--k)}#lobby #pWait .specs.v2 i.open{background:none;color:var(--c);border:2px dashed var(--c)}
+#lobby #pWait .specs.v3 i,#lobby #pWait .specs.v4 i{border:0}
+#lobby #pWait .specs.v4 i.me{background:var(--c);color:var(--k)}#lobby #pWait .specs.v4 i.open{border-top:1px dashed var(--c)}
+@media (max-width:640px){#lobby #pWait .specs.v4 i.open{border:0}}
+#pWait .specs.v3 i svg{width:52px;height:60px}
+@media (max-width:640px){#pWait .specs.v3 i svg{width:40px;height:46px}#pWait .specs.v3 .bench{gap:10px;padding:0 20px 8px}}
+#lobby #pWait .specs.v2 i{border-radius:50%}
+/* 丙：小人直接坐在凳面上，名字写在凳子底下 */
+#pWait .specs.v3 .bench{padding-bottom:0;gap:22px}
+#pWait .specs.v3 i{position:relative}
+#pWait .specs.v3 i span{position:absolute;top:calc(100% + 13px);left:50%;transform:translateX(-50%)}
+#pWait .specs.v3 .tip{margin-top:44px}
+@media (max-width:640px){#pWait .specs.v3 .bench{gap:18px}#pWait .specs.v3 .tip{margin-top:40px}}
+#pWait .specs.v3 .bench{padding:0 44px}#pWait .specs.v3 .bench:before{left:6px}#pWait .specs.v3 .bench:after{right:6px}

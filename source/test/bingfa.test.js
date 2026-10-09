@@ -28,6 +28,34 @@ const ok = (x, msg) => { assert(x, msg); };
   ok(g.board.flat().filter(Boolean).every(p => p.lv === 1 && p.hp === 1), '全部一级 1 血');
   console.log('开局 OK');
 }
+// 1b. 升了级才解得了将，不算将死（Ham 10-09 22:14）：二血车贴脸将军，帅身边两个一级士
+{
+  const mk = m => setup([[4, 0, K('r')], [3, 0, P('r', 'a')], [5, 0, P('r', 'a')], [4, 1, P('b', 'r', 2)], [3, 9, K('b')]], { merit: { r: m, b: 3 } });
+  const g = mk(2);
+  ok(!g.result && g.upOnly(), '军功够升士：不是将死，提示只能先升级');
+  ok(g.apply({ k: 'up', at: [3, 0] }) && g.at(3, 0).lv === 2, '士升二级');
+  const i = g.apply({ k: 'mv', from: [3, 0], to: [4, 1] });
+  ok(i && i.cap && i.cap.t === 'r' && !g.result, '二级士砍死二血车，解将');
+  const g1 = mk(1);
+  ok(g1.status.result && g1.status.result.reason === 'checkmate' && g1.status.result.winner === 'b', '军功不够升级：照旧将死');
+  console.log('升级解将 OK');
+}
+// 1c. 分阶段进账（Ham 10-09 22:17）：第 15 回合起每回合各 +1（第二阶段），第 45 回合起各 +2（第三阶段），刚进入时有 phase 事件
+{
+  const mk = cnt => setup([[4, 0, K('r')], [0, 3, P('r', 'p')], [3, 9, K('b')], [8, 6, P('b', 'p')]], { turn: 'b', cnt, merit: { r: 0, b: 0 } });
+  const step = g => g.apply({ k: 'mv', from: [8, 6], to: [8, 5] });
+  let g = mk({ r: 13, b: 12 }); let i = step(g);
+  ok(g.round === 14 && g.merit.r === 0 && !i.ev.some(e => e.e === 'phase'), '第 14 回合开始：还没进账');
+  g = mk({ r: 14, b: 13 }); i = step(g);
+  ok(g.round === 15 && g.merit.r === 1 && g.merit.b === 1 && i.ev.some(e => e.e === 'phase' && e.n === 2), '第 15 回合：进入第二阶段，各 +1');
+  g = mk({ r: 15, b: 14 }); i = step(g);
+  ok(g.merit.r === 1 && !i.ev.some(e => e.e === 'phase'), '第 16 回合：照常 +1，不再提示');
+  g = mk({ r: 44, b: 43 }); i = step(g);
+  ok(g.round === 45 && g.merit.r === 2 && g.merit.b === 2 && i.ev.some(e => e.e === 'phase' && e.n === 3), '第 45 回合：进入第三阶段，各 +2');
+  g = mk({ r: 45, b: 44 }); i = step(g);
+  ok(g.merit.r === 2 && !i.ev.some(e => e.e === 'phase'), '第 46 回合：照常 +2');
+  console.log('分阶段进账 OK');
+}
 // 2. 普通吃子与军功
 {
   const g = new BF.Game();
@@ -46,11 +74,11 @@ const ok = (x, msg) => { assert(x, msg); };
   ok(!g.apply({ k: 'up', at: [2, 3] }), '每次行动最多升一次');
   g.apply({ k: 'mv', from: [2, 3], to: [2, 4] });
   g.apply({ k: 'mv', from: [0, 6], to: [0, 5] });
-  ok(!g.skillTargets(0, 3).length, '二级只长血、没有技能');
+  ok(g.skillTargets(0, 3).length === 1, '兵二级就有拒马（Ham 10-09 审批台 td-006）');
   // 三级解锁技能，刚升三级当次不能用
   const g2 = setup([[4, 0, K('r')], [3, 9, K('b')], [0, 3, P('r', 'p', 2)], [8, 3, P('r', 'p')], [5, 9, P('b', 'a')]], { merit: { r: 5, b: 3 } });
   ok(g2.upgradeCost(g2.at(0, 3)) === 5 && g2.apply({ k: 'up', at: [0, 3] }) && g2.at(0, 3).lv === 3 && g2.at(0, 3).hp === 3, '升三级 5 功、3 血');
-  ok(!g2.skillTargets(0, 3).length, '刚升三级当次不能用技能');
+  ok(g2.skillTargets(0, 3).length === 1, '拒马二级就有：升三级当次照样能架');
   g2.apply({ k: 'mv', from: [8, 3], to: [8, 4] });
   g2.apply({ k: 'mv', from: [5, 9], to: [4, 8] });
   ok(g2.skillTargets(0, 3).length === 1, '下一次行动起可用拒马');
