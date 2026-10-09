@@ -175,7 +175,7 @@ window.SB = (() => {
         gl_FragColor = vec4(c, 1.);
         #include <tonemapping_fragment>
         #include <colorspace_fragment>
-        gl_FragColor.rgb += (hash(vUv * res) - .5) * grain;
+        vec2 gp = floor(vUv * res / 1.6); float n = hash(gp) + hash(gp + 17.3) - 1.; float lum = dot(gl_FragColor.rgb, vec3(.3, .59, .11)); gl_FragColor.rgb += n * grain * (1.2 - lum) * vec3(1., .97, .94);   // 胶片颗粒：暗部多、亮部少，颗粒略大
       }` });
   function pass(mat, target) { quad.material = mat; R.setRenderTarget(target); R.render(qS, quadCam); }
   // 拍一张：o = { W, H, ss, focus, ap, maxR, exp, lift, gain, gam, sat, vign, grain }
@@ -190,7 +190,7 @@ window.SB = (() => {
     const U = dofMat.uniforms; U.tC.value = rt.texture; U.tD.value = dt; U.res.value.set(w, h); U.near.value = cam.near; U.far.value = cam.far; U.focus.value = o.focus ?? 10; U.ap.value = o.ap ?? 0.5; U.maxR.value = (o.maxR ?? 14) * ss;
     let src = rt;
     if ((o.ap ?? 0.5) > 0) { pass(dofMat, rt2); src = rt2; }
-    const F = finMat.uniforms; F.tC.value = src.texture; F.res.value.set(w, h); F.exp.value = o.exp ?? 1; F.lift.value.set(o.lift ?? 0); if (Array.isArray(o.lift)) F.lift.value.setRGB(...o.lift); F.gain.value.setRGB(...(o.gain || [1, 1, 1])); F.gam.value = o.gam ?? 1; F.sat.value = o.sat ?? 1; F.vign.value = o.vign ?? 0.35; F.grain.value = o.grain ?? 0.025;
+    const F = finMat.uniforms; F.tC.value = src.texture; F.res.value.set(w, h); F.exp.value = o.exp ?? 1; F.lift.value.set(o.lift ?? 0); if (Array.isArray(o.lift)) F.lift.value.setRGB(...o.lift); F.gain.value.setRGB(...(o.gain || [1, 1, 1])); F.gam.value = o.gam ?? 1; F.sat.value = o.sat ?? 1; F.vign.value = o.vign ?? 0.35; F.grain.value = o.grain ?? 0.05;
     R.toneMappingExposure = 1;
     pass(finMat, null);
     const url = R.domElement.toDataURL('image/png');
