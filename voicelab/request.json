@@ -1,177 +1,41 @@
 {
- "batch": "b27",
+ "batch": "b28",
  "list_voices": false,
  "hosts": [
   "https://api.minimax.cn"
  ],
  "jobs": [
   {
-   "id": "real_h_b_p4_a1__1",
-   "voice": "Spanish_Deep-tonedMan",
-   "text": "进击！！",
-   "vol": 2.0,
-   "speed": 0.9,
-   "emotion": "angry",
-   "modify": {
-    "intensity": -80
-   }
-  },
-  {
-   "id": "real_h_b_p4_a1__2",
-   "voice": "Spanish_Deep-tonedMan",
-   "text": "全军，<#0.05#>进击！！",
-   "vol": 2.0,
-   "speed": 0.9,
-   "emotion": "angry",
-   "modify": {
-    "intensity": -80
-   }
-  },
-  {
-   "id": "real_h_b_p4_s_juma__1",
-   "voice": "Spanish_Deep-tonedMan",
-   "text": "布下拒马，<#0.1#>固守！",
-   "vol": 1.8,
-   "speed": 0.9,
-   "emotion": "angry",
-   "modify": {
-    "intensity": -60
-   }
-  },
-  {
-   "id": "real_h_b_p4_s_juma__2",
-   "voice": "Spanish_Deep-tonedMan",
-   "text": "布下拒马，给我守住！",
-   "vol": 1.9,
-   "speed": 0.9,
-   "emotion": "angry",
-   "modify": {
-    "intensity": -70
-   }
-  },
-  {
-   "id": "real_h_b_r1_sk_chongzhen__1",
-   "voice": "Portuguese_Strong-WilledBoy",
-   "text": "冲开了！！",
-   "vol": 2.1,
-   "speed": 0.86,
-   "emotion": "angry",
-   "modify": {
-    "pitch": -12,
-    "intensity": -100
-   }
-  },
-  {
-   "id": "real_h_b_r1_sk_chongzhen__2",
-   "voice": "Portuguese_Strong-WilledBoy",
-   "text": "一冲即破，<#0.12#>不过如此！",
-   "vol": 2.0,
-   "speed": 0.88,
-   "emotion": "disgusted",
-   "modify": {
-    "pitch": -12,
-    "intensity": -80
-   }
-  },
-  {
-   "id": "real_h_r_p0_sk_juma__1",
-   "voice": "Spanish_PassionateWarrior",
-   "text": "(laughs)撞上来，<#0.08#>就别想走！",
-   "vol": 1.9,
-   "speed": 0.95,
-   "emotion": "happy",
-   "modify": {
-    "intensity": -80
-   }
-  },
-  {
-   "id": "real_h_r_p1_sk_juma__1",
-   "voice": "Spanish_Debator",
-   "text": "来一个，倒一个！",
-   "vol": 1.9,
-   "speed": 0.9,
-   "emotion": "angry",
-   "modify": {
-    "intensity": -70
-   },
-   "tone": [
-    "倒一个/(dao3)(yi2)(ge4)"
-   ]
-  },
-  {
    "id": "real_h_r_r0_sk_chongzhen__1",
    "voice": "male-qn-jingying",
-   "text": "(laughs)多多益善！<#0.12#>再来！",
-   "vol": 1.9,
-   "speed": 0.95,
+   "text": "(laughs)哈哈哈！<#0.1#>多多益善！！再来！！",
+   "vol": 2.1,
+   "speed": 0.9,
    "emotion": "happy",
    "modify": {
     "pitch": -6,
-    "intensity": -70
-   }
-  },
-  {
-   "id": "real_h_r_r1_sk_chongzhen__1",
-   "voice": "Portuguese_Debator",
-   "text": "(laughs)冲过去了，<#0.1#>大王放心！",
-   "vol": 1.9,
-   "speed": 0.94,
-   "emotion": "happy",
-   "modify": {
-    "intensity": -70
-   }
-  },
-  {
-   "id": "real_h_r_r1_m1_jia__1",
-   "voice": "Portuguese_Debator",
-   "text": "驾！！",
-   "vol": 2.2,
-   "speed": 0.9,
-   "emotion": "angry",
-   "modify": {
     "intensity": -100
    }
   },
   {
-   "id": "real_h_r_r1_m1_jia__2",
-   "voice": "Portuguese_Debator",
-   "text": "驾——！！",
-   "vol": 2.2,
-   "speed": 0.85,
+   "id": "real_h_r_r0_sk_chongzhen__2",
+   "voice": "male-qn-jingying",
+   "text": "多多益善！！<#0.08#>(laughs)再来！！",
+   "vol": 2.1,
+   "speed": 0.88,
    "emotion": "angry",
    "modify": {
+    "pitch": -8,
     "intensity": -100
-   }
-  },
-  {
-   "id": "real_h_r_r1_m1_rest__1",
-   "voice": "Portuguese_Debator",
-   "text": "大王坐稳了！",
-   "vol": 1.8,
-   "speed": 0.94,
-   "emotion": "happy",
-   "modify": {
-    "intensity": -50
    }
   },
   {
    "id": "real_sk_b_feiyue_k__1",
    "voice": "Spanish_PowerfulVeteran",
-   "text": "象群，<#0.05#>碾碎他们！！！",
+   "text": "象群碾碎他们！！！",
    "vol": 2.2,
-   "speed": 0.86,
+   "speed": 0.95,
    "emotion": "angry",
-   "modify": {
-    "intensity": -100
-   }
-  },
-  {
-   "id": "real_sk_b_hujia_1__1",
-   "voice": "Spanish_PowerfulVeteran",
-   "text": "护驾！！<#0.05#>霸王先退！！",
-   "vol": 2.2,
-   "speed": 1.08,
-   "emotion": "fearful",
    "modify": {
     "intensity": -100
    }
@@ -179,9 +43,9 @@
   {
    "id": "real_sk_b_hujia_2__1",
    "voice": "Spanish_PowerfulVeteran",
-   "text": "快！<#0.05#>执戟郎来换位！！",
+   "text": "执戟郎来换位！！",
    "vol": 2.2,
-   "speed": 1.08,
+   "speed": 1.25,
    "emotion": "fearful",
    "modify": {
     "intensity": -100
@@ -191,26 +55,29 @@
    ]
   },
   {
-   "id": "real_sk_b_pili_2__1",
+   "id": "real_sk_b_hujia_2__2",
    "voice": "Spanish_PowerfulVeteran",
-   "text": "给我砸！！！",
-   "vol": 2.3,
-   "speed": 0.8,
-   "emotion": "angry",
+   "text": "快！执戟郎来换位！！",
+   "vol": 2.2,
+   "speed": 1.3,
+   "emotion": "fearful",
    "modify": {
     "intensity": -100
-   }
+   },
+   "tone": [
+    "执戟/(zhi2)(ji3)"
+   ]
   },
   {
-   "id": "real_fk_g1__1",
-   "voice": "Portuguese_PowerfulVeteran",
+   "id": "real_fk_k1__1",
+   "voice": "Korean_ConfidentBoss",
    "text": "臣死且不避，卮酒安足辞！！",
    "vol": 2.1,
-   "speed": 0.9,
+   "speed": 0.88,
    "emotion": "angry",
    "modify": {
-    "pitch": -18,
-    "timbre": -20,
+    "pitch": -15,
+    "timbre": -25,
     "intensity": -100
    },
    "tone": [
@@ -218,15 +85,15 @@
    ]
   },
   {
-   "id": "real_fk_g2__1",
-   "voice": "Portuguese_PowerfulVeteran",
+   "id": "real_fk_k2__1",
+   "voice": "Korean_ConfidentBoss",
    "text": "屠狗的樊哙来了，谁敢动沛公！！",
    "vol": 2.1,
-   "speed": 0.9,
+   "speed": 0.88,
    "emotion": "angry",
    "modify": {
-    "pitch": -18,
-    "timbre": -20,
+    "pitch": -15,
+    "timbre": -25,
     "intensity": -100
    },
    "tone": [
@@ -235,28 +102,28 @@
    ]
   },
   {
-   "id": "real_fk_g3__1",
-   "voice": "Portuguese_PowerfulVeteran",
+   "id": "real_fk_k3__1",
+   "voice": "Korean_ConfidentBoss",
    "text": "看我屠狗刀！！",
    "vol": 2.1,
-   "speed": 0.9,
+   "speed": 0.88,
    "emotion": "angry",
    "modify": {
-    "pitch": -18,
-    "timbre": -20,
+    "pitch": -15,
+    "timbre": -25,
     "intensity": -100
    }
   },
   {
-   "id": "real_fk_h1__1",
-   "voice": "Spanish_Jovialman",
+   "id": "real_fk_l1__1",
+   "voice": "Japanese_DominantMan",
    "text": "臣死且不避，卮酒安足辞！！",
    "vol": 2.1,
-   "speed": 0.9,
+   "speed": 0.88,
    "emotion": "angry",
    "modify": {
-    "pitch": -18,
-    "timbre": -20,
+    "pitch": -15,
+    "timbre": -25,
     "intensity": -100
    },
    "tone": [
@@ -264,15 +131,15 @@
    ]
   },
   {
-   "id": "real_fk_h2__1",
-   "voice": "Spanish_Jovialman",
+   "id": "real_fk_l2__1",
+   "voice": "Japanese_DominantMan",
    "text": "屠狗的樊哙来了，谁敢动沛公！！",
    "vol": 2.1,
-   "speed": 0.9,
+   "speed": 0.88,
    "emotion": "angry",
    "modify": {
-    "pitch": -18,
-    "timbre": -20,
+    "pitch": -15,
+    "timbre": -25,
     "intensity": -100
    },
    "tone": [
@@ -281,28 +148,28 @@
    ]
   },
   {
-   "id": "real_fk_h3__1",
-   "voice": "Spanish_Jovialman",
+   "id": "real_fk_l3__1",
+   "voice": "Japanese_DominantMan",
    "text": "看我屠狗刀！！",
    "vol": 2.1,
-   "speed": 0.9,
+   "speed": 0.88,
    "emotion": "angry",
    "modify": {
-    "pitch": -18,
-    "timbre": -20,
+    "pitch": -15,
+    "timbre": -25,
     "intensity": -100
    }
   },
   {
-   "id": "real_fk_i1__1",
-   "voice": "Portuguese_Godfather",
+   "id": "real_fk_m1__1",
+   "voice": "Korean_StrictBoss",
    "text": "臣死且不避，卮酒安足辞！！",
    "vol": 2.1,
-   "speed": 0.9,
+   "speed": 0.88,
    "emotion": "angry",
    "modify": {
-    "pitch": -18,
-    "timbre": -20,
+    "pitch": -15,
+    "timbre": -25,
     "intensity": -100
    },
    "tone": [
@@ -310,15 +177,15 @@
    ]
   },
   {
-   "id": "real_fk_i2__1",
-   "voice": "Portuguese_Godfather",
+   "id": "real_fk_m2__1",
+   "voice": "Korean_StrictBoss",
    "text": "屠狗的樊哙来了，谁敢动沛公！！",
    "vol": 2.1,
-   "speed": 0.9,
+   "speed": 0.88,
    "emotion": "angry",
    "modify": {
-    "pitch": -18,
-    "timbre": -20,
+    "pitch": -15,
+    "timbre": -25,
     "intensity": -100
    },
    "tone": [
@@ -327,28 +194,74 @@
    ]
   },
   {
-   "id": "real_fk_i3__1",
-   "voice": "Portuguese_Godfather",
+   "id": "real_fk_m3__1",
+   "voice": "Korean_StrictBoss",
    "text": "看我屠狗刀！！",
    "vol": 2.1,
-   "speed": 0.9,
+   "speed": 0.88,
    "emotion": "angry",
    "modify": {
-    "pitch": -18,
-    "timbre": -20,
+    "pitch": -15,
+    "timbre": -25,
     "intensity": -100
    }
   },
   {
-   "id": "real_fk_j1__1",
+   "id": "real_fk_n1__1",
+   "voice": "Russian_ReliableMan",
+   "text": "臣死且不避，卮酒安足辞！！",
+   "vol": 2.1,
+   "speed": 0.88,
+   "emotion": "angry",
+   "modify": {
+    "pitch": -25,
+    "timbre": -35,
+    "intensity": -100
+   },
+   "tone": [
+    "卮酒/(zhi1)(jiu3)"
+   ]
+  },
+  {
+   "id": "real_fk_n2__1",
+   "voice": "Russian_ReliableMan",
+   "text": "屠狗的樊哙来了，谁敢动沛公！！",
+   "vol": 2.1,
+   "speed": 0.88,
+   "emotion": "angry",
+   "modify": {
+    "pitch": -25,
+    "timbre": -35,
+    "intensity": -100
+   },
+   "tone": [
+    "樊哙/(fan2)(kuai4)",
+    "沛公/(pei4)(gong1)"
+   ]
+  },
+  {
+   "id": "real_fk_n3__1",
+   "voice": "Russian_ReliableMan",
+   "text": "看我屠狗刀！！",
+   "vol": 2.1,
+   "speed": 0.88,
+   "emotion": "angry",
+   "modify": {
+    "pitch": -25,
+    "timbre": -35,
+    "intensity": -100
+   }
+  },
+  {
+   "id": "real_fk_o1__1",
    "voice": "Japanese_GenerousIzakayaOwner",
    "text": "臣死且不避，卮酒安足辞！！",
    "vol": 2.1,
-   "speed": 0.9,
+   "speed": 0.88,
    "emotion": "angry",
    "modify": {
-    "pitch": -18,
-    "timbre": -20,
+    "pitch": -28,
+    "timbre": -45,
     "intensity": -100
    },
    "tone": [
@@ -356,15 +269,15 @@
    ]
   },
   {
-   "id": "real_fk_j2__1",
+   "id": "real_fk_o2__1",
    "voice": "Japanese_GenerousIzakayaOwner",
    "text": "屠狗的樊哙来了，谁敢动沛公！！",
    "vol": 2.1,
-   "speed": 0.9,
+   "speed": 0.88,
    "emotion": "angry",
    "modify": {
-    "pitch": -18,
-    "timbre": -20,
+    "pitch": -28,
+    "timbre": -45,
     "intensity": -100
    },
    "tone": [
@@ -373,15 +286,15 @@
    ]
   },
   {
-   "id": "real_fk_j3__1",
+   "id": "real_fk_o3__1",
    "voice": "Japanese_GenerousIzakayaOwner",
    "text": "看我屠狗刀！！",
    "vol": 2.1,
-   "speed": 0.9,
+   "speed": 0.88,
    "emotion": "angry",
    "modify": {
-    "pitch": -18,
-    "timbre": -20,
+    "pitch": -28,
+    "timbre": -45,
     "intensity": -100
    }
   }
