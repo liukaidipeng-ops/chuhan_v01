@@ -1,12 +1,12 @@
-// 电脑变体（只供模拟 / 验证）：C61 的电脑（bfai_fast.js，BFAI_LMR=2）换上自动调出来的估值权重（tools/tune/）。
-//   BFAI_TUNE_W：权重文件（相对 source/，fit.js --out 写的；不给就用原权重 = 和 C61 逐步相同，用来核对）。
+// 电脑变体（只供模拟 / 验证）：线上电脑（bfai_next.js 的底版，C61 + H52，新规则）换上自动调出来的估值权重（tools/tune/）。
+//   BFAI_TUNE_W：权重文件（相对 source/，fit.js --out 写的；不给就用原权重 = 和线上逐个局面分数相同（浮点相加顺序不同，打平的两步可能选得不一样））。
 //   只换 score()：它变成“特征 × 权重”（tools/tune/feats.js）；走法排序、吃子搜索里用到的子力表不动。
 //   比原来的 score 慢（每次要建一个特征数组），按搜索量收手的对打不受影响；真要上线时再把数字原样写回原公式的结构里。
 'use strict';
 const fs = require('fs'), path = require('path'), os = require('os');
 const ROOT = path.join(__dirname, '..', '..');
 function build(E, tag) {
-  let s = require('./bfai_fast.js').source({ BFAI_LMR: E.BFAI_LMR || '2' });
+  let s = require('./bfai_next.js').source({});   // 底版：线上电脑（f998d98，新规则）
   const a = '  function score(S, me) {';
   if (s.split(a).length !== 2) throw new Error('bfai_tuned：找不到 score()');
   const feats = JSON.stringify(path.join(ROOT, 'tools/tune/feats.js'));

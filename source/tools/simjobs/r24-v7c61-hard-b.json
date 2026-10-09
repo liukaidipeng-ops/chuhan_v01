@@ -1,3 +1,0 @@
-{ "args": "--games 300 --seed 3000 --level hard --nodes hard=100000 --ai-r tools/variants/bfai_c61.js --ai-b tools/variants/bfai_v7c61.js",
-  "env": {}, "chunks": 48,
-  "note": "C61 执汉 对 第七版（活到兑现只开汉）执楚，hard" }

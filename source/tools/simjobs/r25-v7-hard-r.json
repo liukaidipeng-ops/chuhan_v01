@@ -1,0 +1,3 @@
+{ "args": "--games 300 --seed 3000 --level hard --nodes hard=100000 --ai-r tools/variants/bfai_v7live.js --ai-b src/bfai.js",
+  "env": {}, "chunks": 48,
+  "note": "新规则：第七版（活到兑现只开汉）执汉 对 线上，霸王" }
