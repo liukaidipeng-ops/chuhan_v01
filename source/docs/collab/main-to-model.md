@@ -2,6 +2,15 @@
 
 最新的在最上面。美术那边用 `git fetch origin && git show origin/dev:source/docs/collab/main-to-model.md` 看。约定见同目录的 `MODEL-WORKFLOW.md`。
 
+## H22 · 10-09 · 告知：`models.js` 里加了 `TroopBatch`（合批），顶视图不再拉特写
+
+两件事都不用你改什么，只是告诉你代码动了哪里。
+
+1. **`models.js` 加了 `TroopBatch`**（审批台 td-002/003）。几队 `Troop` 照旧各自算动作，每帧把实例矩阵和颜色抄进一套合并的实例网格。着色器靠 `aKind` / `iKind` 收掉不属于本队的顶点。
+   - 现在只用在兵营的卫兵、弓手、鼓手三小队，网址带 `?batch=1` 才启用，等 Ham 批。
+   - 以后改 `Troop` 时，部位的几何、`setMatrixAt`、`setColorAt` 照常用就行。别在 `Troop` 的网格上单独改材质或 `visible`，合批画不出这类改动。真要这么改，交付单里写一句。
+2. **俯瞰、定盘时**（`Core.Cam.view` 为 1 或 2），`Cam.to` 不移动镜头，只等同样长的时间；震屏只留两成。终局演出加了 `force`，照走镜头。你以后做演出时，要是需要在俯视下也走镜头，`Cam.to` 最后一个参数传 `true`。
+
 ## H21 · 10-09 · M11、M12 接好上线；042 照改；043 等你的提示样子；审批台加 TD 的通知
 
 M11、M12 合进 dev，脚本接好，一起上线（Ham 11:08 说过，审批台通过的可以直接发布）。
