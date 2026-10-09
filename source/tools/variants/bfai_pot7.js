@@ -24,7 +24,7 @@
 //   两种打算取大的：A 照第四版（不去凑回血开关）；H 先把开关兵种升满（占升级名额、花军功），潜力子能用上的时间往后推。
 //   有打手威胁的潜力子不再乘第四版的“血量比例”（推演里已经算了血）；没有打手的照第四版。
 //   升级候选：除了第四版的两条，再看“双方潜力合计之差”升完比“这次不升”涨多少（回血开关这种升级本身没有潜力，涨的是别的子的）。
-//   BFAI_POTSV=0：关掉“活到兑现”（≈ 第四版）。
+//   BFAI_POTSV=0：关掉“活到兑现”（≈ 第四版）。BFAI_POTSV=r / b：只在电脑执汉 / 执楚时用（r13 / r15：活到兑现帮汉 +29 局、害楚 −30 局，两边都站得住）。
 // 第四版的说明：
 //   “潜力估值”第四版——在 bfai_pot.js 第三版的基础上，按代码审查（wf_800ed4d5-e90）和极端诊断 XE5 的结果改：
 //   底版：git 上的 source/src/bfai.js（BFAI_POT_BASE，默认 ecf1ddd = 线上电脑），按文字锚点改（每个锚点必须正好出现一次）。BFAI_POT=0 时和底版完全一样。
@@ -51,7 +51,8 @@
 const fs = require('fs'), path = require('path'), os = require('os');
 const { execFileSync } = require('child_process');
 const rev = process.env.BFAI_POT_BASE || 'ecf1ddd';
-let s = execFileSync('git', ['show', rev + ':source/src/bfai.js'], { cwd: path.join(__dirname, '..', '..'), encoding: 'utf8' });
+// BFAI_POT_BASEFILE：底版改用一个现成文件（比如 bfai_fast.js 生成的、交给 TD 的提速版），用来把第七版并到新电脑上
+let s = process.env.BFAI_POT_BASEFILE ? fs.readFileSync(process.env.BFAI_POT_BASEFILE, 'utf8') : execFileSync('git', ['show', rev + ':source/src/bfai.js'], { cwd: path.join(__dirname, '..', '..'), encoding: 'utf8' });
 const rep = (a, b) => { const n = s.split(a).length - 1; if (n !== 1) throw new Error(`bfai_pot7：锚点出现 ${n} 次（${rev} 的电脑改过了？）：${a.slice(0, 80)}`); s = s.replace(a, () => b); };
 
 // ---- 潜力：参数、试算、叶子上的取值 ----
@@ -61,7 +62,7 @@ rep('  // 局面分（站在 me 这一方看）：子力 + 位置（出子、过
   const num = (k, d) => (ENV[k] != null ? +ENV[k] : d);
   const POTW = num('BFAI_POTW', 1), POTD = num('BFAI_POTD', 0.9), POTC = num('BFAI_POTC', 60), POTUP = num('BFAI_POTUP', 0.8);
   const POTWAIT = num('BFAI_POTWAIT', 12), POTR0 = num('BFAI_POTR0', 0.5), POTOVL = num('BFAI_POTOVL', 0.15);
-  const POTSV = ENV.BFAI_POTSV == null || !/^(0|false|off)$/i.test(String(ENV.BFAI_POTSV)), POTK = num('BFAI_POTK', 0.5), POTCM = num('BFAI_POTCM', 0.9), POTALT = num('BFAI_POTALT', 0.4);
+  const POTSV = ENV.BFAI_POTSV == null || !/^(0|false|off)$/i.test(String(ENV.BFAI_POTSV)), POTSVSIDE = /^[rb]$/.test(String(ENV.BFAI_POTSV)) ? String(ENV.BFAI_POTSV) : null, POTK = num('BFAI_POTK', 0.5), POTCM = num('BFAI_POTCM', 0.9), POTALT = num('BFAI_POTALT', 0.4);
   const POTMV = ENV.BFAI_POTMV == null || !/^(0|false|off)$/i.test(String(ENV.BFAI_POTMV)), POTMVD = num('BFAI_POTMVD', 3);   // 第六版：挪子凑阵   // 第五版：活到兑现
   let SURV = { r: null, b: null };
   const HPCAP = new Map(), TB = new Map();
@@ -131,7 +132,7 @@ rep('  // 局面分（站在 me 这一方看）：子力 + 位置（出子、过
       }
     }
     lastPot = out;
-    SURV = POTSV ? computeSurv(S0, out) : { r: null, b: null };
+    SURV = POTSV && (!POTSVSIDE || S0.turn === POTSVSIDE) ? computeSurv(S0, out) : { r: null, b: null };
     return out;
   }
   // 叶子局面 S 上，这枚子（条目 e）的潜力。alive：S 上还在的子的 id

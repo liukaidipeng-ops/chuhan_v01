@@ -158,6 +158,7 @@ function build(E, tag) {
       "      else if (lmrOn && mi > 1 && beta - alpha > 0.02) { v = -ab(r.S, depth - 1, -alpha - 0.01, -alpha, ply + 1, ext); if (v > alpha && v < beta) v = -ab(r.S, depth - 1, -beta, -alpha, ply + 1, ext); }   // 变体 fast：窄窗口先探\n" +
       "      else v = -ab(r.S, depth - 1, -beta, -alpha, ply + 1, ext);");
   }
+  if (tag === null) return s;   // source()：只要生成的代码
   const out = path.join(os.tmpdir(), `bfai_fast_${rev}_${tag || 'env'}_${process.pid}.js`);
   fs.writeFileSync(out, s);
   process.on('exit', () => { try { fs.unlinkSync(out); } catch (e) { } });
@@ -166,3 +167,4 @@ function build(E, tag) {
 }
 module.exports = build(process.env, '');
 module.exports.make = (opts, tag) => build(opts, tag);
+module.exports.source = opts => build(opts, null);   // 只要代码（给第七版当底版：bfai_v7c61.js）
