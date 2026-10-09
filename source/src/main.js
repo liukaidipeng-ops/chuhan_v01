@@ -8,6 +8,8 @@
   // 更新说明（设置里、大厅底部点「更新」查看；最新的放最前）
   const NEWS = [
     ['第六版', '2026 年 10 月', [
+      '联机时状态条左边多了信号格（美术画的）：对方一拍没音信变白、两拍变黄、断开或 9 秒没音信变红并闪；信号好就不显示（原来的小圆点去掉了）',
+      '安卓手机在微信、QQ 等 App 里打开时，系统字号调大会把网页字也放大、挤乱界面：现在开局量一下放大了多少再缩回来，字号和浏览器里一样',
       '技能模式：主将卡上的军功改成一方金印（美术画的），加功时一团金光从来处飞进印里、金星四溅；花功时印变红、金光飞向升级的子或兵法签；旁边飘「+n 功 · 原因」',
       '联机房间有观众席了（美术画的样子）：观众按进房先后叫农夫、樵夫、渔夫、牧童、书生、货郎，不用自己填名字；房主可以点观战席最后的「坐这里」去旁观，点空座位坐回；房主在观战席时可以「我的座位加人机」，让电脑替你和对手下（对手也是电脑就是电脑对电脑）。原来的「观看人机对战」按钮去掉了',
       '技能模式改了「拒马」（Ham 定的）：架上拒马的两回合里这枚兵原地不动，不能走（回防、神速营也不行）；炮隔子打过来不挨反伤（拒马的矛够不着），车马兵士象撞上来照旧先挨 1 点；冷却从 2 回合改成 4 回合',
@@ -467,8 +469,47 @@
       const last = notes.length - 1;
       html += `<li><i>${i / 2 + 1}</i><span class="r${i === last ? ' last' : ''}">${noteHtml(notes[i])}</span><span class="${i + 1 === last ? 'last' : ''}">${noteHtml(notes[i + 1])}</span></li>`;
     }
-    const L = $('logList'); L.innerHTML = html || '<li style="display:block;text-align:center;color:#8a8580;font-size:13px">尚未落子</li>'; L.scrollTop = L.scrollHeight;
+    const L = $('logList'); L.innerHTML = html || '<li style="display:block;text-align:center;color:#8a8580;font-size:calc(13px * var(--fs,1))">尚未落子</li>'; L.scrollTop = L.scrollHeight;
   }
+
+  // 信号格（美术 M9 第 5 条 / Ham art-024）：对方的心跳（每 3 秒一次）晚了多久——晚一拍白、晚两拍黄、断开或 9 秒没音信红（会闪）；信号好就不显示
+  //   观众没有对方心跳，只看自己的线路；原来的小圆点 #netDot 不再显示
+  function paintSig() {
+    const el = $('netSig'); if (!el) return;
+    let lv = 0;
+    if (online() || watching()) {
+      if (!Net.lineOk) lv = 3;
+      else if (online() && Net.peerState !== 'none') { const age = Net.peerAge; lv = Net.peerState === 'lost' || age >= 9000 ? 3 : age > 6500 ? 2 : age > 4500 ? 1 : 0; }
+    }
+    if (paintSig.lv === lv) return; paintSig.lv = lv;
+    el.classList.remove('lv1', 'lv2', 'lv3'); if (lv) el.classList.add('lv' + lv);
+    el.classList.toggle('hidden', !lv);
+    el.setAttribute('aria-label', ['网络正常', '网络有点慢', '网络较差', '网络很差或已断开'][lv]);
+    el.title = el.getAttribute('aria-label');
+  }
+  setInterval(() => { if (mode) paintSig(); }, 1000);
+  // 字号固定（美术 M9 第 3 条 / Ham art-026）：苹果的微信、QQ 靠样式 text-size-adjust 钉住了；安卓 App 内网页按系统字号放大（setTextZoom）样式拦不住——
+  //   量一下网页里的字比画布上同样的字大了多少（画布不受放大影响），把 --fs 设成它的倒数，所有 calc(Npx * var(--fs,1)) 的字就缩回原样
+  function fixTextZoom() {
+    try {
+      const T = '汉楚汉楚汉楚汉楚汉楚', ff = getComputedStyle(document.body).fontFamily;
+      const p = document.createElement('span'); p.textContent = T;
+      p.style.cssText = `position:absolute;left:-9999px;top:0;white-space:nowrap;font:normal 400 100px/1 ${ff};letter-spacing:0;word-spacing:0;font-feature-settings:normal;visibility:hidden`;
+      document.body.appendChild(p);
+      const w = p.getBoundingClientRect().width, fs = parseFloat(getComputedStyle(p).fontSize) || 100; p.remove();
+      const c = document.createElement('canvas').getContext('2d'); c.font = `normal 400 100px ${ff}`; const cw = c.measureText(T).width;
+      let r = cw > 0 && w > 0 ? w / cw : fs / 100; if (!(r > 0.5 && r < 4)) r = fs / 100;
+      document.documentElement.style.setProperty('--fs', r > 1.02 ? (1 / r).toFixed(4) : '1');
+      fixTextZoom.r = r;
+    } catch (e) { }
+  }
+  fixTextZoom();
+  addEventListener('resize', () => { clearTimeout(fixTextZoom.t); fixTextZoom.t = setTimeout(fixTextZoom, 300); });
+  document.addEventListener('visibilitychange', () => { if (document.visibilityState === 'visible') fixTextZoom(); });
+  if (document.fonts && document.fonts.ready) document.fonts.ready.then(fixTextZoom);
+  // 微信安卓：让它别跟着系统字号放大（设成「标准」），用户在右上角菜单里改字号时也改回来
+  { const wx = () => { try { WeixinJSBridge.invoke('setFontSizeCallback', { fontSize: 0 }); WeixinJSBridge.on('menu:setfont', () => { WeixinJSBridge.invoke('setFontSizeCallback', { fontSize: 0 }); setTimeout(fixTextZoom, 300); }); } catch (e) { } };
+    if (typeof WeixinJSBridge === 'object' && typeof WeixinJSBridge.invoke === 'function') wx(); else document.addEventListener('WeixinJSBridgeReady', wx, false); }
 
   // ---------- 界面 ----------
   function bottomSide() { return mode === 'local' ? viewSide : mySide; }
@@ -596,8 +637,7 @@
     paintVeil();
     // 大帐旁的火炬：轮到谁走谁的亮
     Camp.setTurn(mode && started && !ended && !game.result && !RP ? game.turn : null);
-    $('netDot').classList.toggle('hidden', !(online() || watching()));
-    $('netDot').classList.toggle('bad', (online() && Net.peerState !== 'ok') || ((online() || watching()) && !Net.lineOk));
+    paintSig();
     $('specN').textContent = (online() || watching()) && Spect.count ? `观战 ${Spect.count}` : '';
     layoutSoon();
     const left = opts.undo >= 99 ? '' : Math.max(0, opts.undo - undoUsed[actor()]);
@@ -2194,7 +2234,7 @@
   let rvLanded = null;
   async function reviveFlow() {
     const R = r6On(), list = game.reviveOptions(), blocked = game.reviveBlocked();
-    const sm = t => `<small style="display:block;font-size:12px;line-height:1.4;opacity:.85">${t}</small>`;
+    const sm = t => `<small style="display:block;font-size:calc(12px * var(--fs,1));line-height:1.4;opacity:.85">${t}</small>`;
     const silver = 'background:linear-gradient(160deg,#fbfcfd,#cfd6df 55%,#eef1f5);border-color:#8a94a3;box-shadow:inset 0 0 0 1px #fff8;';
     const items = list.map((o, i) => ({ v: i, label: XQ.NAMES.r[o.t] + sm(LVCN[o.lv] + '级'), cls: 'r', w: '74px', style: o.lv >= 2 ? silver : '' }))
       .concat(blocked.map(t => ({ v: 'x', label: XQ.NAMES.r[t] + sm('原位被占'), cls: 'r', w: '74px', dis: true })));
