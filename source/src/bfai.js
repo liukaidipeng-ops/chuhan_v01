@@ -669,6 +669,7 @@
       } catch (e) { }
     }
     // 拒马（不占行动）：走完这一步之后，哪枚能架拒马的兵会被对方打到，就先给它架上
+    //   Ham 10-10：拒马不反伤炮和将帅，只有被会挨反伤的子盯着才架（架了之后两回合不能走）
     if (pick.up) { seq.push({ k: 'up', at: pick.up.at }); S = pick.up.S; }
     if (L.depth >= 2 && !pick.done && !S.freeUsed && pick.a.k !== 'pass') {
       try {
@@ -678,7 +679,7 @@
           const p = S.board[r][f]; if (!p || p.s !== me || p.t !== 'p' || p.lv < ((CFG.skills.juma && CFG.skills.juma.level) || CFG.skillLevel)) continue;
           const q = T.board[r][f]; if (!q || q.id !== p.id) continue;                 // 这一步动的就是它
           let hit = false;
-          for (let r2 = 0; r2 < 10 && !hit; r2++) for (let f2 = 0; f2 < 9; f2++) { const e = T.board[r2][f2]; if (e && e.s !== me && A.moveTargets(T, f2, r2).some(m => m.to[0] === f && m.to[1] === r)) { hit = true; break; } }
+          for (let r2 = 0; r2 < 10 && !hit; r2++) for (let f2 = 0; f2 < 9; f2++) { const e = T.board[r2][f2]; if (e && e.s !== me && e.t !== 'k' && (e.t !== 'c' || CFG.skills.juma.counterCannon) && A.moveTargets(T, f2, r2).some(m => m.to[0] === f && m.to[1] === r)) { hit = true; break; } }
           if (!hit) continue;
           const J = A.jumaState(S, [f, r]);
           if (J && BF.attempt(J, pick.a)) { jm = { k: 'sk', at: [f, r] }; break; }

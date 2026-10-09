@@ -25,7 +25,7 @@
     attack: { a: [1, 2, 2, 2], e: [1, 2, 2, 2] }, // 按等级的攻击力（一次攻击扣的血）；没列出的兵种都是 1。相 / 象二级起攻击 2（Ham 10-09 20:34：象二级 2 攻 2 血）
     skillLevel: 3, // 几级解锁兵种技能（单个技能可用 level 另定）
     skills: {
-      juma: { level: 2, cooldown: 2, duration: 2, damage: 1, free: true }, // 二级可用、管两回合（Ham 10-09 审批台 td-006）。free：不占行动，架完还要再走一步棋（这枚兵本回合不能动）
+      juma: { level: 2, cooldown: 4, duration: 2, damage: 1, free: true, rooted: true, counterCannon: false }, // 二级可用、管两回合（Ham 10-09 审批台 td-006）。free：不占行动，架完还要再走一步棋（这枚兵本回合不能动）  Ham 10-10：冷却 2→4；rooted：拒马生效期间这枚兵不能走（含回防、神速营）；counterCannon=false：炮（含霹雳）隔子打它不挨反伤
       shensu: { level: 4, passive: true, move: true, cooldown: 5, range: 2 }, // 兵四级被动：八方向直线 1～2 格，可越子，只能落空格
       huifang: { level: 4, passive: true, move: true, cooldown: 2 }, // 兵四级被动：可后退一格
       jinwei: { level: 4, passive: true, move: true, cooldown: 2 }, // 士四级被动「铁甲禁卫」：九宫内上下左右走一格
@@ -88,7 +88,7 @@
   // 技能说明（界面悬停 / 长按用）
   //   Ham 10-09 审批台 td-006：说明保留原文，只换践踏；拒马用 Ham 给的原话
   const SKILL_DESC = {
-    juma: '本回合原地驻营架矛，其他棋子还能继续行动。对方来犯棋子先挨一点伤害。持续两回合。',
+    juma: '原地驻营架矛，不占行动（架完还能走别的子）。持续两回合，期间这枚兵不能移动；对方近身来犯的棋子先挨一点伤害，炮隔子打来不受影响。',
     chongzhen: '撞开前方第一枚子（它挨 1 点），冲到它身后一格；那格有子，能杀就杀，杀不了就扣血退回。',
     shensu: '八个方向疾行 1～2 格，可以越子，只能落在空格。',
     huifang: '可以后退一格。',
@@ -156,6 +156,7 @@
   const inCheckS = (S, s) => (S.final ? false : s === 'r' && smActive(S) ? facing(S.board) : inCheck(S.board, s));
   const inCheckF = (S, s) => !S.final && inCheck(S.board, s);
   const jmActive = (S, p) => p && p.t === 'p' && p.jm > S.cnt[other(p.s)];
+  const jmRooted = (S, p) => !!(CFG_CUR.skills.juma.rooted && jmActive(S, p));
   const maxLv = t => (t === 'k' ? 1 : CFG_CUR.upgrade.maxLevel[t] || CFG_CUR.upgrade.defaultMaxLevel);
   // 召回：这一兵种阵亡的子里最高的等级 / 等级最高的那一枚（并列取先阵亡的）
   const bestDeadLv = (S, t) => { let m = 1; for (const d of S.dead.r) if (d.t === t && (d.lv || 1) > m) m = d.lv || 1; return m; };
@@ -239,7 +240,7 @@
   function strike(S, from, to, side, ev, how) {
     const P = S.board[from[1]][from[0]], T = S.board[to[1]][to[0]];
     if (!T) { moveTo(S, from, to, ev); return 'move'; }
-    if (jmActive(S, T) && P.t !== 'k' && T.s !== P.s) {
+    if (jmActive(S, T) && P.t !== 'k' && T.s !== P.s && !(P.t === 'c' && !CFG_CUR.skills.juma.counterCannon)) {   // 炮是隔子打的，拒马的矛够不着
       ev.push({ e: 'counter', id: P.id, at: from.slice(), by: T.id, target: to.slice() });
       P.hp -= CFG_CUR.skills.juma.damage;
       if (P.hp <= 0) { kill(S, from[0], from[1], T.s, ev, 'juma', T); return 'died'; }
@@ -373,6 +374,7 @@
     if (a.k === 'mv') {
       const p = own(a.from[0], a.from[1]); if (!p) return null;
       if (S.jmLock != null && p.id === S.jmLock) return null;
+      if (jmRooted(S, p)) return null;   // 拒马生效期间原地不动
       const fz = frozen(S, p);
       if (fz) {   // 背水一战用过的子：只有被将军时去吃子解将才行
         const q = at(S, a.to[0], a.to[1]), strict = CFG_CUR.beishui && CFG_CUR.beishui.strictEscape;
@@ -871,7 +873,7 @@
     selfCheckFrom(f, r) {
       CFG_CUR = this.cfg;
       const p = this.at(f, r), S = this.S;
-      if (!p || p.s !== this.turn || this.result || S.final || (S.jmLock != null && p.id === S.jmLock) || frozen(S, p)) return [];
+      if (!p || p.s !== this.turn || this.result || S.final || (S.jmLock != null && p.id === S.jmLock) || jmRooted(S, p) || frozen(S, p)) return [];
       const out = [];
       for (const m of moveTargets(S, f, r)) {
         const T = cloneState(S);
@@ -999,6 +1001,7 @@
     get dead() { return this.S.dead; }
     get upgraded() { return this.S.upgraded; }
     jmActive(p) { return jmActive(this.S, p); }
+    jmRooted(p) { CFG_CUR = this.cfg; return jmRooted(this.S, p); }   // 拒马生效期间这枚兵不能走
     frozen(p) { return frozen(this.S, p); }   // 背水一战用过的子：这一回合不能动
     simianCount() { return simianCount(this.S); }
     cdLeft(p, sk) { if (!p) return 0; const k = sk ? cdKey(p, sk) : 'cd'; return Math.max(0, (p[k] || 0) - this.S.cnt[p.s]); }
