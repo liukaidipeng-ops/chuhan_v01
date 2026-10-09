@@ -1305,7 +1305,7 @@
       const tune = (mode === 'host' || mode === 'guest' || mode === 'ai' || W) && result.winner ? { side: persp === 'win' ? result.winner : mySide } : null;
       await Ending.play(result, {
         again: W ? () => { Ending.hideCard(); toast('等待棋手开新局…'); } : requestAgain, againText: W ? '继 续 观 战' : '',
-        lobby: toLobby, persp, tune, instant: endSkip || slain, review: startReplay,
+        lobby: toLobby, persp, tune, instant: endSkip || slain, review: startReplay, extra: watching() ? [] : [{ text: '保 存', fn: () => openSave() }],
         mine: mode === 'local' || W || aiBoth() || !result.winner ? '' : (persp === 'win' ? '你 胜 了' : '你 败 了'),
       });
       if (pendingRestart) { const st = pendingRestart; pendingRestart = null; restart(st === true ? undefined : st); if (mode === 'host') Net.send({ t: 'restart', state: snapshot() }); }

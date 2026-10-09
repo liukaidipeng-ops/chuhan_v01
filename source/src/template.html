@@ -1031,6 +1031,25 @@ html:has(#endcard:not(.hidden)),html:has(#endcard:not(.hidden)) body,html:has(#e
 #lobby #pWait #roomSpecs i.open::before{content:"+";width:16px;height:16px;border-radius:0;background:none;display:flex;align-items:center;justify-content:center;font:900 18px/1 var(--es)}
 #lobby #pWait #roomSpecs i.open:hover{background:rgba(240,231,210,.12)}
 #lobby #pWait #roomSpecs i.open:focus-visible{outline:3px solid var(--c);outline-offset:3px}
+/* 保存棋局 / 我的棋局 / 令牌（Ham 10-10：在游戏里直接把对局发给数值部） */
+#mSave .svsum{font-size:calc(14px * var(--fs,1));color:var(--ink3);margin-bottom:10px;line-height:1.6}
+#mSave .svl{display:block;font-size:calc(13px * var(--fs,1));color:var(--ink2);margin-bottom:4px}
+#mSave textarea{width:100%;height:7.5em;font-size:calc(15px * var(--fs,1));line-height:1.5;border:1px solid #bba;background:rgba(255,255,255,.55);padding:8px;resize:vertical;font-family:inherit}
+#mSave .svflags{margin-top:8px;font-size:calc(13px * var(--fs,1));color:var(--ink2);line-height:1.6}#mSave .svflags b{color:#a8321f}
+.svmsg{margin-top:8px;font-size:calc(13px * var(--fs,1));color:var(--ink3);line-height:1.6;min-height:1.2em}.svmsg.err{color:#a8321f}.svmsg.ok{color:#2f7d4f}
+#gamesList{display:flex;flex-direction:column;gap:8px;max-height:56vh;overflow-y:auto}
+#gamesList .gm{border:1px solid rgba(60,50,40,.35);padding:8px 10px;background:rgba(255,255,255,.35)}
+#gamesList .gm .t1{font-size:calc(15px * var(--fs,1));font-weight:bold}#gamesList .gm .t2{font-size:calc(13px * var(--fs,1));color:var(--ink3);margin-top:2px}
+#gamesList .gm .st{display:inline-block;font-size:calc(12px * var(--fs,1));padding:0 6px;margin-left:6px;border:1px solid currentColor;color:var(--ink3);font-weight:normal}
+#gamesList .gm .st.sent{color:#8a6a20}#gamesList .gm .st.reply{color:#2f6a8a}#gamesList .gm .st.done{color:#2f7d4f}
+#gamesList .gm .nt{font-size:calc(13px * var(--fs,1));margin-top:4px;color:var(--ink2)}
+#gamesList .gm .bt{display:flex;gap:6px;flex-wrap:wrap;margin-top:6px}#gamesList .gm .bt button{font-size:calc(12px * var(--fs,1));padding:2px 10px;min-height:0}
+#gamesList .empty{color:var(--ink3);text-align:center;padding:20px 0}
+#optGh .ghrow{display:flex;gap:8px;align-items:center}#optGh input{flex:1;min-width:0;font-size:14px;padding:6px;border:1px solid #bba;background:rgba(255,255,255,.5)}
+#optGh .ghmsg{font-size:calc(12px * var(--fs,1));line-height:1.5;opacity:.85}
+#logList span.flag{text-decoration:underline wavy #c0392b;text-underline-offset:3px}#logList span.flag::after{content:'笨';display:inline-block;margin-left:3px;padding:0 3px;font-size:10px;line-height:1.4;color:#fff;background:#b0301f;border-radius:2px;vertical-align:1px}
+#logList span[data-i]{cursor:pointer}
+
 #pWait .specs .tip{flex-basis:100%;text-align:center;font-size:calc(13px * var(--fs,1));letter-spacing:.06em;opacity:.75}
 
 /* 房间里选电脑档位的下拉：和旁边的方框按钮一个样子（方角、2px 米色边、粗宋），展开的列表是墨底米字、选中的朱红 */
@@ -1197,7 +1216,7 @@ html:has(#endcard:not(.hidden)),html:has(#endcard:not(.hidden)) body,html:has(#e
   <div class="scroll">
 
     <div id="pMain" class="pane">
-      <div class="e-top"><div class="e-name">技能新象棋 · 逐鹿中原</div><div class="row mini"><button class="link" id="bSetL">设置</button><button class="link" id="bHelpL">玩法</button><button class="link" id="bNewsL">更新</button></div></div>
+      <div class="e-top"><div class="e-name">技能新象棋 · 逐鹿中原</div><div class="row mini"><button class="link" id="bMyGames">我的棋局</button><button class="link" id="bSetL">设置</button><button class="link" id="bHelpL">玩法</button><button class="link" id="bNewsL">更新</button></div></div>
       <div class="e-board">
         <div class="e-grid e-gt"></div>
         <div class="e-river"><span>楚河</span><span>漢界</span></div>
@@ -1308,6 +1327,7 @@ html:has(#endcard:not(.hidden)),html:has(#endcard:not(.hidden)) body,html:has(#e
   </div>
   <div class="tabp hidden" data-t="etc">
   <div class="opt"><div class="lbl">落子确认<small>点了落点要再点一次才走，防误触</small></div><div class="seg" data-s="confirm"><button data-v="1">开</button><button data-v="0">关</button></div></div>
+  <div class="opt" id="optGh"><div class="lbl">发给数值部<small>GitHub 令牌（只存在这台设备的浏览器里）</small></div><div class="ghrow"><input id="ghTok" type="password" placeholder="github_pat_…" autocomplete="off" spellcheck="false"><button class="btn small" id="ghTest">保存并测试</button></div><div id="ghMsg" class="ghmsg"></div></div>
   <div class="opt" id="optServer"><div class="lbl">自定义线路<small>一般不用填</small></div><input id="oServer" placeholder="wss://…/mqtt" style="flex:1;min-width:0;font-size:14px;padding:6px;border:1px solid #bba;background:rgba(255,255,255,.5)"></div>
   <div class="row hidden" id="setGame"><button class="btn small hidden" id="tDebug">调试摆子</button><button class="btn small" id="tExport">导出本局</button><button class="btn small red" id="tResign">认 输</button></div>
   <div class="row"><button class="btn small" id="bHelp">玩法说明</button><button class="btn small" id="bNews">更新说明</button></div>
@@ -1337,6 +1357,24 @@ html:has(#endcard:not(.hidden)),html:has(#endcard:not(.hidden)) body,html:has(#e
   <div class="row"><button class="btn red solid" id="askYes">同 意</button><button class="btn" id="askNo">拒 绝</button></div>
 </div></div></div>
 
+<!-- 保存棋局 / 发给数值部（Ham 10-10） -->
+<div id="mSave" class="modal e-c hidden"><div class="wrap"><div class="rod t"></div><div class="rod b"></div><div class="scroll">
+  <h3>保存棋局</h3>
+  <div class="e-body">
+  <div id="saveSum" class="svsum"></div>
+  <label class="svl" for="saveNote">哪里不对、想让数值部看什么（可以不填）</label>
+  <textarea id="saveNote" maxlength="500" placeholder="比如：第 17 回合电脑白送一个车"></textarea>
+  <div id="saveFlags" class="svflags"></div>
+  <div id="saveMsg" class="svmsg"></div>
+  </div>
+  <div class="e-bar"><button class="btn small" id="bSaveCancel">取消</button><button class="btn small" id="bSaveLocal">存到我的棋局</button><button class="btn small solid" id="bSaveSend">存并发给数值部</button></div>
+</div></div></div>
+<!-- 我的棋局 -->
+<div id="mGames" class="modal e-c hidden"><div class="wrap"><div class="rod t"></div><div class="rod b"></div><div class="scroll">
+  <h3>我的棋局</h3>
+  <div class="e-body"><div id="gamesNote" class="svmsg"></div><div id="gamesList"></div></div>
+  <div class="e-bar"><button class="btn small" id="bGamesClose">关闭</button></div>
+</div></div></div>
 <!-- 更新说明 -->
 <div id="mExport" class="modal e-c hidden"><div class="wrap"><div class="rod t"></div><div class="rod b"></div><div class="scroll">
   <h3>导出本局</h3>
