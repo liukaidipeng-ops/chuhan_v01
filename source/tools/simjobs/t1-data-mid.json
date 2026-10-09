@@ -1,0 +1,3 @@
+{ "args": "--games 3840 --seed 100000 --level mid --open 10 --ai tools/variants/bfai_c61.js --dump-pos",
+  "env": {}, "chunks": 48,
+  "note": "自动调估值权重的数据：C61 自对打（校尉，前 10 步随机），记安静局面 + 胜负" }

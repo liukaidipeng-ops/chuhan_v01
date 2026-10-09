@@ -8,6 +8,7 @@
 //   --ai FILE        双方用哪个电脑（默认 src/bfai.js；--ai-r / --ai-b 分别指定，可让两个版本对打）
 //   --jobs N         并行进程数（默认 CPU 核数）
 //   --max-rounds N   超过这么多回合算和（默认 150）
+//   --dump-pos       记下“安静局面”（自己这步和对方下一步都没打到子、走前没被将军）+ 终局胜负，给自动调估值权重用（tools/tune/）
 //   --open N         开局多样化：前 N 步（双方合计）在“差不到约 1.5 分”的着法里随机挑（默认 6；0 = 关）
 //   --seed N         起始随机种子（第 i 局用 seed + i，可复现）
 //   --preset NAME    预设配置（见下方 PRESETS；可多个，逗号分隔）：baseline（普通象棋对照）、no-pofu / no-revive / no-simian / no-hongmen
@@ -354,6 +355,7 @@ function parseArgs(argv) {
     else if (k === '--json') o.json = v();
     else if (k === '--quiet') o.quiet = true;
     else if (k === '--save-ult') o.saveUlt = true;
+    else if (k === '--dump-pos') o.dumpPos = true;
     else if (k === '--seedlist') { const raw = v(); o.seedlist = String(raw == null ? '' : raw).split(/[\s,]+/).filter(Boolean).map(Number); if (!o.seedlist.length || o.seedlist.some(x => !Number.isInteger(x))) throw new Error('--seedlist 要写成逗号分隔的整数种子，现在是：' + raw); }
     else if (k === '--stop-after-revive') o.stopAfterRevive = true;
     else if (k === '--ai') o.ai = v();
@@ -419,6 +421,8 @@ function worker() {
     };
     const deathLv = {};   // 每枚子最近一次阵亡时的等级（从吃子事件里读，只观察、不影响对局）
     let lastRound = 0, guard = 0;
+    // --dump-pos：候选局面先存着，对方下一步也没打到子才收（[压缩局面, 走子方搜出来的分换成汉方视角]）
+    const POS = job.dumpPos ? [] : null, TUNE = job.dumpPos ? require('./tune/feats.js') : null; let cand = null;
     const sample = () => {
       const rd = g.round;
       if (rd !== lastRound && rd % 5 === 0) { lastRound = rd; const m = material(g.S); R.samples.push({ round: rd, score: +neutral(g.S).toFixed(2), mat: m, merit: { ...g.merit }, lv: lvSum(g.S) }); }
@@ -485,7 +489,8 @@ function worker() {
       { const c = atkCount(g.S), o = side === 'r' ? 'b' : 'r'; if (R.fewEnd[side] && c[side] < c[o]) { if (R.sus[side] == null) R.sus[side] = g.round; R.susN[side]++; } }
       if (side === 'b' && R.pf && g.S.cnt.b >= g.S.fx.pf) pfEnd();
       const pre = side === 'b' && !R.pf ? { s: +neutral(g.S).toFixed(2), m: matDiff(g.S) } : null;
-      if (g.status && g.status.mustPass) { const info = g.apply({ k: 'pass' }); if (!info) throw new Error('pass 失败'); record({ k: 'pass' }, info, side); R.plies++; sample(); continue; }
+      if (g.status && g.status.mustPass) { const info = g.apply({ k: 'pass' }); if (!info) throw new Error('pass 失败'); record({ k: 'pass' }, info, side); R.plies++; sample(); cand = null; continue; }
+      const pk = POS && R.plies >= job.open + 2 && !BF.ai.inCheck(g.S, side) ? TUNE.pack(g.S) : null;
       const t0 = Date.now();
       let L = R.plies < job.open ? 'open' : lvl[side];
       if (job.saveUlt && L !== 'hard') {
@@ -496,13 +501,19 @@ function worker() {
       const dt = Date.now() - t0; R.ms += dt; if (dt > R.msMax) R.msMax = dt;
       const st = AIS[side].think.last; if (st && st.nodes != null) { R.nodes = (R.nodes || 0) + st.nodes; R.nodeMoves = (R.nodeMoves || 0) + 1; }
       if (!seq.length) { let why = ''; try { why = `（${side === 'r' ? '汉' : '楚'}方，第 ${g.round} 回合，${BF.ai.inCheck(g.S, side) ? '被将军' : '没被将军'}，普通行动 ${BF.ai.expand(g.S).length} 种，破釜 / 背水组合 ${side === 'b' && !g.S.used.art.b && BF.ai.pofuPairs ? BF.ai.pofuPairs(g.S).length : 0} 种）`; } catch (e) { why = '（' + e.message + '）'; } throw new Error('电脑没有给出行动' + why); }
+      let noisy = false;
       for (const a of seq) {
         // 升级会回满血：掉了血再升更划算（用户问的“极限升级”）。记下升级前的血量
         const up0 = a.k === 'up' ? g.at(a.at[0], a.at[1]) : null, hp0 = up0 && { hp: up0.hp, max: BF.hpOf(up0.t, up0.lv) };
         const info = g.apply(a);
         if (info && hp0) { const H = R.upHp[side]; if (hp0.hp >= hp0.max) H.full++; else { H.hurt++; if (hp0.hp === 1) H.last++; } }
         if (!info) throw new Error('非法行动 ' + JSON.stringify(a) + ' seed=' + job.seed);
+        if (POS && (info.ev || []).some(e => e.e === 'kill' || e.e === 'hit')) noisy = true;
         record(a, info, side);
+      }
+      if (POS) {
+        if (cand && !noisy) POS.push(cand);
+        cand = pk && !noisy ? [pk, st && st.v != null && isFinite(st.v) ? +(side === 'r' ? st.v : -st.v).toFixed(2) : null] : null;
       }
       if (job.stopAfterRevive && R.rev) { R.reason = 'probe'; R.plies++; break; }   // 探针：召回那一刻就停
       { const c = atkCount(g.S), o = side === 'r' ? 'b' : 'r'; R.fewEnd[side] = c[side] < c[o]; }
@@ -523,6 +534,7 @@ function worker() {
     // 攻防指标（用户 2026-10-04：进攻方要先拆掉士象、再将军）：终局时双方还剩几个士象（开局各 4 个）
     { const d = { r: 0, b: 0 }; for (const row of g.board) for (const p of row) if (p && (p.t === 'a' || p.t === 'e')) d[p.s]++; R.endDef = d; }
     R.endMat = material(g.S);
+    if (POS) R.pos = POS;
     return R;
   }
 
@@ -608,11 +620,11 @@ async function run(o) {
     ais = { A: resolveAI(o.match[0]), B: resolveAI(o.match[1]) };
     if (!o.sprt) o.sprt = [-30, 10];
     // 每个种子两局：A 执汉一局、A 执楚一局
-    for (let i = 0; i < Math.ceil(o.games / 2); i++) for (const flip of [false, true]) jobs.push({ seed: o.seed + i, flip, aiR: flip ? 'B' : 'A', aiB: flip ? 'A' : 'B', red: o.red || o.level, black: o.black || o.level, maxRounds: o.maxRounds, open: o.open, saveUlt: o.saveUlt });
+    for (let i = 0; i < Math.ceil(o.games / 2); i++) for (const flip of [false, true]) jobs.push({ seed: o.seed + i, flip, aiR: flip ? 'B' : 'A', aiB: flip ? 'A' : 'B', red: o.red || o.level, black: o.black || o.level, maxRounds: o.maxRounds, open: o.open, saveUlt: o.saveUlt, dumpPos: !!o.dumpPos });
   } else {
     ais = { R: resolveAI(o.aiR || o.ai), B: resolveAI(o.aiB || o.ai) };
     const seeds = o.seedlist || []; if (!o.seedlist) for (let i = 0; i < o.games; i++) seeds.push(o.seed + i);
-    for (const seed of seeds) jobs.push({ seed, aiR: 'R', aiB: 'B', red: o.red || o.level, black: o.black || o.level, maxRounds: o.maxRounds, open: o.open, saveUlt: o.saveUlt, stopAfterRevive: !!o.stopAfterRevive });
+    for (const seed of seeds) jobs.push({ seed, aiR: 'R', aiB: 'B', red: o.red || o.level, black: o.black || o.level, maxRounds: o.maxRounds, open: o.open, saveUlt: o.saveUlt, stopAfterRevive: !!o.stopAfterRevive, dumpPos: !!o.dumpPos });
   }
   const results = [], errors = [], warned = new Set();
   let next = 0, done = 0, stopped = null;
