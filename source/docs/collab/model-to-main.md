@@ -2,6 +2,41 @@
 
 最新的在最上面，编号接着往下排（M1、M2…）。格式见同目录 `MODEL-WORKFLOW.md` 第 6 节。TD 用 `git show origin/model-lab:source/docs/collab/model-to-main.md` 看。
 
+## M13 · 10-09 · 交付 · 木棋子换成「牙黄面加色边」（手机上汉方看得清）
+
+- 提交：model-lab 上带这张交付单的那次提交。交付前合过 `origin/dev`（4db9f8c），`node build.js` 能过，`test/*.test.js` 全过。**这次没改任何代码文件**，只有本文件：要改的是 `board.js` 的 `faceTex`，不在 H14 放给我的那几处里，所以请你照下面的代码换。
+- Ham 确认：他 14:30 发手机截图说「木棋子颜色太深了，移动端汉方看不清楚，调整一下。出三个方案」。art-037 他先选了象牙面，但担心和白玉太像；我把象牙面、牙黄面加色边、漆身木面和白玉、乌银、錾金放一起截图（art-040），他 16:14 选了 **B · 牙黄面加色边**。
+- 只换一级（木）棋子的字面：常规、揭棋翻开后、技能模式一级都用 `faceTex`，一起变。棋身侧面的木纹、金色腰线、揭棋暗子的漆背都不动。二、三、四级（银、金、玉）不动——Ham 同时说「现在的金色和银色和其他棋子有点风格不搭，各做三个方案」，我在做，定了另交一张。
+
+**需要 TD 做的**
+1. `source/src/board.js` 约 488 行，把 `faceTex(s, t)` 整个换成下面这段（缓存、`canvasTex`、`FONT` 都是原来的，没有新接口）：
+   ```js
+   function faceTex(s, t) {
+     const key = s + t;
+     if (faceCache[key]) return faceCache[key];
+     const ch = XQ.NAMES[s][t];
+     const col = s === 'r' ? '#b3241a' : '#1a1714';   // 汉朱、楚墨
+     return (faceCache[key] = canvasTex(512, 512, (g, w) => {
+       g.clearRect(0, 0, w, w);
+       const c = w / 2;
+       const ring = (r, lw, color) => { g.strokeStyle = color; g.lineWidth = lw; g.beginPath(); g.arc(c, c, r, 0, 7); g.stroke(); };
+       // 牙黄面：左上略亮，往外渐深
+       const gr = g.createRadialGradient(c * 0.8, c * 0.75, 10, c, c, w * 0.48);
+       gr.addColorStop(0, '#f1e4c0'); gr.addColorStop(1, '#e6d3a4');
+       g.fillStyle = gr; g.beginPath(); g.arc(c, c, w * 0.47, 0, 7); g.fill();
+       // 色边：外圈一道粗边 + 里面一道细圈，和字同色
+       ring(w * 0.47, 14, col); ring(w * 0.452, 10, col); ring(w * 0.372, 5, col);
+       // 字：粗楷，不描边、不加阴影（牙黄底上已经够清楚）
+       g.font = `bold 310px ${FONT}`; g.textAlign = 'center'; g.textBaseline = 'middle';
+       g.fillStyle = col; g.fillText(ch, c, c + 16);
+     }));
+   }
+   ```
+   和原来比：去掉了联珠纹、金色描边和字的阴影；面整块铺牙黄（原来是透明的，露出木纹）；红字从 `#a3241a` 提到 `#b3241a`。
+2. 字面材质 `roughness: 0.5` 不用改。
+- 我看过的：手机 390×844 全盘（常规开局，汉楚两边），和象牙面、漆身、白玉、乌银、錾金并排对比（审批台 art-040 的图）。
+- 没看的：电脑宽屏；揭棋翻开时浮起来的字印（`fx.js` 约 939 行也用 `Board.faceTex`，会变成一整块牙黄圆片带色边，比原来透明底更醒目，我觉得可以，你过一眼）。代码就是我截图用的那段，换上去应该一样。
+
 ## M12 · 10-09 · 补充：升级确认框（M9 第 2 条），Ham 定了召回良将后那一步也要弹
 
 - Ham 10-09 16:13 问「棋子升级确认并附带说明弹框为什么没更新？」，我答：样式和结构在 M9 里，开框的脚本你那边还没接（H15、H18 都写着没接），在等「召回良将后要不要也弹」。他 16:16 回：「也要弹窗确认」。
