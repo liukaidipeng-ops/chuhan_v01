@@ -256,8 +256,6 @@ input.code{font-size:calc(30px * var(--fs,1));letter-spacing:.4em;text-align:cen
 body.compact #veil u span{font-size:calc(13px * var(--fs,1));white-space:normal;max-width:84vw}
 .sk.pas{opacity:.85;filter:none;background:linear-gradient(#3a3428,#24201a)}
 @keyframes gainup{0%{opacity:0;transform:translate(-50%,-30%) scale(.6)}15%{opacity:1;transform:translate(-50%,-60%) scale(1.15)}30%{transform:translate(-50%,-70%) scale(1)}100%{opacity:0;transform:translate(-50%,-190%) scale(1)}}
-.merpop{position:fixed;z-index:30;pointer-events:none;font-size:calc(15px * var(--fs,1));font-weight:bold;color:#8a5a12;text-shadow:0 1px 0 #fff8e6,0 0 6px rgba(255,236,190,.9);animation:merup 1.4s ease-out forwards;white-space:nowrap}
-@keyframes merup{0%{opacity:0;transform:translateY(6px) scale(.8)}15%{opacity:1;transform:translateY(0) scale(1.1)}100%{opacity:0;transform:translateY(-34px) scale(1)}}
 #bfBar{position:absolute;left:50%;bottom:calc(14px + var(--safe-b));transform:translateX(-50%);pointer-events:none;display:flex;flex-direction:column;align-items:center;gap:6px;max-width:calc(100vw - 24px);z-index:6}
 #skHint{position:absolute;left:50%;transform:translateX(-50%);bottom:calc(18px + var(--safe-b));z-index:7;pointer-events:auto;border:none;border-radius:22px;padding:8px 22px 8px 20px;display:flex;align-items:center;gap:10px;background:linear-gradient(#3a2a12,#1f170c);color:#ffe2a0;font-size:calc(16px * var(--fs,1));letter-spacing:.14em;box-shadow:0 0 0 1.5px #e6b75a,0 0 18px rgba(255,190,80,.55),0 6px 18px rgba(0,0,0,.35);animation:skBlink 1.15s ease-in-out infinite;cursor:pointer;white-space:nowrap;font-family:var(--font)}
 #skHint b{font-weight:bold}#skHint small{font-size:calc(12px * var(--fs,1));color:#e9cf98;letter-spacing:.05em}
@@ -1051,6 +1049,7 @@ html:has(#endcard:not(.hidden)),html:has(#endcard:not(.hidden)) body,html:has(#e
 #lobby #pWait #roomSpecs i.open::before{content:"+";width:16px;height:16px;border-radius:0;background:none;display:flex;align-items:center;justify-content:center;font:900 18px/1 var(--es)}
 #lobby #pWait #roomSpecs i.open:hover{background:rgba(240,231,210,.12)}
 #lobby #pWait #roomSpecs i.open:focus-visible{outline:3px solid var(--c);outline-offset:3px}
+#lobby #pWait .seat.back{cursor:pointer}#lobby #pWait .seat.back:hover{filter:brightness(1.06)}#lobby #pWait .seat.back:focus-visible{outline:3px solid var(--c);outline-offset:3px}
 #pWait .specs .tip{flex-basis:100%;text-align:center;font-size:calc(13px * var(--fs,1));letter-spacing:.06em;opacity:.75}
 
 /* 房间里选电脑档位的下拉：和旁边的方框按钮一个样子（方角、2px 米色边、粗宋），展开的列表是墨底米字、选中的朱红 */
