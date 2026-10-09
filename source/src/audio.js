@@ -643,11 +643,11 @@ const Sfx = (() => {
     vol,
     // 落子声分材质（Ham 10-09 试听台第二十九批）：m = 棋子模型，看 m.userData.mat（1 木、2 银、3 金、4 玉，board.js 换材质时记下）。
     //   素材包里没有这种材质的声音（还没挑 / 没下载完）就用原来的木头声
-    //   只在「棋子显示：棋子」时用（Ham 10-09：这些落子声主要是给棋子模式的）；兵种模型模式照旧木头声
+    //   只在「棋子显示：棋子」+「低特效」时用（Ham 10-10：只有这时看得到棋子本身在走，别的档位走的是兵种模型）；其余照旧木头声
     place(m) {
-      const model = typeof Squads !== 'undefined' && Squads.Stand && Squads.Stand.on;
+      const model = typeof Squads !== 'undefined' && Squads.Stand && Squads.Stand.on, low = typeof Fx !== 'undefined' && Fx.level === 'low';
       const mat = (m && m.userData && m.userData.mat) || 1, [id, v] = PLACE[mat] || PLACE[1];
-      if (!model && has(id)) smp(id, { vol: v, rj: 0.05, pan: 0 }); else B.wood(0, 0.45);
+      if (low && !model && has(id)) smp(id, { vol: v, rj: 0.05, pan: 0 }); else B.wood(0, 0.45);
     },
     // 界面音效：hover = 电脑上鼠标移到按钮上，click = 点按钮。很轻，连着划过一排按钮时不会噼里啪啦（两下之间至少隔 45 毫秒）
     ui(kind) {
