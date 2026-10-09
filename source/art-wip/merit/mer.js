@@ -16,6 +16,17 @@ window.MV = (() => {
   .mvlab small{font:500 .78em var(--es,sans-serif);margin-left:6px;letter-spacing:0;opacity:.9}
   .pcard.mvglow{box-shadow:inset 0 0 0 3px var(--c),inset 0 0 0 5px var(--k),0 0 0 3px #e9c46a,0 0 26px rgba(233,196,106,.85)!important}
   .pcard.mvhurt{box-shadow:inset 0 0 0 3px var(--c),inset 0 0 0 5px var(--k),0 0 0 3px #a8281c,0 0 22px rgba(168,40,28,.6)!important}
+
+  /* 飞的东西（接 art-070：铜钱太廉价，换四种）*/
+  .mvglow1{width:16px;height:16px;margin:-8px 0 0 -8px;border-radius:50%;background:radial-gradient(circle,#fffbe8 0 30%,#ffe08a 55%,rgba(233,180,60,0) 72%);filter:drop-shadow(0 0 6px rgba(255,214,110,.95))}
+  .mvtail{width:10px;height:10px;margin:-5px 0 0 -5px;border-radius:50%;background:radial-gradient(circle,rgba(255,240,190,.95),rgba(233,180,60,0) 70%)}
+  .mvspark{width:4px;height:12px;margin:-6px 0 0 -2px;border-radius:2px;background:linear-gradient(#fff6d0,#e9b84a)}
+  .mvseal1{width:24px;height:24px;margin:-12px 0 0 -12px;background:#a8281c;box-shadow:inset 0 0 0 2px #a8281c,inset 0 0 0 3.5px #f3d27a,0 2px 6px rgba(0,0,0,.35);display:flex;align-items:center;justify-content:center;font:900 15px/1 var(--ef,serif);color:#f3d27a}
+  .mvslip{width:12px;height:38px;margin:-19px 0 0 -6px;background:linear-gradient(90deg,#b98b45,#e8c987 35%,#d9b06a 70%,#a87a36);box-shadow:inset 0 0 0 1px #6e4d1c,0 2px 5px rgba(0,0,0,.3);display:flex;align-items:center;justify-content:center;font:900 10px/1 var(--ef,serif);color:#1a1714}
+  .mvslip::before,.mvslip::after{content:"";position:absolute;left:-1px;right:-1px;height:1.5px;background:#a8281c}
+  .mvslip::before{top:6px}.mvslip::after{bottom:6px}
+  .mvgold{width:30px;height:30px;margin:-15px 0 0 -15px;display:flex;align-items:center;justify-content:center;font:900 26px/1 var(--ef,serif);background:linear-gradient(#fff6cf,#f0c95a 45%,#b8862a);-webkit-background-clip:text;background-clip:text;color:transparent;filter:drop-shadow(0 0 1px #6b4a14) drop-shadow(0 0 5px rgba(255,214,110,.95)) drop-shadow(0 0 12px rgba(255,190,70,.6))}
+  .mvring{width:10px;height:10px;margin:-5px 0 0 -5px;border-radius:50%;box-shadow:0 0 0 2px #f3d27a}
   /* 甲 · 军功条 */
   .mvA{display:flex;align-items:center;gap:8px;min-width:0}
   .mvA .lab{font:900 calc(12px * var(--fs,1))/1 var(--ef,serif);background:var(--ink);color:var(--paper);padding:3px 5px;letter-spacing:.1em}
@@ -119,25 +130,50 @@ window.MV = (() => {
   function label(side, txt, small, kind, x, y, dir) {
     const d = fly('mvlab ' + kind, `${txt}${small ? `<small>${small}</small>` : ''}`); return d;
   }
+
+  // 四种飞的东西：glow 金光（拖尾）/ seal 「功」字小印 / slip 竹简功牌 / gold 金字「功」；coin 是原来的铜钱
+  let tok = 'coin';
+  const TK = {
+    coin: { cls: 'mvcoin', n: 3, arc: 120 },
+    glow: { cls: 'mvglow1', n: 2, arc: 90, tail: 9, spark: 10 },
+    seal: { cls: 'mvseal1', html: '功', n: 1, arc: 110, spin: 1, stamp: 1 },
+    slip: { cls: 'mvslip', html: '功', n: 2, arc: 130, spin: 2 },
+    gold: { cls: 'mvgold', html: '功', n: 2, arc: 120, spark: 6 },
+  };
+  function token() { const T = TK[tok]; const head = fly(T.cls, T.html); const tail = T.tail ? [...Array(T.tail)].map(() => fly('mvtail')) : []; return { head, tail, T }; }
+  function placeTok(o, P, Q, k, arc, sc, op, i) {
+    const at = kk => { const x = P[0] + (Q[0] - P[0]) * kk, y = P[1] + (Q[1] - P[1]) * kk - Math.sin(kk * Math.PI) * arc; return [x, y]; };
+    const [x, y] = at(k), T = o.T; const rot = T.spin === 1 ? -25 * (1 - k) : T.spin === 2 ? 720 * k + (i || 0) * 30 : 0;
+    o.head.style.transform = `translate(${x}px,${y}px) rotate(${rot}deg) scale(${sc})`; o.head.style.opacity = op;
+    o.tail.forEach((tl, j) => { const kk = Math.max(0, k - (j + 1) * 0.028); const [tx, ty] = at(kk); tl.style.transform = `translate(${tx}px,${ty}px) scale(${(1 - j / o.tail.length) * sc})`; tl.style.opacity = op * (1 - j / o.tail.length) * (kk > 0 ? 0.9 : 0); });
+  }
+  function burst(Q, kind) {   // 落点的一下：金星四溅 / 盖印的一圈
+    const T = TK[tok]; const els = [];
+    if (T.spark) for (let i = 0; i < T.spark; i++) els.push({ e: fly('mvspark'), a: i / T.spark * Math.PI * 2 + Math.random() * 0.4, r: 26 + Math.random() * 16 });
+    if (T.stamp || kind === 'ring') els.push({ e: fly('mvring'), ring: 1 });
+    run(520, t => els.forEach(o => { if (o.ring) { o.e.style.transform = `translate(${Q[0]}px,${Q[1]}px) scale(${1 + 5 * t})`; o.e.style.opacity = 1 - t; return; }
+      const r = o.r * (1 - Math.pow(1 - t, 2)); o.e.style.transform = `translate(${Q[0] + Math.cos(o.a) * r}px,${Q[1] + Math.sin(o.a) * r}px) rotate(${o.a * 180 / Math.PI + 90}deg) scale(${1 - t * 0.6})`; o.e.style.opacity = 1 - t; }), () => els.forEach(o => o.e.remove()));
+  }
   function gain(side, n, why, from) {
     const c = cards[side], v0 = c.v, v1 = Math.min(MAX, v0 + n); c.v = v1;
     const a1 = (() => { const k = c.v; c.v = v0; const p = anchor(c); c.v = k; return p; })(), a2 = anchor(c);
-    const coins = [...Array(Math.min(n, 3))].map(() => fly('mvcoin'));
+    const coins = [...Array(Math.min(n, TK[tok].n))].map(() => token()); let burstDone = false;
     const lab = fly('mvlab g', `+${n} 功<small>${why || ''}</small>`);
     const P = from || [innerWidth / 2, innerHeight / 2];
     return run(1300, t => {
-      coins.forEach((cn, i) => { const k = ease(seg(t, i * 0.06, 0.38 + i * 0.06)); const x = P[0] + (a2[0] - P[0]) * k, y = P[1] + (a2[1] - P[1]) * k - Math.sin(k * Math.PI) * 120; cn.style.transform = `translate(${x}px,${y}px) scale(${1.25 - 0.45 * k})`; cn.style.opacity = k >= 1 ? 0 : 1; });
+      coins.forEach((cn, i) => { const k = ease(seg(t, i * 0.06, 0.38 + i * 0.06)); placeTok(cn, P, a2, k, TK[tok].arc, 1.25 - 0.45 * k, k >= 1 ? 0 : 1, i); });
+      if (!burstDone && t >= 0.38) { burstDone = true; burst(a2); }
       const hit = seg(t, 0.38, 0.62), pop = Math.sin(seg(t, 0.38, 0.6) * Math.PI);
       c.card.classList.toggle('mvglow', t > 0.38 && t < 0.8);
       if (style === 'A') draw(c, { v: v1, shown: v0 + (v1 - v0) * ease(hit), scale: 1 + 0.45 * pop, fill: v0 + (v1 - v0) * ease(hit), ghA: v0, ghB: v1, ghO: t > 0.38 ? 1 - seg(t, 0.55, 0.95) : 0 });
       if (style === 'B') draw(c, { v: v1, shown: t > 0.45 ? v1 : v0, scale: 1 + 0.38 * pop - 0.1 * Math.sin(seg(t, 0.6, 0.75) * Math.PI), rot: -6 * pop, rpO: t > 0.4 ? 1 - seg(t, 0.4, 0.95) : 0, rpR: 14 * seg(t, 0.4, 0.95) });
       if (style === 'C') draw(c, { v: v1, shown: v0 + (v1 - v0) * ease(hit), scale: 1 + 0.4 * pop, zv: v0, zx: { ghostTo: v1, ghostP: seg(t, 0.38, 0.78) } });
       const lk = seg(t, 0.4, 1); lab.style.transform = `translate(${a2[0]}px,${a2[1] - 16 - 34 * ease(lk)}px) translate(-50%,-100%)`; lab.style.opacity = t < 0.4 ? 0 : 1 - seg(t, 0.82, 1);
-    }, () => { coins.forEach(x => x.remove()); lab.remove(); c.card.classList.remove('mvglow'); draw(c, {}); });
+    }, () => { coins.forEach(x => { x.head.remove(); x.tail.forEach(e => e.remove()); }); lab.remove(); c.card.classList.remove('mvglow'); draw(c, {}); });
   }
   function spend(side, n, why, to) {
     const c = cards[side], v0 = c.v, v1 = Math.max(0, v0 - n); const a0 = anchor(c); c.v = v1; const a1 = anchor(c);
-    const coins = [...Array(Math.min(n, 5))].map(() => fly('mvcoin'));
+    const coins = [...Array(Math.min(n, TK[tok].n + 1))].map(() => token()); let burstDone = false;
     const lab = fly('mvlab s', `−${n} 功<small>${why || ''}</small>`);
     const T = to || [innerWidth / 2, innerHeight / 2];
     return run(1400, t => {
@@ -146,9 +182,10 @@ window.MV = (() => {
       if (style === 'A') draw(c, { v: v1, shown: v0 - (v0 - v1) * ease(k0), red: t < 0.6, scale: 1 + 0.25 * Math.sin(seg(t, 0, 0.3) * Math.PI), fill: v1, spA: v1, spB: v0, spO: t < 0.12 ? seg(t, 0, 0.06) : 1 - seg(t, 0.35, 0.8), spY: 10 * ease(seg(t, 0.3, 0.8)) });
       if (style === 'B') draw(c, { v: v1, shown: t > 0.25 ? v1 : v0, red: t < 0.5, scale: 1, rot: t < 0.4 ? Math.sin(t * 60) * 7 * (1 - t / 0.4) : 0 });
       if (style === 'C') draw(c, { v: v1, shown: v0 - (v0 - v1) * ease(k0), red: t < 0.6, zv: v1, zx: { strikeFrom: v0, strikeP: seg(t, 0.02, 0.3), fade: seg(t, 0.45, 0.85) } });
-      coins.forEach((cn, i) => { const k = ease(seg(t, 0.1 + i * 0.05, 0.6 + i * 0.05)); const x = a0[0] + (T[0] - a0[0]) * k, y = a0[1] + (T[1] - a0[1]) * k - Math.sin(k * Math.PI) * 90; cn.style.transform = `translate(${x}px,${y}px) scale(${0.9 + 0.3 * k})`; cn.style.opacity = t < 0.1 + i * 0.05 || k >= 1 ? 0 : 1; });
+      coins.forEach((cn, i) => { const k = ease(seg(t, 0.1 + i * 0.05, 0.6 + i * 0.05)); placeTok(cn, a0, T, k, TK[tok].arc * 0.75, 0.9 + 0.3 * k, t < 0.1 + i * 0.05 || k >= 1 ? 0 : 1, i); });
+      if (!burstDone && t >= 0.62) { burstDone = true; burst(T); }
       const lk = seg(t, 0.05, 0.9); lab.style.transform = `translate(${a0[0]}px,${a0[1] - 50 + 30 * ease(lk)}px) translate(-50%,-100%)`; lab.style.opacity = 1 - seg(t, 0.75, 1);
-    }, () => { coins.forEach(x => x.remove()); lab.remove(); c.card.classList.remove('mvhurt'); draw(c, {}); });
+    }, () => { coins.forEach(x => { x.head.remove(); x.tail.forEach(e => e.remove()); }); lab.remove(); c.card.classList.remove('mvhurt'); draw(c, {}); });
   }
-  return { mount, set, gain, spend, freeze, unfreeze, cards, get style() { return style; } };
+  return { mount, set, gain, spend, freeze, unfreeze, cards, get style() { return style; }, get tok() { return tok; }, set tok(v) { tok = TK[v] ? v : 'coin'; }, TK };
 })();

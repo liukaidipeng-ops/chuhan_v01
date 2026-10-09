@@ -6,7 +6,8 @@ window.JM = (() => {
     low: { crouch: 0.22, lean: 0.3, twist: -0.35, sway: 0, hx: -0.35, hy: 0.25, lL: -0.74, lR: 0.74, lLz: 0.1, aW: -0.6, aWz: 0.15, wAbs: 1.24, wz: 0, aS: -1.35, aSz: 0.3, sAbs: 0.3 },
     high: { crouch: 0.05, lean: 0.12, twist: -0.2, sway: 0, hx: -0.15, hy: 0.15, lL: -0.35, lR: 0.35, lLz: 0.05, aW: -1.35, aWz: 0.2, wAbs: 1.32, wz: 0, aS: -0.9, aSz: -0.25, sAbs: 0.15 },
   };
-  P.zhanma = { wz: 1.57, wAbs: 1.02, aW: -0.8 };
+  P.zhanma = { wz: 0.5, wAbs: 1.4, aW: -0.75 };
+  window.__zm = P.zhanma;
   JMP = P;
   const T = Models.Troop.prototype, orig = T.target;
   T.target = function (u, t, dt) {
