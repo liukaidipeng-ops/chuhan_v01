@@ -719,9 +719,14 @@ body.compact #log{width:164px;max-height:34vh}
 .sk.art,.sk.ok{--sb:var(--g);--sf:var(--c);background:var(--sb);color:var(--sf);border-color:transparent}.sk.ok small{color:inherit}
 .sk.ult{--sb:var(--g);--sf:var(--c);background:var(--sb);box-shadow:inset 0 0 0 3px var(--sb),inset 0 0 0 4px var(--sf),inset 0 0 0 6px var(--sb),inset 0 0 0 7px var(--sf),0 4px 12px rgba(0,0,0,.28)}
 .sk.pas{background:var(--k);opacity:.75}
-.sk.on{outline:3px solid var(--c);outline-offset:2px}
-.sk.ready{outline:3px solid var(--g);outline-offset:2px;animation:eRdy 1.4s ease-in-out infinite}
-@keyframes eRdy{50%{outline-offset:5px}}
+.sk.on{outline:3px solid var(--c);outline-offset:0}
+/* 可用的按钮：贴着外沿一圈 3px 朱线，一亮一暗；不往外扩，相邻按钮的框不会撞在一起。朱底按钮外圈用墨色 */
+.sk.ready{--sr:var(--g);outline:3px solid var(--sr);outline-offset:0;animation:eRdy 1.4s ease-in-out infinite}
+.sk.ready.ok,.sk.ready.art,.sk.ready.ult{--sr:var(--k)}
+@keyframes eRdy{50%{outline-color:transparent}}
+#bfRow,#bfBar.cmp #bfRow{gap:10px}
+/* 手机：技能栏和「技能未用」提示贴在自己牌的上方，让开牌外那圈朱框（伸出牌外 10px） */
+body.compact #bfBar.cmp,body.compact #skHint{translate:0 -6px}
 .sk:disabled,.sk.off{opacity:.5;filter:none}
 .sk .cd{border-radius:0}
 .sk .cdn{border:1.5px solid var(--k);background:var(--c);color:var(--k)}
@@ -1040,12 +1045,12 @@ html:has(#endcard:not(.hidden)),html:has(#endcard:not(.hidden)) body,html:has(#e
   <div id="tools">
     <button class="tool" id="tChat" title="阵前喊话">言</button>
     <button class="tool" id="tUndo" title="悔棋">悔<small id="undoLeft"></small></button>
-    <button class="tool" id="tLog" title="棋谱">譜</button>
-    <button class="tool" id="tView" title="视角复位">視</button>
+    <button class="tool" id="tLog" title="棋谱">谱</button>
+    <button class="tool" id="tView" title="视角复位">视</button>
     <button class="tool hidden" id="tLaugh" title="哈哈大笑">笑</button>
     <button class="tool" id="tPause" title="暂停（P）">停</button>
     <button class="tool hidden" id="tRule" title="技能模式规则速览">法</button>
-    <button class="tool" id="tSet" title="设置 · 认输 · 退出">設</button>
+    <button class="tool" id="tSet" title="设置 · 认输 · 退出">设</button>
   </div>
 </div>
 
