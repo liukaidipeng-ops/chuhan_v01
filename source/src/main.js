@@ -1520,7 +1520,7 @@
   const anaAdv = (A, i) => { const r = A.V[i]; if (!r) return null; const side = i < A.steps.length ? A.steps[i].side : (A.steps.length ? (A.steps[A.steps.length - 1].side === 'r' ? 'b' : 'r') : 'r'); const M = A.bf ? ANA.bf : ANA.std; const v = (side === 'r' ? 1 : -1) * r.v; return Math.tanh(v / M.scale); };
   // 面板四种样子（Ham 10-09 审批台 td-011：再做几个和天天象棋不一样的设计）。网址 ?anav=0/1/2/3 预览，选定后改默认值
   //   0 侧栏（原来那版）/ 1 战报长卷（底部横卷：水墨局势 + 一根根竹简）/ 2 古谱朱批（米黄纸页，竖排记谱，朱笔圈点）/ 3 沙盘兵势（棋盘不挡：底部一条兵势河 + 军情签）
-  const ANAV = Math.max(0, Math.min(3, +(Core.DIAG.get('anav') || 0)));
+  const ANAV = Math.max(0, Math.min(3, +(Core.DIAG.get('anav') || 3)));   // Ham 10-10 审批台 td-012 选了方案三（沙盘兵势）
   const ANA1 = ['佳', '好', '缓', '失', '错'], ANA2 = ['◎', '○', '、', '△', '✕'];
   function anaCurve(A, W, H, pad = 6) {   // 局势曲线的点（汉优在上）
     const n = Math.max(1, A.n), X = i => pad + (W - pad * 2) * i / n, Y = a => H / 2 - a * (H / 2 - 4);
@@ -1598,7 +1598,7 @@
       const bm = g != null && g >= 2 && s.bestNote ? `<span class="bm">宜 ${s.bestNote}</span>` : '';
       return `<div class="ar ${s.side}${A.sel === i ? ' on' : ''}" data-i="${i}"><span class="no">${A.bf ? '第' + (i + 1) + '回' : (s.side === 'r' ? '第' + (Math.floor(i / 2) + 1) + '着' : '')}</span><span class="mv">${s.note || ''}</span>${g == null ? '' : `<i class="mk m${g}">${ANA2[g]}</i>`}${bm}${xbtn(i, g, '评')}</div>`; }).join('');
     else if (ANAV === 3) $('anaList').innerHTML = A.steps.map((s, i) => { const g = s.grade;   // 一枚兵符：颜色是评价，红 / 绿边是哪一方
-      return `<div class="ar tk ${s.side}${A.sel === i ? ' on' : ''}" data-i="${i}" title="${no(i)} ${SN[s.side]} ${s.note}${g == null ? '' : ' · ' + ANA.tags[g]}">${g == null ? '' : `<i class="g${g}">${g >= 3 ? ANA1[g] : ''}</i>`}</div>`; }).join('');
+      return `<div class="ar tk ${s.side}${A.sel === i ? ' on' : ''}" data-i="${i}" title="${no(i)} ${SN[s.side]} ${s.note}${g == null ? '' : ' · ' + ANA.tags[g]}">${g == null ? '' : `<i class="g${g}" data-c="${ANA1[g]}">${g >= 3 ? ANA1[g] : ''}</i>`}</div>`; }).join('');   // data-c：手机上选中的那枚放大后显示的字
     else $('anaList').innerHTML = A.steps.map((s, i) => {
       const g = s.grade, tag = g == null ? '<i class="tg wait">…</i>' : `<i class="tg g${g}">${ANA.tags[g]}</i>`;
       const bm = g != null && g >= 2 && s.bestNote ? `<span class="bm">应走 ${s.bestNote}</span>` : '';

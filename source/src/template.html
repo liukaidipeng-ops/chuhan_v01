@@ -577,6 +577,14 @@ body.cine #hud>*{opacity:0!important;pointer-events:none!important}
   #ana.v1 #anaDet{grid-column:1;grid-row:3/5;max-height:34vh}
   #ana.v3{bottom:calc(158px + var(--safe-b));grid-template-columns:1fr;grid-template-rows:auto 34px auto}#ana.v3 .anaH{grid-row:1}#ana.v3 #anaSum{grid-row:1;justify-self:end;width:150px;margin-right:24px}#ana.v3 #anaChart{grid-column:1;grid-row:2;height:34px}#ana.v3 #anaList{grid-column:1;grid-row:3}
   #ana.v3 #anaCur,#ana.v3 #anaDet{left:8px;right:8px;width:auto;top:calc(96px + var(--safe-t,0px))}#ana.v3 #anaDet{max-height:calc(100vh - 360px)}
+  /* 手机：兵符都收窄、不写字；选中的那枚放大，写上 佳 / 好 / 缓 / 失 / 错（Ham 10-10 td-012） */
+  #ana.v3 #anaList{gap:1px;min-height:40px;padding:4px 2px 2px;scroll-padding:0 40px}
+  #ana.v3 #anaList .ar.tk{flex:1 1 0;min-width:4px;max-width:12px;height:16px;border-radius:1px 1px 4px 4px;transition:flex-basis .18s ease,max-width .18s ease,height .18s ease}
+  #ana.v3 #anaList .ar.tk i{inset:2px 0 0;border-radius:0 0 3px 3px;font-size:0}
+  #ana.v3 #anaList .ar.tk:hover{height:16px;background:#3a332c}
+  #ana.v3 #anaList .ar.tk.on{flex:0 0 32px;max-width:32px;min-width:32px;height:34px;margin:0 3px;border-radius:3px 3px 10px 10px;outline-width:2px}
+  #ana.v3 #anaList .ar.tk.on i{inset:3px 2px 2px;border-radius:2px 2px 8px 8px}
+  #ana.v3 #anaList .ar.tk.on i::after{content:attr(data-c);font-size:17px;line-height:1;color:#fff;text-shadow:0 1px 2px rgba(0,0,0,.45)}
 }
 body.anaOn.anaWide #cardMe{display:none}
 #ana.v1 #anaDet{padding-left:4px}
