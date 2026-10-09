@@ -18,16 +18,20 @@ const BF = global.BF;
 const AI = require(SRC + '/tools/variants/bfai_trace.js'), JD = AI.judge();
 
 const argv = process.argv.slice(2);
-const opt = { file: null, side: null, level: null, from: 1, to: 999, nodes: 'mid=60000,hard=100000', judge: 1500000, wide: 800000, json: null };
+const opt = { file: null, side: null, level: null, from: 1, to: 999, nodes: 'mid=60000,hard=100000', judge: 1000000, wide: 500000, dd: 4, dw: 3, json: null };
 for (let i = 0; i < argv.length; i++) {
   const k = argv[i], v = () => argv[++i];
   if (k === '--side') opt.side = v(); else if (k === '--level') opt.level = v(); else if (k === '--from') opt.from = +v(); else if (k === '--to') opt.to = +v();
-  else if (k === '--nodes') opt.nodes = v(); else if (k === '--judge-nodes') opt.judge = +v(); else if (k === '--wide-nodes') opt.wide = +v(); else if (k === '--json') opt.json = v(); else if (!opt.file) opt.file = k; else throw new Error('多余的参数 ' + k);
+  else if (k === '--nodes') opt.nodes = v(); else if (k === '--judge-nodes') opt.judge = +v(); else if (k === '--wide-nodes') opt.wide = +v(); else if (k === '--deep-depth') opt.dd = +v(); else if (k === '--wide-depth') opt.dw = +v(); else if (k === '--json') opt.json = v(); else if (!opt.file) opt.file = k; else throw new Error('多余的参数 ' + k);
 }
 if (!opt.file) { console.log('用法见文件开头'); process.exit(1); }
 for (const kv of opt.nodes.split(',')) { const [lv, n] = kv.split('='); AI.LEVELS[lv] = { ...AI.LEVELS[lv], nodes: +n }; }
 JD.LEVELS.judge = { ...JD.LEVELS.hard, noise: 0, top: 1, nodes: opt.wide };      // 宽裁判：升级全看，算得浅
 AI.LEVELS.deep = { ...AI.LEVELS.hard, noise: 0, top: 1, nodes: opt.judge };      // 深裁判：和电脑看法一样，算得深
+// 比“最好的那步”和“实走那步”时，两步走完的局面用同样的固定层数各算一遍（不能拿根上 4 层的分去比走完后 5 层的分：
+//   这个游戏里算到单数层还是双数层，分数差得很大——最后一层是不是吃子）。nodes 只是保险上限，正常都算满
+AI.LEVELS.deepFix = { ...AI.LEVELS.hard, noise: 0, top: 1, depth: opt.dd, nodes: 4000000 };
+JD.LEVELS.wideFix = { ...JD.LEVELS.hard, noise: 0, top: 1, depth: opt.dw, nodes: 4000000 };
 const text = fs.readFileSync(opt.file, 'utf8');
 const { data, rules } = load(text);
 const side = opt.side || (data.ai ? Object.keys(data.ai)[0] : 'r'), level = opt.level || (data.ai && data.ai[side]) || 'mid';
@@ -86,7 +90,7 @@ const entries = data.entries || [], turns = [];
 
 (async () => {
   const rows = [], tally = {};
-  console.log(`复盘 ${path.basename(opt.file)}：电脑执${SIDE[side]}（${level}，重算 ${AI.LEVELS[level].nodes} 节点；深裁判 ${opt.judge} 节点、宽裁判 ${opt.wide} 节点）`);
+  console.log(`复盘 ${path.basename(opt.file)}：电脑执${SIDE[side]}（${level}，重算 ${AI.LEVELS[level].nodes} 节点；深裁判找着 ${opt.judge} 节点、比分时两步各算 ${opt.dd + 1} 层；宽裁判找着 ${opt.wide} 节点、比分 ${opt.dw + 1} 层）`);
   for (const t of turns) {
     if (t.side !== side || t.round < opt.from || t.round > opt.to) continue;
     const S0 = load(data, t.from, rules).game.S, me = side;
@@ -99,17 +103,19 @@ const entries = data.entries || [], turns = [];
     const pk = byKey.get(keyOf(pUp, pMain));
     // 两个裁判各自：从走之前的局面找最好的；再单独算实走那步的分（从走完的局面让对方算，取反）
     let S1 = BF.cloneState(S0); for (const a of played) { S1 = step(S1, a); if (!S1) break; }
-    async function judge(M, lv, sd) {
+    async function judge(M, lv, lvFix, sd) {
       seeded(sd); const jseq = await M.think(BF.cloneState(S0), lv); const J = M.think.last;
       const up = (jseq.find(a => a.k === 'up') || {}).at || null, main = jseq[jseq.length - 1];
-      let pv;
-      if (same(up, pUp) && same(main, pMain)) pv = J.v;
-      else if (!S1) pv = NaN;
-      else if (S1.final || S1.result) { const ev = BF.evaluate(S1); pv = ev && ev.result ? (ev.result.winner === me ? WIN : -WIN) : 0; }
-      else { seeded(sd + 4); await M.think(BF.cloneState(S1), lv); pv = -M.think.last.v; }
-      return { seq: jseq, up, main, v: J.v, depth: J.depth, pick: J.pick, played: pv, drop: J.v - pv };
+      const after = seq => { let T = BF.cloneState(S0); for (const a of seq) { T = step(T, a); if (!T) return null; } return T; };
+      const val = async T => {
+        if (!T) return { v: NaN, d: 0 };
+        if (T.final || T.result) { const ev = BF.evaluate(T); return { v: ev && ev.result ? (ev.result.winner === me ? WIN : -WIN) : 0, d: 0 }; }
+        seeded(sd + 4); await M.think(BF.cloneState(T), lvFix); return { v: -M.think.last.v, d: M.think.last.depth };
+      };
+      const b = await val(after(jseq)), p = same(up, pUp) && same(main, pMain) ? b : await val(S1);
+      return { seq: jseq, up, main, v: b.v, depth: b.d + 1, pdepth: p.d + 1, pick: J.pick, played: p.v, drop: b.v - p.v };
     }
-    const Jd = await judge(AI, 'deep', 13), Jw = await judge(JD, 'judge', 23);
+    const Jd = await judge(AI, 'deep', 'deepFix', 13), Jw = await judge(JD, 'judge', 'wideFix', 23);
     const lost = j => j.played <= -WIN / 2 && j.v > -WIN / 2;
     const m1 = S1 && !S1.final ? mate1(S1, me) : null, m1j = m1 ? (() => { let T = BF.cloneState(S0); for (const a of Jw.seq) { T = step(T, a); if (!T) return null; } return T && !T.final ? mate1(T, me) : null; })() : null;
     const badD = Jd.drop >= 1 || lost(Jd), badW = Jw.drop >= 1 || lost(Jw), bad = badD || badW || !!m1;
@@ -125,8 +131,9 @@ const entries = data.entries || [], turns = [];
     }).join('  '));
     if (pk && all.indexOf(pk) > 2) out.push(`    实走那步在它的候选里排第 ${all.indexOf(pk) + 1}，分 ${fmtV(pk.v)}${pk.exact ? '' : '(上界)'}`);
     const jt = j => (j.up ? desc(S0, { k: 'up', at: j.up }) + ' + ' : '') + desc(S0, j.main);
-    out.push(`    深裁判（${Jd.depth} 层）：最好 ${jt(Jd)} ${fmtV(Jd.v)}；实走 ${fmtV(Jd.played)}；落差 ${isFinite(Jd.drop) ? Jd.drop.toFixed(2) : '?'}` +
-      `  ｜ 宽裁判（升级全看，${Jw.depth} 层）：最好 ${jt(Jw)} ${fmtV(Jw.v)}；实走 ${fmtV(Jw.played)}；落差 ${isFinite(Jw.drop) ? Jw.drop.toFixed(2) : '?'}`);
+    const dp = j => j.depth === j.pdepth ? `${j.depth} 层` : `${j.depth}/${j.pdepth} 层，层数不一，分数仅供参考`;
+    out.push(`    深裁判（${dp(Jd)}）：最好 ${jt(Jd)} ${fmtV(Jd.v)}；实走 ${fmtV(Jd.played)}；落差 ${isFinite(Jd.drop) ? Jd.drop.toFixed(2) : '?'}` +
+      `  ｜ 宽裁判（升级全看，${dp(Jw)}）：最好 ${jt(Jw)} ${fmtV(Jw.v)}；实走 ${fmtV(Jw.played)}；落差 ${isFinite(Jw.drop) ? Jw.drop.toFixed(2) : '?'}`);
     if (m1) out.push(`    送一步杀：实走完对方有 ${m1}${m1j ? '（裁判那步走完也有 ' + m1j + '，可能已经躲不开）' : '（裁判那步走完没有）'}`);
     let why = '';
     if (bad) {
