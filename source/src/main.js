@@ -8,6 +8,9 @@
   // 更新说明（设置里、大厅底部点「更新」查看；最新的放最前）
   const NEWS = [
     ['第六版', '2026 年 10 月', [
+      '本地双人：棋盘自动转向——轮到谁下就转到谁那边；按「视」可以改成自由视角（不自动转）',
+      '一级木棋子换成牙黄面加色边，手机上汉方的字看得清；银、金棋子顶面的高光收小；二级以上的血条改成棋子脚下一圈立体血段',
+      '联机房间：人机座位大字写档位（新兵 / 校尉 / 霸王），小字写「人机 ★★」；选档的下拉换成和按钮一样的样子',
       '技能模式分三个阶段：第 15 回合起进入第二阶段，每回合双方各得 1 点军功；第 45 回合起进入第三阶段，每回合各得 2 点。进入时会弹提示',
       '技能模式新规则：被将军时，只要先给某枚子升一级就能解将（比如士升二级砍死二血车），就不算将死；这时会提示你先升级',
       '技能模式说明框里的技能分颜色：主动青、被动紫、没解锁的灰色；冷却中变暗，写着还剩几回合；每个技能都标上冷却时间',
@@ -917,7 +920,7 @@
   }
 
   // ---------- 开局 ----------
-  function setView(side) { viewSide = side; Core.Cam.setSide(side); Board.faceViewer(side); Board.viewSide = side; paintCards(); }
+  function setView(side, smooth) { viewSide = side; Core.Cam.setSide(side, !smooth); Board.faceViewer(side); Board.viewSide = side; paintCards(); }
   let finaleHero = null;
   function clearFinale() { if (finaleHero) { try { if (finaleHero.dropped) Core.disposeTree(finaleHero.dropped); finaleHero.dispose(); } catch (e) { } finaleHero = null; } }
   async function startGame(m, side, o, { state = null, intro = true } = {}) {
@@ -946,7 +949,8 @@
     bfMode = null; dbgOn = false; dbgNoCd = false; dbgFree = false; $('bfDebug').classList.add('hidden'); $('bfReport').innerHTML = ''; $('bfReport').classList.toggle('hidden', !game.bf);
     $('tRule').classList.toggle('hidden', !game.bf);
     Core.Cam.view = mode === 'local' ? 0 : Math.max(0, Math.min(2, +store.get('view', 0) || 0));   // 本地双人先照旧（「视」= 换边看），不用三档
-    $('tView').title = mode === 'local' ? '换边看 / 视角复位' : '换视角：沙盘 → 俯瞰 → 定盘';
+    $('tView').title = mode === 'local' ? '换边 / 自由视角' : '换视角：沙盘 → 俯瞰 → 定盘';
+    $('viewTag').classList.toggle('lc', mode === 'local');   // 本地双人：「视」只有换边 / 自由视角两档（美术 M14）
     setView(mode === 'local' ? 'r' : side);
     $('lobby').classList.add('hidden'); $('hud').classList.remove('hidden');
     $('netbadge').classList.add('hidden');
@@ -1199,6 +1203,7 @@
       if (!busy && game.turn === mySide) { turnStartAt = performance.now(); slowIdx = 0; }
       updateHud();
       if (info.result && !busy) finishGame(info.result);
+      else if (!busy) localFlip();
     });
   }
 
@@ -2261,6 +2266,7 @@
       else if (game.mayPass() && game.fx.sm > 0 && canAct() && (mode === 'local' || game.turn === mySide)) toast('四面楚歌：楚军只能走将，或点「停着」', 2800);
       if (info.result && !busy) finishGame(info.result);
       else if (!busy && vsAI() && isAI(game.turn)) maybeAI();
+      else if (!busy) localFlip();
     });
   }
   // 战报
@@ -2458,6 +2464,7 @@
       if (!vsAI()) toast(`${SIDE_CN[side]}方悔棋`);
       turnStartAt = performance.now(); slowIdx = 0;
       updateHud(); publish();
+      localFlip();
       maybeAI();
     });
   }
@@ -2929,6 +2936,7 @@
   // 退出对局 = 回到主菜单（不重载页面）。只有演出正放到一半、状态收不干净时才退而求其次整页重载
   function leaveGame() {
     document.documentElement.style.removeProperty('--below-status');
+    $('viewTag').classList.remove('lc');
     if (upOpen) $('upNo').click();   // 升级确认框开着就关掉
     cancelAI();
     try { if (online()) Net.send({ t: 'bye' }); } catch (e) { }
@@ -3033,9 +3041,11 @@
     if (!room) return;
     const seat = side => {
       const hostSeat = side === room.hostSide, ai2 = hostSeat && room.ai && room.ai2, mine = hostSeat === room.host && !ai2, ai = (!hostSeat && room.ai) || ai2, taken = hostSeat || room.seated || ai;
-      const who = ai ? `人机 · ${LV[ai] || ''}` : taken ? (mine ? '你' : hostSeat ? '房主' : '对手') : '空位';
-      const st = ai2 ? '电脑（房主观战）' : hostSeat ? '房主' : ai ? '电脑' : !taken ? '等待对手…' : room.ready ? '<b style="color:#2f7d4f">已准备</b>' : '还没准备';
-      return `<div class="seat ${side}${taken ? '' : ' empty'}${mine ? ' me' : ''}"><span class="sd">${side === 'r' ? '红·汉' : '黑·楚'}</span><div class="who">${who}</div><small>${st}${side === 'r' ? ' · 先手' : ''}</small></div>`;
+      // 人机座位（美术 M14 / art-047 选甲）：大字只写档位，小字写「人机 ★★」（五个字在电脑上的圆圈里放不下）
+      const STAR = { easy: '★', mid: '★★', hard: '★★★' };
+      const who = ai ? (LV[ai] || '人机') : taken ? (mine ? '你' : hostSeat ? '房主' : '对手') : '空位';
+      const st = ai ? `人机 <span class="st">${STAR[ai] || ''}</span>${ai2 ? ' · 房主观战' : ''}` : hostSeat ? '房主' : !taken ? '等待对手…' : room.ready ? '<b style="color:#2f7d4f">已准备</b>' : '还没准备';
+      return `<div class="seat ${side}${taken ? '' : ' empty'}${mine ? ' me' : ''}${ai ? ' ai' : ''}"><span class="sd">${side === 'r' ? '红·汉' : '黑·楚'}</span><div class="who">${who}</div><small>${st}${side === 'r' ? ' · 先手' : ''}</small></div>`;
     };
     $('roomSeats').innerHTML = seat('r') + seat('b');
     const ps = [...Spect.people.values()].filter(p => !p.self);
@@ -3320,9 +3330,24 @@
     $('viewTagS').textContent = VIEW_S[v];
     $('viewTag').classList.add('on'); clearTimeout(viewTagT); viewTagT = setTimeout(() => $('viewTag').classList.remove('on'), 1500);
   }
+  // 本地双人「视」两档（Ham：本地对战只有自由视角和换边；美术 M14 / art-045 选 A）：
+  //   换边（默认）——轮到谁下，棋盘就转到谁那边（每回合自动转的时候不亮提示）；自由视角——不自动转，自己拖着看。按「视」在两档间切，亮 1.5 秒提示
+  let localView = store.get('localView', 'flip') === 'free' ? 'free' : 'flip';
+  const LV_S = { flip: '轮到谁下，棋盘就转到谁那边', free: '不自动转，自己拖着看' };
+  function showLocalTag() {
+    $('viewTag').querySelectorAll('.row.lc span').forEach(sp => sp.classList.toggle('on', sp.dataset.l === localView));
+    $('viewTagS').textContent = LV_S[localView];
+    $('viewTag').classList.add('on'); clearTimeout(viewTagT); viewTagT = setTimeout(() => $('viewTag').classList.remove('on'), 1500);
+  }
+  function localFlip() {
+    if (mode !== 'local' || localView !== 'flip' || RP || !game || game.result || ended || !started) return;
+    if (viewSide !== game.turn || Core.Cam.panned) setView(game.turn, true);
+  }
   $('tView').onclick = () => {
-    if (mode === 'local' && !Core.Cam.panned) { setView(viewSide === 'r' ? 'b' : 'r'); return; }
-    if (mode === 'local') { setView(viewSide); return; }
+    if (mode === 'local') {
+      localView = localView === 'flip' ? 'free' : 'flip'; store.set('localView', localView);
+      showLocalTag(); localFlip(); return;
+    }
     const v = (Core.Cam.view + 1) % 3; store.set('view', v);
     Core.Cam.setView(v, viewSide); showViewTag(v);
   };
