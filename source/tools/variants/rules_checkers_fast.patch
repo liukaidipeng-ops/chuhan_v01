@@ -1,0 +1,10 @@
+--- a/source/src/rules.js	2026-10-09 11:55:55.644830058 +0000
++++ b/source/src/rules.js	2026-10-09 11:55:55.656197696 +0000
+@@ -213,6 +213,7 @@
+   // s 方哪些子正在将军（用于“长将”限制）
+   function checkers(b, s) {
+     const k = findKing(b, other(s)); if (!k) return [];
++    if (!inCheck(b, other(s))) return [];   // 对方帅没被将军，就没有子在将军（随机局面核对过两者一致；引擎提速：搜索里每走一步都要算一遍这个）
+     const out = [];
+     for (let r = 0; r < H; r++) for (let f = 0; f < W; f++) {
+       const p = b[r][f];
