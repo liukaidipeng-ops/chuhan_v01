@@ -1368,7 +1368,16 @@
     const x = e.clientX, y = e.clientY;
     tipT = setTimeout(() => { tipFor = 'board'; showTip(pieceTip(hit.p), pointRect(x, y)); }, 380);
   });
-  $('gl').addEventListener('pointerleave', () => { hoverKey = ''; clearTimeout(tipT); if (tipFor === 'board') hideTip(); });
+  $('gl').addEventListener('pointerleave', () => { hoverKey = ''; clearTimeout(tipT); if (tipFor === 'board') hideTip(); Board.hoverMark(null); });
+  // 电脑：选着子时鼠标移到能走的点，那里亮一个落点标记（Ham 10-09 11:37）；待确认的那个点已经有标记，不重复
+  let hmT = 0;
+  $('gl').addEventListener('pointermove', e => {
+    if (e.pointerType !== 'mouse') return;
+    const now = performance.now(); if (now - hmT < 40) return; hmT = now;
+    const q = sel && !busy && !Core.Cam.cine ? Board.pick(e.clientX, e.clientY) : null;
+    const ok = q && selMoves.some(m => m.to[0] === q[0] && m.to[1] === q[1]) && !(pendTo && pendTo[0] === q[0] && pendTo[1] === q[1]);
+    Board.hoverMark(ok ? q : null);
+  });
 
   // ---------- 点选 ----------
   $('gl').addEventListener('pointerup', e => {

@@ -91,15 +91,16 @@ const TurnGlow = (() => {
   const reduce = typeof matchMedia === 'function' && matchMedia('(prefers-reduced-motion: reduce)').matches;
   Core.onFrame(dt => {
     if (!cur) return;
-    const hard = beat > 0, T = hard ? beat : 1.5;
+    const hard = beat > 0, T = hard ? beat : mode === 'wave' ? 2.0 : 1.5;   // 涌动平时慢一点（Ham 10-09：太抢了，调弱）
     phase = (phase + Math.min(dt, 0.1) / T) % 1;
     const u = cur.mat.uniforms, p = phase, lo = 0.1;
     if (mode === 'wave') {
       const t = cur.T;
-      u.uWave.value = 1; u.uW.value = Math.abs(t.vRiver - t.vBase) * 0.22;
+      // TD 10-09（Ham：涌动有点太抢，稍微调弱）：整体亮度 1 → 0.5，常亮的底光 0.22 → 0.16，亮带窄一点；读秒时 0.8，照样醒目
+      u.uWave.value = 1; u.uW.value = Math.abs(t.vRiver - t.vBase) * 0.18;
       u.uPos.value = reduce ? (t.vBase + t.vRiver) / 2 : t.vBase + (t.vRiver - t.vBase) * p;
-      u.uBase.value = hard ? (p < 0.5 ? 0.55 : 0.15) : 0.22;
-      u.uA.value = reduce ? 0.6 : 1;
+      u.uBase.value = hard ? (p < 0.5 ? 0.55 : 0.15) : 0.16;
+      u.uA.value = reduce ? 0.4 : hard ? 0.8 : 0.5;
     } else {
       u.uWave.value = 0;
       u.uA.value = reduce ? 0.85 : hard ? (p < 0.5 ? 1 : 0.08) : p < 0.14 ? lo + (1 - lo) * (p / 0.14) : lo + (1 - lo) * Math.pow(1 - (p - 0.14) / 0.86, 2.2);

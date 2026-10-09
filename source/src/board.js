@@ -1583,12 +1583,14 @@ const Board = (() => {
     }
     // 落子确认：选中的那枚棋子在落点上留一个蓝色虚影，再点一次才走（Ham 10-09）
     if (moves.ghost && sel) {
+      // 落点标记（Ham 10-09 11:37）：虚影底下一个小标记，点明落在哪
+      markRoot.add(pointMark(moves.ghost[0], moves.ghost[1], 1));
       const g = ghostOf(sel, moves.ghost, false);
       if (g) {
         markRoot.add(g);
-        // 呼吸：透明度在 0.32～0.72 之间一明一暗，约 1.6 秒一下；虚影被清掉（确认、取消、换子）时跟着停
+        // 呼吸：透明度在 0.22～0.46 之间一明一暗，约 1.6 秒一下（Ham 10-09：虚影再淡一点，原来 0.32～0.72）；虚影被清掉（确认、取消、换子）时跟着停
         let t = 0; const mats = g.userData.mats;
-        const off = Core.onFrame(dt => { if (!g.parent) { off(); if (g.userData.drop) g.userData.drop(); return; } t += dt; const k = 0.52 + 0.2 * Math.sin(t * Math.PI * 2 / 1.6); for (const m of mats) m.opacity = m.userData.o0 * k; });
+        const off = Core.onFrame(dt => { if (!g.parent) { off(); if (g.userData.drop) g.userData.drop(); return; } t += dt; const k = GHOST_A + 0.12 * Math.sin(t * Math.PI * 2 / 1.6); for (const m of mats) m.opacity = m.userData.o0 * k; });
       }
     }
     // 选定的技能目标：一个转着的瞄准圈把它框住
@@ -1714,6 +1716,55 @@ const Board = (() => {
   // 模型显示模式下棋盘上的圆棋子是藏起来的（squads.showDisc），虚影照样画圆棋子：落点上要的是「这枚子」的样子。
   // bad=true：点到走不了的地方，同样的虚影带一点红。
   const GHOST_RED = new THREE.Color(0xd8341f);
+  const GHOST_A = 0.34;   // 虚影平均的透明度（乘在原材质上）
+  // 落点标记：三种样式先都做好给 Ham 挑（Board.markStyle 切换）。都比棋子大一圈，虚影盖不住
+  //   a 朱砂点环：一粒朱砂点，外面一圈细朱线
+  //   b 墨笔圈：一笔带飞白的墨圈，不封口
+  //   c 朱红折角：四个直角，和棋盘上炮位、兵位的折角记号一个样子
+  let markStyle = 'a';
+  const markTexs = {};
+  function markTex(st) {
+    if (markTexs[st]) return markTexs[st];
+    const t = canvasTex(256, 256, (g, w) => {
+      g.clearRect(0, 0, w, w); const c = w / 2;
+      if (st === 'a') {
+        g.fillStyle = '#c8321f'; g.globalAlpha = 0.95; g.beginPath(); g.arc(c, c, w * 0.05, 0, 6.283); g.fill();
+        g.globalAlpha = 0.9; g.strokeStyle = '#c8321f'; g.lineWidth = w * 0.018; g.beginPath(); g.arc(c, c, w * 0.42, 0, 6.283); g.stroke();
+        g.globalAlpha = 0.22; g.lineWidth = w * 0.05; g.beginPath(); g.arc(c, c, w * 0.42, 0, 6.283); g.stroke();
+      } else if (st === 'b') {
+        // 一笔：从右上起笔，转一圈不封口，笔锋由重到轻，带飞白
+        const a0 = -0.55, a1 = a0 + 5.7, R = w * 0.4, N = 120;
+        for (let i = 0; i < N; i++) {
+          const k = i / (N - 1), a = a0 + (a1 - a0) * k, wob = 1 + 0.035 * Math.sin(k * 9.0);
+          const lw = w * (0.014 + 0.036 * Math.sin(Math.min(1, k * 1.25) * Math.PI) * (1 - 0.5 * k));
+          g.globalAlpha = 0.8 * (0.75 + 0.25 * Math.random()) * (1 - 0.35 * k);
+          g.fillStyle = '#1b1a19'; g.beginPath(); g.arc(c + Math.cos(a) * R * wob, c + Math.sin(a) * R * wob, lw / 2, 0, 6.283); g.fill();
+        }
+        g.globalCompositeOperation = 'destination-out';   // 飞白：顺着笔势挖掉几道细缝
+        for (let i = 0; i < 40; i++) { const a = a0 + 1.2 + Math.random() * (a1 - a0) * 0.85, r = R + (Math.random() - 0.5) * w * 0.03; g.globalAlpha = 0.6; g.fillRect(c + Math.cos(a) * r - 1.5, c + Math.sin(a) * r - 1.5, 3, 3); }
+        g.globalCompositeOperation = 'source-over';
+      } else {
+        g.strokeStyle = '#c8321f'; g.globalAlpha = 0.92; g.lineWidth = w * 0.026; g.lineCap = 'square';
+        const d = w * 0.36, l = w * 0.11;
+        for (const sx of [-1, 1]) for (const sy of [-1, 1]) { g.beginPath(); g.moveTo(c + sx * d, c + sy * (d - l)); g.lineTo(c + sx * d, c + sy * d); g.lineTo(c + sx * (d - l), c + sy * d); g.stroke(); }
+      }
+    });
+    t.colorSpace = THREE.SRGBColorSpace;
+    return (markTexs[st] = t);
+  }
+  const MARK_SIZE = { a: 1.15, b: 1.2, c: 1.25 };
+  function pointMark(f, r, op = 1) {
+    const m = decal(markTex(markStyle), 0xffffff, MARK_SIZE[markStyle], X(f), Z(r), TOP + 0.0062, op);
+    m.renderOrder = 5; return m;
+  }
+  // 电脑上鼠标移到能走的点：那里显示同样的标记（淡一点）。main.js 的 pointermove 调 hoverMark([f, r]) / hoverMark(null)
+  let hoverMk = null, hoverAt = '';
+  function hoverMark(at) {
+    const key = at ? at[0] + ',' + at[1] + markStyle : '';
+    if (key === hoverAt) return; hoverAt = key;
+    if (hoverMk) { scene.remove(hoverMk); hoverMk.material.dispose(); hoverMk = null; }
+    if (at) { hoverMk = pointMark(at[0], at[1], 0.6); scene.add(hoverMk); }
+  }
   // 走不了的虚影染红（10-09 Ham：再红一点）：颜色往朱红拉七成，再加一层红色自发光
   const ghostMat = (m, bad, mats) => {
     const c = m.clone(); c.transparent = true; c.depthWrite = false; c.userData = Object.assign({}, m.userData, { o0: m.opacity == null ? 1 : m.opacity });
@@ -1740,7 +1791,7 @@ const Board = (() => {
     const g = new THREE.Group(); g.userData.mats = mats;
     let gone = false;
     g.userData.drop = () => { if (gone) return; gone = true; try { if (sq.guard) sq.guard.dispose(); sq.dispose(); } catch (e) { } for (const m of mats) m.dispose(); };   // 炮的炮手由 Cannon.dispose 一起收
-    for (const m of mats) m.opacity = m.userData.o0 * 0.52;
+    for (const m of mats) m.opacity = m.userData.o0 * GHOST_A;
     return g;
   }
   function ghostOf(sel, at, bad) {
@@ -1759,7 +1810,7 @@ const Board = (() => {
     };
     const g = copy(src, 0, 0); g.visible = true;
     g.position.set(X(at[0]), TOP, Z(at[1])); g.rotation.set(0, src.rotation.y, 0); g.renderOrder = 6;
-    for (const m of mats) m.opacity = m.userData.o0 * 0.52;
+    for (const m of mats) m.opacity = m.userData.o0 * GHOST_A;
     g.userData.mats = mats;
     return g;
   }
@@ -1775,6 +1826,7 @@ const Board = (() => {
     });
   }
   function clearMoves(immediate = true) {
+    hoverMark(null);
     if (hovered) {
       if (immediate) { hovered.position.y = TOP; hovered.rotation.x = hovered.rotation.z = 0; }
       else dropping.add(hovered);
@@ -1889,7 +1941,7 @@ const Board = (() => {
   })();
   return {
     root, TOP, PH, HALF, X, Z, pos, setPosition, syncPosition, pieces, piecesRoot, makePiece, faceViewer,
-    showMoves, clearMoves, flashBad, showZone, showBad, showStep, setGlow, showLast, pick, meshAt, get hovered() { return hovered; }, ringTex, glowTex, wakes, water, waterMat, decal, flatGeo, pine, deco, FONT,
+    showMoves, clearMoves, flashBad, hoverMark, get markStyle() { return markStyle; }, set markStyle(v) { markStyle = v; hoverMark(null); }, showZone, showBad, showStep, setGlow, showLast, pick, meshAt, get hovered() { return hovered; }, ringTex, glowTex, wakes, water, waterMat, decal, flatGeo, pine, deco, FONT,
     viewSide: 'r', setSkin, dress, get lastGame() { return lastGame; }, skinTune, get SK() { return SK; }, pieceWood, RZ, BZ, BX, BRIDGE_X, faceTex, backTex, setFace, makeRiver, mtTex, decorate, decorateAll, reconcile, plateGeo, plateOn,
   };
 })();
