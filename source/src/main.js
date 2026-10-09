@@ -8,6 +8,7 @@
   // 更新说明（设置里、大厅底部点「更新」查看；最新的放最前）
   const NEWS = [
     ['第六版', '2026 年 10 月', [
+      '技能模式：主将卡上的军功改成一方金印（美术画的），加功时一团金光从来处飞进印里、金星四溅；花功时印变红、金光飞向升级的子或兵法签；旁边飘「+n 功 · 原因」',
       '联机房间有观众席了（美术画的样子）：观众按进房先后叫农夫、樵夫、渔夫、牧童、书生、货郎，不用自己填名字；房主可以点观战席最后的「坐这里」去旁观，点空座位坐回；房主在观战席时可以「我的座位加人机」，让电脑替你和对手下（对手也是电脑就是电脑对电脑）。原来的「观看人机对战」按钮去掉了',
       '技能模式改了「拒马」（Ham 定的）：架上拒马的两回合里这枚兵原地不动，不能走（回防、神速营也不行）；炮隔子打过来不挨反伤（拒马的矛够不着），车马兵士象撞上来照旧先挨 1 点；冷却从 2 回合改成 4 回合',
       '「导出本局」里多带了电脑每一步当时的思考（算到几层、前几名候选和它预想的后续、有没有被一步杀保险换掉、筛掉了哪些升级），悔棋悔掉的那几步也留着——给数值部复盘、训练电脑用；电脑的走法没变',
@@ -549,7 +550,7 @@
         const need = U.simian.minPiecesInRadius, near = s === 'r' ? game.simianCount() : need;
         const ultOk = game.merit[s] >= U.cost && near >= need;
         const ultTxt = used.ult[s] ? '' : game.merit[s] >= U.cost && near < need ? `·将旁${near}/${need}` : '·' + U.cost;
-        chips.push(`<span class="${used.ult[s] ? 'used' : tap ? (uw ? 'ok' : 'go') : ultOk ? 'red' : 'ok'}${tap ? ' tap' : ''}${tap && uw ? ' off' : ''}" data-tip="${escTip(ultTip(s) + (uw ? '<br><em>' + uw[1] + '</em>' : ''))}"${tapAttr('ult', uw)}>${BF.ULT_CN[s]}${ultTxt}</span>`);
+        chips.push(`<span data-k="ult" class="${used.ult[s] ? 'used' : tap ? (uw ? 'ok' : 'go') : ultOk ? 'red' : 'ok'}${tap ? ' tap' : ''}${tap && uw ? ' off' : ''}" data-tip="${escTip(ultTip(s) + (uw ? '<br><em>' + uw[1] + '</em>' : ''))}"${tapAttr('ult', uw)}>${BF.ULT_CN[s]}${ultTxt}</span>`);
         if (s === 'r' && fx.hm) chips.push(`<span class="red" data-tip="${escTip(ultTip('b'))}">鸿门宴 ${fx.hm}</span>`);
         if (s === 'b' && fx.sm) chips.push(`<span class="red" data-tip="${escTip(ultTip('r'))}">涣散 ${fx.sm}</span>`);
         if (s === 'b' && fx.pf) chips.push(`<span data-tip="破釜沉舟之后楚军暂时不能用兵种技能">封技 ${fx.pf}</span>`);
@@ -2342,23 +2343,30 @@
     while (L.children.length > max) L.firstChild.remove();
     setTimeout(() => { li.classList.add('old'); setTimeout(() => li.remove(), 900); }, 7000);
   }
-  // 军功变动：卡片上飘字
+  // 军功变动：主将卡军功印上飞金光（美术 M19，merit.js；Ham 10-10 审批台 070 选「乙 · 军功印」+「甲 · 金光」）
+  //   一步里有好几笔（吃子又将军）一笔一笔排着飞，花在前、加在后；击杀、哀兵从倒下的子飞来，过河从落点飞来，将军、每回合进账从顶上状态条飞来
   function bfMerit(info) {
-    const sum = { r: 0, b: 0 }, why = { r: [], b: [] };
-    for (const x of info.ev || []) if (x.e === 'merit') { sum[x.s] += x.n; if (!why[x.s].includes(x.why)) why[x.s].push(x.why); }
-    if (info.k === 'up') sum[info.side] -= info.cost;
-    { const ru = (info.ev || []).find(x => x.e === 'reviveUp'); if (ru) sum.r -= ru.cost; }   // 试行规则：召回后当场升级花的军功
-    if (info.k === 'ult') sum[info.side] -= BF.CFG.ultimates.cost;
+    if (typeof Merit === 'undefined') return;
+    const ev = info.ev || [], at = a => (a ? Merit.at(a[0], a[1]) : null);
+    const spend = { r: [], b: [] }, gain = { r: [], b: [] };
+    if (info.k === 'up') spend[info.side].push([info.cost, '升级', at(info.at)]);
+    { const ru = ev.find(x => x.e === 'reviveUp'); if (ru) spend.r.push([ru.cost, '召回升级', at(info.e && info.e.at)]); }   // 试行规则：召回后当场升级花的军功
+    if (info.k === 'ult') spend[info.side].push([BF.CFG.ultimates.cost, '兵法', cardFor(info.side).querySelector('.fxs [data-k="ult"]')]);
+    let lastKill = null;
+    for (const x of ev) {
+      if (x.e === 'kill') lastKill = x.at;
+      if (x.e !== 'merit' || x.n <= 0) continue;
+      const from = x.why === '击杀' || x.why === '哀兵' ? at(lastKill) : x.why === '过河' ? at(info.to) : null;
+      gain[x.s].push([x.n, x.why, from]);
+    }
     for (const s of ['r', 'b']) {
-      if (!sum[s]) continue;
-      const el = cardFor(s).querySelector('.mer'); if (!el) continue;
-      const rc = el.getBoundingClientRect();
-      const d = document.createElement('div'); d.className = 'merpop';
-      d.textContent = (sum[s] > 0 ? '+' : '') + sum[s] + ' 功' + (why[s].length && sum[s] > 0 ? ' · ' + why[s].join('') : '');
-      d.style.left = (rc.left) + 'px'; d.style.top = (rc.top - 6) + 'px';
-      document.body.appendChild(d); setTimeout(() => d.remove(), 1500);
+      const out = spend[s].reduce((a, q) => a + q[0], 0), inn = gain[s].reduce((a, q) => a + q[0], 0);
+      let v = game.merit[s] - inn + out, t = 0;   // 动画开始前印上该是几
+      for (const [n, why, to] of spend[s]) { v -= n; const vv = v; setTimeout(() => Merit.spend(s, n, why, to, vv), t); t += 450; }
+      for (const [n, why, from] of gain[s]) { v += n; const vv = v; setTimeout(() => Merit.gain(s, n, why, from, vv), t); t += 300; }
     }
   }
+
 
   // ---------- 兵法调试：自由摆子、改军功等级生命、回合 ----------
   const DBG_TYPES = ['k', 'a', 'e', 'n', 'r', 'c', 'p'];
