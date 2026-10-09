@@ -50,18 +50,19 @@ rep('    think.last = { nodes, ms: now() - t0, v: pick.v, n: kids.length, depth:
 rep('  const BFAI = { think, score, LEVELS, apiVersion: 1 };',
   "  const traceScore = (S, me) => { TRC = { 子力: 0, 位置: 0, 贴脸: 0, 帅: 0 }; const v = score(S, me); const r = TRC; TRC = null; r.总 = v; return r; };\n  const BFAI = { think, score, traceScore, LEVELS, apiVersion: 1 };");
 // 裁判：“对方先升级再走”不只看静态收益前 3 名，所有能升的都看，第 3 层也看（慢，但不会和电脑有同一个盲区）
+//   judge = 'wide'：根上自己的升级也不筛（看得最全、算得最浅）；'opp'：只放开对方的升级，根上照线上电脑（算得深一些）
 if (judge) {
   rep('    ups.sort((x, y) => y.g - x.g); ups = ups.slice(0, 3);', '    ups.sort((x, y) => y.g - x.g);   // 裁判：全都看');
   rep('    if (ply === upPly && !S.upgraded) {', '    if ((ply === upPly || (upPly > 0 && ply === upPly + 2)) && !S.upgraded) {   // 裁判：第 3 层也看');
   // 根上自己的升级也不筛：线上电脑在“快攒够钱升车”时只肯升车、守子没被捉不升、只留前 3 名——会连自己“升一级就能杀”都看不见
-  rep('      if (defender && !must && !unlock && !(p.t === \'a\' && heavy && p.lv < 2)) continue;\n      if ((saving || hoard) && p.t !== \'r\' && !must) continue;\n', '');
-  rep('    const top = cand.filter(c => !c.unlock).slice(0, 3), ex = cand.find(c => c.unlock);\n    if (ex) top.push(ex);\n    return top;', '    return cand;   // 裁判：全都看');
+  if (judge === 'wide') rep('      if (defender && !must && !unlock && !(p.t === \'a\' && heavy && p.lv < 2)) continue;\n      if ((saving || hoard) && p.t !== \'r\' && !must) continue;\n', '');
+  if (judge === 'wide') rep('    const top = cand.filter(c => !c.unlock).slice(0, 3), ex = cand.find(c => c.unlock);\n    if (ex) top.push(ex);\n    return top;', '    return cand;   // 裁判：全都看');
 }
-const out = path.join(os.tmpdir(), `bfai_trace_${rev}_${judge ? 'judge_' : ''}${process.pid}.js`);
+const out = path.join(os.tmpdir(), `bfai_trace_${rev}_${judge ? judge + '_' : ''}${process.pid}.js`);
 fs.writeFileSync(out, s);
 process.on('exit', () => { try { fs.unlinkSync(out); } catch (e) { } });
 return require(out);
 }
 module.exports = build(false);
-let J = null;
-module.exports.judge = () => J || (J = build(true));
+const JJ = {};
+module.exports.judge = (kind = 'wide') => JJ[kind] || (JJ[kind] = build(kind));
