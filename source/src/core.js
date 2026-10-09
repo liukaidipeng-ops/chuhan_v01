@@ -87,6 +87,7 @@ const Core = (() => {
     home0: new THREE.Vector3(0, 0, 0.2),
     theta: 0, phi: 0.72, radius: 14.5,
     homeTheta: 0,
+    view: 0,   // 视角三档（美术 M11，Ham 定的名字）：0 沙盘（斜着看，能转能拖能缩放）/ 1 俯瞰（正上方，能拖能缩放、不能转）/ 2 定盘（正上方，锁住）
     cine: false,
     pos: new THREE.Vector3(), look: new THREE.Vector3(),
     shakeAmp: 0,
@@ -97,19 +98,25 @@ const Core = (() => {
         Math.cos(this.theta) * Math.sin(this.phi)).multiplyScalar(this.radius).add(this.target);
       return p;
     },
-    setSide(side) {
+    setSide(side, snap = true) {
       this.homeTheta = side === 'b' ? Math.PI : 0;
-      this.theta = this.homeTheta; this.phi = 0.72;
+      this.theta = this.homeTheta; this.phi = this.view ? 0.001 : 0.72;   // 正上方时 phi 不能是 0（lookAt 会翻）
       this.target.copy(this.home0);
-      this.radius = this.fitRadius();
-      this.pos.copy(this.orbitPos()); this.look.copy(this.target);
+      this.radius = this.view ? this.fitTop() : this.fitRadius();
+      if (snap) { this.pos.copy(this.orbitPos()); this.look.copy(this.target); }   // snap=false：镜头从现在的位置滑过去
     },
+    setView(v, side) { this.view = v; this.setSide(side, false); },
     homeDir() { return new THREE.Vector3(Math.sin(this.homeTheta), 0, Math.cos(this.homeTheta)); },
     // 按屏幕宽高比算出能完整看到棋盘宽度的距离（竖屏手机会自动拉远）
     fitRadius() {
       const a = window.innerWidth / window.innerHeight;
       const hh = Math.atan(Math.tan(camera.fov * Math.PI / 360) * a);
       return Math.max(14.5, 5.4 / Math.tan(hh) + 3.5);
+    },
+    // 正上方看时，能看全整张棋盘（含边框，留一点边）的距离
+    fitTop() {
+      const v = Math.tan(camera.fov * Math.PI / 360), a = window.innerWidth / window.innerHeight;
+      return Math.max(6.9 / v, 5.6 / (v * a));
     },
     // 平滑移动到某个机位
     async to(pos, look, dur = 1, e = ease.inOut) {
@@ -164,7 +171,9 @@ const Core = (() => {
       const dx = e.clientX - drag.x, dy = e.clientY - drag.y;
       drag.moved += Math.abs(dx) + Math.abs(dy);
       drag.x = e.clientX; drag.y = e.clientY;
+      if (Cam.view === 2) return;   // 定盘：锁住
       if (drag.pan) { Cam.panBy(dx, dy); return; }
+      if (Cam.view === 1) { if (drag.moved > 6) Cam.panBy(dx, dy); return; }   // 俯瞰：拖 = 平移，不转
       if (drag.moved > 6) {
         Cam.theta -= dx * 0.005;
         Cam.phi = Math.min(1.35, Math.max(0.25, Cam.phi - dy * 0.004));
@@ -172,7 +181,7 @@ const Core = (() => {
     });
     window.addEventListener('pointerup', () => { Core.lastDragMoved = drag ? drag.moved : twoF ? 99 : 0; drag = null; });
     canvas.addEventListener('wheel', e => {
-      if (Cam.cine) return;
+      if (Cam.cine || Cam.view === 2) { e.preventDefault(); return; }
       Cam.radius = Math.min(30, Math.max(7, Cam.radius * (1 + Math.sign(e.deltaY) * 0.08)));
       e.preventDefault();
     }, { passive: false });
@@ -180,8 +189,8 @@ const Core = (() => {
       if (e.touches.length === 2) {
         const [a, b] = e.touches;
         const d = Math.hypot(a.clientX - b.clientX, a.clientY - b.clientY), cx = (a.clientX + b.clientX) / 2, cy = (a.clientY + b.clientY) / 2;
-        if (pinch && !Cam.cine) Cam.radius = Math.min(30, Math.max(7, Cam.radius * pinch / d));
-        if (mid && !Cam.cine) Cam.panBy(cx - mid.x, cy - mid.y);      // 双指一起拖 = 平移画面
+        if (pinch && !Cam.cine && Cam.view !== 2) Cam.radius = Math.min(30, Math.max(7, Cam.radius * pinch / d));
+        if (mid && !Cam.cine && Cam.view !== 2) Cam.panBy(cx - mid.x, cy - mid.y);      // 双指一起拖 = 平移画面
         pinch = d; mid = { x: cx, y: cy }; drag = null; twoF = true;
       }
     }, { passive: true });

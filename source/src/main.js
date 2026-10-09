@@ -8,6 +8,9 @@
   // 更新说明（设置里、大厅底部点「更新」查看；最新的放最前）
   const NEWS = [
     ['第六版', '2026 年 10 月', [
+      '技能模式升级先弹确认框：写明升了以后血量、攻击怎么变，解锁什么技能、花多少军功、升完还剩多少，点「升级」才升；召回良将后的升级也一样',
+      '「视」按钮改成三档（对电脑、联机、观战）：沙盘（斜着看，能转能拖能缩放）→ 俯瞰（从正上方看，能拖能缩放）→ 定盘（从正上方看，锁住不动），换的时候在「谁走棋」下面亮一下名字；记住上次选的档。本地双人暂时照旧（按「视」换边）',
+      '落子确认的提示改短成「再次点击确认落子」，挪到「谁走棋」下面，不挡棋盘；技能模式里那句改成「再次点击或点「确定」落子」',
       '打开快了很多：配音和声效改成进了大厅以后在后台下载，网页本身从 8 MB 减到 2.5 MB，手机上的加载页短多了，加载页也换成了真实的进度条。走子时不再一顿一顿（地上的血迹、蹄印烙进地面原来要等显卡，现在在内存里算）；待在大厅时不再空转动画，手机更省电。对局里一直卡会自动降一档画质；浏览器没开硬件加速（没用显卡）会提示怎么打开。电脑上进了大厅、建房间时整个浏览器卡住几秒的问题修好了（主帅头像改成事先画好的图，不再在你电脑上现画；显卡准备画面的活儿挪到加载页里、放到后台做），切换画质、技能模式开局时也不再顿一下',
       '落子要点两下：点了落点，那里先出一个这枚棋子的半透明虚影（兵种模型模式下是整队兵马的虚影），一明一暗地呼吸，底下四个朱红折角框住落点，再点一次同一个落点才走；点到走不了的地方闪一下红色虚影，选中的子不丢。防误触，设置 → 对局与其他里可以关。电脑上选着子时，鼠标移到能走的点也会亮折角',
       '轮到谁走，自家半场的格线跟着闪：默认「涌动」（一道淡淡的亮光从底线推到河边），也可以选「河岸」（只闪靠河那条线）或关掉（设置 → 对局与其他）。最后十秒和头像牌的朱框一个节拍',
@@ -553,7 +556,7 @@
   var hudQ = false;   // var：可能在这一行执行之前就被调到
   function layoutSoon() { if (hudQ) return; hudQ = true; requestAnimationFrame(() => { hudQ = false; layoutHud(); }); }
   function layoutHud() {
-    if ($('hud').classList.contains('hidden')) return;
+    if ($('hud').classList.contains('hidden')) { document.documentElement.style.removeProperty('--below-status'); return; }
     const W = innerWidth, H = innerHeight;
     const compact = isCompact();
     document.body.classList.toggle('compact', compact);
@@ -563,6 +566,7 @@
     else if (W <= 1100) { st.left = (o.right + 18) + 'px'; st.top = (o.top + 4) + 'px'; st.transform = 'none'; }
     else { st.left = '50%'; st.top = ''; st.transform = 'translateX(-50%)'; }
     const sr = $('status').getBoundingClientRect();
+    document.documentElement.style.setProperty('--below-status', (sr.bottom + 10) + 'px');   // 提示框、视角提示都在「谁走棋」下面（美术 M11）
     const below = compact ? sr.bottom : o.bottom;
     $('bubOpp').style.top = (below + 12) + 'px';
     $('bubMe').style.bottom = (H - m.top + 12) + 'px';
@@ -916,6 +920,8 @@
     $('log').classList.toggle('jq', game.jq || !!game.bf);
     bfMode = null; dbgOn = false; dbgNoCd = false; dbgFree = false; $('bfDebug').classList.add('hidden'); $('bfReport').innerHTML = ''; $('bfReport').classList.toggle('hidden', !game.bf);
     $('tRule').classList.toggle('hidden', !game.bf);
+    Core.Cam.view = mode === 'local' ? 0 : Math.max(0, Math.min(2, +store.get('view', 0) || 0));   // 本地双人先照旧（「视」= 换边看），不用三档
+    $('tView').title = mode === 'local' ? '换边看 / 视角复位' : '换视角：沙盘 → 俯瞰 → 定盘';
     setView(mode === 'local' ? 'r' : side);
     $('lobby').classList.add('hidden'); $('hud').classList.remove('hidden');
     $('netbadge').classList.add('hidden');
@@ -1456,7 +1462,7 @@
     pendTo = to.slice();
     const L = withBad(bfDmg(selMoves), sel[0], sel[1]); L.ghost = pendTo;
     Board.showMoves(sel, L, !!+opts.hints); Sfx.select();
-    toast('再点一次这个落点，确认落子', 1800);
+    toast('再次点击确认落子', 1800);
     return true;
   }
   function withBad(list, f, r) {
@@ -1585,7 +1591,7 @@
     const h = bfNeedConfirm(a) || (aimed ? (bfHarm(a) || { list: [], ev: [] }) : null);
     if (!h && a.k === 'mv' && +S.confirm) {   // 落子确认：普通走子 / 攻击也先框住落点，再点一次（或点「确定」）才走
       const L = withBad(bfDmg(selMoves), from[0], from[1]); L.ghost = a.to;
-      bfMode = { kind: 'confirm', a, hint: '再点一次落点，或点「确定」落子' };
+      bfMode = { kind: 'confirm', a, hint: '再次点击或点「确定」落子' };   // Ham 审批台 art-042 选 A
       Board.showMoves(from, L, !!+opts.hints); Sfx.select(); renderBar(); return;
     }
     if (!h) { doBF(a); return; }
@@ -1830,6 +1836,24 @@
     const nx = p.lv + 1;
     return `<b>升${LVCN[nx]}级 ·「${game.rankName(p, nx)}」</b><br>${lvGain(p, nx)}，回满血。<br>花 ${cost} 军功` + (base > cost ? `（甲片省 ${base - cost}）` : '') + (halfNow(p) ? '<br><em>召回的子第一次升级半价</em>' : '') + `<br><small>甲片攒满 ${base} 片会自动升级，不花军功。</small>`;
   }
+  // 升级确认框（美术 M9 第 2 条 #mUp）：点「升 X 级」先弹框，写明升了以后血量、攻击怎么变、解锁什么技能、花多少军功；点「升级」才升。
+  //   召回良将落位后的「升 X 级」也弹（美术 M12，Ham 10-09 16:16 定）
+  let upOpen = false;
+  function upConfirm(p, cost, base, half) {
+    return new Promise(res => {
+      const nx = p.lv + 1, a = BF.levelInfo(p.t, p.s, p.lv), b = BF.levelInfo(p.t, p.s, nx), m = game.merit[p.s];
+      $('upT').textContent = `升${LVCN[nx]}级`;
+      $('upFrom').textContent = `${game.rankName(p, p.lv)} · ${LVCN[p.lv]}级`;
+      $('upTo').textContent = `${game.rankName(p, nx)} · ${LVCN[nx]}级`;
+      const row = (k, x, y) => `<tr><th>${k}</th><td>${x}</td><td class="to${y > x ? ' gain' : ''}">${y}</td></tr>`;
+      $('upTbl').innerHTML = '<thead><tr><th></th><th>现在</th><th>升级后</th></tr></thead><tbody>' + row('血量', a.hp, b.hp) + row('攻击', a.atk, b.atk) + '</tbody>';
+      $('upNew').innerHTML = b.skills.filter(k => !a.skills.includes(k)).map(k => `<li><b>${BF.SKILL_CN[k]}${BF.CFG.skills[k] && BF.CFG.skills[k].passive ? '（被动）' : ''}</b>${BF.SKILL_DESC[k] || ''}</li>`).join('');
+      $('upCost').textContent = `花费 ${cost} 军功，升完还剩 ${m - cost}` + (half ? '（召回半价）' : base > cost ? `（甲片省了 ${base - cost}）` : '') + '。升级后回满血。';
+      $('mUp').classList.remove('hidden'); upOpen = true;
+      const fin = v => { $('mUp').classList.add('hidden'); upOpen = false; $('upGo').onclick = $('upNo').onclick = null; res(v); };
+      $('upGo').onclick = () => fin(true); $('upNo').onclick = () => fin(false);
+    });
+  }
   // 棋子说明（悬停 / 长按棋子）：只说要紧的，一条一行
   function pieceTip(p) {
     const nm = `${SIDE_ARMY[p.s]}${pname(p)}`, hero = game.heroName ? game.heroName(p) : '';
@@ -2003,6 +2027,12 @@
     if (a === 'bsRedo') { if (bfMode && bfMode.bs) bsReset(); return; }
     if (a === 'rvUp' || a === 'rvEnd') {   // 召回落位后：升级 / 不升级，这时才真正提交
       const M = bfMode; if (!M || M.kind !== 'rvUp' || !canAct()) return;
+      if (a === 'rvUp') {   // 升级先弹确认框；取消就回到「升级 / 结束回合 / 重选」，什么都不提交
+        if (upOpen) return;
+        const key = game.entries.length;
+        const ok = await upConfirm({ s: game.turn, t: M.o.t, lv: M.o.upLv - 1 }, M.o.upCost, M.o.upCost, !!(r6On() && r6On().reviveHalf));
+        if (!ok || bfMode !== M || game.entries.length !== key || !canAct()) return;
+      }
       bfMode = null; rvLanded = M.o.id;
       const e = { k: 'art', id: M.o.id, at: M.at.slice() }; if (a === 'rvUp') e.up = true;
       if (!doBF(e)) { rvLanded = null; Board.reconcile(game); renderBar(); }
@@ -2012,7 +2042,14 @@
     if (a === 'rvRedo') { if (bfMode && bfMode.kind === 'rvUp') { exitBfMode(false); renderBar(); reviveFlow(); } return; }
     if (a === 'ok') { if (bfMode && bfMode.kind === 'confirm') { const act = bfMode.a; bfMode = null; doBF(act); } return; }
     if (a === 'cancel') { if (bfMode && bfMode.bs) return; exitBfMode(false); Board.clearMoves(false); if (sel) bfSelect(sel[0], sel[1]); renderBar(); return; }
-    if (a === 'up' && sel) { doBF({ k: 'up', at: sel }); return; }
+    if (a === 'up' && sel) {
+      const av = bfAvail();
+      if (!av.p || !av.canUp || av.cost == null) { doBF({ k: 'up', at: sel }); return; }   // 升不了：照原来的路子走（会说明原因）
+      if (upOpen) return;
+      const at = sel.slice(), key = game.entries.length;
+      upConfirm(av.p, av.cost, av.base, halfNow(av.p)).then(ok => { if (ok && game.entries.length === key && canAct()) doBF({ k: 'up', at }); });   // 框开着的时候棋局变了（超时、对方动了），就不升
+      return;
+    }
     if (a === 'sk' && sel) {
       const av = bfAvail(), skn = (el && el.dataset.sk) || game.skillOf(av.p), k = (av.skills || []).find(x => x.sk === skn);
       if (!k) return;
@@ -2831,6 +2868,8 @@
   $('tLaugh').onclick = specLaugh;
   // 退出对局 = 回到主菜单（不重载页面）。只有演出正放到一半、状态收不干净时才退而求其次整页重载
   function leaveGame() {
+    document.documentElement.style.removeProperty('--below-status');
+    if (upOpen) $('upNo').click();   // 升级确认框开着就关掉
     cancelAI();
     try { if (online()) Net.send({ t: 'bye' }); } catch (e) { }
     try { Net.close(); } catch (e) { }
@@ -3209,7 +3248,22 @@
   // ---------- 对局按钮 ----------
   $('tUndo').onclick = requestUndo;
   // 視：画面被平移过就先归位；本地对战再点一次才是换边看
-  $('tView').onclick = () => { if (mode === 'local' && !Core.Cam.panned) setView(viewSide === 'r' ? 'b' : 'r'); else setView(viewSide); };
+  // 视角三档（美术 M11）：每按一下 沙盘 → 俯瞰 → 定盘 → 沙盘，换的时候在「谁走棋」下面亮一下名字和说明；记住上次选的档。
+  //   本地双人原来按「视」是换边看：换边以后放哪还没定（放在决策台上问 Ham），本地双人先照旧换边
+  const VIEW_S = ['斜着看，能转、能拖、能缩放', '从正上方看，能拖、能缩放', '从正上方看，锁住不动'];
+  Core.Cam.view = Math.max(0, Math.min(2, +store.get('view', 0) || 0));
+  let viewTagT = 0;
+  function showViewTag(v) {
+    $('viewTag').querySelectorAll('.row span').forEach(sp => sp.classList.toggle('on', +sp.dataset.v === v));
+    $('viewTagS').textContent = VIEW_S[v];
+    $('viewTag').classList.add('on'); clearTimeout(viewTagT); viewTagT = setTimeout(() => $('viewTag').classList.remove('on'), 1500);
+  }
+  $('tView').onclick = () => {
+    if (mode === 'local' && !Core.Cam.panned) { setView(viewSide === 'r' ? 'b' : 'r'); return; }
+    if (mode === 'local') { setView(viewSide); return; }
+    const v = (Core.Cam.view + 1) % 3; store.set('view', v);
+    Core.Cam.setView(v, viewSide); showViewTag(v);
+  };
   setInterval(() => $('tView').classList.toggle('flash', !!mode && Core.Cam.panned && !Core.Cam.cine), 300);
   $('tPause').onclick = togglePause; $('pzGo').onclick = () => togglePause();
   $('tLog').onclick = () => { const h = !$('log').classList.contains('hidden'); $('log').classList.toggle('hidden', h); if (!h) renderLog(); };
