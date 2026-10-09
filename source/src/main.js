@@ -8,8 +8,13 @@
   // 更新说明（设置里、大厅底部点「更新」查看；最新的放最前）
   const NEWS = [
     ['第六版', '2026 年 10 月', [
-      '打开快了很多：配音和声效改成进了大厅以后在后台下载，网页本身从 8 MB 减到 2.5 MB，手机上的加载页短多了。对局里一直卡会自动降一档画质；浏览器没开硬件加速（没用显卡）会提示怎么打开',
-      '落子要点两下：点了落点先出一个半透明的虚影，再点一次同一个落点才走，防误触（设置 → 对局与其他里可以关）。兵种开口说台词时不再原地站着等，先慢慢走起来。炮弹在空中的呼啸换成了真实录音，四种随机出',
+      '打开快了很多：配音和声效改成进了大厅以后在后台下载，网页本身从 8 MB 减到 2.5 MB，手机上的加载页短多了。走子时不再一顿一顿（地上的血迹、蹄印烙进地面原来要等显卡，现在在内存里算）；待在大厅时不再空转动画，手机更省电。对局里一直卡会自动降一档画质；浏览器没开硬件加速（没用显卡）会提示怎么打开',
+      '落子要点两下：点了落点，那里先出一个这枚棋子的半透明虚影（兵种模型模式下是整队兵马的虚影），一明一暗地呼吸，再点一次同一个落点才走；点到走不了的地方闪一下红色虚影，选中的子不丢。防误触，设置 → 对局与其他里可以关',
+      '轮到谁走，自家半场的格线跟着闪：默认「涌动」（一道亮光从底线推到河边），也可以选「河岸」（只闪靠河那条线）或关掉（设置 → 对局与其他）。最后十秒和头像牌的朱框一个节拍',
+      '技能模式：升级时兵种会喊一句——二、三级按新称号说（「当上伍长了，五个弟兄跟我走！」），升到四级的名将各有自己的声音和台词（韩信「臣多多而益善耳！」、项庄「军中无以为乐，请以剑舞！」……），出自《史记》',
+      '电脑更不容易送一步杀：选好一步之后会再查对方能不能一步将死自己（包括先升级再走），能就换一步',
+      '兵种开口说台词时不再原地站着等，先慢慢走起来。马每一步都说话。炮弹在空中的呼啸换成了真实录音，四种随机出',
+      '界面细节：技能栏按钮的朱线不再互相撞，设置页签换成墨底；工具栏「譜 視 設」改成简体；苹果手机微信里调大字号不再把界面撑乱',
       '轮到谁走，谁的头像牌外面多一圈朱红粗线；最后十秒粗线跟着读秒一亮一暗，越来越快。兵卒和炮过河不再走到岸边等船、上船下船，直接乘船过去，和平地一样快',
       '对局里的界面和其余弹窗也换成了新样子（头像牌、技能按钮、棋谱、喊话、玩法说明、暂停、终局卡片……），和大厅是一套',
       '将帅话多了：帅和将每次走、每次吃子都会说一句，各添了新词。还藏了些彩蛋——连着两次想走“将帅照面”的棋、开局第一步就动帅、帅亲手吃车、连着三回合都在走帅、连点自己的帅五下……各有各的说法；技能模式里四级名将阵亡，主帅会哀叹一声',
@@ -96,7 +101,7 @@
   };
   const S = {
     music: store.get('music', 'zen'), vMusic: store.get('vMusic', 55), vSfx: store.get('vSfx', 90), vVoice: store.get('vVoice', 100), voice: store.get('voice', 2),
-    models: store.get('models', 0), debris: store.get('debris', 3), confirm: store.get('confirm', 1),   // confirm：落子要点两下（Ham 10-09 要的，防误触；默认开）
+    models: store.get('models', 0), debris: store.get('debris', 3), confirm: store.get('confirm', 1), turnfx: store.get('turnfx', 'wave'),   // confirm：落子要点两下（Ham 10-09 要的，防误触；默认开）
     vis: store.get('vis', store.get('fx', 1) === 0 ? 'low' : 'cine'), gore: store.get('gore', 3), server: store.get('server', ''),
     speed: store.get('speed', 1.5), // 动画播放速度
   };
@@ -114,7 +119,7 @@
     Core.Time.boost = +S.speed || 1.5;
     Sfx.setVol('music', S.vMusic / 100 * 0.9); Sfx.setVol('sfx', S.vSfx / 100); Sfx.setVol('voice', S.vVoice / 100);
     Net.custom = S.server || '';
-    for (const k of ['music', 'vMusic', 'vSfx', 'vVoice', 'voice', 'vis', 'gore', 'server', 'speed', 'models', 'debris', 'confirm']) store.set(k, S[k]);
+    for (const k of ['music', 'vMusic', 'vSfx', 'vVoice', 'voice', 'vis', 'gore', 'server', 'speed', 'models', 'debris', 'confirm', 'turnfx']) store.set(k, S[k]);
   }
   Net.custom = S.server || '';
   Core.Time.boost = +S.speed || 1.5;
@@ -603,6 +608,8 @@
       hurryKey = hk;
       for (const s of ['r', 'b']) { const c = cardFor(s), on = !!urgent && urgent.side === s; c.classList.toggle('hurry', on); if (on) c.style.setProperty('--beat', (0.26 + 0.074 * urgent.sec).toFixed(2) + 's'); }
     }
+    // 自家半场的格线闪（美术 M9）：和头像牌的朱框同一个条件、读秒时同一个节拍
+    if (typeof TurnGlow !== 'undefined') { const ts = mode && started && !game.result ? game.turn : null; TurnGlow.set(ts, S.turnfx, urgent && urgent.side === ts ? 0.26 + 0.074 * urgent.sec : 0); }
   }
   // 暂停中（见下面的暂停功能）
   // 人机 / 本地：随便停。联机：每人每局 3 次，每次最多 2 分钟，双方时钟都停；到点自动继续，暂停的一方可以提前继续
@@ -3097,7 +3104,7 @@
   // ---------- 设置 ----------
   bindSeg($('mSet'), 'data-s', k => (k === 'quality' ? Core.quality : S[k]), (k, v) => {
     if (k === 'quality') { Core.setQuality(v); autoQ = false; toast('画质已调整'); return; }   // 自己选过画质，就不再自动降
-    S[k] = (k === 'music' || k === 'vis') ? v : +v; applySettings();
+    S[k] = (k === 'music' || k === 'vis' || k === 'turnfx') ? v : +v; applySettings();
     if (k === 'music' && (started || !mode)) { Sfx.init(); if (mode && !Ending.running) Sfx.Music.start(finalFx && v !== 'off' ? 'final' : v); }
   });
   $('vMusic').value = S.vMusic; $('vSfx').value = S.vSfx; $('oServer').value = S.server;
