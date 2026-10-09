@@ -28,10 +28,14 @@ add('merit', 0.3); add('art_r', 4); add('art_b', 3);
 add('sm', 1.5); add('sm_att', 0.6); add('hm', 0.35); add('hm_att', 0.55);
 add('occ', 7);
 add('fixed', 1);
+// 只在拟合里用、不进电脑的（原权重 0）：汉方天生的胜率差（bias，常数 1）、轮到谁走（tempo，汉走 +1 楚走 −1）。
+//   放进来是为了让别的权重不去“背”这两样；它们对同一次搜索里比较各步没有影响
+add('bias', 0); add('tempo', 0);
 const NAMES = Object.keys(W0);
 const IDX = Object.fromEntries(NAMES.map((k, i) => [k, i]));
 const N = NAMES.length;
 const FIXED = new Set(['fixed']);   // 不调
+const FIT_ONLY = new Set(['bias', 'tempo']);   // 拟合用、不进电脑
 
 // A：引擎的 BF.ai（要 atk）；CFG：BF.CFG（背水开没开决定楚方兵法值几分，见 W0.art_b）
 function feats(S, A, CFG) {
@@ -96,6 +100,7 @@ function feats(S, A, CFG) {
   if (sm) { F[IDX.sm] += sm; F[IDX.sm_att] += sm * Math.min(4, attR); }
   if (hm) { F[IDX.hm] -= hm; F[IDX.hm_att] -= hm * Math.min(4, attB); }
   if (fin && S.occ) F[IDX.occ] += (S.occ.r || 0) - (S.occ.b || 0);
+  F[IDX.bias] = 1; F[IDX.tempo] = S.turn === 'r' ? 1 : -1;
   return F;
 }
 const dot = (W, F) => { let v = 0; for (let i = 0; i < N; i++) v += W[i] * F[i]; return v; };
@@ -118,4 +123,4 @@ function unpack(str) {
   return { board, turn: a[0], cnt: { r: +a[1], b: +a[2] }, merit: { r: +a[3], b: +a[4] }, used: { art: { r: +a[5], b: +a[6] }, ult: { r: +a[7], b: +a[8] } }, fx: { sm: +a[9], hm: +a[10], pf: +a[11] }, final: a[12] === '1', occ: { r: +a[13], b: +a[14] } };
 }
 
-module.exports = { NAMES, IDX, N, W0, FIXED, feats, dot, vec, pack, unpack };
+module.exports = { NAMES, IDX, N, W0, FIXED, FIT_ONLY, feats, dot, vec, pack, unpack };

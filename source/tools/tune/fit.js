@@ -98,7 +98,8 @@ console.log('变化最大的（按对分数的影响排）：');
 for (const r of rows.slice(0, 30)) console.log(`  ${r.k.padEnd(14)} ${r.w0.toFixed(3).padStart(8)} → ${r.w.toFixed(3).padStart(8)}   出现 ${r.seen}`);
 if (opt.out) {
   const o = { K, lambda: opt.lambda, iters: best.it, files: files.map(f => path.basename(f)), positions: n, loss: { base, best: best.val }, w: {} };
-  T.NAMES.forEach((k, i) => { o.w[k] = +best.W[i].toFixed(4); });
+  T.NAMES.forEach((k, i) => { o.w[k] = T.FIT_ONLY.has(k) ? 0 : +best.W[i].toFixed(4); });
+  o.fitOnly = Object.fromEntries([...T.FIT_ONLY].map(k => [k, +best.W[T.IDX[k]].toFixed(4)]));
   fs.writeFileSync(opt.out, JSON.stringify(o, null, 1));
   console.log('写到', opt.out);
 }
