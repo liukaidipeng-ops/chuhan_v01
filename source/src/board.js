@@ -1576,6 +1576,8 @@ const Board = (() => {
         markRoot.add(e, c); moveDots.push(e, c);
       }
     }
+    // 落子确认：选中的那枚棋子在落点上留一个蓝色虚影，再点一次才走（Ham 10-09）
+    if (moves.ghost && sel) { const g = ghostOf(sel, moves.ghost, GHOST_OK, 0.45); if (g) markRoot.add(g); }
     // 选定的技能目标：一个转着的瞄准圈把它框住
     if (moves.aim) {
       const [f, r] = moves.aim;
@@ -1694,6 +1696,22 @@ const Board = (() => {
     requestAnimationFrame(fade);
   }
   // immediate=true：立即落回棋盘（走子时用）
+  // 虚影：把一枚棋子照原样复制一份（只抄形状，不抄贴图），换成半透明的单色，放到另一个点上
+  const GHOST_OK = 0x3d8ee8, GHOST_BAD = 0xd8341f;
+  function ghostOf(sel, at, color, opacity) {
+    const src = meshAt(sel[0], sel[1]); if (!src) return null;
+    const mat = new THREE.MeshBasicMaterial({ color, transparent: true, opacity, depthWrite: false });
+    const copy = o => { const d = o.isMesh ? new THREE.Mesh(o.geometry, mat) : new THREE.Group(); d.position.copy(o.position); d.quaternion.copy(o.quaternion); d.scale.copy(o.scale); for (const c of o.children) if (c.isMesh || c.isGroup || c.type === 'Object3D') d.add(copy(c)); return d; };
+    const g = copy(src); g.position.set(X(at[0]), TOP, Z(at[1])); g.rotation.set(0, src.rotation.y, 0); g.renderOrder = 6;
+    return g;
+  }
+  // 点到走不了的地方：那里闪一下红色虚影
+  function flashBad(sel, at) {
+    const g = sel && ghostOf(sel, at, GHOST_BAD, 0.5); if (!g) return;
+    scene.add(g); let t = 0;
+    const mats = []; g.traverse(o => { if (o.material && !mats.includes(o.material)) mats.push(o.material); });
+    const off = Core.onFrame(dt => { t += dt; const k = Math.max(0, 1 - t / 0.7); for (const m of mats) m.opacity = 0.5 * k; if (t >= 0.7) { off(); scene.remove(g); for (const m of mats) m.dispose(); } });
+  }
   function clearMoves(immediate = true) {
     if (hovered) {
       if (immediate) { hovered.position.y = TOP; hovered.rotation.x = hovered.rotation.z = 0; }
@@ -1809,7 +1827,7 @@ const Board = (() => {
   })();
   return {
     root, TOP, PH, HALF, X, Z, pos, setPosition, syncPosition, pieces, piecesRoot, makePiece, faceViewer,
-    showMoves, clearMoves, showZone, showBad, showStep, setGlow, showLast, pick, meshAt, get hovered() { return hovered; }, ringTex, glowTex, wakes, water, waterMat, decal, flatGeo, pine, deco, FONT,
+    showMoves, clearMoves, flashBad, showZone, showBad, showStep, setGlow, showLast, pick, meshAt, get hovered() { return hovered; }, ringTex, glowTex, wakes, water, waterMat, decal, flatGeo, pine, deco, FONT,
     viewSide: 'r', setSkin, dress, get lastGame() { return lastGame; }, skinTune, get SK() { return SK; }, pieceWood, RZ, BZ, BX, BRIDGE_X, faceTex, backTex, setFace, makeRiver, mtTex, decorate, decorateAll, reconcile, plateGeo, plateOn,
   };
 })();

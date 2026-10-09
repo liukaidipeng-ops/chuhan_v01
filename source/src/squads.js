@@ -22,7 +22,16 @@ const Squads = (() => {
   const boost = () => Core.Time.boost || 1, real = d => d / boost(), wait = sec => sleep(sec * boost());
   // 行军声：马、象、虎、炮是“台词 → 脚步 → 叫声”，脚步要等台词快说完才起；这里等到脚步起了队伍再动，画面和声音才对得上
   //   最多等 0.9 秒；动画速度调到 2 倍、3 倍的人要的是快，等得更短（0.68 / 0.45 秒）
-  const stepOff = async (t, s, dur, n) => { const w = snd(t, s).move(real(dur), n); if (w > 0.05) await wait(Math.min(w, 0.9, 1.35 / boost())); };
+  // 起步：先说台词、再响脚步。原来队伍要原地等台词说完（最多 0.9 秒）才起步——Ham 10-09：可以走得慢，但不能完全不动。
+  //   现在不等了：返回“慢走”的时长（演出时间），交给 walkPath 在这段时间里用三成多的速度慢慢挪，台词说完再提到正常速度
+  const stepOff = (t, s, dur, n) => { const w = snd(t, s).move(real(dur), n); return w > 0.05 ? Math.min(w, 0.9, 1.35 / boost()) * boost() : 0; };
+  // 慢走起步的速度曲线：0.12 秒从静止加到三成半速度，台词期间保持，再用 0.25 秒提到全速，最后减速停稳。返回总时长和“时间 → 走过的比例”
+  function slowStart(dur, lead) {
+    const n = 240, s1 = 0.35, dec = Math.min(0.45, dur * 0.4), T = dur + lead * (1 - s1), xs = [0];
+    const spd = t => (t < lead ? Math.min(1, t / 0.12) * s1 : Math.min(1, s1 + (1 - s1) * (t - lead) / 0.25)) * Math.min(1, Math.max(0, (T - t) / dec));
+    let x = 0; for (let i = 1; i <= n; i++) { x += spd(T * (i - 0.5) / n); xs.push(x); }
+    return { T, at: k => { const f = k * n, i = Math.min(n - 1, Math.floor(f)); return (xs[i] + (xs[i + 1] - xs[i]) * (f - i)) / x; }, v: k => spd(k * T) };
+  }
 
   // ======================================================================
   //  基类
@@ -436,11 +445,11 @@ const Squads = (() => {
     async march(path, dur) {
       let last = 0;
       this.escort(true);                           // 起步时随护出列，跟在两侧
-      await stepOff('e', this.side, dur || 1.2);   // 台词 → 慢步 → 虎啸
-      this.m.speed = 0.8;
+      const lead = stepOff('e', this.side, dur || 1.2);   // 台词 → 慢步 → 虎啸（台词期间慢慢走）
+      this.m.speed = 0.8; this.gait = v => { this.m.speed = 0.8 * v; };
       if (this.guard) this.guard.setPose('march');
-      await walkPath(this, path, dur, k => { kick(this, 0.26, 0.3, 0.2, 2); if (k - last > 0.22) { last = k; Fx.Marks.foot(this.anchor.clone().addScaledVector(rightOf(this.yaw), R(-0.08, 0.08))); } });
-      this.m.speed = 0;
+      await walkPath(this, path, dur, k => { kick(this, 0.26, 0.3, 0.2, 2); if (k - last > 0.22) { last = k; Fx.Marks.foot(this.anchor.clone().addScaledVector(rightOf(this.yaw), R(-0.08, 0.08))); } }, lead);
+      this.gait = null; this.m.speed = 0;
       if (this.guard) this.guard.setPose('idle');
     }
     async attack(target, c) {
@@ -526,10 +535,10 @@ const Squads = (() => {
     center(h = 0.3) { return super.center(h); }
     async march(path, dur) {
       let last = 0;
-      await stepOff('e', this.side, dur || 1.4);   // 战象行军：台词 → 重步 → 象鸣
-      this.m.speed = 0.7;
-      await walkPath(this, path, dur, k => { kick(this, 0.34, 0.3, 0.16, 3); if (k - last > 0.18) { last = k; Cam.shake(0.03); Fx.Marks.foot(this.anchor.clone().addScaledVector(rightOf(this.yaw), R(-0.1, 0.1))); } });
-      this.m.speed = 0;
+      const lead = stepOff('e', this.side, dur || 1.4);   // 战象行军：台词 → 重步 → 象鸣（台词期间慢慢走）
+      this.m.speed = 0.7; this.gait = v => { this.m.speed = 0.7 * v; };
+      await walkPath(this, path, dur, k => { kick(this, 0.34, 0.3, 0.16, 3); if (k - last > 0.18) { last = k; Cam.shake(0.03); Fx.Marks.foot(this.anchor.clone().addScaledVector(rightOf(this.yaw), R(-0.1, 0.1))); } }, lead);
+      this.gait = null; this.m.speed = 0;
     }
     async attack(target, c) {
       const { B, d } = c;
@@ -676,10 +685,11 @@ const Squads = (() => {
       // 马走日：不再“先直后斜、拐角人立”，一口气沿对角线奔到位
       const a = path[0], b = path[path.length - 1];
       const run = Math.max(0.4, a.distanceTo(b) * (charge ? 0.3 : 0.42));
-      if (!charge) await stepOff('n', this.side, run, this.sndN);   // 冲锋的马蹄声在 attack 里已经起了
-      this.riders.forEach(h => { h.speed = charge ? 1 : 0.85; });
-      await walkPath(this, [a, b], run);
-      this.riders.forEach(h => { h.speed = 0; });
+      const lead = charge ? 0 : stepOff('n', this.side, run, this.sndN);   // 冲锋的马蹄声在 attack 里已经起了；台词期间马先小步走
+      const sp = charge ? 1 : 0.85;
+      this.riders.forEach(h => { h.speed = sp; }); this.gait = v => this.riders.forEach(h => { h.speed = sp * Math.max(0.25, v); });
+      await walkPath(this, [a, b], run, null, lead);
+      this.gait = null; this.riders.forEach(h => { h.speed = 0; });
     }
     async attack(target, c) {
       const { B, d, info } = c;
@@ -775,10 +785,11 @@ const Squads = (() => {
       });
     }
     async march(path, dur) {
-      await stepOff('c', this.side, dur);
+      const lead = stepOff('c', this.side, dur);   // 台词期间炮车慢慢推
       if (this.horse) this.horse.speed = 0.3;
-      await walkPath(this, path, dur, k => { for (const w of this.gun.wheels) w.rotation.z -= 0.25; if (Math.random() < 0.3) P.dust(this.center(0), 1, fwd(this.yaw), 0.15); });
-      if (this.horse) this.horse.speed = 0;
+      this.gait = v => { if (this.horse) this.horse.speed = 0.3 * Math.max(0.3, v); };
+      await walkPath(this, path, dur, (k, v) => { for (const w of this.gun.wheels) w.rotation.z -= 0.25 * v; if (Math.random() < 0.3 * v) P.dust(this.center(0), 1, fwd(this.yaw), 0.15); }, lead);
+      this.gait = null; if (this.horse) this.horse.speed = 0;
       Sfx.B.creak(0, 0.06);
     }
     brace() { this.crew.setPose('cower'); }
@@ -797,7 +808,7 @@ const Squads = (() => {
       let dead = Promise.resolve();
       const fire = async (g, i) => {
         for (let k = 0; k < 6; k++) P.sparks(g.torch.getWorldPosition(new V3()), 2, 0.4);
-        s.fire(i, this.lv);
+        s.fire(i, this.lv, real(0.14 + flight));
         await sleep(0.14);
         const muzzle = g.barrel.localToWorld(new V3(1.35, 0, 0));
         Cam.shake(0.14); Fx.flash(muzzle, 40, 0.35); P.fire(muzzle, 16, 0.5); Fx.glow(muzzle, 1.5, 0.3, 0.45);
@@ -990,20 +1001,24 @@ const Squads = (() => {
   const pick = (o, keys) => { const r = {}; for (const k of keys) if (o[k] !== undefined) r[k] = o[k]; return r; };
 
   // ---------- 运动工具 ----------
-  function walkPath(sq, path, dur, onStep) {
+  // lead：起步先慢走多久（演出时间，见 stepOff）；onStep(k, v) 的 v 是此刻相对全速的快慢（0～1），给马蹄、车轮、步态用
+  function walkPath(sq, path, dur, onStep, lead = 0) {
     const segs = []; let tot = 0;
     for (let i = 1; i < path.length; i++) { const L = path[i - 1].distanceTo(path[i]); segs.push([path[i - 1], path[i], L]); tot += L; }
     if (!dur) dur = tot / 1.2;
     if (tot < 1e-4) return Promise.resolve();
     let lastSeg = -1;
-    return tween(dur, k => {
+    const prof = lead > 0.05 ? slowStart(dur, lead) : null;
+    return tween(prof ? prof.T : dur, (k0, raw) => {
+      const k = prof ? prof.at(raw) : k0, v = prof ? prof.v(raw) : 1;
+      if (sq.gait) sq.gait(v);
       let dist = k * tot, i = 0;
       while (i < segs.length - 1 && dist > segs[i][2]) { dist -= segs[i][2]; i++; }
       const [a, b, L] = segs[i];
       sq.anchor.lerpVectors(a, b, L > 0 ? Math.min(1, dist / L) : 1);
       if (i !== lastSeg) { lastSeg = i; const dd = b.clone().sub(a); if (dd.lengthSq() > 1e-6) turnTo(sq, yawOf(dd), 0.2); }
-      if (onStep) onStep(k);
-    }, ease.inOut);
+      if (onStep) onStep(k, v);
+    }, prof ? ease.linear : ease.inOut);
   }
   function turnTo(sq, yaw, dur) {
     let y0 = sq.yaw, dy = yaw - y0;

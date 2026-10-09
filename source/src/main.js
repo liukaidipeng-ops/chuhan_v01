@@ -8,6 +8,7 @@
   // 更新说明（设置里、大厅底部点「更新」查看；最新的放最前）
   const NEWS = [
     ['第六版', '2026 年 10 月', [
+      '落子要点两下：点了落点先框住，再点一次同一个落点才走，防误触（设置 → 对局与其他里可以关）。兵种开口说台词时不再原地站着等，先慢慢走起来。炮弹在空中的呼啸换成了真实录音，四种随机出',
       '轮到谁走，谁的头像牌外面多一圈朱红粗线；最后十秒粗线跟着读秒一亮一暗，越来越快。兵卒和炮过河不再走到岸边等船、上船下船，直接乘船过去，和平地一样快',
       '对局里的界面和其余弹窗也换成了新样子（头像牌、技能按钮、棋谱、喊话、玩法说明、暂停、终局卡片……），和大厅是一套',
       '将帅话多了：帅和将每次走、每次吃子都会说一句，各添了新词。还藏了些彩蛋——连着两次想走“将帅照面”的棋、开局第一步就动帅、帅亲手吃车、连着三回合都在走帅、连点自己的帅五下……各有各的说法；技能模式里四级名将阵亡，主帅会哀叹一声',
@@ -94,7 +95,7 @@
   };
   const S = {
     music: store.get('music', 'zen'), vMusic: store.get('vMusic', 55), vSfx: store.get('vSfx', 90), vVoice: store.get('vVoice', 100), voice: store.get('voice', 2),
-    models: store.get('models', 0), debris: store.get('debris', 3),
+    models: store.get('models', 0), debris: store.get('debris', 3), confirm: store.get('confirm', 1),   // confirm：落子要点两下（Ham 10-09 要的，防误触；默认开）
     vis: store.get('vis', store.get('fx', 1) === 0 ? 'low' : 'cine'), gore: store.get('gore', 3), server: store.get('server', ''),
     speed: store.get('speed', 1.5), // 动画播放速度
   };
@@ -112,7 +113,7 @@
     Core.Time.boost = +S.speed || 1.5;
     Sfx.setVol('music', S.vMusic / 100 * 0.9); Sfx.setVol('sfx', S.vSfx / 100); Sfx.setVol('voice', S.vVoice / 100);
     Net.custom = S.server || '';
-    for (const k of ['music', 'vMusic', 'vSfx', 'vVoice', 'voice', 'vis', 'gore', 'server', 'speed', 'models', 'debris']) store.set(k, S[k]);
+    for (const k of ['music', 'vMusic', 'vSfx', 'vVoice', 'voice', 'vis', 'gore', 'server', 'speed', 'models', 'debris', 'confirm']) store.set(k, S[k]);
   }
   Net.custom = S.server || '';
   Core.Time.boost = +S.speed || 1.5;
@@ -1008,6 +1009,7 @@
         return true;
       }
     }
+    pendTo = null;
     const rv0 = (() => { const p = game.at(m.from[0], m.from[1]); return p && p.h ? (p.t !== '?' ? p.t : m.rv) : null; })();
     const note = noteOf(game.board, m, rv0);
     ktInit();
@@ -1317,10 +1319,11 @@
     }
     const p = Board.pick(e.clientX, e.clientY);
     ktPoke(p);
-    if (!p) { Board.clearMoves(false); sel = null; selMoves = []; return; }
+    if (!p) { pendTo = null; Board.clearMoves(false); sel = null; selMoves = []; return; }
     const [f, r] = p;
     const mv = selMoves.find(m => m.to[0] === f && m.to[1] === r);
-    if (sel && mv) { doMove({ from: sel, to: [f, r] }); return; }
+    if (pendTo && !(pendTo[0] === f && pendTo[1] === r)) pendTo = null;
+    if (sel && mv) { if (confirmMove([f, r])) return; doMove({ from: sel, to: [f, r] }); return; }
     if (sel && badClick(f, r)) return;
     if (sel && game.jq) {
       const bl = game.blockedFrom(sel[0], sel[1]).find(m => m.to[0] === f && m.to[1] === r);
@@ -1334,12 +1337,24 @@
       Board.showMoves(sel, withBad(bfDmg(selMoves), f, r), !!+opts.hints);
       Sfx.select();
       if (!selMoves.length) toast(selBad.length ? '这枚棋子一动就会送将' : '这枚棋子无路可走');
-    } else { Board.clearMoves(false); sel = null; selMoves = []; selBad = []; }
+    } else if (sel) { Board.flashBad(sel, [f, r]); }   // 选着子点到走不了的地方：那里闪一下红色虚影，选中的子不丢
+    else { Board.clearMoves(false); sel = null; selMoves = []; selBad = []; }
   });
   // ---------- 送将提示 ----------
   // 按走法能走、但走了自己会被将军的着法：照样标出来（标红 / 头顶禁止符号），点上去说明原因；连点三次，自家主帅出言调侃
   let selBad = [], badN = 0, badAt = -1;
   const BAD_SAY = ['怎么？你想害老子？', '莫要害老子！', '你想作甚！']; let badSay = -1;
+  // 落子确认（设置里可以关）：第一下只把落点框住，再点同一个落点才走；点别的落点改框那个，点别处取消
+  let pendTo = null;
+  function confirmMove(to) {   // 返回 true：这一下只是选中落点，先不走
+    if (!+S.confirm) return false;
+    if (pendTo && pendTo[0] === to[0] && pendTo[1] === to[1]) { pendTo = null; return false; }
+    pendTo = to.slice();
+    const L = withBad(bfDmg(selMoves), sel[0], sel[1]); L.ghost = pendTo;
+    Board.showMoves(sel, L, !!+opts.hints); Sfx.select();
+    toast('再点一次这个落点，确认落子', 1800);
+    return true;
+  }
   function withBad(list, f, r) {
     selBad = game.selfCheckFrom ? game.selfCheckFrom(f, r) : [];
     if (!selBad.length) return list;
@@ -1354,6 +1369,7 @@
     if (ply !== badAt) { badAt = ply; badN = 0; }
     badN++;
     toast(m.why === 'face' ? '不能送将：将帅不能照面' : '不能送将：这样走，自己的' + (actor() === 'r' ? '帅' : '将') + '会被吃', 2200);
+    if (sel) Board.flashBad(sel, [f, r]);
     Sfx.select();
     // 王不见王：这一步里第二次想走“将帅照面”的棋，自己的主帅开口（有这句配音才说）
     if (m.why === 'face') { const k = KT[actor()]; if (k) { if (k.faceAt !== ply) { k.faceAt = ply; k.face = 0; } if (++k.face === 2 && kingSay(actor(), `${actor()}_face`)) return true; } }
@@ -1463,6 +1479,11 @@
     // 点了目标的技能一律先“瞄准”：目标被瞄准圈框住，下方出现「确定」，点了才发动（会伤到谁照旧先标出来）
     const aimed = a.k === 'sk' && !!a.to;
     const h = bfNeedConfirm(a) || (aimed ? (bfHarm(a) || { list: [], ev: [] }) : null);
+    if (!h && a.k === 'mv' && +S.confirm) {   // 落子确认：普通走子 / 攻击也先框住落点，再点一次（或点「确定」）才走
+      const L = withBad(bfDmg(selMoves), from[0], from[1]); L.ghost = a.to;
+      bfMode = { kind: 'confirm', a, hint: '再点一次落点，或点「确定」落子' };
+      Board.showMoves(from, L, !!+opts.hints); Sfx.select(); renderBar(); return;
+    }
     if (!h) { doBF(a); return; }
     const marks = h.list.map(x => ({ from, to: x.at, dmg: x.kill ? 0 : x.dmg })); marks.noBelt = true;
     if (!h.list.some(x => x.at[0] === a.to[0] && x.at[1] === a.to[1])) { marks.push({ from, to: a.to, skill: aimed }); }
@@ -1487,6 +1508,7 @@
     if (bfMode && bfMode.kind === 'confirm') {
       const a = bfMode.a;
       if (p && a.to && p[0] === a.to[0] && p[1] === a.to[1]) { bfMode = null; doBF(a); return; }
+      if (a.k === 'mv' && p && sel && selMoves.some(m => m.to[0] === p[0] && m.to[1] === p[1])) { bfMode = null; bfAsk({ k: 'mv', from: sel, to: [p[0], p[1]] }, sel); return; }   // 改选另一个落点
       exitBfMode(false);
       if (sel) bfSelect(sel[0], sel[1]);
       renderBar(); return;
@@ -1505,7 +1527,8 @@
     if (pc && pc.s === actor()) {
       if (sel && sel[0] === f && sel[1] === r) bfClear();
       else bfSelect(f, r);
-    } else bfClear();
+    } else if (sel) Board.flashBad(sel, [f, r]);   // 选着子点到走不了的地方：红色虚影，选中的子不丢
+    else bfClear();
     renderBar();
   }
   // 破釜沉舟：先选第一步，再选第二步，两步一起提交
@@ -1814,7 +1837,7 @@
         B.push(`<button class="sk" data-a="cancel">取消<small>换一着</small></button>`);
       }
       else if (bfMode.kind !== 'rvBusy') {
-        if (bfMode.kind === 'confirm') B.push(`<button class="sk ready ok" data-a="ok">确 定<small>发动</small></button>`);
+        if (bfMode.kind === 'confirm') B.push(`<button class="sk ready ok" data-a="ok">确 定<small>${bfMode.a.k === 'mv' ? '落子' : '发动'}</small></button>`);
         B.push(`<button class="sk" data-a="cancel">取消<small>换一着</small></button>`);
       }
     } else {
