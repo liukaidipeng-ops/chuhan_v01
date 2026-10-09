@@ -1081,5 +1081,39 @@
    "dur": 0.87,
    "src": "试听台 b19 五：0 A.D. 投石机甩出石弹 (CC BY-SA 3.0)"
   }
+ ],
+ "roomjoin": [
+  {
+   "f": "roomjoin_0.mp3",
+   "dur": 1.4,
+   "src": "试听台 b30 铜锣一声：CC0 gong_01"
+  },
+  {
+   "f": "roomjoin_1.mp3",
+   "dur": 1.4,
+   "src": "试听台 b30 战鼓两声：合成"
+  },
+  {
+   "f": "roomjoin_2.mp3",
+   "dur": 1.1,
+   "src": "试听台 b30 掀帘入帐：CC0 帐帘 + 脚步"
+  }
+ ],
+ "roomready": [
+  {
+   "f": "roomready_0.mp3",
+   "dur": 1.0,
+   "src": "试听台 b30 擂鼓一声：合成战鼓 + CC0 鼓边"
+  },
+  {
+   "f": "roomready_1.mp3",
+   "dur": 2.2,
+   "src": "试听台 b30 古琴一拨：合成"
+  },
+  {
+   "f": "roomready_2.mp3",
+   "dur": 0.6,
+   "src": "试听台 b30 梆子两响：合成"
+  }
  ]
 }

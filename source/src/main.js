@@ -8,6 +8,7 @@
   // 更新说明（设置里、大厅底部点「更新」查看；最新的放最前）
   const NEWS = [
     ['第六版', '2026 年 10 月', [
+      '联机房间加了提示音：有人进房（铜锣 / 战鼓 / 掀帘入帐，随机一条）、有人点「准备」（擂鼓 / 古琴 / 梆子，随机一条）',
       '兵营的卫兵、弓手、鼓手合成一批画，每帧少画六十多次，样子不变',
       '俯瞰、定盘（正上方看）时，吃子、放技能不再拉特写镜头、镜头不跟着跑，震屏也减到两成，画面稳了',
       '修好一个严重问题：电脑上点过页面以后，拖动浏览器窗口会卡死，连别的软件一起卡。原因是为苹果手机准备的一段“静音循环”用了 0 秒的空文件，在电脑上每秒从头重放上万次；现在改成 1 秒真静音，而且只在苹果设备上放',
@@ -2475,7 +2476,7 @@
           // 还没开局：对手先在房间里入座；他点了「准备」、房主再点「开始」才开局
           if (room && room.host) {
             if (room.ai) { Net.send({ t: 'full' }); Net.freeSeat(); return; }   // 房主在和人机下：来人去观战席
-            if (!room.seated) { room.seated = true; room.ready = AUTOSTART; toast('对手已入座'); try { Net.hallTouch(); } catch (e) { } paintRoom(); }
+            if (!room.seated) { room.seated = true; room.ready = AUTOSTART; toast('对手已入座'); roomSfx('roomjoin'); try { Net.hallTouch(); } catch (e) { } paintRoom(); }
             roomTell();
             if (AUTOSTART) roomBegin();
             return;
@@ -2495,7 +2496,7 @@
         paintRoom();
         break;
       case 'ready':
-        if (Net.role === 'host' && room && room.host && room.seated && !mode) { room.ready = !!d.on; paintRoom(); roomTell(); }
+        if (Net.role === 'host' && room && room.host && room.seated && !mode) { if (d.on && !room.ready) roomSfx('roomready'); room.ready = !!d.on; paintRoom(); roomTell(); }
         break;
       case 'needpw':
         if (mode || pwAsking) return;
@@ -2705,7 +2706,7 @@
     const isNew = !Spect.has(d._p);
     const p = Spect.upsert(d._p, d.n, d.a, false);
     if (!p) return;
-    if (isNew) { feed(p, '入席观战'); if (mode && !watching()) toast(`「${p.name}」入席观战`); }
+    if (isNew) { feed(p, '入席观战'); if (mode && !watching()) toast(`「${p.name}」入席观战`); if (!mode && room) roomSfx('roomjoin'); }
     if (d.t === 'go') { Spect.walk(d._p, d.wp); return; }
     if (d.p) Spect.setPos(d._p, d.p);
     if (d.t === 'say') {
@@ -2951,7 +2952,9 @@
   };
   $('bHall').onclick = () => showPane('pHall');
   $('bRoomStart').onclick = roomBegin;
-  $('bRoomReady').onclick = () => { if (!room || room.host) return; room.ready = !room.ready; Net.send({ t: 'ready', on: room.ready }); paintRoom(); };
+  // 房间提示音（Ham 10-09 试听台第二十七批挑的，各三条随机）：有人进房、有人准备
+  function roomSfx(id) { try { Sfx.init(); Sfx.smp(id, { vol: 0.7, rj: 0 }); } catch (e) { } }
+  $('bRoomReady').onclick = () => { if (!room || room.host) return; room.ready = !room.ready; if (room.ready) roomSfx('roomready'); Net.send({ t: 'ready', on: room.ready }); paintRoom(); };
   // 客人改当观众：让出座位，转去观战席
   $('bRoomWatch').onclick = () => { if (!room || room.host) return; const code = room.code; closeRoom(); clearInterval(joinTimer); try { Net.send({ t: 'bye' }); } catch (e) { } showPane('pJoin'); enterWatch(code); };
   $('bRoomAI2').onclick = () => { if (!room || !room.host || !room.ai) return; room.ai2 = room.ai2 ? null : ($('roomAI2Lv').value || 'mid'); paintRoom(); };
