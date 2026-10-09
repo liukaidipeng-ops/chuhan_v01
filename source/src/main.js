@@ -145,7 +145,7 @@
     const comp = new Promise(r => { try { (R.compileAsync ? R.compileAsync(Core.scene, Core.camera) : Promise.resolve()).then(r, r); } catch (e) { r(); } });
     Promise.all([comp, lobbyUp]).then(() => setTimeout(done, 300));
     setTimeout(done, 12000);   // 万一一直不回话，也别一直不画
-    Core.onFrame(() => { if (!ready) { Core.render = false; return; } if (warm > 0) warm--; Core.render = warm > 0 || $('lobby').classList.contains('hidden'); });   // 页面刚开时大厅也带着 hidden（等开场动画），不能拿它判断
+    Core.onFrame(() => { if (!ready) { Core.render = false; return; } if (warm > 0) warm--; Core.render = warm > 0 || $('lobby').classList.contains('hidden'); Core.sleepy = !Core.render; });   // 页面刚开时大厅也带着 hidden（等开场动画），不能拿它判断
   } }
   Core.start();
   let lobbySpin = true;
@@ -509,12 +509,16 @@
     $('netDot').classList.toggle('hidden', !(online() || watching()));
     $('netDot').classList.toggle('bad', (online() && Net.peerState !== 'ok') || ((online() || watching()) && !Net.lineOk));
     $('specN').textContent = (online() || watching()) && Spect.count ? `观战 ${Spect.count}` : '';
-    layoutHud();
+    layoutSoon();
     const left = opts.undo >= 99 ? '' : Math.max(0, opts.undo - undoUsed[actor()]);
     $('undoLeft').textContent = opts.undo ? (left === '' ? '∞' : left) : '';
     $('tUndo').disabled = !canUndo();
   }
   // 浮动元素按卡片实际位置摆放，避免互相压住
+  // 一步棋里 updateHud / renderBar 会被调好几次，每次 layoutHud 都要量元素位置（逼浏览器当场重排版面）。
+  // 攒到下一帧只排一次；窗口尺寸、卡片尺寸变了（resize / ResizeObserver）还是当场排
+  var hudQ = false;   // var：可能在这一行执行之前就被调到
+  function layoutSoon() { if (hudQ) return; hudQ = true; requestAnimationFrame(() => { hudQ = false; layoutHud(); }); }
   function layoutHud() {
     if ($('hud').classList.contains('hidden')) return;
     const W = innerWidth, H = innerHeight;
@@ -1934,11 +1938,11 @@
       if (!a.p) hint = game.freeUsed ? '已架拒马 · 请再走一步棋' : `${SIDE_ARMY[side]}行动 · 军功 ${game.merit[side]}`;
       if (isCompact() && !game.freeUsed) hint = '';
     }
-    if (!B.length && !(bfMode && bfMode.bs)) { bar.classList.add('hidden'); $('bfRow').innerHTML = ''; $('bfHint').textContent = ''; layoutHud(); return; }
+    if (!B.length && !(bfMode && bfMode.bs)) { bar.classList.add('hidden'); $('bfRow').innerHTML = ''; $('bfHint').textContent = ''; layoutSoon(); return; }
     $('bfHint').textContent = hint;
     $('bfRow').innerHTML = B.join('');
     $('bfRow').querySelectorAll('button[data-a]').forEach(b => b.onclick = ev => { ev.stopPropagation(); bfButton(b.dataset.a, b); });
-    layoutHud();
+    layoutSoon();
   }
   let skillCycle = 0;
   $('skHint').addEventListener('click', ev => { ev.stopPropagation(); bfButton('pickSkill'); });

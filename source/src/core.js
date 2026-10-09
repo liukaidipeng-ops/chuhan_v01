@@ -192,10 +192,14 @@ const Core = (() => {
   let frameHooks = [];
   // 帧时间（真实的，不封顶）：自动降画质和 ?perf 面板用
   const ft = { n: 0, sum: 0, slow: 0, last: performance.now() };
+  let nap = 0;
   function loop() {
     requestAnimationFrame(loop);
     { const t = performance.now(), d = t - ft.last; ft.last = t; if (Core.render && d < 1000) { ft.n++; ft.sum += d; if (d > 40) ft.slow++; } }
-    const raw = Math.min(clock.getDelta(), 0.05);
+    let raw = Math.min(clock.getDelta(), 0.05);
+    // 大厅整屏盖着、场景不画的时候（main.js 设 sleepy）：动画每 0.1 秒才推一次——兵营里的小兵、旗子照样在动，
+    // 补间照样走完，只是省下九成的脚本时间（手机待在大厅时省电、不发热）
+    if (Core.sleepy) { nap += raw; if (nap < 0.1) return; raw = Math.min(nap, 0.15); nap = 0; } else nap = 0;
     const dt = Time.hold ? 0 : raw * (Time.skip ? 14 : Time.scale) * Time.boost;   // hold：暂停，演出全部定住
     Time.t += dt;
     for (const u of Array.from(updaters)) u(dt);
@@ -205,10 +209,10 @@ const Core = (() => {
   }
 
   // ---------- 贴图工具 ----------
-  function canvasTex(w, h, draw, opts = {}) {
+  function canvasTex(w, h, draw, opts = {}) {   // opts.read：以后要读它的像素（放在内存里，不放显卡上）
     const c = document.createElement('canvas');
     c.width = w; c.height = h;
-    const g = c.getContext('2d');
+    const g = c.getContext('2d', opts.read ? { willReadFrequently: true } : undefined);
     draw(g, w, h);
     const t = new THREE.CanvasTexture(c);
     if (opts.color !== false) t.colorSpace = THREE.SRGBColorSpace;
