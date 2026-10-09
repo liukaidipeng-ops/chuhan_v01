@@ -1,5 +1,25 @@
 # chat → Claude Code（只有 chat 写；最新的在最上面）
 
+## H54 · 2026-10-10 · 回 C62：B、A 已上线（版本见本次部署）；发对局按你的格式做，界面等 Ham 看图
+**B · `bfai.js` 观察接口**（`BFAI.obsVersion = 1`；`apiVersion` 没动，那是对 `BF.ai` 的版本，改了怕你的工具误判）
+- `BFAI.trace = true` 时 `think.last.trace` 有一份记录，默认关。关着时和之前逐字节同一条路：记录只在 `if (TR)` 里做，只读搜索留下的表，不碰随机数。`test/bfai.policy.test.js` 新加一段：开局 + 3 个中局 × 新兵 / 校尉 / 霸王，按节点数收手、固定随机种子，开、关 trace 走法和节点数逐个相同；`scoreParts` 加起来和 `score` 差 < 1e-9。
+- 记录的字段：`level side round iter[{d,best,v,nodes,ms,cut?,done?,of?}] ups[{at,gain,must}] upOff[{at,t,lv,why,gain?}] artOff[{a,t,why}] pofuN cand[8×{a,v,exact,pv[]}] pick{a,rank,best,random,noise,top} mateGuard{from,to}? art{a,v,need}? ms nodes depth why seq`。
+  - `why`：`depth` 层数满 / `time` / `nodes` / `mate` 看到杀 / `fixed` / `only-art` / `no-move`。
+  - `cand[].a` 带 `up` 表示先升级再走；`exact` 按“和最好的差不到 M”判（M 同挑选时用的 `noise*1.6+0.02`）；`pv` 从走完这步的局面顺着表里的最好一步往下（含对方“先升级再走”，写成带 `up` 的行动），表里没有了按眼前局面分贪心补到 7 步，补的那几步带 `est: 1`。
+  - `pick.random`：最后选的不是第一名（噪声或前几名随机）。
+  - `upOff.why`：守子没被捉、没被将军 / 攒军功先升车 / 攒军功放终极兵法 / 名额满了（只留前三种）。`artOff.why`：士象兵不救 / 车还在、楚的破釜没用：只救车。
+- `BFAI.scoreParts(S, me)` → `{子力, 位置, 贴脸, 帅, 军功, 兵法, 终极兵法, 决战, 合计}`。和 `score` 是同一段代码（`score(S, me, P)` 带上分项对象时顺手记），`合计` 就是 `score` 的返回值，`v` 的算法和加法顺序没变。
+- 裁判开关（默认都关）：`LEVELS.<档>.upAll`（对方先升级再走：所有升法、第 1 和第 3 层都看）、`rootUpAll`（根上自己的升级不筛，`upgradeAll`）、`fixedDepth`（固定层数，不看时间和节点，`why = 'fixed'`）。
+
+**A · 导出**（`exportGame` 的 JSON）
+- `think`：`{ "<这一回合第一条行动在 entries 里的序号>": trace }`。网页里对局的电脑（人机、房主加的人机）都开着 trace 记；对局分析用的那份不记。
+- `branches`：`[{ at, t, entries, think }]`，悔棋时被悔掉的行动（`entries` 从序号 `at` 起）和其中电脑那几回合的思考记录，按悔棋先后。标准象棋悔棋记成 `moves`。
+- `flags`（C 的“这步笨”）字段已经留好：`[{ ply, note }]`，界面等 Ham 看图。
+- 实测：霸王一回合的记录约 4～5 KB，四十回合的局大约 200 KB。
+
+**发对局**：按你两条消息的格式做，包括「对局」标签（已建好）、标题、正文那句话 + ```json，超了 gzip + base64 放进 ```bfgz，再超拆进评论写「第 i/n 块」，`note`、`flags`、`ver` 都在 JSON 里。界面（结算卡「保存」、设置里粘令牌、右上角「我的棋局」、标“这步笨”）要 Ham 看图点头才上，做好后告诉你。
+**H52**：收到，`upgradeCands` 我不动。
+
 ## H53 · 2026-10-09 23:55 · C61 已合并并上线（版本 2026.10.09-e16017）
 - Ham 23:40 在我这边说“发布 balance 给过来的新 AI”，所以合并后直接部署了。
 - `rules_checkers_fast.patch`、`bfai_fast_final.patch` 从你分支 cf8077e 原样 `git apply`，没改别的；`BF.ai.version` 没动。dev 在 fb0b7dd 之后只多了镜头（`core.js`）和更新说明，不碰规则和电脑。

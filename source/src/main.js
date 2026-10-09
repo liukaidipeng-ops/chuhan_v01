@@ -8,6 +8,7 @@
   // 更新说明（设置里、大厅底部点「更新」查看；最新的放最前）
   const NEWS = [
     ['第六版', '2026 年 10 月', [
+      '「导出本局」里多带了电脑每一步当时的思考（算到几层、前几名候选和它预想的后续、有没有被一步杀保险换掉、筛掉了哪些升级），悔棋悔掉的那几步也留着——给数值部复盘、训练电脑用；电脑的走法没变',
       '电脑上的大厅：三个圆按钮改成「人机 · 联机 · 本地」，联机放中间（手机上照旧竖排，联机在最上面）',
       '本地双人换边改成像转盘一样转过去：慢慢起步、慢慢停下，棋子跟着一起转，字一直是正的（原来是一下子甩过去）',
       '界面音效（你在试听台挑的）：电脑上鼠标移到大厅的三个圆形图标（联机大厅、人机对战、本地对战）上轻轻「叮」一下（玉片轻碰），点它们「嗒」一声（玉扣）；别的按钮、选项不出声。棋子显示选「棋子」+ 低特效时，落子声按棋子材质分开：木棋子像筹码落桌、银棋子「叮」、金棋子厚重的「当」、玉棋子像瓷碗轻磕（技能模式按等级：一级木、二级银、三级金、四级玉）',
@@ -816,11 +817,12 @@
   // 技能模式的电脑放进 Web Worker 里算（和动画互不耽误）；开不了 Worker 就等动画放完在主线程分片算
   let bfW = null, bfWSeq = 0;
   const bfWait = new Map();
-  function bfThink(S, level, waitIdle) {
-    const local = async () => { await waitIdle(); return BFAI.think(S, level, () => new Promise(r => setTimeout(r, 0))); };
+  // trace：要不要电脑的思考记录（C62 A：对局里的电脑都记，导出时带上；分析不记）
+  function bfThink(S, level, waitIdle, trace) {
+    const local = async () => { await waitIdle(); BFAI.trace = !!trace; try { const seq = await BFAI.think(S, level, () => new Promise(r => setTimeout(r, 0))); bfThink.last = BFAI.think.last; return seq; } finally { BFAI.trace = false; } };
     if (bfW === null) {
       try {
-        const src = document.getElementById('eng').textContent + '\nself.onmessage=async e=>{const d=e.data;try{if(d.cfg){Object.assign(BF.CFG.beishui,d.cfg.beishui);if(d.cfg.r6)Object.assign(BF.CFG.r6,d.cfg.r6);BF.CFG.generalArts.fromRound=d.cfg.fromRound;BF.CFG.attack=d.cfg.attack;}const seq=await BFAI.think(d.S,d.level);postMessage({id:d.id,seq:seq,stat:BFAI.think.last});}catch(err){postMessage({id:d.id,err:String(err&&err.stack||err)});}};';
+        const src = document.getElementById('eng').textContent + '\nself.onmessage=async e=>{const d=e.data;try{BFAI.trace=!!d.trace;if(d.cfg){Object.assign(BF.CFG.beishui,d.cfg.beishui);if(d.cfg.r6)Object.assign(BF.CFG.r6,d.cfg.r6);BF.CFG.generalArts.fromRound=d.cfg.fromRound;BF.CFG.attack=d.cfg.attack;}const seq=await BFAI.think(d.S,d.level);postMessage({id:d.id,seq:seq,stat:BFAI.think.last});}catch(err){postMessage({id:d.id,err:String(err&&err.stack||err)});}};';
         bfW = new Worker(URL.createObjectURL(new Blob([src], { type: 'text/javascript' })));
         bfW.onmessage = e => { const w = bfWait.get(e.data.id); if (!w) return; bfWait.delete(e.data.id); if (e.data.err) w.rej(new Error(e.data.err)); else { bfThink.last = e.data.stat; w.res(e.data.seq); } };
         bfW.onerror = () => { bfW = false; for (const w of bfWait.values()) w.rej(new Error('worker')); bfWait.clear(); };
@@ -828,7 +830,7 @@
     }
     if (!bfW) return local();
     // 试验性的规则开关（背水一战等）也带给电脑线程：它那边有自己的一份配置
-    return new Promise((res, rej) => { const id = ++bfWSeq; bfWait.set(id, { res, rej }); bfW.postMessage({ id, S, level, cfg: { beishui: BF.CFG.beishui, r6: BF.CFG.r6, fromRound: BF.CFG.generalArts.fromRound, attack: BF.CFG.attack } }); }).catch(e => { console.warn('电脑线程出错，改在主线程算', e); return local(); });
+    return new Promise((res, rej) => { const id = ++bfWSeq; bfWait.set(id, { res, rej }); bfW.postMessage({ id, S, level, trace: !!trace, cfg: { beishui: BF.CFG.beishui, r6: BF.CFG.r6, fromRound: BF.CFG.generalArts.fromRound, attack: BF.CFG.attack } }); }).catch(e => { console.warn('电脑线程出错，改在主线程算', e); return local(); });
   }
   function cancelAI() { aiSeq++; if (aiThinking) { try { AI.cancel(); } catch (e) { } } aiThinking = false; }
   function maybeAI() {
@@ -843,9 +845,12 @@
       const waitIdle = async () => { await anim; while (busy) await Core.sleep(0.1); };
       (async () => {
         if (game.mustPass && game.mustPass()) return [{ k: 'pass' }];
-        return bfThink(BF.cloneState(game.S), lvl, waitIdle);
+        return bfThink(BF.cloneState(game.S), lvl, waitIdle, true);
       })().then(async seq => {
         if (id !== aiSeq || !seq) { if (id === aiSeq) { aiThinking = false; updateHud(); } return; }
+        // 思考记录按这一回合第一条行动的序号存（导出里的 think）
+        const tr = bfThink.last && bfThink.last.trace;
+        if (tr) { if (!game.__think) game.__think = {}; game.__think[game.entries.length] = tr; }
         const el = performance.now() - t0;
         if (el < minWait) await Core.sleep((minWait - el) / 1000);
         aiThinking = false;
@@ -2463,6 +2468,12 @@
     Sfx.B.whoosh(0, 0.5, 0.3); Sfx.B.bell(0.1, 660, 0.08);
     for (const m of Board.pieces.values()) Fx.P.ink(m.position.clone().setY(Board.TOP + 0.1), 2, 0.3, 0.25, 0.5);
     await Core.sleep(0.25);
+    // 悔掉的分支留着（C62 A：Ham 悔棋往往正是找到了电脑的漏洞）：被悔掉的行动、电脑当时的思考记录
+    if (n < game.entries.length) {
+      const th = {}; for (const k of Object.keys(game.__think || {})) if (+k >= n) { th[k] = game.__think[k]; delete game.__think[k]; }
+      if (!game.__branches) game.__branches = [];
+      game.__branches.push({ at: n, t: Date.now(), entries: JSON.parse(JSON.stringify(game.entries.slice(n))), think: th });
+    }
     game.rebuild(n);
     rebuildNotes();
     Board.setPosition(game); Board.faceViewer(viewSide);
@@ -2476,6 +2487,7 @@
     busy++;
     anim = anim.then(async () => {
       if (game.bf) { await bfRewind(bfUndoTarget(plies)); return; }
+      { const n = game.history.length - plies; if (n >= 0 && plies > 0) { if (!game.__branches) game.__branches = []; game.__branches.push({ at: n, t: Date.now(), moves: game.history.slice(n).map(h => ({ from: h.from, to: h.to })) }); } }
       for (let i = 0; i < plies; i++) { const h = game.undo(); if (h) { notes.pop(); await Fx.undoMove(h, game.at(h.from[0], h.from[1])); } }
       const last = game.history[game.history.length - 1];
       Board.showLast(last ? last.from : null, last ? last.to : null);
@@ -3305,6 +3317,10 @@
     if (G.bf) { o.opts.bs = +opts.bs ? 1 : 0; o.opts.r6 = +opts.r6 ? 1 : 0; }   // 这一局用的哪套规则（重放要用）
     o.cfg = {};   // 调过的规则配置（游戏里没有调配置的入口，恒为空；留着给模拟工具对齐格式）
     o.result = G.result || null;
+    // C62 A：电脑每一回合的思考记录（键是这一回合第一条行动在 entries 里的序号）、悔掉的分支；C62 C：标了“这步笨”的
+    if (G.__think) o.think = G.__think;
+    if (G.__branches && G.__branches.length) o.branches = G.__branches;
+    if (G.__flags && G.__flags.length) o.flags = G.__flags;
     if (G.bf) {
       o.entries = G.entries;
       // 调试摆过子的局：起始局面不是标准开局，一并带上

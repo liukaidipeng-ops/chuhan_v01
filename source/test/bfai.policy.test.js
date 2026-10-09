@@ -54,4 +54,28 @@ const isRevive = seq => seq.some(a => a.k === 'art' && a.id != null), isPofu = s
     if (lv === 'hard') assert(s.some(a => a.k === 'mv' && a.to[0] === 4 && a.to[1] === 5), lv + ' H3 白打一下应该打: ' + JSON.stringify(s)); else console.log(lv, 'H3', JSON.stringify(s));
   }
   console.log('BFAI HP OK');
+  // —— 观察接口（C62 B）：思考记录开、关，按节点数收手，走法和节点数逐个相同；估值拆分加起来等于 score ——
+  {
+    let seed = 1;
+    const rnd = () => { seed = (seed * 16807) % 2147483647; return (seed - 1) / 2147483646; };
+    const R0 = Math.random;
+    const run = async (S, lv, tr) => { seed = 12345; Math.random = rnd; AI.trace = tr; AI.think.last = null; try { const seq = await AI.think(BF.cloneState(S), lv); return { seq: JSON.stringify(seq), nodes: AI.think.last.nodes, depth: AI.think.last.depth, trace: AI.think.last.trace }; } finally { AI.trace = false; Math.random = R0; } };
+    // 几个局面：开局；按新兵对校尉走几回合后的中局（技能、升级、兵法都会出现）
+    const states = [];
+    const g = new BF.Game(); states.push(BF.cloneState(g.S));
+    seed = 777; Math.random = rnd;
+    for (let k = 0; k < 24 && !g.result; k++) { const seq = await AI.think(BF.cloneState(g.S), k % 2 ? 'mid' : 'easy'); if (!seq) break; for (const a of seq) if (!g.apply(a)) break; if (k % 6 === 5 && !g.result) states.push(BF.cloneState(g.S)); }
+    Math.random = R0;
+    let nTr = 0;
+    for (const S of states) for (const lv of ['easy', 'mid', 'hard']) {
+      const off = await run(S, lv, false), on = await run(S, lv, true);
+      assert.strictEqual(on.seq, off.seq, `trace 开关改了走法 ${lv}: ${off.seq} / ${on.seq}`);
+      assert.strictEqual(on.nodes, off.nodes, `trace 开关改了节点数 ${lv}: ${off.nodes} / ${on.nodes}`);
+      assert(!off.trace && on.trace && on.trace.seq, 'trace 只在开着时有 ' + lv + ' off:' + !!off.trace + ' on:' + JSON.stringify(on.trace || null).slice(0, 300));
+      if (lv !== 'easy') { assert(on.trace.cand.length >= 1 && on.trace.iter.length >= 1, 'trace 里有候选和逐层轨迹'); nTr++; }
+      const P = AI.scoreParts(S, S.turn), sum = Object.keys(P).filter(k => k !== '合计').reduce((a, k) => a + P[k], 0);
+      assert(Math.abs(sum - P['合计']) < 1e-9 && P['合计'] === AI.score(S, S.turn), 'scoreParts 加起来等于 score');
+    }
+    console.log('BFAI TRACE OK', states.length, '个局面', nTr, '份记录');
+  }
 })().catch(e => { console.error(e.message || e); process.exit(1); });

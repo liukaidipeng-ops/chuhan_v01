@@ -544,7 +544,9 @@
     }
     if (!kids.length) {
       // 普通着法一步都没有（被将死的样子），但背水一战还能解：就用它
-      if (pofu.length) { const k = pofu[0]; if (k.up) seq.push({ k: 'up', at: k.up.at }); seq.push(k.a); think.last = { nodes, ms: now() - t0, v: 0, n: 0, depth: 0, top: [] }; if (TR) { TR.why = 'only-art'; TR.seq = JSON.parse(JSON.stringify(seq)); think.last.trace = TR; } }
+      if (pofu.length) { const k = pofu[0]; if (k.up) seq.push({ k: 'up', at: k.up.at }); seq.push(k.a); }
+      think.last = { nodes, ms: now() - t0, v: 0, n: 0, depth: 0, top: [] };   // 没有着可走（将死 / 困毙）时也换一份，别留着上一步的
+      if (TR) { TR.why = pofu.length ? 'only-art' : 'no-move'; TR.seq = JSON.parse(JSON.stringify(seq)); think.last.trace = TR; }
       return seq;
     }
     for (const k of kids) { const w = decided(k.S, k.ev); k.done = !!w; k.q = w ? (w === me ? WIN : -WIN) : score(k.S, me); k.v = k.q; }
@@ -691,7 +693,7 @@
       const Mw = (L.noise * 1.6 + 0.02) * 0.95;
       try { TR.cand = kids.slice(0, 8).map(k => ({ a: actOf(k), v: +k.v.toFixed(3), exact: !k.off && (k === kids[0] || k.v > bestV - Mw), pv: k.S && !k.done ? pvOf(k.S, Math.max(0, depthDone - 1), 7) : [] })); } catch (e) { TR.cand = kids.slice(0, 8).map(k => ({ a: actOf(k), v: +k.v.toFixed(3) })); TR.pvErr = String(e); }
       TR.pofuN = pofu.length;
-      TR.pick = { a: actOf(pick), rank: kids.indexOf(pick), best: actOf(kids[0]), random: pick0 !== pool[0], noise: L.noise, top: L.top };
+      TR.pick = { a: actOf(pick), rank: kids.indexOf(pick), best: actOf(kids[0]), random: pick0 !== kids[0], noise: L.noise, top: L.top };   // random：噪声或前几名随机让它没选第一名
       Object.assign(TR, { ms: Math.round(now() - t0), nodes, depth: depthDone, why: L.fixedDepth ? 'fixed' : why, seq: JSON.parse(JSON.stringify(seq)) });
       think.last.trace = TR;
     }
