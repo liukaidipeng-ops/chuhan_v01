@@ -57,7 +57,7 @@ const BFX = (() => {
     document.body.classList.add('cine');
     return Cam.to(c.clone().addScaledVector(hd, dist).add(new V3(0.6, h, 0)), c.clone().add(new V3(0, 0.3, 0)), dur);
   }
-  // 击杀后在倒下的位置飘出“+N 功”（下面一行“甲 +1”：出手的子攒一片甲）
+  // 击杀后在倒下的位置飘出“+N 功”（下面一行“功勋 +1”：出手的子得 1 点功勋）
   function gainPops(ev) {
     const kills = ev.filter(e => e.e === 'kill' && e.gain);
     kills.forEach((e, i) => setTimeout(() => {
@@ -65,7 +65,7 @@ const BFX = (() => {
       if (p.z > 1) return;
       const x = (p.x + 1) / 2 * innerWidth, y = (1 - p.y) / 2 * innerHeight;
       const d = document.createElement('div'); d.className = 'gainpop ' + (e.s === 'r' ? 'b' : 'r');
-      d.innerHTML = `+${e.gain} 功` + (e.by != null && ev.some(x => x.e === 'xp' && x.id === e.by) ? '<small>甲 +1</small>' : '');
+      d.innerHTML = `+${e.gain} 功` + (e.by != null && ev.some(x => x.e === 'xp' && x.id === e.by) ? '<small>功勋 +1</small>' : '');
       d.style.left = x + 'px'; d.style.top = y + 'px';
       document.body.appendChild(d); setTimeout(() => d.remove(), 1700);
     }, i * 160));

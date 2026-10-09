@@ -170,6 +170,19 @@ input.code{font-size:calc(30px * var(--fs,1));letter-spacing:.4em;text-align:cen
 @keyframes goGlow{50%{box-shadow:0 0 0 2px rgba(233,178,90,.55),0 0 16px rgba(192,67,43,.8)}}
 #tip{position:fixed;z-index:45;max-width:min(300px,calc(100vw - 16px));background:rgba(24,20,18,.95);color:#f1e3c2;border:1px solid rgba(217,184,119,.7);box-shadow:0 8px 24px rgba(0,0,0,.35),inset 0 0 0 3px rgba(24,20,18,.9),inset 0 0 0 4px rgba(217,184,119,.25);border-radius:4px;padding:9px 12px;font-size:calc(13px * var(--fs,1));line-height:1.65;letter-spacing:.03em;pointer-events:none;text-align:left}
 #tip b{color:#ffd98a;font-weight:bold;letter-spacing:.08em}#tip em{font-style:normal;color:#ff9a7a}#tip small{color:#bfae8a;font-size:calc(12px * var(--fs,1))}
+/* 棋子说明：生命红、攻击橙、功勋金三块大字（Ham 10-09 20:31：重点强调，加粗放大） */
+#tip .tnm{font-size:calc(15px * var(--fs,1))}#tip>em{display:block}
+#tip .tst{display:flex;gap:6px;margin:7px 0 5px}
+#tip .tst>div{flex:1 1 0;min-width:0;padding:3px 4px 5px;border:1px solid;border-radius:3px;text-align:center;line-height:1.15}
+#tip .tst i{display:block;font-style:normal;font-size:calc(11px * var(--fs,1));letter-spacing:.2em;margin-bottom:1px}
+#tip .tst b{display:block;font-size:calc(24px * var(--fs,1));letter-spacing:0;font-variant-numeric:tabular-nums}
+#tip .tst b small{font-size:calc(14px * var(--fs,1));color:inherit;opacity:.65;margin-left:1px}
+#tip .tst .hp{border-color:rgba(255,110,96,.6);background:rgba(255,110,96,.12)}#tip .tst .hp i{color:#ff9c90}#tip .tst .hp b{color:#ff6e60}
+#tip .tst .at{border-color:rgba(255,166,64,.6);background:rgba(255,166,64,.12)}#tip .tst .at i{color:#ffc27a}#tip .tst .at b{color:#ffa640}
+#tip .tst .xp{border-color:rgba(255,215,90,.6);background:rgba(255,215,90,.1)}#tip .tst .xp i{color:#ffe08a}#tip .tst .xp b{color:#ffd75a}
+#tip .tst u{display:block;height:3px;margin:3px 4px 0;background:rgba(255,215,90,.18);border-radius:2px;overflow:hidden;text-decoration:none}#tip .tst u s{display:block;height:100%;background:#ffd75a;text-decoration:none}
+#tip .tnote{color:#e8d6ae;font-size:calc(12px * var(--fs,1));margin-bottom:3px}#tip .tnote b{color:#ffd75a;letter-spacing:.02em}
+#tip .tsk{margin-top:2px}#tip .tsk.off{opacity:.6}#tip .tsk small{margin-right:4px}#tip .tnx{margin-top:4px;padding-top:4px;border-top:1px solid rgba(217,184,119,.25)}
 .sk,.pcard .fxs span{-webkit-touch-callout:none;-webkit-user-select:none;user-select:none}
 .sk.ready{box-shadow:0 0 0 2px rgba(255,210,122,.8),0 0 14px rgba(255,200,90,.6);animation:skGlow 1.6s ease-in-out infinite}
 .sk.ok{background:linear-gradient(#b93a26,#8c2415);color:#fff3dc;border-color:#f0c88a}
@@ -1093,7 +1106,7 @@ html:has(#endcard:not(.hidden)),html:has(#endcard:not(.hidden)) body,html:has(#e
     <div class="dsec"><span id="dbgTip"></span> <button id="dbgStop" class="hidden">停止摆放</button></div>
     <div class="drow">已选中：<span id="dbgSel">—</span></div>
     <div class="drow">等级 <button data-lv="1">一</button><button data-lv="2">二</button><button data-lv="3">三</button><button data-lv="4" title="车、兵、士、相 / 象能升四级">四</button>　血 <button data-hp="-1">−</button><button data-hp="1">＋</button></div>
-    <div class="drow">甲片（击杀数） <button data-xp="-1">−</button><button data-xp="1">＋</button>　<button id="dbgCd">清冷却</button></div>
+    <div class="drow">功勋（击杀数） <button data-xp="-1">−</button><button data-xp="1">＋</button>　<button id="dbgCd">清冷却</button></div>
     <div class="drow">军功 汉 <input id="dbgMr" type="number" min="0" max="30"> 楚 <input id="dbgMb" type="number" min="0" max="30"></div>
     <div class="drow">回合 <input id="dbgRound" type="number" min="1" max="200"> 走棋 <button data-turn="r">汉</button><button data-turn="b">楚</button></div>
     <div class="drow">兵法 <button id="dbgArts">重置已用</button> 状态 <button id="dbgFx">清除涣散/鸿门宴</button></div>
@@ -1312,9 +1325,9 @@ html:has(#endcard:not(.hidden)),html:has(#endcard:not(.hidden)) body,html:has(#e
   <div class="help">
   · 走法、将死、困毙不变；帅将没有生命值、不能升级、不受技能伤害、也不能被吃。<br>
   · <b>军功</b>：开局 3、上限 30。击杀兵卒 +1、士相象 +2、马炮 +3、车 +5（被杀的子每升一级再 +1）；将军 +1；兵卒过河 +1；己方被杀一子 +1；第 16 回合起每回合双方各 +1。<br>
-  · <b>升级</b>：每次行动前可花军功给一枚子升一级（不占行动）。二级只长血（2 血），三级 3 血并解锁兵种技能。车、兵卒、士、相/象可升四级（车 20 功、兵卒 8 功、士 4 功、相/象 5 功），四级都不再加血：车换来更强的名将之身，兵卒、士、相/象各得新技能。<b>车升级贵</b>：10 / 12 / 20 功（兵卒 3 / 5 / 8，马、炮 5 / 7）。杀敌攒下的甲片数够了下一级的价钱，会当场<b>自动升级</b>，不花军功。升到四级的子会得到一位楚汉名将的名字。士、相/象升级便宜（2 / 3 功）。<br>
+  · <b>升级</b>：每次行动前可花军功给一枚子升一级（不占行动）。二级只长血（2 血），三级 3 血并解锁兵种技能。车、兵卒、士、相/象可升四级（车 20 功、兵卒 8 功、士 4 功、相/象 5 功），四级都不再加血：车换来更强的名将之身，兵卒、士、相/象各得新技能。<b>车升级贵</b>：10 / 12 / 20 功（兵卒 3 / 5 / 8，马、炮 5 / 7）。杀敌攒下的<b>功勋</b>够了下一级的价钱，会当场<b>自动升级</b>，不花军功。升到四级的子会得到一位楚汉名将的名字。士、相/象升级便宜（2 / 3 功）。<br>
   · <b>看等级与血量</b>：棋身材质就是等级——一级木、二级乌银错花、三级錾金、四级羊脂白玉金缕（升级后字面换成掐丝珐琅）；头顶细血条（汉红、楚绿）是生命值。<br>
-  · <b>甲片</b>：每击杀一个敌方单位，那枚子腰带上镶一片甲，下次升级少花 1 功（升级时用掉，最少 1 功）。误伤己方子不得军功、不镶甲。<br>
+  · <b>功勋</b>：每击杀一个敌方单位，出手的那枚子得 1 点功勋（腰带上多一片铁牌）。功勋攒满下一级的价钱就自动升级；没攒满时，花军功升级每点功勋抵 1 功（升级后清零，最少花 1 功）。误伤己方子不得军功、也不得功勋。<br>
   · <b>攻击</b>：走到敌子格时，敌子血量不超过攻方攻击力就吃掉占位，否则只打掉攻击力那么多血，攻方退回原位。<b>攻击力</b>：车、马、炮、兵卒一、二级是 1，<b>三级起是 2</b>；士、相 / 象二级起是 2；帅将始终是 1。打不死将军的子不算解将。<br>
   · <b>兵种技能</b>（三级解锁，有冷却）：兵卒「拒马」不占行动，架完再走一步棋，反伤来犯者；车「冲阵」以直线上遇到的第一枚子为跳板（敌我皆可、帅将除外，跳板挨 1 点伤害），落到它身后一格——空格直接落下，有子且一击可杀就吃掉占位，打不死则扣它血、车退回原位；马「踏营」无视蹩马腿（只能在敌方半场用）；炮「霹雳」五格落弹溅伤四周；相/象「飞越」无视塞象眼；士「护驾」与帅将换位（鸿门宴期间护驾可把汉王救出来）。<br>
   · <b>四级技能</b>：汉相「齐射」不动身射斜线两格；楚象「践踏」攻击或吃子后就地跺脚，那一格周围一圈敌子各扣 1 点、残血踩死（被动，走空格不触发）；兵卒「神速营」八个方向直线疾行 1～2 格、可越子，落点须是空格、不能攻击（冷却 5）；兵卒「回防」可后退一格（冷却 2）；士「铁甲禁卫」可在九宫内上下左右走一格（冷却 2）。<br>
