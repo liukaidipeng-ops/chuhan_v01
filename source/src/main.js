@@ -8,6 +8,7 @@
   // 更新说明（设置里、大厅底部点「更新」查看；最新的放最前）
   const NEWS = [
     ['第六版', '2026 年 10 月', [
+      '俯瞰、定盘（正上方看）时，吃子、放技能不再拉特写镜头、镜头不跟着跑，震屏也减到两成，画面稳了',
       '修好一个严重问题：电脑上点过页面以后，拖动浏览器窗口会卡死，连别的软件一起卡。原因是为苹果手机准备的一段“静音循环”用了 0 秒的空文件，在电脑上每秒从头重放上万次；现在改成 1 秒真静音，而且只在苹果设备上放',
       '技能模式升级先弹确认框：写明升了以后血量、攻击怎么变，解锁什么技能、花多少军功、升完还剩多少，点「升级」才升；召回良将后的升级也一样',
       '「视」按钮改成三档（对电脑、联机、观战）：沙盘（斜着看，能转能拖能缩放）→ 俯瞰（从正上方看，能拖能缩放）→ 定盘（从正上方看，锁住不动），换的时候在「谁走棋」下面亮一下名字；记住上次选的档。本地双人暂时照旧（按「视」换边）',
@@ -1213,14 +1214,14 @@
       faceYaw = Math.atan2(toWin.x, toWin.z);
       document.body.classList.add('cine');
       const side = new THREE.Vector3(1, 0, 0);
-      Core.Cam.to(center.clone().addScaledVector(toWin, 3.4).addScaledVector(side, 1.6).add(new THREE.Vector3(0, 1.9, 0)), center.clone().add(new THREE.Vector3(0, 0.35, 0)), 1.6);
+      Core.Cam.to(center.clone().addScaledVector(toWin, 3.4).addScaledVector(side, 1.6).add(new THREE.Vector3(0, 1.9, 0)), center.clone().add(new THREE.Vector3(0, 0.35, 0)), 1.6, undefined, true);
     } else {
       const cp = Core.Cam.pos.clone();
       faceYaw = Math.atan2(cp.x - center.x, cp.z - center.z);
       // 精简档：终局时镜头缓缓推近败方主帅（低特效不动）
       if (Fx.level === 'std') {
         const d = cp.clone().sub(center); d.y = 0; d.normalize();
-        Core.Cam.to(center.clone().addScaledVector(d, 4.6).add(new THREE.Vector3(0, 3.6, 0)), center.clone().add(new THREE.Vector3(0, 0.3, 0)), 2.6);
+        Core.Cam.to(center.clone().addScaledVector(d, 4.6).add(new THREE.Vector3(0, 3.6, 0)), center.clone().add(new THREE.Vector3(0, 0.3, 0)), 2.6, undefined, true);
       }
     }
     if (km) Fx.sink(km);

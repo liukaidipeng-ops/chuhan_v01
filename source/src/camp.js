@@ -9,6 +9,7 @@ const Camp = (() => {
     b: { tent: 0x33302f, tent2: 0x242222, stripe: 0x8a2a1e, trim: 0xb08a3a, roof: 0x1d1b1b, felt: 0x3d3936, flag: '楚', lord: '項' },
   };
   const vcMat = Models.vcMat;
+  const BATCH = typeof location !== 'undefined' && /[?&]batch=1/.test(location.search);   // 兵营小队合批（td-002，待 Ham 看过）
 
   // 把一组"人体尺度"零件摆到世界坐标
   function place(parts, x, z, ry = 0, k = K, y = 0) {
@@ -153,22 +154,24 @@ const Camp = (() => {
       else u.p.set(side * (5.25 + line * 0.36), 0, sg * (0.95 + i * 0.42));
       u.yaw = side > 0 ? -Math.PI / 2 : Math.PI / 2;
     }
-    scene.add(guards.group);
     // 营门与大帐前的卫兵
     const sentries = new Models.Troop(s, 'sword', 6, K);
     [[-0.7, 10.35], [0.7, 10.35], [-1.3, 6.7], [1.3, 6.7], [-6.3, 7.4], [6.3, 7.4]].forEach(([x, z], i) => {
       const u = sentries.units[i]; u.p.set(x, 0, sg * z); u.yaw = sg > 0 ? Math.PI : 0;
     });
-    scene.add(sentries.group);
     // 望楼上的弓手
     const archers = new Models.Troop(s, 'archer', 2, K);
     archers.units.forEach((u, i) => { u.p.set((i ? 1 : -1) * 6.3, 6.4 * K, sg * 6.6); u.yaw = sg > 0 ? Math.PI : 0; });
-    scene.add(archers.group);
     // 擂鼓的士兵：站在鼓和护卫队列之间，背朝棋盘、面朝鼓面；鼓点一响（音效或配乐）就抡槌
     const drummers = new Models.Troop(s, 'drummer', 2, K);
     drummers.units.forEach((u, i) => { const side = i ? 1 : -1; u.p.set(side * (DRUM_X - 0.37), 0, sg * DRUM_Z); u.yaw = side > 0 ? Math.PI / 2 : -Math.PI / 2; u.pose = 'drum'; u.hand = i; });
-    scene.add(drummers.group);
     const troops = [guards, sentries, archers];
+    // 营门卫兵、望楼弓手、鼓手三小队合成一批画（各队照旧算动作，每帧把结果抄进合并的网格）：一营 48 次绘制 → 16 次（td-002）。
+    //   列阵护卫（44 人）单独一批：要是也合进去，每个护卫都得多算另外三种兵的顶点，得不偿失
+    //   先只在网址带 ?batch=1 时启用，等 Ham 在审批台看过前后对比再改成默认
+    scene.add(guards.group);
+    const batch = BATCH ? new Models.TroopBatch([sentries, archers, drummers]) : null;
+    if (batch) scene.add(batch.group); else scene.add(sentries.group, archers.group, drummers.group);
     for (const tr of troops) for (const u of tr.units) { u.home = u.p.clone(); u.homeYaw = u.yaw; u.pose = 'idle'; }
 
     // 旌旗
@@ -198,6 +201,7 @@ const Camp = (() => {
       steer(camp, dt);
       for (const tr of troops) tr.update(dt);
       drummers.update(dt);
+      if (batch) batch.sync();
       for (const b of banners) b.update(dt);
       for (const f of flames) {
         const k = 0.7 + 0.3 * Math.sin(t * 13 + f.userData.ph) * Math.sin(t * 7.3 + f.userData.ph * 2);
