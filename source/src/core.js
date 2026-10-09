@@ -16,8 +16,13 @@ const Core = (() => {
   try { const q = localStorage.getItem('xq3d-quality'); if (q) { quality = JSON.parse(q); userQ = true; } else if (isMobile) quality = 'mid'; } catch (e) { if (isMobile) quality = 'mid'; }
   if (softGL && !userQ) quality = 'low';
   const renderer = new THREE.WebGLRenderer({ canvas, antialias: quality !== 'low', powerPreference: 'high-performance' });
-  const prFor = q => Math.min(window.devicePixelRatio, q === 'high' ? 2 : q === 'mid' ? 1.5 : 1);
-  renderer.setPixelRatio(prFor(quality));
+  // 像素比：按画质封顶，再按“整张画布最多多少像素”封顶。大屏、高分屏全屏时画布能有上千万像素（还带多重采样），
+  //   显卡（尤其集成显卡）吃不消，会拖累整台电脑（10-09 Ham：高配电脑卡、拖成独立窗口时所有软件都卡住）
+  const PX_BUDGET = { high: 3.7e6, mid: 2.4e6, low: 1.4e6 };
+  const prFor = q => {
+    const cap = q === 'high' ? 2 : q === 'mid' ? 1.5 : 1, area = Math.max(1, window.innerWidth * window.innerHeight);
+    return Math.max(0.75, Math.min(window.devicePixelRatio || 1, cap, Math.sqrt((PX_BUDGET[q] || PX_BUDGET.mid) / area)));
+  };
   renderer.localClippingEnabled = true;
   renderer.debug.checkShaderErrors = false;   // 线上不查着色器报错：查一次要同步等显卡编完，第一次画东西时会卡
   renderer.shadowMap.enabled = quality !== 'low';
@@ -43,15 +48,23 @@ const Core = (() => {
   sun.shadow.normalBias = 0.02;
   scene.add(sun, sun.target);
 
+  // 窗口大小变了：重新分配画布（显卡上一整块内存）。拖动窗口、把标签拖成独立窗口时 resize 一秒几十次，
+  //   每次都重新分配会把显卡拖垮（整台电脑卡住、窗口发白）。所以等窗口停下来 0.2 秒再一次性分配；这期间画面先拉伸着显示。
+  //   尺寸和像素比都没变就不动（给 canvas.width 赋同样的值也会清空重分配）
   function resize() {
-    const w = window.innerWidth, h = window.innerHeight;
-    renderer.setSize(w, h, false);
+    const w = window.innerWidth, h = window.innerHeight, pr = prFor(quality);
+    const c = renderer.domElement, size = renderer.getSize(new THREE.Vector2());
+    if (c.width !== Math.floor(w * pr) || c.height !== Math.floor(h * pr) || size.x !== w || size.y !== h) renderer.setDrawingBufferSize(w, h, pr);
     camera.aspect = w / h;
     camera.fov = w / h < 0.8 ? 58 : 42;
     camera.updateProjectionMatrix();
-    try { if (!Cam.cine) Cam.radius = Cam.fitRadius(); } catch (e) { /* 初始化时 Cam 尚未定义 */ }
+    try { if (!Cam.cine) Cam.radius = Cam.view ? Cam.fitTop() : Cam.fitRadius(); } catch (e) { /* 初始化时 Cam 尚未定义 */ }
   }
-  window.addEventListener('resize', resize);
+  let resizeT = 0;
+  const resizeSoon = () => { clearTimeout(resizeT); resizeT = setTimeout(resize, 200); };
+  window.addEventListener('resize', resizeSoon);
+  // 拖到另一块屏幕（像素比变了）也要重算
+  (function watchDpr() { try { const m = matchMedia(`(resolution: ${window.devicePixelRatio || 1}dppx)`); m.addEventListener('change', () => { resizeSoon(); watchDpr(); }, { once: true }); } catch (e) { } })();
   resize();
 
   // ---------- 时间与补间 ----------
@@ -414,7 +427,7 @@ const Core = (() => {
 
   return {
     get quality() { return quality; },
-    setQuality(q, keep = true) { quality = q; if (keep) try { localStorage.setItem('xq3d-quality', JSON.stringify(q)); } catch (e) { } renderer.setPixelRatio(prFor(q)); const sh = q !== 'low'; if (sh) renderer.shadowMap.enabled = true; if (sun.castShadow !== sh) { sun.castShadow = sh; held++; const un = () => { held--; }; compileBg(scene, camera, 600).then(un); } resize(); },   // keep=false：只这一次打开页面有效（自动降画质用）。
+    setQuality(q, keep = true) { quality = q; if (keep) try { localStorage.setItem('xq3d-quality', JSON.stringify(q)); } catch (e) { } const sh = q !== 'low'; if (sh) renderer.shadowMap.enabled = true; if (sun.castShadow !== sh) { sun.castShadow = sh; held++; const un = () => { held--; }; compileBg(scene, camera, 600).then(un); } resize(); },   // keep=false：只这一次打开页面有效（自动降画质用）。
     // 影子用太阳的 castShadow 开关：三维库会发现灯光变了、自动重编着色器，当场生效（原来改 shadowMap.enabled 要下次打开才生效）
     gpu: GPU, softGL, get parallelGL() { return parallelGL; }, get userQ() { return userQ; },
     isMobile,
