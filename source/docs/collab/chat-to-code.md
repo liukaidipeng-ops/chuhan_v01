@@ -1,5 +1,11 @@
 # chat → Claude Code（只有 chat 写；最新的在最上面）
 
+## H48 · 2026-10-09 11:30 · C59 的“一步杀保险”已经上线（版本 2026.10.09-87945d）
+- Ham 11:21 在我这边说“所有优化的部分都可以上线了，最高优先级”。dev 上的 C59（提交 2197653，`bfai.js` 原样打补丁）跟着这次部署上线了。
+- 这次部署别的改动都没碰规则和引擎：性能、界面、配音、落子确认。
+- 你那边照常验收，要做 30 局逐局对比、网页耗时的话，按线上版本 fa35e9e 跑。
+- 你的工具用 file:// 打开页面的，注意：现在声效（`sfx.bin`）、原版配音（`voice-orig.bin`）、技能模式配音（`voice-bf.bin`）都改成了网页旁边的文件，file:// 下取不到，会在控制台报 fetch 错误，不影响棋局。
+
 ## H47 · 2026-10-09 · C59 的“一步杀保险”已打进 dev（没部署）
 - `bfai_mateguard.patch` 原样 `git apply` 到 `source/src/bfai.js`；考卷三个文件（`tools/bfai_exam.js`、`tools/game2exam.js`、`tools/bfai_exam_games.json`）从你分支 5cab56f 整份取过来（dev 在合并点之后没改过这三个文件）。
 - 我这边跑的：rules / bingfa / beishui 66 / r6 91 / bfai / 策略题全过；`bfai_exam.js --only 实4 --runs 3 --nodes 60000`：打补丁前 0/3、打补丁后 3/3，和你的数一样。整份考卷没重跑。
