@@ -8,8 +8,13 @@ const Core = (() => {
   const canvas = document.getElementById('gl');
   // 画质档位：手机/低端设备自动降级
   const isMobile = matchMedia('(pointer:coarse)').matches || /Android|iPhone|iPad|Mobile/i.test(navigator.userAgent);
-  let quality = 'high';
-  try { const q = localStorage.getItem('xq3d-quality'); if (q) quality = JSON.parse(q); else if (isMobile) quality = 'mid'; } catch (e) { if (isMobile) quality = 'mid'; }
+  let quality = 'high', userQ = false;
+  // 浏览器到底用没用显卡：硬件加速关了（或者显卡被浏览器拉黑）时，画图全靠 CPU 软算，再好的电脑也会非常卡。
+  // 先用一个小画布问一下显卡名字；软算的话，没自己选过画质的人直接从「低」开始
+  const GPU = (() => { try { const c = document.createElement('canvas'), gl = c.getContext('webgl2') || c.getContext('webgl'); if (!gl) return ''; const e = gl.getExtension('WEBGL_debug_renderer_info'), n = String(gl.getParameter(e ? e.UNMASKED_RENDERER_WEBGL : gl.RENDERER)); const L = gl.getExtension('WEBGL_lose_context'); L && L.loseContext(); return n; } catch (e) { return ''; } })();
+  const softGL = /swiftshader|llvmpipe|softpipe|basic render|software/i.test(GPU);
+  try { const q = localStorage.getItem('xq3d-quality'); if (q) { quality = JSON.parse(q); userQ = true; } else if (isMobile) quality = 'mid'; } catch (e) { if (isMobile) quality = 'mid'; }
+  if (softGL && !userQ) quality = 'low';
   const renderer = new THREE.WebGLRenderer({ canvas, antialias: quality !== 'low', powerPreference: 'high-performance' });
   const prFor = q => Math.min(window.devicePixelRatio, q === 'high' ? 2 : q === 'mid' ? 1.5 : 1);
   renderer.setPixelRatio(prFor(quality));
@@ -29,7 +34,7 @@ const Core = (() => {
   scene.add(hemi);
   const sun = new THREE.DirectionalLight(0xfff0dc, 2.6);
   sun.position.set(-6, 14, 7);
-  sun.castShadow = true;
+  sun.castShadow = quality !== 'low';
   sun.shadow.mapSize.set(quality === 'high' ? 2048 : 1024, quality === 'high' ? 2048 : 1024);
   const sc = sun.shadow.camera;
   sc.left = -9; sc.right = 9; sc.top = 9; sc.bottom = -9; sc.near = 1; sc.far = 40;
@@ -185,8 +190,11 @@ const Core = (() => {
   // ---------- 主循环 ----------
   const clock = new THREE.Clock();
   let frameHooks = [];
+  // 帧时间（真实的，不封顶）：自动降画质和 ?perf 面板用
+  const ft = { n: 0, sum: 0, slow: 0, last: performance.now() };
   function loop() {
     requestAnimationFrame(loop);
+    { const t = performance.now(), d = t - ft.last; ft.last = t; if (Core.render && d < 1000) { ft.n++; ft.sum += d; if (d > 40) ft.slow++; } }
     const raw = Math.min(clock.getDelta(), 0.05);
     const dt = Time.hold ? 0 : raw * (Time.skip ? 14 : Time.scale) * Time.boost;   // hold：暂停，演出全部定住
     Time.t += dt;
@@ -379,11 +387,16 @@ const Core = (() => {
 
   return {
     get quality() { return quality; },
-    setQuality(q) { quality = q; try { localStorage.setItem('xq3d-quality', JSON.stringify(q)); } catch (e) { } renderer.setPixelRatio(prFor(q)); renderer.shadowMap.enabled = q !== 'low'; resize(); },
+    setQuality(q, keep = true) { quality = q; if (keep) try { localStorage.setItem('xq3d-quality', JSON.stringify(q)); } catch (e) { } renderer.setPixelRatio(prFor(q)); const sh = q !== 'low'; if (sh) renderer.shadowMap.enabled = true; sun.castShadow = sh; resize(); },   // keep=false：只这一次打开页面有效（自动降画质用）。
+    // 影子用太阳的 castShadow 开关：三维库会发现灯光变了、自动重编着色器，当场生效（原来改 shadowMap.enabled 要下次打开才生效）
+    gpu: GPU, softGL, get userQ() { return userQ; },
     isMobile,
     renderer, scene, camera, sun, hemi, Time, onFrame, tween, sleep, ease, Cam, canvasTex, Tex, rnd, inkBlot,
     toon, outlineMat, outlineShared, inked, merge, M4, disposeTree,
     start() { clock.start(); loop(); },
+    get nUpdaters() { return updaters.size + frameHooks.length; },   // 每帧要跑的回调有几个（查泄漏用）
+    // 取走这段时间的帧统计：[帧数, 平均毫秒, 超过 40 毫秒的帧数]，取完清零
+    takeFrames() { const r = [ft.n, ft.n ? ft.sum / ft.n : 0, ft.slow]; ft.n = ft.sum = ft.slow = 0; return r; },
     addHook(fn) { frameHooks.push(fn); },
     lastDragMoved: 0,
     render: (() => { try { return !localStorage.getItem('xq3d-norender'); } catch (e) { return true; } })(),

@@ -8,7 +8,8 @@
   // 更新说明（设置里、大厅底部点「更新」查看；最新的放最前）
   const NEWS = [
     ['第六版', '2026 年 10 月', [
-      '落子要点两下：点了落点先框住，再点一次同一个落点才走，防误触（设置 → 对局与其他里可以关）。兵种开口说台词时不再原地站着等，先慢慢走起来。炮弹在空中的呼啸换成了真实录音，四种随机出',
+      '打开快了很多：配音和声效改成进了大厅以后在后台下载，网页本身从 8 MB 减到 2.5 MB，手机上的加载页短多了。对局里一直卡会自动降一档画质；浏览器没开硬件加速（没用显卡）会提示怎么打开',
+      '落子要点两下：点了落点先出一个半透明的虚影，再点一次同一个落点才走，防误触（设置 → 对局与其他里可以关）。兵种开口说台词时不再原地站着等，先慢慢走起来。炮弹在空中的呼啸换成了真实录音，四种随机出',
       '轮到谁走，谁的头像牌外面多一圈朱红粗线；最后十秒粗线跟着读秒一亮一暗，越来越快。兵卒和炮过河不再走到岸边等船、上船下船，直接乘船过去，和平地一样快',
       '对局里的界面和其余弹窗也换成了新样子（头像牌、技能按钮、棋谱、喊话、玩法说明、暂停、终局卡片……），和大厅是一套',
       '将帅话多了：帅和将每次走、每次吃子都会说一句，各添了新词。还藏了些彩蛋——连着两次想走“将帅照面”的棋、开局第一步就动帅、帅亲手吃车、连着三回合都在走帅、连点自己的帅五下……各有各的说法；技能模式里四级名将阵亡，主帅会哀叹一声',
@@ -134,12 +135,26 @@
   Core.Cam.setSide('r');
   Board.faceViewer('r');
   Camp.init();
+  let lobbyIsUp; const lobbyUp = new Promise(r => { lobbyIsUp = r; });   // 加载页撤掉、大厅能点了
+  // 着色器先在后台编译（compileAsync：浏览器另开线程编，主线程不等），编好再画头几帧。
+  // 原来第一帧就同步编译，慢手机上要卡好几秒，正好压在刚打开页面的时候
+  { const canDraw = Core.render; if (canDraw) {
+    let ready = false, warm = 3; Core.render = false;
+    const R = Core.renderer, done = () => { ready = true; };
+    // 等加载页撤掉、大厅能点了再收尾（没有后台编译的浏览器，头一帧还是要同步编，别让它挡着加载页）
+    const comp = new Promise(r => { try { (R.compileAsync ? R.compileAsync(Core.scene, Core.camera) : Promise.resolve()).then(r, r); } catch (e) { r(); } });
+    Promise.all([comp, lobbyUp]).then(() => setTimeout(done, 300));
+    setTimeout(done, 12000);   // 万一一直不回话，也别一直不画
+    Core.onFrame(() => { if (!ready) { Core.render = false; return; } if (warm > 0) warm--; Core.render = warm > 0 || $('lobby').classList.contains('hidden'); });   // 页面刚开时大厅也带着 hidden（等开场动画），不能拿它判断
+  } }
   Core.start();
   let lobbySpin = true;
   Core.onFrame(dt => { if (lobbySpin && !Core.Cam.cine) Core.Cam.theta += dt * 0.04; });
-  // 大厅现在是整屏不透明的（美术 M3），后面的三维场景看不见：大厅开着时不画，省电、省发热。开头先画 90 帧，把着色器编译掉，免得开局第一帧卡
-  { const canDraw = Core.render; let warm = 90; if (canDraw) Core.onFrame(() => { if (warm > 0) warm--; Core.render = warm > 0 || $('lobby').classList.contains('hidden'); }); }
-  setTimeout(() => { $('loading').style.opacity = 0; setTimeout(() => $('loading').remove(), 900); }, 500);
+  // 大厅现在是整屏不透明的（美术 M3），后面的三维场景看不见：大厅开着时不画，省电、省发热。开头先画几帧，把着色器编译掉、影子图画好，免得开局第一帧卡
+  // （原来画 90 帧，慢手机上要占好几秒、正好压在刚打开页面的时候；编译着色器第一帧就做完了，画 3 帧够了）
+  setTimeout(() => { $('loading').style.opacity = 0; setTimeout(() => { $('loading').remove(); lobbyIsUp(); }, 900); }, 500);
+  // 配音包（几 MB）不等第一次点屏幕：大厅出来一会儿就在后台开始取，进对局时多半已经到了
+  setTimeout(() => { Voice.enabled = !!+S.voice; Voice.mode = +S.voice === 2 ? 'real' : 'orig'; }, 1500);
   // 首次触碰时解锁音频（iOS 必需）
   const unlock = () => { Sfx.init(); applySettings(); setTimeout(() => Voice.preload(['r_start', 'b_start', 'r_check', 'b_check', 'r_mate', 'b_mate']), 300); setTimeout(() => Voice.preload(Object.keys(Voice.LINES).filter(k => /_t\d|^ai_/.test(k))), 2500); setTimeout(() => Voice.preload(Object.keys(Voice.LINES).filter(k => /^u_/.test(k))), 4500); };
   window.addEventListener('pointerdown', unlock, { once: true });
@@ -183,11 +198,51 @@
     g.drawImage(t, 0, 0);
     return c.toDataURL('image/png');
   }
+  // 画一张要编译模型的着色器、还要从显卡读回像素，慢手机上能卡好几秒：等大厅出来、手上空闲了再画；
+  // 画好存在本机，同一个版本以后打开直接用（版本号变了才重画，模型改了能跟上）
   function makeFaces() {
-    try { faces.r = portrait('liu'); faces.b = portrait('xiang'); } catch (e) { console.warn('画像生成失败', e); }
-    paintCards();
+    const key = 'xq3d-faces', ver = window.APP_VERSION || '';
+    try { const c = JSON.parse(localStorage.getItem(key) || 'null'); if (c && c.v === ver && c.r && c.b) { faces.r = c.r; faces.b = c.b; paintCards(); return; } } catch (e) { }
+    const go = () => {
+      try { faces.r = portrait('liu'); faces.b = portrait('xiang'); } catch (e) { console.warn('画像生成失败', e); }
+      paintCards();
+      if (faces.r && faces.b) try { localStorage.setItem(key, JSON.stringify({ v: ver, r: faces.r, b: faces.b })); } catch (e) { }
+    };
+    if (window.requestIdleCallback) requestIdleCallback(go, { timeout: 8000 }); else go();
   }
-  setTimeout(makeFaces, 700);
+  lobbyUp.then(() => setTimeout(makeFaces, 2500));
+
+  // ---------- 卡顿对策 ----------
+  // 1) 浏览器没用显卡（硬件加速关了）：画质开头已经降到低（core.js），这里再告诉玩家怎么打开
+  lobbyUp.then(() => { if (Core.softGL && !Core.userQ) setTimeout(() => toast('这台设备的浏览器没有用显卡画图（硬件加速可能关了），所以会卡，已先用低画质。<br>在浏览器设置里打开「硬件加速 / 使用图形加速」，重启浏览器，会流畅很多。', 9000), 1200); });
+  // 2) 对局里一直卡：每 5 秒看一次，连着两次平均不到 25 帧就降一档画质（只这次打开有效，设置里存的不动；自己在设置里改过就不再自动降）
+  let autoQ = !Core.softGL, slowN = 0;
+  setInterval(() => {
+    const [n, avg] = Core.takeFrames();
+    if (!autoQ || document.hidden || !$('lobby').classList.contains('hidden') || n < 5) { slowN = 0; return; }
+    slowN = avg > 40 ? slowN + 1 : 0;
+    if (slowN >= 2 && Core.quality !== 'low') {
+      const q = Core.quality === 'high' ? 'mid' : 'low'; Core.setQuality(q, false); slowN = 0;
+      toast(`画面有点卡，已自动把画质降到「${q === 'mid' ? '中' : '低'}」（设置里可以改回来）`, 4000);
+    }
+  }, 5000);
+  // 3) 网址后面加 ?perf：左上角显示帧率、每帧绘制次数、显卡名字（查卡顿用，玩家看不到）
+  if (/[?&]perf\b/.test(location.search)) {
+    const d = document.createElement('div');
+    d.style.cssText = 'position:fixed;left:6px;top:6px;z-index:99999;background:rgba(0,0,0,.75);color:#9f9;font:12px/1.45 monospace;padding:6px 9px;border-radius:6px;pointer-events:none;white-space:pre';
+    document.body.appendChild(d);
+    let n = 0, t0 = performance.now(), lt = t0, worst = 0;
+    const tick = () => {
+      const t = performance.now(); worst = Math.max(worst, t - lt); lt = t; n++;
+      if (t - t0 >= 1000) {
+        const R = Core.renderer, i = R.info.render, c = R.domElement;
+        d.textContent = `${Math.round(n * 1000 / (t - t0))} 帧/秒  最慢一帧 ${worst.toFixed(0)} ms\n画质 ${Core.quality}  像素比 ${R.getPixelRatio()}  画布 ${c.width}×${c.height}\n每帧 ${i.calls} 次绘制  ${(i.triangles / 1000).toFixed(0)}K 三角形  影子 ${Core.sun.castShadow ? '开' : '关'}\n${Core.gpu || '显卡未知'}${Core.softGL ? '  ← 软件渲染，没用显卡！' : ''}\n${navigator.userAgent.replace(/^Mozilla\/5\.0 /, '').slice(0, 90)}`;
+        n = 0; t0 = t; worst = 0;
+      }
+      requestAnimationFrame(tick);
+    };
+    requestAnimationFrame(tick);
+  }
 
   // ---------- 提示 ----------
   let toastT = null;
@@ -3036,7 +3091,7 @@
 
   // ---------- 设置 ----------
   bindSeg($('mSet'), 'data-s', k => (k === 'quality' ? Core.quality : S[k]), (k, v) => {
-    if (k === 'quality') { Core.setQuality(v); toast('画质已调整（阴影开关在下次打开时生效）'); return; }
+    if (k === 'quality') { Core.setQuality(v); autoQ = false; toast('画质已调整'); return; }   // 自己选过画质，就不再自动降
     S[k] = (k === 'music' || k === 'vis') ? v : +v; applySettings();
     if (k === 'music' && (started || !mode)) { Sfx.init(); if (mode && !Ending.running) Sfx.Music.start(finalFx && v !== 'off' ? 'final' : v); }
   });

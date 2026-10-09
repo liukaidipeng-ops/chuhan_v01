@@ -755,12 +755,17 @@ const Board = (() => {
     const w = hc.width, h = hc.height, src = hc.getContext('2d').getImageData(0, 0, w, h).data;
     return mkCanvas(w, h, g => {
       const im = g.createImageData(w, h), d = im.data;
-      const H = (x, y) => { if (wrapX) x = (x + w) % w; else x = Math.max(0, Math.min(w - 1, x)); y = Math.max(0, Math.min(h - 1, y)); return src[(y * w + x) * 4] / 255; };
-      for (let y = 0; y < h; y++) for (let x = 0; x < w; x++) {
-        let nx = -(H(x + 1, y) - H(x - 1, y)) * k, ny = (H(x, y + 1) - H(x, y - 1)) * k, nz = 1;
+      // 左右上下邻居的下标先算好（原来每个像素调四次取样函数，大贴图开页面时要多花半秒多）
+      const xl = new Int32Array(w), xr = new Int32Array(w), kk = k / 255;
+      for (let x = 0; x < w; x++) { xl[x] = wrapX ? (x - 1 + w) % w : Math.max(0, x - 1); xr[x] = wrapX ? (x + 1) % w : Math.min(w - 1, x + 1); }
+      for (let y = 0; y < h; y++) {
+        const r0 = y * w, ru = Math.min(h - 1, y + 1) * w, rd = Math.max(0, y - 1) * w;
+        for (let x = 0; x < w; x++) {
+        let nx = -(src[(r0 + xr[x]) * 4] - src[(r0 + xl[x]) * 4]) * kk, ny = (src[(ru + x) * 4] - src[(rd + x) * 4]) * kk, nz = 1;
         if (dome) { nx += ((x + 0.5) / w * 2 - 1) * dome; ny -= ((y + 0.5) / h * 2 - 1) * dome; }
-        const l = Math.hypot(nx, ny, nz), i = (y * w + x) * 4;
+        const l = Math.sqrt(nx * nx + ny * ny + nz * nz), i = (r0 + x) * 4;
         d[i] = (nx / l * 0.5 + 0.5) * 255; d[i + 1] = (ny / l * 0.5 + 0.5) * 255; d[i + 2] = (nz / l * 0.5 + 0.5) * 255; d[i + 3] = 255;
+        }
       }
       g.putImageData(im, 0, 0);
     });
