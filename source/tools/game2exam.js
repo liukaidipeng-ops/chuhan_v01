@@ -2,12 +2,13 @@
 // 用法：
 //   node tools/game2exam.js 对局.txt                       列出每一回合双方走了什么（标出哪边是电脑）
 //   node tools/game2exam.js 对局.txt --turn 12楚           看第 12 回合楚方那一步：走之前的棋盘、电脑走了什么、深搜觉得该走什么
-//   node tools/game2exam.js 对局.txt --turn 12楚 --add --name "白送车" [--desc "说明"] [--answer '<JSON 行动序列>'] [--mode same|avoid|survive] [--verify 毫秒]
+//   node tools/game2exam.js 对局.txt --turn 12楚 --add --name "白送车" [--desc "说明"] [--answer '<JSON 行动序列>'] [--mode same|avoid|survive|nomate] [--verify 毫秒]
 //       把这一步收进 tools/bfai_exam_games.json（考卷会自动读）：电脑那步当“错误示范”。判卷方式 --mode：
 //         same    走出和 --answer 一样的主行动（答案里有升级的，升级也要一样）——有 --answer 时默认
 //         avoid   只要别再走电脑原来那一步——没 --answer 时默认
 //         survive 走完之后，裁判（当前电脑霸王档、按节点数深搜，默认 100 万节点，--judge-nodes 改）替对方找不到必胜——用于“原着法导致必败”的题，
 //                 别的同样守得住的走法也算对；--answer 只当标准答案存档、供 --lint 检查
+//         nomate  走完之后对方没有“一步杀”（对方可以先给一枚子升一级再走）——精确枚举，不靠搜索；用于“送了一步杀”的题（搜索本身会漏先升级再杀，survive 的裁判也会漏）
 //       收进去之前会先确认电脑那步、答案在这个局面下都合法。
 //   对局文本也可以从标准输入读：把文件名写成 -
 // 读取、重放、画棋盘都用 tools/game_load.js（导出格式由它负责，这里只调用）。
