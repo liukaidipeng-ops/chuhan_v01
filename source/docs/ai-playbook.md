@@ -49,7 +49,9 @@
 | `tools/simpair.js` | 两组同种子对打逐局比 | `node tools/simpair.js 对照.json.gz 新组.json.gz` |
 | `tools/bfai_exam.js` | 考卷：固定局面，看电脑走得对不对 | `node tools/bfai_exam.js a.js b.js --level hard --runs 3 --nodes hard=100000 [--only 关键字] [--lint]` |
 | `tools/game2exam.js` | 把用户导出的对局里某一步收成考题 | `--turn 17汉 --add --name 名字 --mode same/avoid/survive/nomate` |
-| `tools/dumbgames/trace_game.js` | **复盘**：电脑每一步的候选、分数、预想后续、两个裁判的判断、错因、分数拆分 | `node tools/dumbgames/trace_game.js 对局.txt --json 输出.json` |
+| `tools/review/review.js` | **复盘（第二版，2026-10-10 起用这个）**：按导出的版本号找当时那份引擎和电脑；用 TD 的正式观察接口（`BFAI.trace` 思考记录、`scoreParts`、裁判开关 `upAll` / `rootUpAll` / `fixedDepth`，C62 / H54），不打补丁。导出里有网页那次的真实思考记录就用它（算了几层、为什么停、候选和预想线、被筛掉的升级和原因、随机、一步杀保险），老导出按节点数重算。每步：深 / 宽裁判同层数比分、精确查一步杀、错因、估值拆分、“没料到”（自己的分一步掉 2 分以上）、Ham 的“这步笨”标记 | `node tools/review/review.js 对局.txt [--fast] [--md 报告.md] [--json 明细.json] [--branch i]` |
+| `tools/review/decode_issue.js` | 读「对局」工单（TD 的“存并发给数值部”）：json / gzip+base64 / 拆成几块的都能还原成导出格式 | `node tools/review/decode_issue.js 工单.txt --out 对局.txt` |
+| `tools/dumbgames/trace_game.js` | 旧版复盘（给电脑打文字补丁，TD 一改代码就断）；只留着复盘 C62 之前的老版本 | `BFAI_TR_BASE=提交 node tools/dumbgames/trace_game.js 对局.txt` |
 | `tools/dumbgames/depth_cmp.js` | 同样搜索量下各版本平均算到几层、用多少节点 | `LV=hard NODES=100000 node tools/dumbgames/depth_cmp.js 目录 live 版本…` |
 | `tools/dumbgames/fast_eq.js` | 提速验收：固定层数下根上每步的分是否和原版逐个相同 | `node tools/dumbgames/fast_eq.js 4 3` |
 | `tools/perf/` | 引擎提速的核对和测速 | 见其中 README |
@@ -103,6 +105,8 @@
 | 等结果的后台程序 | 最多跑 4 小时，会被停；GitHub 霸王档 600 局要 2 小时以上 |
 | 大模型多代理工作流（Fable） | 太耗额度；只在真需要时用、先说成本 |
 | 拿“换了算法、分数理论上相同”的版本逐局比对打 | 浮点数相加顺序不同，分数差 1e-14，打平的两步会选得不一样，整局就分岔了。核对要逐个局面比分数（`fit.js --check`），不能比整局 |
+| 一次推太多段 | GitHub 一次最多 256 段（matrix 上限），超了整批不开跑、两分钟就“失败”（r25）。`ci_sim.js plan` 现在会直接报错 |
+| 规则一天改几次 | 老对局要用当时的引擎才重放得了：`review.js` 按导出版本号到 main 的 version.json 历史里找部署提交；变体按文字锚点打补丁，TD 改了写法就要跟着改（H54 改了 score / upgradeCands 的写法） |
 | 校尉不写 `--nodes` | 校尉按时间收手（2.5 秒），机器快慢会影响结果；要复现就写 `--nodes mid=60000` |
 
 ---
