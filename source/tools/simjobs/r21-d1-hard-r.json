@@ -1,0 +1,3 @@
+{ "args": "--games 150 --seed 3000 --level hard --nodes hard=100000 --ai-r tools/variants/bfai_fast.js --ai-b git:4db9f8c",
+  "env": { "BFAI_LMR": "2", "BFAI_DELTA": "1" }, "chunks": 30,
+  "note": "霸王：靠后安静着法少算一层（LMR=2）+ 吃子搜索里全赚也追不上的不试（DELTA=1）执汉 对 线上 4db9f8c；和 r20-lmr2-hard 同种子逐局比，看 DELTA 加不加分" }

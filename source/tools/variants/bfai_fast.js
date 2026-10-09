@@ -62,12 +62,16 @@ function build(E, tag) {
     rep("pfCache.clear(); upCache.clear();", "pfCache.clear(); upCache.clear(); TTB.clear();");
   }
   if (LMR > 0) {
+    // 只在最多层数 > LMRMIN（默认 3）的档位用：r20 霸王 61.0%（300 局，z 3.9）；校尉（最多 3 层）48.1%，只是更快、不更强
+    const LMRMIN = E.BFAI_LMRMIN != null ? +E.BFAI_LMRMIN : 3;
+    rep("    kdMe = S0.turn; nodes = 0;", "    lmrOn = L.depth > " + LMRMIN + "; kdMe = S0.turn; nodes = 0;");
+    rep("  let nodes = 0, deadline = Infinity, qMax = 3;", "  let nodes = 0, deadline = Infinity, qMax = 3, lmrOn = false;");
     rep("    const list = order(A.gen(S, false), killers[ply]);", "    const list = order(A.gen(S, false), killers[ply]); let mi = 0;");
     rep("      legal++;\n      const w = decided(r.S, r.ev);\n      const v = w ? (w === side ? WIN - ply : -WIN + ply) : -ab(r.S, depth - 1, -beta, -alpha, ply + 1, ext);",
       "      legal++; mi++;\n      const w = decided(r.S, r.ev);\n" +
       "      let v;   // 变体 fast：排在后面的安静着法先少算一层试一下\n" +
       "      if (w) v = w === side ? WIN - ply : -WIN + ply;\n" +
-      "      else if (depth >= 2 && mi > " + LMR + " && !inChk && it.a.k === 'mv' && !it.q && !A.inCheck(r.S, r.S.turn)) { v = -ab(r.S, depth - 2, -alpha - 0.01, -alpha, ply + 1, ext); if (v > alpha) v = -ab(r.S, depth - 1, -beta, -alpha, ply + 1, ext); }\n" +
+      "      else if (lmrOn && depth >= 2 && mi > " + LMR + " && !inChk && it.a.k === 'mv' && !it.q && !A.inCheck(r.S, r.S.turn)) { v = -ab(r.S, depth - 2, -alpha - 0.01, -alpha, ply + 1, ext); if (v > alpha) v = -ab(r.S, depth - 1, -beta, -alpha, ply + 1, ext); }\n" +
       "      else v = -ab(r.S, depth - 1, -beta, -alpha, ply + 1, ext);");
   }
   if (DELTA > 0) rep("      if (n >= 6) break;\n      const r = BF.attempt(S, it.a); if (!r || r.free) continue;\n      n++;",
