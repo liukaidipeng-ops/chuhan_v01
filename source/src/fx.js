@@ -5,7 +5,7 @@ const Fx = (() => {
   const TOP = Board.TOP;
   const R = (a, b) => a + Math.random() * (b - a);
   const LOW = () => Core.quality === 'low';
-  const state = { level: 'cine', gore: 3, ply: 0, keep: 0 };
+  const state = { level: 'cine', gore: 3, ply: 0, keep: 0, quiet: false };   // quiet：技能演出中，走子不说兵种台词
 
   // ---------- 粒子 ----------
   const pools = { n: [], a: [] };
@@ -985,10 +985,45 @@ const Fx = (() => {
   // ---------- 兵种台词 ----------
   let lastBark = '';
   state.kingLines = []; state.onKingLine = null;
+  // 四级名将（技能模式）的台词编号前缀：h_<方>_<兵种><序号>，序号就是名将表里的位置（韩信 0、夏侯婴 1……）。
+  // 名字发完了的四级子（比如召回后又升上来的）借同兵种一位名将的声音（Ham 10-09：四级都用名将的声音）
+  function heroKey(p) {
+    if (!p || p.lv !== 4 || typeof BF === 'undefined' || !BF.HERO_CN) return null;
+    const names = (BF.HERO_CN[p.s] || {})[p.t] || []; if (!names.length) return null;
+    let i = p.nm;
+    if (i == null || i >= names.length) { let h = 0; for (const ch of String(p.id)) h = (h * 31 + ch.charCodeAt(0)) >>> 0; i = h % names.length; }
+    return `h_${p.s}_${p.t}${i}`;
+  }
+  // 兵种 / 名将说一句（兵种那一路，不打断主帅和旁白）。ids 给一组就随机挑一句，避开上一句；放不出来就不说
+  function unitSay(ids, { delay = 0, vol = 1, pan = 0, skipIfBusy = false } = {}) {
+    if (typeof Voice === 'undefined' || !Voice.enabled) return 0;
+    const pool = [].concat(ids).filter(x => x && Voice.has(x) && Voice.playable(x)); if (!pool.length) return 0;
+    const rest = pool.length > 1 ? pool.filter(x => x !== lastBark) : pool, id = rest[Math.floor(Math.random() * rest.length)];
+    lastBark = id;
+    const d = Voice.dur(id);
+    if (delay > 0) sleep(delay).then(() => Voice.bark(id, { vol, pan, skipIfBusy })); else Voice.bark(id, { vol, pan, skipIfBusy });
+    return d;
+  }
   function bark(info, c) {
     Sfx.line();   // 先当这一步没有台词；真要说了下面再登记（马、象、虎的脚步和叫声照着台词排）
     if (typeof Voice === 'undefined' || !Voice.enabled) return;
+    if (state.quiet) return;   // 技能演出里的走子：技能自己有台词（bfx.js 的 skill），这里不再说
     const p = info.piece, kill = !!c.tgt, king = p.t === 'k';
+    // 四级名将：每一步都说——走子两句挑一句，攻击两句挑一句；吃掉之后的那句由 bfx.js 的 strike 在倒下以后补
+    const hk = heroKey(p);
+    if (hk) {
+      const ids = kill ? [hk + '_a1', hk + '_a2'] : [hk + '_m1', hk + '_m2'];
+      const pool = ids.filter(x => Voice.has(x) && Voice.playable(x));
+      if (pool.length) {
+        if (!kill && Voice.busy) return;
+        const pan = Math.max(-0.7, Math.min(0.7, c.A.x / 6)) * (Board.viewSide === 'b' ? -1 : 1), delay = kill ? 0.35 : 0.1;
+        const rest = pool.length > 1 ? pool.filter(x => x !== lastBark) : pool, id = rest[Math.floor(Math.random() * rest.length)];
+        lastBark = id;
+        Sfx.line(delay / (Time.boost || 1), Voice.dur(id));
+        sleep(delay).then(() => Voice.bark(id, { vol: kill ? 1 : 0.85, pan, skipIfBusy: !kill }));
+        return;
+      }
+    }
     // 主帅的彩蛋台词（开局就动帅、被将军时自己走开、亲手吃车……）：main.js 事先按“哪一方、从哪到哪”登记好，这里对上了就由它来说（带字幕），不再说普通的那句
     if (king && state.kingLines.length) {
       const i = state.kingLines.findIndex(x => x.s === p.s && x.from[0] === info.from[0] && x.from[1] === info.from[1] && x.to[0] === info.to[0] && x.to[1] === info.to[1]);
@@ -1061,7 +1096,7 @@ const Fx = (() => {
   }
 
   return {
-    P, spawn, ring, slash, flash, glow, sink, rise, playMove, undoMove, checkStamp, mateSplash, reveal, flip, cineOn, cineOff, geom, bits, Marks, clearMarks, addSmoke,
+    P, spawn, ring, slash, flash, glow, sink, rise, playMove, heroKey, unitSay, undoMove, checkStamp, mateSplash, reveal, flip, cineOn, cineOff, geom, bits, Marks, clearMarks, addSmoke,
     chunks, throwObj, removePiece, flyFace, groundY, onWater, groundAt, shot, follow, slowmo, ctxOf, rv, R, state, resultAt, lowMove,
     get smokeCount() { return smokes.length; },
     get markLayer() { return layerCanvas; }, bakeAll() { for (const r of marks) { bake(r); scene.remove(r.m); r.m.material.dispose(); } marks.length = 0; flushPend(); layerTex.needsUpdate = true; layerDirty = false; lastUp = performance.now(); },

@@ -862,6 +862,7 @@
     // 技能模式的楚方主帅兵法用哪一套，记在这一局的选项里（bs = 1 背水一战）：新开的局用背水一战；
     //   没有这个记号的（改规则之前开的局接着下、房主还是旧版本、旧的复盘）照旧用破釜沉舟——联机双方、观众、接着下的局都看同一个记号，不会一边一套
     if (+opts.bf) { if (opts.bs == null && !state && (m === 'local' || m === 'ai' || m === 'host')) opts.bs = BS_NEW; BF.CFG.beishui.on = !!+opts.bs; }
+    if (+opts.bf) try { Voice.loadBF(); } catch (e) { }   // 技能模式专用的配音包（升级、名将、技能的台词）
     // 试行规则同样记在这一局的选项里（r6 = 1）：只有网址带 ?r6=1 的机器新开的局才有；没有这个记号的一律照现行规则
     //   自己新开的局（本地、人机、房主）每次都按这台设备现在的选择定；跟着别人的（客人、观众）和接着下的局看带来的记号
     if (+opts.bf) { if (!state && (m === 'local' || m === 'ai' || m === 'host')) opts.r6 = R6_NEW; BF.CFG.r6.on = !!+opts.r6; } else BF.CFG.r6.on = false;

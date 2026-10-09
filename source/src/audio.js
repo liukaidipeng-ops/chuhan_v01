@@ -655,18 +655,19 @@ const Voice = (() => {
   const SPK = { narr: '', xiang: '项王', liu: '汉王', elder: '乌江亭长' };
   // 两套配音各是网页旁边的一个包（不内嵌，首屏快）：写实版（默认）和原版，选了哪套才取哪套。
   // 当前这套还没取到、另一套已经在手里，就先拿另一套顶着
-  const PK = { real: window.VOICE_REAL || null, orig: window.VOICE_ORIG || null }, bin = { real: null, orig: null }, binP = { real: null, orig: null };
+  //   第三个包 rbf：技能模式专用的句子（升级、四级名将、技能），只录了写实版，进技能模式才取（Voice.loadBF）
+  const PK = { real: window.VOICE_REAL || null, orig: window.VOICE_ORIG || null, rbf: (window.VOICE_REAL || {}).bf || null }, bin = { real: null, orig: null, rbf: null }, binP = { real: null, orig: null, rbf: null };
   const REAL = PK.real;
   const bufs = new Map(), durs = new Map();
   let enabled = true, cur = null, barkSrc = null, mode = 'orig';
   function loadPack(k = mode) {
     const P = PK[k]; if (bin[k] || !P) return Promise.resolve();
-    if (!binP[k]) binP[k] = fetch(P.url).then(r => { if (!r.ok) throw 0; return r.arrayBuffer(); }).then(b => { bin[k] = b; }).catch(() => { binP[k] = null; });
+    if (!binP[k]) binP[k] = fetch(P.url).then(r => { if (!r.ok) throw 0; return r.arrayBuffer(); }).then(b => { bin[k] = b; }).catch(() => { setTimeout(() => { binP[k] = null; }, 30000); });   // 没取到：半分钟后才再试（别每句台词都去取一遍）
     return binP[k];
   }
   // 这一句现在从哪个包里放：[包名, 位置, 长度]
   function where(id) {
-    for (const k of mode === 'real' ? ['real', 'orig'] : ['orig', 'real']) { const P = PK[k], e = P && bin[k] && P.idx[id]; if (e) return [k, e[0], e[1]]; }
+    for (const k of mode === 'real' ? ['real', 'rbf', 'orig'] : ['orig', 'rbf', 'real']) { const P = PK[k], e = P && bin[k] && P.idx[id]; if (e) return [k, e[0], e[1]]; }
     return null;
   }
   const barkCut = () => { if (barkSrc) { try { barkSrc.stop(); } catch (e) { } barkSrc = null; } };
@@ -688,8 +689,9 @@ const Voice = (() => {
     get mode() { return mode; }, set mode(v) { mode = v === 'real' && REAL ? 'real' : 'orig'; if (enabled) loadPack(); },   // 配音关着就不取
     get realReady() { return !!bin.real; },
     preload(ids) { const go = () => (ids || Object.keys(LINES)).forEach(decode); if (!bin[mode]) loadPack().then(go); else go(); },
-    has(id) { return !!LINES[id] || !!(REAL && REAL.idx[id]); },
-    playable(id) { return !!where(id); },   // 这一句现在放得出来吗（两个包都还没取到、或者取到的包里没有这句，就放不出来）
+    has(id) { return !!LINES[id] || !!(REAL && REAL.idx[id]) || !!(PK.rbf && PK.rbf.idx[id]); },
+    loadBF() { if (enabled) loadPack('rbf'); },   // 开技能模式的局时先把技能模式的句子取来
+    playable(id) { const w = where(id); if (!w && enabled) { if (PK.rbf && PK.rbf.idx[id]) loadPack('rbf'); else if (mode === 'orig' && PK.real && PK.real.idx[id]) loadPack('real'); } return !!w; },   // 这一句现在放得出来吗（两个包都还没取到、或者取到的包里没有这句，就放不出来）。原版配音里没有的句子（升级、名将、技能的台词只录了写实版）：顺手把写实包取来，下次就有
     speaker(id) { return SPK[(LINES[id] || {}).spk] ?? ''; },
     text(id) { return (mode === 'real' && REAL.text[id]) || (LINES[id] || {}).text || ''; },
     async play(id, { onDur, minDur = 0, rate = 1 } = {}) {
