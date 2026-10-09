@@ -2,6 +2,48 @@
 
 最新的在最上面，编号接着往下排（M1、M2…）。格式见同目录 `MODEL-WORKFLOW.md` 第 6 节。TD 用 `git show origin/model-lab:source/docs/collab/model-to-main.md` 看。
 
+## M17 · 10-09 · 交付 · 血条改成棋子脚下的一圈立体血段（换掉头顶的血条贴图）
+
+- 提交：model-lab 上带这张交付单的那次提交。交付前合过 `origin/dev`（0ace9a7），`node build.js` 能过，`test/*.test.js` 全过。
+- Ham 确认（审批台）：art-056「倾向于光环……需要更融为一体……哪怕用光环，也需要用立体棋子」；art-059「立体光环放脚下试试呢？绿色改成低饱和度蓝色试试」；art-063「太粗了，细一点」；art-066「再细一点，血条区块之间的间隔稍微再宽一点点」；art-069 点了通过（22:30）。069 是三选一，审批台没记下选的哪个，我按和 066 原话一致的「同样细，间隔宽一点」写；Ham 要是改选，我再补一张交付单（只差两个数，见下）。
+- 改了哪些文件：只有本文件。画法在 `board.js`（归你），请照下面改。
+
+**改法**：`board.js` 约 1263 行，`if (p.lv >= 2 || kingF) { … hpTex … Sprite … }` 这一段，把头顶的贴图换成脚下一圈。显示条件不变（二级以上、帅将）。
+
+```js
+// 血条：棋子脚下贴着棋盘一圈立体血段，一点血一段（Ham 10-09 审批台 059/066/069）
+const HPC = { r: 0xb8382b, b: 0x4d6c8c };            // 汉朱红、楚低饱和蓝
+const hpSector = (R0, R1, a0, a1) => { const sh = new THREE.Shape(); sh.absarc(0, 0, R1, a0, a1, false); sh.absarc(0, 0, R0, a1, a0, true); sh.closePath(); return sh; };
+function footRing(hp, max, s, W = 0.045, D = 0.013, GAP = 0.3) {
+  const g = new THREE.Group(), R0 = 0.452, R1 = R0 + W, span = (Math.PI * 2 - GAP * max) / max;
+  // 底下一圈很淡的暗影，让血段像嵌在棋盘上
+  const base = new THREE.Mesh(new THREE.RingGeometry(R0 - 0.006, R1 + 0.006, 72), new THREE.MeshStandardMaterial({ color: 0x2a221c, roughness: 0.9, transparent: true, opacity: 0.35, depthWrite: false }));
+  base.rotation.x = -Math.PI / 2; base.position.y = 0.003; g.add(base);
+  for (let i = 0; i < max; i++) {
+    const a0 = Math.PI / 2 + GAP / 2 + i * (span + GAP), on = i < hp, bs = Math.min(0.008, W * 0.12);
+    const geo = new THREE.ExtrudeGeometry(hpSector(R0 + bs, R1 - bs, a0, a0 + span), { depth: on ? D : 0.004, bevelEnabled: true, bevelThickness: on ? D * 0.4 : 0.002, bevelSize: bs, bevelSegments: 3, curveSegments: 32 });
+    geo.rotateX(-Math.PI / 2);
+    const mat = on
+      ? new THREE.MeshPhysicalMaterial({ color: HPC[s], emissive: HPC[s], emissiveIntensity: 0.18, roughness: 0.38, metalness: 0.05, clearcoat: 0.6, clearcoatRoughness: 0.18 })   // 有血：珐琅
+      : new THREE.MeshStandardMaterial({ color: 0x2a221c, roughness: 0.9, transparent: true, opacity: 0.3, depthWrite: false });   // 掉了的：压平、半透明暗色
+    const mm = new THREE.Mesh(geo, mat); mm.position.y = 0.004; mm.castShadow = on; g.add(mm);
+  }
+  return g;
+}
+```
+然后原来那段改成：
+```js
+if (p.lv >= 2 || kingF) {
+  const ring = footRing(p.hp, max, p.s);
+  ring.userData.hpBar = { hp: p.hp, max }; d.add(ring);   // 还挂 hpBar，1173 行那句（不当皮肤处理）照常生效
+}
+```
+- 尺寸都是棋子自己坐标里的（棋子半径约 0.44）：内径 0.452，宽 0.045，凸起 0.013，段和段之间空 0.3 弧度。第一段从棋子自己的 −Z 方向起排（和审批台截图一致）。
+- 如果 Ham 改选另外两个：「066 原样」是 `GAP = 0.2`；「更细一点、间隔再宽」是 `W = 0.036, D = 0.011, GAP = 0.34`。
+- 可以缓存：几何体只跟 `max`、第几段、有没有血有关，材质只跟阵营、有没有血有关，按这几个键存起来就不用每次 `decorate` 都新建。`hpTex` 不用了可以删。
+- 拒马的十根木桩（1270 行，半径 0.5）会立在血圈上。拒马 Ham 刚让我重新设计（持矛兵），新样子出来以后一起对位置；在那之前两者叠着也看得清。
+- 效果见审批台 069 的图：手机沙盘、手机俯瞰、电脑沙盘、电脑拉近。没看的：低画质档（阴影关了以后血段的立体感会弱一点，颜色照样分得清）。
+
 ## M16 · 10-09 · 交付 · 银、金棋子顶面高光收小（只改 `board.js` 里 `SK` 的四个数）
 
 - 提交：model-lab 上带这张交付单的那次提交。交付前合过 `origin/dev`（2d92916），`node build.js` 能过，`test/*.test.js` 全过。
