@@ -1,0 +1,3 @@
+{ "args": "--games 300 --seed 3000 --level hard --nodes hard=100000 --ai-r tools/variants/bfai_fast.js --ai-b git:4db9f8c",
+  "env": { "BFAI_LMR": "2", "BFAI_ROOTREL": "2", "BFAI_CHKUP": "2" }, "chunks": 48,
+  "note": "合起来的版本（记表 + 靠后安静着法少算一层〔只霸王〕+ 根上自己再加 2 个会改变吃子结果的升级 + 被将军时试“升了才打得死将军子”和帅身边子的升级）执汉 对 线上 4db9f8c，霸王 10 万节点；和 r22-fin-hard-b 换边共 600 局" }
