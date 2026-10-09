@@ -978,6 +978,22 @@ html:has(#endcard:not(.hidden)),html:has(#endcard:not(.hidden)) body,html:has(#e
 }
 #lobby .seat small b{color:inherit!important;font-weight:900}
 
+/* 观战席（057 甲 · 名牌）：一排方框名牌，前面一个圆点；你自己那块实心、点是朱红；房主在座位上时最后多一块虚线「坐这里」，点它坐过去；
+   下面一行小字提示（.tip）。名牌由 main.js 生成：<i>农夫</i> / <i class="me">你（房主）</i> / <i class="open" data-sit tabindex="0" role="button">坐这里</i> */
+#pWait .specs{display:flex;align-items:center;justify-content:center;gap:12px;flex-wrap:wrap;margin:0 0 14px;font-family:var(--es)}
+#pWait .specs>b{margin:0;font-family:var(--ef);font-weight:900;letter-spacing:.3em;padding-left:.3em}
+#pWait #roomSpecs{display:flex;align-items:center;justify-content:center;gap:8px;flex-wrap:wrap}
+#lobby #pWait #roomSpecs i{font-style:normal;display:inline-flex;align-items:center;gap:7px;min-height:34px;margin:0;padding:0 14px 0 8px;border:2px solid var(--c);border-radius:0;background:none;color:var(--c);
+  font-family:var(--es);font-size:calc(15px * var(--fs,1));letter-spacing:.08em;white-space:nowrap}
+#lobby #pWait #roomSpecs i::before{content:"";flex:none;width:16px;height:16px;border-radius:50%;background:var(--c)}
+#lobby #pWait #roomSpecs i.me{background:var(--c);color:var(--k);font-weight:900}
+#lobby #pWait #roomSpecs i.me::before{background:var(--g)}
+#lobby #pWait #roomSpecs i.open{border-style:dashed;cursor:pointer}
+#lobby #pWait #roomSpecs i.open::before{content:"+";width:16px;height:16px;border-radius:0;background:none;display:flex;align-items:center;justify-content:center;font:900 18px/1 var(--es)}
+#lobby #pWait #roomSpecs i.open:hover{background:rgba(240,231,210,.12)}
+#lobby #pWait #roomSpecs i.open:focus-visible{outline:3px solid var(--c);outline-offset:3px}
+#pWait .specs .tip{flex-basis:100%;text-align:center;font-size:calc(13px * var(--fs,1));letter-spacing:.06em;opacity:.75}
+
 /* 房间里选电脑档位的下拉：和旁边的方框按钮一个样子（方角、2px 米色边、粗宋），展开的列表是墨底米字、选中的朱红 */
 #pWait select{appearance:none;-webkit-appearance:none;min-height:44px;margin:0;padding:0 40px 0 16px;border:2px solid var(--c);border-radius:0;
   background:transparent url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 14 9'%3E%3Cpath d='M1.5 1.5 7 7l5.5-5.5' fill='none' stroke='%23f0e7d2' stroke-width='2.4' stroke-linecap='square'/%3E%3C/svg%3E") no-repeat right 14px center/12px 8px;
