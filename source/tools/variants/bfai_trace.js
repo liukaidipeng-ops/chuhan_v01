@@ -1,5 +1,5 @@
 // 电脑变体（只供复盘）：在线上电脑上加“想法记录”，搜索和估值本身一点不改（走法、分数和底版逐步相同）。
-//   底版：git 上的 source/src/bfai.js（BFAI_TR_BASE，默认 ecf1ddd = 线上电脑），按文字锚点改。加了三样：
+//   底版：git 上的 source/src/bfai.js（BFAI_TR_BASE，默认 ecf1ddd；复盘 C61 上线后的对局用 BFAI_TR_BASE=a325583），按文字锚点改。加了三样：
 //   1. 预想线：每一步根上的候选都记下“它以为接下来双方会怎么走”（搜索里的主变例，k.pv）；think.last.topPv / pickPv
 //   2. 估值拆分：traceScore(S, me) 把 score() 拆成 子力 / 位置 / 贴脸 / 帅 / 军功 / 兵法 / 其他（终极兵法、封锁、决战）
 //   3. 根上全部候选：think.last.all = [{up, a, v, pv, exact（false = 分数只是上界）, off（名额外只粗算）}]
@@ -26,12 +26,24 @@ rep('    if (fin && S.occ) v += 7 * ((S.occ[me] || 0) - (S.occ[other(me)] || 0))
   "    if (fin && S.occ) v += 7 * ((S.occ[me] || 0) - (S.occ[other(me)] || 0));\n    if (TRC) { TRC.军功 = _v1 - _v0; TRC.兵法 = _v2 - _v1; TRC.其他 = v - _v2; }\n    return v;");
 // ---- 预想线（主变例）：每个 ab() 返回前把自己这一层往下的最好路线放进 PVL ----
 rep('      else return qs(S, alpha, beta, ply, 0);', "      else { PVL = []; return qs(S, alpha, beta, ply, 0); }");
-rep('    if (fewPieces(S) && stuck(S)) return -WIN + ply;\n    let best = -INF, legal = 0;', '    if (fewPieces(S) && stuck(S)) { PVL = []; return -WIN + ply; }\n    let best = -INF, legal = 0, bl = [];');
+const C61 = s.includes('const TTB = new Map()');   // 底版是 C61（记表 + 靠后安静着法少算一层，2026-10-09 上线）：几处锚点不一样
+if (!C61) rep('    if (fewPieces(S) && stuck(S)) return -WIN + ply;\n    let best = -INF, legal = 0;', '    if (fewPieces(S) && stuck(S)) { PVL = []; return -WIN + ply; }\n    let best = -INF, legal = 0, bl = [];');
+else {
+  rep('    if (fewPieces(S) && stuck(S)) return -WIN + ply;\n', '    if (fewPieces(S) && stuck(S)) { PVL = []; return -WIN + ply; }\n');
+  rep('(tte.f === 2 && v <= alpha)) return v; }', '(tte.f === 2 && v <= alpha)) { PVL = []; return v; } }   // 复盘：查表命中，预想线到这里断');
+  rep('    let best = -INF, legal = 0, bm = null;', '    let best = -INF, legal = 0, bm = null, bl = [];');
+  rep('        const v = ab(u.S, depth - extd, alpha, beta, ply, ext - extd);\n        if (v > best) { best = v; bm = null; }\n        if (v > alpha) alpha = v;\n        if (alpha >= beta) { if (TTB.size < 300000) TTB.set(tkey, { v: toTT(best, ply), f: 1, m: null }); return best; }',
+    "        const v = ab(u.S, depth - extd, alpha, beta, ply, ext - extd); const ln = [{ k: 'up', at: u.at }].concat(PVL);\n        if (v > best) { best = v; bm = null; bl = ln; }\n        if (v > alpha) alpha = v;\n        if (alpha >= beta) { if (TTB.size < 300000) TTB.set(tkey, { v: toTT(best, ply), f: 1, m: null }); PVL = bl; return best; }");
+  rep('      else v = -ab(r.S, depth - 1, -beta, -alpha, ply + 1, ext);\n      if (v > best) { best = v; bm = it.a; }',
+    '      else v = -ab(r.S, depth - 1, -beta, -alpha, ply + 1, ext);\n      const ln = [it.a].concat(w ? [] : PVL);\n      if (v > best) { best = v; bm = it.a; bl = ln; }');
+  rep('          const v = ab(T, depth - extd, alpha, beta, ply, ext - extd); if (v > bu) bu = v;\n          if (bu >= beta) return bu;\n        }\n        if (bu > -INF) return bu;',
+    "          const v = ab(T, depth - extd, alpha, beta, ply, ext - extd); if (v > bu) { bu = v; bl = [{ k: 'up', at: [f, r] }].concat(PVL); }\n          if (bu >= beta) { PVL = bl; return bu; }\n        }\n        if (bu > -INF) { PVL = bl; return bu; }");
+}
 rep('      const T = A.upgradeState(S, [f, r]); if (T) ups.push({ S: T, g: score(T, side) - base, id: p.id });',
   '      const T = A.upgradeState(S, [f, r]); if (T) ups.push({ S: T, g: score(T, side) - base, id: p.id, at: [f, r] });');
-rep('        const v = ab(u.S, depth - extd, alpha, beta, ply, ext - extd);\n        if (v > best) best = v;\n        if (v > alpha) alpha = v;\n        if (alpha >= beta) return best;',
+if (!C61) rep('        const v = ab(u.S, depth - extd, alpha, beta, ply, ext - extd);\n        if (v > best) best = v;\n        if (v > alpha) alpha = v;\n        if (alpha >= beta) return best;',
   "        const v = ab(u.S, depth - extd, alpha, beta, ply, ext - extd); const ln = [{ k: 'up', at: u.at }].concat(PVL);\n        if (v > best) { best = v; bl = ln; }\n        if (v > alpha) alpha = v;\n        if (alpha >= beta) { PVL = bl; return best; }");
-rep('      const v = w ? (w === side ? WIN - ply : -WIN + ply) : -ab(r.S, depth - 1, -beta, -alpha, ply + 1, ext);\n      if (v > best) best = v;',
+if (!C61) rep('      const v = w ? (w === side ? WIN - ply : -WIN + ply) : -ab(r.S, depth - 1, -beta, -alpha, ply + 1, ext);\n      if (v > best) best = v;',
   '      const v = w ? (w === side ? WIN - ply : -WIN + ply) : -ab(r.S, depth - 1, -beta, -alpha, ply + 1, ext); const ln = [it.a].concat(w ? [] : PVL);\n      if (v > best) { best = v; bl = ln; }');
 rep('        const v = w ? (w === side ? WIN - ply : -WIN + ply) : -ab(k.S, Math.max(0, depth - 1), -beta, -alpha, ply + 1, ext);\n        if (v > best) best = v;',
   '        const v = w ? (w === side ? WIN - ply : -WIN + ply) : -ab(k.S, Math.max(0, depth - 1), -beta, -alpha, ply + 1, ext); const ln = [k.a].concat(w ? [] : PVL);\n        if (v > best) { best = v; bl = ln; }');
