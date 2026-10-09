@@ -8,6 +8,9 @@
   // 更新说明（设置里、大厅底部点「更新」查看；最新的放最前）
   const NEWS = [
     ['第六版', '2026 年 10 月', [
+      '技能模式：棋子说明框改版——生命（红）、攻击（橙）、功勋（金）做成三块大字；「甲片」改叫「功勋」，杀一个敌子得 1 点，说明框里写着攒满几点自动升级。汉军腰带上换成金边朱心的功勋牌，楚军仍是乌铁甲片',
+      '联机、人机对局的结算曲分阵营：汉军赢了放新写的「礼乐」，楚军输了放新写的「乌江」（其余照旧）',
+      '技能模式：兵的「拒马」二级就能用，架一次管两回合（对方来犯的子先挨 1 点）',
       '技能模式：相 / 象二级起攻击 2（二级 2 攻 2 血）',
       '联机房间加了提示音：有人进房（铜锣 / 战鼓 / 掀帘入帐，随机一条）、有人点「准备」（擂鼓 / 古琴 / 梆子，随机一条）',
       '兵营的卫兵、弓手、鼓手合成一批画，每帧少画六十多次，样子不变',
@@ -1803,8 +1806,8 @@
     $('bfTipBody').innerHTML = [
       `<b>${touch ? '长按' : '鼠标停在'}棋子上</b>，看它的等级、血量和技能`,
       '<b>军功</b>：吃子、将军、兵卒过河都得军功',
-      '<b>升级</b>：选中棋子点「升级」；杀敌攒的甲片够数会<b>自动升级</b>',
-      '<b>三级</b>解锁技能，<b>四级</b>成名将；棋身 木 → 银 → 金 → 玉',
+      '<b>升级</b>：选中棋子点「升级」；每杀一个敌子得 1 点<b>功勋</b>，攒满<b>自动升级</b>',
+      '兵<b>二级</b>就能架拒马，其余<b>三级</b>解锁技能，<b>四级</b>成名将；棋身 木 → 银 → 金 → 玉',
       '打不死的目标头顶标 <b>-1</b>，能一击杀死才标<b>「殺」</b>',
       '<b>军功 20</b> 可发终极兵法；主帅兵法每局一次',
       ...(r6On() ? ['车、马、炮、兵<b>三级起攻击 2</b>；车升级贵：<b>10 / 12 / 20</b> 功', '<b>召回</b>的子最多<b>二级</b>，落位后可以马上升级，第一次升级<b>半价</b>'] : ['<b>这一局用的是旧规则</b>：攻击都是 1，车升级 6 / 8 / 20，召回回来一级']),
@@ -1825,6 +1828,7 @@
     });
   }
   const escTip = t => String(t || '').replace(/&/g, '&amp;').replace(/"/g, '&quot;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+  // 主帅兵法、终极兵法说明。背水一战用简化版（Ham 10-09 审批台 td-006：其余保留原文）
   const ART_DESC = { get r() {
       const B = BF.CFG.beishui, R = r6On(), cond = B.on ? `汉军车马炮${B.maxLeft != null ? `最多还剩 ${B.maxLeft} 枚、而且` : ''}比楚军少时才能用。` : '';
       if (R) return `复活一枚被吃的子，放回原位，最多${LVCN[R.reviveLevel]}级。${R.reviveUp ? '落位后可以马上升级' + (R.reviveHalf ? '（第一次半价）' : '') + '；' : ''}它这回合不能动。每局一次。` + cond;
@@ -1832,7 +1836,7 @@
     get b() {
       const B = BF.CFG.beishui;
       if (!B.on) return '连走两步（不能用技能，第二步不能将军）。此后 3 回合楚军不能用兵种技能。每局一次。';
-      return `绝境里的反扑：楚军车马炮${B.maxLeft != null ? `最多还剩 ${B.maxLeft} 枚、而且` : ''}比汉军少时才能用。${bsHow()}，合计最多吃 ${B.maxKills} 个子；只看两步走完：己方不被将军、也不将着对方就行（中途不限，可以各挡一路解双将）。发动后不能取消；用过的子下一回合不能动（被将军时可以去吃掉将军的那枚）。每局一次。`;
+      return `每局一次，车马炮少于汉军${B.maxLeft != null ? `（最多剩 ${B.maxLeft} 枚）` : ''}时可用。${B.twoPieces ? '两枚子各走一步' : '连走两步（一枚走两步或两枚各一步）'}，最多吃 ${B.maxKills} 子；走完不能被将军，也不能将着对方。用过的子下回合不能动。`;
     } };
   const ULT_DESC = { r: `${BF.CFG.ultimates.cost} 军功，楚将两格内须有 ${BF.CFG.ultimates.simian.minPiecesInRadius} 枚汉子。${BF.CFG.ultimates.simian.rounds} 回合内楚军除将外不能移动，只能吃掉将军的子，也不算将军。`, b: `${BF.CFG.ultimates.cost} 军功。汉帅 ${BF.CFG.ultimates.hongmen.rounds} 回合不能动；汉士「护驾」可破。` };
   const artTip = s => `<b>主帅兵法 · ${BF.ART_CN[s]}</b><br>${ART_DESC[s]}`;
@@ -1856,7 +1860,7 @@
   const halfNow = p => !!(p && p.rh && r6On() && r6On().reviveHalf);   // 试行规则：召回的子第一次升级半价
   function upTip(p, cost, base) {
     const nx = p.lv + 1;
-    return `<b>升${LVCN[nx]}级 ·「${game.rankName(p, nx)}」</b><br>${lvGain(p, nx)}，回满血。<br>花 ${cost} 军功` + (base > cost ? `（甲片省 ${base - cost}）` : '') + (halfNow(p) ? '<br><em>召回的子第一次升级半价</em>' : '') + `<br><small>甲片攒满 ${base} 片会自动升级，不花军功。</small>`;
+    return `<b>升${LVCN[nx]}级 ·「${game.rankName(p, nx)}」</b><br>${lvGain(p, nx)}，回满血。<br>花 ${cost} 军功` + (base > cost ? `（功勋抵了 ${base - cost}）` : '') + (halfNow(p) ? '<br><em>召回的子第一次升级半价</em>' : '') + `<br><small>功勋攒满 ${upNeed(p)} 点会自动升级，不花军功。</small>`;
   }
   // 升级确认框（美术 M9 第 2 条 #mUp）：点「升 X 级」先弹框，写明升了以后血量、攻击怎么变、解锁什么技能、花多少军功；点「升级」才升。
   //   召回良将落位后的「升 X 级」也弹（美术 M12，Ham 10-09 16:16 定）
@@ -1870,34 +1874,49 @@
       const row = (k, x, y) => `<tr><th>${k}</th><td>${x}</td><td class="to${y > x ? ' gain' : ''}">${y}</td></tr>`;
       $('upTbl').innerHTML = '<thead><tr><th></th><th>现在</th><th>升级后</th></tr></thead><tbody>' + row('血量', a.hp, b.hp) + row('攻击', a.atk, b.atk) + '</tbody>';
       $('upNew').innerHTML = b.skills.filter(k => !a.skills.includes(k)).map(k => `<li><b>${BF.SKILL_CN[k]}${BF.CFG.skills[k] && BF.CFG.skills[k].passive ? '（被动）' : ''}</b>${BF.SKILL_DESC[k] || ''}</li>`).join('');
-      $('upCost').textContent = `花费 ${cost} 军功，升完还剩 ${m - cost}` + (half ? '（召回半价）' : base > cost ? `（甲片省了 ${base - cost}）` : '') + '。升级后回满血。';
+      $('upCost').textContent = `花费 ${cost} 军功，升完还剩 ${m - cost}` + (half ? '（召回半价）' : base > cost ? `（功勋抵了 ${base - cost}）` : '') + '。升级后回满血。';
       $('mUp').classList.remove('hidden'); upOpen = true;
       const fin = v => { $('mUp').classList.add('hidden'); upOpen = false; $('upGo').onclick = $('upNo').onclick = null; res(v); };
       $('upGo').onclick = () => fin(true); $('upNo').onclick = () => fin(false);
     });
   }
-  // 棋子说明（悬停 / 长按棋子）：只说要紧的，一条一行
+  const SKV = Math.max(0, Math.min(3, +(Core.DIAG.get('sv') || 0)));   // 技能块的样式：0 = 朴素（Ham 选定前线上用这个），1～3 = 三版设计待 Ham 选
+  // 升级所需功勋：攒满这么多点（一杀一点）就自动晋升；已经满级返回 null
+  const upNeed = p => { const U = BF.CFG.upgrade; if (!p || p.t === 'k' || p.lv >= BF.maxLvOf(p.t)) return null; return Math.ceil(game.baseCost(p) / (U.killDiscount || 1)); };
+  // 生命、攻击、功勋三块大字（颜色区分：生命红、攻击橙、功勋金）
+  function statRow(p, hpMax, atkV) {
+    let h = `<div class="tst"><div class="hp"><i>生命</i><b>${p.hp}<small>/${hpMax}</small></b></div><div class="at"><i>攻击</i><b>${atkV}</b></div>`;
+    if (p.t !== 'k') { const need = upNeed(p), xp = p.xp || 0; h += `<div class="xp"><i>功勋</i><b>${xp}${need ? `<small>/${need}</small>` : ''}</b>${need ? `<u><s style="width:${Math.min(100, xp / need * 100)}%"></s></u>` : ''}</div>`; }
+    return h + '</div>';
+  }
+  // 棋子说明（悬停 / 长按棋子）：先是生命、攻击、功勋三块大字，再是技能、下一级
   function pieceTip(p) {
     const nm = `${SIDE_ARMY[p.s]}${pname(p)}`, hero = game.heroName ? game.heroName(p) : '';
     if (p.t === 'k' && game.final) {
       const N = BF.CFG.finalOccupyRounds, oc = game.occ[p.s];
-      return `<b>${game.rankName(p)}</b> <small>决战</small><br>生命 ${p.hp}/${BF.CFG.finalKingHp} · 攻击 1`
-        + '<br>按过河兵走：前、左、右各一格，不能后退；可以过河、出九宫，也能攻击。'
-        + '<br>没有将军：可以对脸、可以送将；被打到 0 血就输。不受践踏、霹雳这类范围伤害。'
+      return `<b class="tnm">${game.rankName(p)}</b> <small>决战</small>` + statRow(p, BF.CFG.finalKingHp, game.atkOf(p))
+        + '按过河兵走：前、左、右各一格，可以过河、出九宫、攻击。'
+        + '<br>没有将军：可以对脸、可以送将，被打到 0 血就输。不受践踏、霹雳这类范围伤害。'
         + `<br><b>夺营</b>：走进对方九宫，对方再走 ${N} 步还没把它打死就赢` + (oc ? `<em>（已撑过 ${oc}/${N}）</em>` : '。');
     }
-    if (p.t === 'k') return `<b>${game.rankName(p)}</b><br>不能升级，不受技能伤害，只能被将死。<small>决战（双方车马兵炮都死光）时出九宫、有 3 点生命。</small>` + (p.s === 'r' && game.fx.hm ? `<br><em>鸿门宴：还有 ${game.fx.hm} 回合不能动，士护驾可破</em>` : '');
-    const info = BF.levelInfo(p.t, p.s, p.lv), mx = info.maxLv;
-    let h = `<b>${hero ? hero + ' · ' : ''}${game.rankName(p)}</b> <small>${nm} ${LVCN[p.lv]}级</small><br>生命 ${p.hp}/${info.hp} · 攻击 ${game.atkOf(p)} · 甲片 ${p.xp || 0}`;
+    if (p.t === 'k') return `<b class="tnm">${game.rankName(p)}</b><br>不能升级，不受技能伤害，只能被将死。<small>决战（双方车马兵炮都死光）时可出九宫、有 3 点生命。</small>` + (p.s === 'r' && game.fx.hm ? `<br><em>鸿门宴：还有 ${game.fx.hm} 回合不能动，士护驾可破</em>` : '');
+    const info = BF.levelInfo(p.t, p.s, p.lv), mx = info.maxLv, need = upNeed(p), xp = p.xp || 0;
+    let h = `<b class="tnm">${hero ? hero + ' · ' : ''}${game.rankName(p)}</b> <small>${nm} · ${LVCN[p.lv]}级</small>` + statRow(p, info.hp, game.atkOf(p));
+    h += `<div class="tnote">${need ? `每杀一个敌子得 1 点功勋，<b>攒满 ${need} 点自动升级</b>${xp ? `（还差 ${Math.max(0, need - xp)} 点）` : ''}` : '已满级'}</div>`;
+    // 技能一行一块：主动青、被动紫、没解锁灰；冷却中颜色变暗、显示还剩几回合（Ham 10-09 审批台 td-006：出三版给他挑，网址 ?sv=1/2/3 切换）
+    let sks = '';
     for (const sk of game.skillsOf(p)) {
-      const c = BF.CFG.skills[sk], lv = c.level || BF.CFG.skillLevel, cd = game.cdLeft(p, sk);
-      const st = p.lv < lv ? `${LVCN[lv]}级解锁` : cd ? `冷却 ${cd}` : c.passive ? '被动' : '可用';
-      h += `<br><b>「${BF.SKILL_CN[sk]}」</b><small>${st}</small> ${BF.SKILL_DESC[sk]}`;
+      const c = BF.CFG.skills[sk], lv = c.level || BF.CFG.skillLevel, cd = p.lv < lv ? 0 : game.cdLeft(p, sk);
+      const cls = p.lv < lv ? 'off' : cd ? 'cd' : c.passive ? 'pas' : 'act', kind = c.passive ? ' pv' : '';
+      const st = cls === 'off' ? `${LVCN[lv]}级解锁` : cls === 'cd' ? `冷却中 · 还剩 <em>${cd}</em> 回合` : c.passive ? '被动 · 可用' : '主动 · 可用';
+      const badge = cls === 'off' ? '锁' : cls === 'cd' ? cd : c.passive ? '被' : '用';
+      sks += `<div class="tsk ${cls}${kind}"><b class="sn">${BF.SKILL_CN[sk]}</b><i class="ss">${st}</i><u class="sb">${badge}</u><span class="sd">${BF.SKILL_DESC[sk]}</span></div>`;
     }
-    if (p.lv < mx) { const cost = game.upgradeCost(p), base = game.baseCost(p); h += `<br><b>下一级</b>「${game.rankName(p, p.lv + 1)}」${lvGain(p, p.lv + 1)} <small>${cost} 功，或攒满 ${base} 片甲${halfNow(p) ? '（召回后第一次升级半价）' : ''}</small>`; }
-    if (game.jmActive(p)) h += '<br><em>拒马中：来犯者先挨 1 点</em>';
-    if (game.frozen(p)) h += '<br><em>背水一战之后力竭：这一回合不能动（被将军时可以去吃掉将军的那枚子）</em>';
-    if (p.s === 'b' && game.fx.sm) h += `<br><em>军心涣散：还有 ${game.fx.sm} 回合不能移动</em>`;
+    if (sks) h += `<div class="tsks sv${SKV}">${sks}</div>`;
+    if (p.lv < mx) { const cost = game.upgradeCost(p), base = game.baseCost(p); h += `<div class="tnx"><b>下一级</b>「${game.rankName(p, p.lv + 1)}」${lvGain(p, p.lv + 1)}<small>　或花 ${cost} 军功升级${base > cost ? `（功勋抵了 ${base - cost}）` : ''}${halfNow(p) ? '，召回后首次半价' : ''}</small></div>`; }
+    if (game.jmActive(p)) h += '<em>拒马中：来攻的子先挨 1 点</em>';
+    if (game.frozen(p)) h += '<em>背水一战后力竭：这回合不能动（被将军时可以去吃将军的子）</em>';
+    if (p.s === 'b' && game.fx.sm) h += `<em>军心涣散：还有 ${game.fx.sm} 回合不能走</em>`;
     return h;
   }
   // 本回合技能可用的子（有目标、不在冷却）
@@ -1907,7 +1926,7 @@
     const key = game.entries.length + '|' + game.turn;
     if (key === rsKey && rsS === game.S) return rsCache;
     rsKey = key; rsS = game.S; rsCache = [];
-    for (let r = 0; r < 10; r++) for (let f = 0; f < 9; f++) { const p = game.at(f, r); if (p && p.s === game.turn && p.lv >= 3 && game.skillTargets(f, r).length) rsCache.push([f, r]); }
+    for (let r = 0; r < 10; r++) for (let f = 0; f < 9; f++) { const p = game.at(f, r); if (p && p.s === game.turn && p.lv >= 2 && game.skillTargets(f, r).length) rsCache.push([f, r]); }
     return rsCache;
   }
   // 主帅兵法 / 终极兵法不能用的原因：[按钮小字, 点击说明]；能用返回 null
@@ -1995,7 +2014,7 @@
       // 按钮不可用时不用 disabled（点了没反应像坏了），改成灰色 + 点一下说明原因；所有按钮悬停 / 长按看说明
       const btn = (cls, act, ok, label, small, why, extra = '', tip = '') => `<button class="sk ${cls}${ok ? '' : ' off'}" data-a="${act}" ${ok ? '' : `data-why="${why}"`} data-tip="${escTip(tip || why)}">${label}<small>${small}</small>${extra}</button>`;
       if (a.p) {
-        hint = (a.p.t === 'k' ? game.rankName(a.p) : `${game.heroName(a.p) ? game.heroName(a.p) + ' · ' : ''}${game.rankName(a.p)} · ${LVCN[a.p.lv]}级${pname(a.p)} · ${a.p.hp} 血`) + (game.atkOf(a.p) > 1 ? ` · 攻 ${game.atkOf(a.p)}` : '') + (a.p.xp ? ` · 甲 ${a.p.xp}` : '');
+        hint = (a.p.t === 'k' ? game.rankName(a.p) : `${game.heroName(a.p) ? game.heroName(a.p) + ' · ' : ''}${game.rankName(a.p)} · ${LVCN[a.p.lv]}级${pname(a.p)} · ${a.p.hp} 血`) + (game.atkOf(a.p) > 1 ? ` · 攻 ${game.atkOf(a.p)}` : '') + (a.p.xp ? ` · 功勋 ${a.p.xp}` : '');
         if (a.p.t !== 'k') {
           if (a.cost != null) {
             const m = game.merit[a.p.s], save = a.base - a.cost;
@@ -2233,7 +2252,7 @@
     const nm = (side, t) => SIDE_ARMY[side] + XQ.NAMES[side][t];
     const kills = ev.filter(x => x.e === 'kill'), hits = ev.filter(x => x.e === 'hit');
     let line = null;
-    if (info.k === 'up') line = `${nm(s, info.t)}晋升「${BF.rankName(s, info.t, info.lv)}」（${LVCN[info.lv]}级）` + (info.usedXp ? `，用掉 ${info.usedXp} 片甲` : '');
+    if (info.k === 'up') line = `${nm(s, info.t)}晋升「${BF.rankName(s, info.t, info.lv)}」（${LVCN[info.lv]}级）` + (info.usedXp ? '（功勋攒满，自动晋升）' : '');
     else if (info.k === 'mv') {
       const P0 = at(info.from), T0 = at(info.to);
       const died = kills.find(k => P0 && k.id === P0.id);
@@ -2295,7 +2314,7 @@
     $('dbgTip').textContent = !dbgPick ? '点下面的子开始摆放；现在点棋盘是选中棋子。' : dbgPick.t ? `正在摆放：${SIDE_ARMY[dbgPick.s]}${XQ.NAMES[dbgPick.s][dbgPick.t]}（${dbgPick.t === 'k' ? '主帅不分等级' : '一二三四'[dbgLv - 1] + '级'}），点棋盘连续摆。` : '正在清除：点棋盘上的子把它拿掉。';
     $('bfDebug').querySelectorAll('[data-plv]').forEach(b => b.classList.toggle('on', +b.dataset.plv === dbgLv));
     const p = dbgSel && game.at(dbgSel[0], dbgSel[1]);
-    $('dbgSel').textContent = p ? `${SIDE_ARMY[p.s]}${pname(p)} · ${p.lv}级 · ${p.hp}血 · 甲${p.xp || 0} · 冷却${game.cdLeft(p)}` : '—';
+    $('dbgSel').textContent = p ? `${SIDE_ARMY[p.s]}${pname(p)} · ${p.lv}级 · ${p.hp}血 · 功勋${p.xp || 0} · 冷却${game.cdLeft(p)}` : '—';
     $('dbgNoCd').textContent = '无冷却：' + (dbgNoCd ? '开' : '关'); $('dbgNoCd').classList.toggle('on', dbgNoCd);
     $('dbgFree').textContent = '自由移动：' + (dbgFree ? '开' : '关'); $('dbgFree').classList.toggle('on', dbgFree);
     $('dbgMr').value = game.merit.r; $('dbgMb').value = game.merit.b; $('dbgRound').value = game.round;

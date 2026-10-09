@@ -125,7 +125,8 @@ const EndTunes = (() => {
     },
   };
   // 挑定之前用原来那两首（Music.stinger 的老曲子）；PICK.r.win = 1 表示汉胜用第二个方案，以此类推
-  const PICK = { r: { win: null, lose: null }, b: { win: null, lose: null } };
+  //   Ham 10-09 21:38 试听台第二十八批：汉胜用方案三「礼乐」、楚败用方案三「乌江」；汉败留原曲，楚胜三个都没过，也先用原曲
+  const PICK = { r: { win: 2, lose: null }, b: { win: null, lose: 2 } };
   return {
     T, PICK,
     // 放一首：side 'r' / 'b'，kind 'win' / 'lose'；n 不给就用挑定的那个。挑定之前返回 false（调用的地方照旧放老曲子）
