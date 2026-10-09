@@ -1,0 +1,74 @@
+--- a/source/src/bfai.js	2026-10-09 00:01:40.444542900 +0000
++++ b/source/src/bfai.js	2026-10-09 00:01:40.466924918 +0000
+@@ -175,9 +175,15 @@
+     const base = score(S, side); ups = [];
+     for (let r = 0; r < 10; r++) for (let f = 0; f < 9; f++) {
+       const p = S.board[r][f]; if (!p || p.s !== side || p.t === 'k') continue;
+-      const T = A.upgradeState(S, [f, r]); if (T) ups.push({ S: T, g: score(T, side) - base, id: p.id });
++      const T = A.upgradeState(S, [f, r]); if (T) ups.push({ S: T, g: score(T, side) - base, id: p.id, at: [f, r] });
+     }
+-    ups.sort((x, y) => y.g - x.g); ups = ups.slice(0, 3);
++    ups.sort((x, y) => y.g - x.g);
++    // 静态收益前 3 名之外，离对方帅将两格以内的子的升级再给最多 2 个名额：升卒 / 升车本身不值钱，下一步贴脸将军才致命
++    //   （用户导出的第二局第 17 回合：“升卒 + 贴脸”一步杀被前 3 名的名额挤掉，电脑没看见）
++    const keep = ups.slice(0, 3);
++    let kAt = null; for (let r = 0; r < 10 && !kAt; r++) for (let f = 0; f < 9; f++) { const q = S.board[r][f]; if (q && q.t === 'k' && q.s !== side) { kAt = [f, r]; break; } }
++    if (kAt) { let extra = 0; for (const u of ups.slice(3)) { if (extra >= 2) break; if (Math.max(Math.abs(u.at[0] - kAt[0]), Math.abs(u.at[1] - kAt[1])) <= 2) { keep.push(u); extra++; } } }
++    ups = keep;
+     if (side === 'b' && PFX) for (const u of ups) { pfAlias.set(u.S, S); pfUp.set(u.S, u.id); }
+     upCache.set(S, ups);
+     return ups;
+@@ -270,7 +276,7 @@
+     if (fewPieces(S) && stuck(S)) return -WIN + ply;
+     let best = -INF, legal = 0;
+     // 对方应这一步时，也可能先花军功给某枚子升一级再走（多一点血：我方本来能吃掉的子就吃不掉了，打上去还会被弹回）
+-    if (ply === upPly && !S.upgraded) {
++    if ((ply === upPly || (upPly > 0 && ply === upPly + 2)) && !S.upgraded) {   // 第 3 层也算：第 1 层没钱，吃了我一子攒够军功再升级反击（第二局第 10 回合）
+       const ups = upsOf(S, side);
+       for (const u of ups) {
+         const v = ab(u.S, depth - extd, alpha, beta, ply, ext - extd);
+@@ -403,7 +409,7 @@
+     if (L.depth >= 3) upPly = 1;
+     const pfGuard = me === 'r' && L.depth >= 2 && !S.used.art.b;   // 汉军：对方的破釜沉舟还在手里，每一步都提防它
+     if (pfGuard) pfPly = 1;
+-    let kids = A.expand(S), pofu = [];
++    let kids = A.expand(S), pofu = [], artOff = [];
+     // “先升级再走”的走法：记下它对应的“不升级走同一步”（base）、是不是升的那枚子自己出手（own）
+     const keyOf = a => JSON.stringify(a), plain = new Map(kids.map(k => [keyOf(k.a), k]));
+     for (const c of ups) for (const k of A.expand(c.S)) {
+@@ -434,7 +440,7 @@
+       let rook = false; for (const row of S.board) for (const p of row) if (p && p.s === 'r' && p.t === 'r') rook = true;
+       const ok = k => { const t = tOf(k.a.id); return t === 'r' || ((!rook || S.used.art.b > 0) && (t === 'c' || t === 'n')); };
+       const rest = kids.filter(k => !(k.a.k === 'art' && k.a.id != null) || ok(k));
+-      if (rest.some(k => k.a.k !== 'art')) kids = rest;
++      if (rest.some(k => k.a.k !== 'art')) { artOff = kids.filter(k => !rest.includes(k)); kids = rest; }   // 平时不救的召回留给下面的一步杀保险兜底
+     }
+     if (!kids.length) {
+       // 普通着法一步都没有（被将死的样子），但背水一战还能解：就用它
+@@ -534,6 +540,26 @@
+       deadline = Infinity; nodeCap = Infinity;
+       if (bp) { pick = bp; kids = kids.concat([bp]); }
+     }
++    // 一步杀保险：走完这一步以后，对方能不能一步将死我（可以先给一枚子升一级再走）；能就按排名往下换一个不送杀的
++    //   （送一步杀等于必输，最多往下找 80 个；都送杀时再试平时不肯用的召回良将）。只在选中的这步送杀时才多花时间
++    if (L.depth >= 2 && !fin0 && pick && pick.S && !pick.done) {
++      const mate1 = T => {
++        if (!T || T.final) return false;
++        const opp = T.turn, st = [T];
++        if (!T.upgraded) for (let r = 0; r < 10; r++) for (let f = 0; f < 9; f++) { const p = T.board[r][f]; if (p && p.s === opp && p.t !== 'k') { const U = A.upgradeState(T, [f, r]); if (U) st.push(U); } }
++        for (const X of st) for (const e of A.gen(X, false)) {
++          const R = BF.attempt(X, e.a); if (!R || R.free || !A.inCheck(R.S, me)) continue;
++          const ev = BF.evaluate(R.S); if (ev && ev.result && ev.result.winner === opp) return true;
++        }
++        return false;
++      };
++      try {
++        if (mate1(pick.S)) {
++          const alt = pool.filter(k => k !== pick && k.S && !k.done).slice(0, 80).concat(artOff.filter(k => k.S)).find(k => !mate1(k.S));
++          if (alt) { pick = alt; think.mateGuard = (think.mateGuard || 0) + 1; }
++        }
++      } catch (e) { }
++    }
+     // 拒马（不占行动）：走完这一步之后，哪枚能架拒马的兵会被对方打到，就先给它架上
+     if (pick.up) { seq.push({ k: 'up', at: pick.up.at }); S = pick.up.S; }
+     if (L.depth >= 2 && !pick.done && !S.freeUsed && pick.a.k !== 'pass') {
