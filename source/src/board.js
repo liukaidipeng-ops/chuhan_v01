@@ -631,8 +631,7 @@ const Board = (() => {
   const rivetGeo = new THREE.SphereGeometry(0.009, 8, 6); rivetGeo.userData.keep = true;
   const plateFrame = new THREE.MeshStandardMaterial({ color: 0xd8a945, metalness: 0.8, roughness: 0.3, emissive: 0x2a1a04 });
   const plateOff = new THREE.MeshStandardMaterial({ color: 0x3b3633, metalness: 0.1, roughness: 0.9 });
-  // 功勋牌（Ham 10-09 20:31：「甲片」改叫「功勋」）。试样：网址带 ?medal 时腰带上换成金边朱心的圆牌 + 朱红绶带，等 Ham 在审批台定
-  const MEDAL = Core.DIAG.has('medal');
+  // 功勋牌（Ham 10-09 20:31：「甲片」改叫「功勋」；审批台 td-007：汉方用金边朱心圆牌 + 朱红绶带，楚方仍是乌铁甲片）
   const medalGeo = new THREE.CylinderGeometry(0.036, 0.036, 0.012, 24); medalGeo.rotateX(Math.PI / 2); medalGeo.userData.keep = true;
   const medalCoreGeo = new THREE.CylinderGeometry(0.02, 0.02, 0.006, 20); medalCoreGeo.rotateX(Math.PI / 2); medalCoreGeo.userData.keep = true;
   const medalRibGeo = new THREE.BoxGeometry(0.03, 0.026, 0.006); medalRibGeo.userData.keep = true;
@@ -1249,7 +1248,7 @@ const Board = (() => {
     for (let i = 0; i < nx; i++) {
       const a = (i - (nx - 1) / 2) * 0.26;
       let pl;
-      if (MEDAL) {   // 金边朱心圆牌，上面一截朱红绶带
+      if (p.s === 'r') {   // 汉：金边朱心圆牌，上面一截朱红绶带
         pl = new THREE.Mesh(medalGeo, plateFrame); pl.position.set(Math.sin(a) * 0.437, PH * 0.6, Math.cos(a) * 0.437); pl.rotation.y = a;
         const cr = new THREE.Mesh(medalCoreGeo, medalRed); cr.position.z = 0.006; pl.add(cr);
         const rb = new THREE.Mesh(medalRibGeo, medalRed); rb.position.set(0, 0.045, -0.002); pl.add(rb);

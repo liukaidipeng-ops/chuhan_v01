@@ -24,7 +24,7 @@
     attack: { a: [1, 2, 2, 2], e: [1, 2, 2, 2] }, // 按等级的攻击力（一次攻击扣的血）；没列出的兵种都是 1。相 / 象二级起攻击 2（Ham 10-09 20:34：象二级 2 攻 2 血）
     skillLevel: 3, // 几级解锁兵种技能（单个技能可用 level 另定）
     skills: {
-      juma: { cooldown: 2, duration: 1, damage: 1, free: true }, // free：不占行动，架完还要再走一步棋（这枚兵本回合不能动）
+      juma: { level: 2, cooldown: 2, duration: 2, damage: 1, free: true }, // 二级可用、管两回合（Ham 10-09 审批台 td-006）。free：不占行动，架完还要再走一步棋（这枚兵本回合不能动）
       shensu: { level: 4, passive: true, move: true, cooldown: 5, range: 2 }, // 兵四级被动：八方向直线 1～2 格，可越子，只能落空格
       huifang: { level: 4, passive: true, move: true, cooldown: 2 }, // 兵四级被动：可后退一格
       jinwei: { level: 4, passive: true, move: true, cooldown: 2 }, // 士四级被动「铁甲禁卫」：九宫内上下左右走一格
@@ -85,19 +85,19 @@
     if (p.lv === 4 && p.nm == null) { const N = S.named || (S.named = { r: {}, b: {} }), i = N[p.s][p.t] || 0; if (i < (((HERO_CN[p.s] || {})[p.t] || []).length)) { p.nm = i; N[p.s][p.t] = i + 1; } }
   }
   // 技能说明（界面悬停 / 长按用）
-  //   Ham 10-09 20:31：润色、简化，一句话说清
+  //   Ham 10-09 审批台 td-006：说明保留原文，只换践踏；拒马用 Ham 给的原话
   const SKILL_DESC = {
-    juma: '架拒马不算一步棋，架完还能走一步。对方下一步来攻它的子先挨 1 点。',
-    chongzhen: '跳过直线上第一枚子（它挨 1 点），落到它身后；落点有敌子就攻击，打不死退回。',
-    shensu: '八方向直线走 1～2 格，可越子，只能落空格。',
+    juma: '本回合原地驻营架矛，其他棋子还能继续行动。对方来犯棋子先挨一点伤害。持续两回合。',
+    chongzhen: '撞开前方第一枚子（它挨 1 点），冲到它身后一格；那格有子，能杀就杀，杀不了就扣血退回。',
+    shensu: '八个方向疾行 1～2 格，可以越子，只能落在空格。',
     huifang: '可以后退一格。',
-    jinwei: '九宫内可上下左右走一格（决战时不限）。',
-    taying: '在敌方半场，这一步不怕蹩马腿。',
-    feiyue: '这一步不怕塞象眼（仍不能过河）。',
-    pili: '炮击一个敌子，落点上下左右的二级以上敌子各扣 1 点。',
-    qishe: '原地射斜线 1～2 格内一个敌子，扣 1 点。',
+    jinwei: '士在田字格内获得自由移动的能力：可上下左右走一格。',
+    taying: '这一步无视蹩马腿。只能在敌方半场用。',
+    feiyue: '这一步无视塞象眼（仍不能过河）。',
+    pili: '炮击一个敌子，落点四周二级以上的敌子各扣 1 点。',
+    qishe: '不动身，射斜线 1～2 格内的一个敌子，扣 1 点。',
     jianta: '攻击或吃子后，落点周围一圈的敌子各扣 1 点。',
-    hujia: '与帅（将）换位，可解将；鸿门宴时可救出汉王。',
+    hujia: '与帅（将）互换位置，可解将；鸿门宴期间可救出汉王。',
   };
   // 每枚子的开局位置（复活用）
   const START = {};
@@ -1058,7 +1058,7 @@
     const lvOf = k => (cfg.skills[k] && cfg.skills[k].level) || cfg.skillLevel;
     return {
       hp: hpTbl(t, cfg)[lv - 1], atk: (atkTbl(t, cfg)[lv - 1] || 1),
-      skill: sk && lv >= cfg.skillLevel ? sk : null, skills: t === 'k' ? [] : SKILLS_OF(t, s).filter(k => lv >= lvOf(k)),
+      skill: sk && lv >= lvOf(sk) ? sk : null, skills: t === 'k' ? [] : SKILLS_OF(t, s).filter(k => lv >= lvOf(k)),
       maxLv: t === 'k' ? 1 : (cfg.upgrade.maxLevel[t] || cfg.upgrade.defaultMaxLevel),
     };
   }

@@ -46,11 +46,11 @@ const ok = (x, msg) => { assert(x, msg); };
   ok(!g.apply({ k: 'up', at: [2, 3] }), '每次行动最多升一次');
   g.apply({ k: 'mv', from: [2, 3], to: [2, 4] });
   g.apply({ k: 'mv', from: [0, 6], to: [0, 5] });
-  ok(!g.skillTargets(0, 3).length, '二级只长血、没有技能');
+  ok(g.skillTargets(0, 3).length === 1, '兵二级就有拒马（Ham 10-09 审批台 td-006）');
   // 三级解锁技能，刚升三级当次不能用
   const g2 = setup([[4, 0, K('r')], [3, 9, K('b')], [0, 3, P('r', 'p', 2)], [8, 3, P('r', 'p')], [5, 9, P('b', 'a')]], { merit: { r: 5, b: 3 } });
   ok(g2.upgradeCost(g2.at(0, 3)) === 5 && g2.apply({ k: 'up', at: [0, 3] }) && g2.at(0, 3).lv === 3 && g2.at(0, 3).hp === 3, '升三级 5 功、3 血');
-  ok(!g2.skillTargets(0, 3).length, '刚升三级当次不能用技能');
+  ok(g2.skillTargets(0, 3).length === 1, '拒马二级就有：升三级当次照样能架');
   g2.apply({ k: 'mv', from: [8, 3], to: [8, 4] });
   g2.apply({ k: 'mv', from: [5, 9], to: [4, 8] });
   ok(g2.skillTargets(0, 3).length === 1, '下一次行动起可用拒马');
