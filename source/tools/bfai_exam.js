@@ -386,11 +386,26 @@ Q.push({
       for (const X of st) for (const e of BF.ai.gen(X, false)) { const R = BF.attempt(X, e.a); if (!R) continue; const ev = BF.evaluate(R.S); if (ev && ev.result && ev.result.winner === opp) return true; }
       return false;
     };
+    // judge 的判法：走完之后请复盘用的裁判（tools/variants/bfai_trace.js；kind = 'deep' 和电脑看法一样、'wide' 升级全看）
+    //   按固定层数算一遍走完的局面，分数不比出题时裁判最好那步低过 tol 就算对（不止一种好着）。同一个局面只算一次
+    let TRM = null; const judged = new Map();
+    const judgeVal = async (g, it) => {
+      if (g.result) return g.result.winner === it.side ? 9000 : -9000;
+      const J = it.judge, S = g.S, key = J.kind + J.depth + JSON.stringify([S.board, S.turn, S.merit, S.used, S.cnt]);
+      if (judged.has(key)) return judged.get(key);
+      if (!TRM) TRM = require('./variants/bfai_trace.js');
+      const M = J.kind === 'wide' ? TRM.judge('wide') : TRM;
+      M.LEVELS.examFix = { ...M.LEVELS.hard, noise: 0, top: 1, depth: J.depth, nodes: 4000000 };
+      const saved = Math.random; let a = 17; Math.random = () => { a = (a * 1103515245 + 12345) % 2147483648; return a / 2147483648; };
+      try { await M.think(BF.cloneState(S), 'examFix'); } finally { Math.random = saved; }
+      const v = -M.think.last.v; judged.set(key, v); return v;
+    };
     JSON.parse(require('fs').readFileSync(file, 'utf8')).forEach((it, i) => { const rules = it.rules || detectRules(it.data); applyRules(null); Q.push({
       name: `实${i + 1} ${it.name}`, cat: '实战', desc: it.desc, rules,   // rules：这局当时的规则（破釜时代的对局要关背水；见 game_load.js 的 detectRules）
       build: () => load(it.data, it.at, rules).game,
-      // same：主行动要和答案一样（答案里有升级的，升级也要一样）；avoid：别再走电脑原来那一步；survive：走完之后对方深搜找不到必胜；nomate：走完之后对方没有一步杀（含先升级）
-      check: it.mode === 'nomate' ? (seq, g0) => { const g = play(g0, seq); return !!g && (g.result ? g.result.winner === it.side : !mate1(g.S, it.side)); }
+      // same：主行动要和答案一样（答案里有升级的，升级也要一样）；avoid：别再走电脑原来那一步；survive：走完之后对方深搜找不到必胜；nomate：走完之后对方没有一步杀（含先升级）；judge：复盘裁判按固定层数算，不比最好那步差过 tol
+      check: it.mode === 'judge' ? async (seq, g0) => { const g = play(g0, seq); return !!g && (await judgeVal(g, it)) >= it.judge.best - (it.judge.tol != null ? it.judge.tol : 0.5); }
+        : it.mode === 'nomate' ? (seq, g0) => { const g = play(g0, seq); return !!g && (g.result ? g.result.winner === it.side : !mate1(g.S, it.side)); }
         : (it.mode || (it.answer ? 'same' : 'avoid')) === 'survive'
         ? async (seq, g0) => { const g = play(g0, seq); return !!g && survives(g, it.side, it.judgeNodes); }
         : seq => ((it.mode || (it.answer ? 'same' : 'avoid')) === 'same' ? same(main(seq), main(it.answer)) && it.answer.filter(a => a.k === 'up').every(u => seq.some(a => same(a, u))) : !same(main(seq), main(it.bad))),
