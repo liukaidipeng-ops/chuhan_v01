@@ -1,4 +1,4 @@
-"""界面音效（悬停、点击）和四种材质的落子声（Ham 10-09 在试听台第二十九批挑的）→ sfx/out，登记进 sfx/manifest.json。
+"""界面音效（悬停、点击）和四种材质的落子声（Ham 10-09 在试听台第二十九批挑的：hover_2 click_2 wood_3 silver_1 gold_1 jade_1）→ sfx/out，登记进 sfx/manifest.json。
   用法：python3 sfx/add_uisfx.py <试听台 audio 目录> <后期工具目录（vproc.py）> hover=hover_2 click=click_2 wood=wood_3 silver=silver_2 gold=gold_1 jade=jade_1,jade_3
   每组可以挑几条（逗号隔开），游戏里随机放。木头挑「wood_0」（现在的声音）或不写 = 不登记 pw，游戏照旧用原来的木头声。
   登记的名字：uihover、uiclick、pw（木）、ps（银）、pg（金）、pj（玉），audio.js 的 Sfx.ui / Sfx.place 按这些名字取。
