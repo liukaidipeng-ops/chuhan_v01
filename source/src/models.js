@@ -53,6 +53,15 @@ const Models = (() => {
     s.moveTo(0, 0); s.quadraticCurveTo(0.28, 0.05, 0.3, 0.26); s.quadraticCurveTo(0.2, 0.12, 0.02, 0.12); s.lineTo(0, 0);
     return new THREE.ExtrudeGeometry(s, { depth: 0.02, bevelEnabled: false });
   }
+  function buBlade() { // 卜字戟的横刃（援）连着顺杆下垂的胡，一整片；原点在杆轴上、胡的最下端，刃朝 +x
+    const s = new THREE.Shape();
+    s.moveTo(0.03, 0); s.lineTo(0.03, 0.42);
+    s.quadraticCurveTo(0.25, 0.49, 0.47, 0.515); s.lineTo(0.56, 0.49); s.lineTo(0.5, 0.45);
+    s.quadraticCurveTo(0.3, 0.36, 0.13, 0.31); s.quadraticCurveTo(0.1, 0.17, 0.1, 0.04); s.lineTo(0.03, 0);
+    const g = new THREE.ExtrudeGeometry(s, { depth: 0.018, bevelEnabled: false });
+    g.translate(0, 0, -0.009);
+    return g;
+  }
   function daoBlade(len = 0.72, w = 0.2) { // 长柄大刀的刀头（偃月形）
     const s = new THREE.Shape();
     s.moveTo(0, 0); s.lineTo(0.05, 0);
@@ -1057,15 +1066,15 @@ const Models = (() => {
     const weapon = new THREE.Group(); AR.hand.add(weapon);
     let scabbard = null, sheathed = null;
     if (isX) {
-      // 霸王戟：握点在杆中下部
+      // 霸王戟（卜字戟，秦汉式：顶上直刺，一侧横出一刃、刃根顺杆下垂成胡；Ham 10-09 art-044 定）：握点在杆中下部
       weapon.add(inkedMerged([
         P(cyl(0.03, 0.034, 2.45, 10), 0x2a1c14, 0, 0.32, 0),
-        P(tor(0.036, 0.012, 10), gd, 0, 1.2, 0, PI / 2), P(tor(0.036, 0.012, 10), gd, 0, -0.5, 0, PI / 2),
+        P(tor(0.036, 0.012, 10), gd, 0, -0.5, 0, PI / 2),
         P(cone(0.04, 0.2, 8), gd, 0, -1.0, 0, PI),
-        P(cyl(0.05, 0.05, 0.1, 10), gd, 0, 1.56, 0), P(cone(0.085, 0.24, 10), rd, 0, 1.4, 0, PI),
-        P(cone(0.055, 0.46, 8), steel, 0, 1.82, 0, 0, 0, 0, 1, 1, 0.45),
-        { geo: jiShape(), color: steel, m: M4(0, 1.36, -0.014, 0, 0, 0, 1.45, 1.45, 1.4) },
-        { geo: jiShape(), color: steel, m: M4(0, 1.36, 0.014, 0, PI, 0, 1.1, 1.1, 1.4) },
+        P(cyl(0.042, 0.048, 0.46, 10), gd, 0, 1.35, 0), P(tor(0.05, 0.012, 10), gd, 0, 1.58, 0, PI / 2),   // 铜銎（套在杆头）
+        P(cone(0.085, 0.24, 10), rd, 0, 1.0, 0, PI),   // 缨，挂在銎下
+        P(cone(0.055, 0.46, 8), steel, 0, 1.82, 0, 0, 0, 0, 1, 1, 0.45),   // 刺
+        { geo: buBlade(), color: steel, m: M4(0, 1.12, 0) },   // 援 + 胡
       ], 0.014));
       scabbard = new THREE.Group(); scabbard.position.set(-0.36, 0.17, 0.12); scabbard.rotation.z = 0.5; hips.add(scabbard);
       scabbard.add(inkedMerged([P(box(0.05, 0.9, 0.04), 0x2a1a12, 0, -0.4, 0), P(cyl(0.02, 0.02, 0.22, 6), 0x3a2616, 0, 0.14, 0), P(box(0.14, 0.04, 0.06), gd, 0, 0, 0), P(box(0.06, 0.05, 0.05), gd, 0, -0.84, 0)]));
