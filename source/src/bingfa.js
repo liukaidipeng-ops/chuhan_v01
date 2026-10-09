@@ -13,7 +13,8 @@
     finalKingHp: 3, // 决战时帅将的生命
     finalOccupyRounds: 3, // 决战：帅将进了对方九宫，对方再走这么多步还没把它打死 / 它自己没走出去，就算夺营获胜
     merit: {
-      start: 3, cap: 30, autoIncomeFromRound: 16, autoIncomePerRound: 1,
+      // 分阶段进账（Ham 10-09 22:17）：第 15 回合起进入第二阶段，每回合双方各 +1；第 45 回合起第三阶段，每回合各 +2。进入时界面有提示
+      start: 3, cap: 30, autoIncomeFromRound: 15, autoIncomePerRound: 1, phase3FromRound: 45, phase3PerRound: 2,
       killReward: { p: 1, a: 2, e: 2, n: 3, c: 3, r: 5 }, killRewardPerLevel: 1,
       checkReward: 1, pawnCrossRiverReward: 1, lostPieceCompensation: 1,
     },
@@ -538,8 +539,12 @@
     if (inCheckS(S, opp)) { addMerit(S, side, CFG_CUR.merit.checkReward, ev, '将军'); ev.push({ e: 'check', s: opp }); }
     S.upgraded = false; S.freeUsed = false; S.jmLock = null;
     S.turn = opp;
-    if (side === 'b' && round(S) >= CFG_CUR.merit.autoIncomeFromRound) {
-      addMerit(S, 'r', CFG_CUR.merit.autoIncomePerRound, ev, '回合'); addMerit(S, 'b', CFG_CUR.merit.autoIncomePerRound, ev, '回合');
+    const M = CFG_CUR.merit, rd = round(S);
+    if (side === 'b' && rd >= M.autoIncomeFromRound) {
+      const p3 = M.phase3FromRound && rd >= M.phase3FromRound, per = p3 ? M.phase3PerRound : M.autoIncomePerRound;
+      if (rd === M.autoIncomeFromRound) ev.push({ e: 'phase', n: 2, round: rd, per: M.autoIncomePerRound });   // 刚进第二 / 第三阶段：界面弹提示
+      if (M.phase3FromRound && rd === M.phase3FromRound) ev.push({ e: 'phase', n: 3, round: rd, per: M.phase3PerRound });
+      addMerit(S, 'r', per, ev, '回合'); addMerit(S, 'b', per, ev, '回合');
     }
   }
   // 试走：不合法返回 null；合法返回结算后的新状态（不改原状态）
@@ -784,10 +789,21 @@
     if (S.merit[side] < U.cost || S.used.ult[side] >= U[side === 'r' ? 'simian' : 'hongmen'].usesPerGame) return false;
     return !!attempt(S, { k: 'ult' });
   }
-  function hasAnyAction(S) {
+  // noUp：不算“先升级再走”（upEscape 里升完级再查一遍时用）
+  function hasAnyAction(S, noUp) {
     if (legalMoves(S, S.turn).length) return true;
     for (let r = 0; r < 10; r++) for (let f = 0; f < 9; f++) { const p = S.board[r][f]; if (p && p.s === S.turn && skillActions(S, f, r).length) return true; }
     if (reviveOptions(S).length || pofuFirst(S).length || ultReady(S)) return true;
+    return !noUp && upEscape(S);
+  }
+  // 升了级才解得了将，也不算将死（Ham 10-09 22:14）：本回合还没升过级，挨个试“给一枚子升一级”，升完有路可走就不是将死。
+  //   例：二血车贴脸将军，帅身边两个一级士砍不死它；军功够升一个士（二级攻击 2），升完就能把车砍掉
+  function upEscape(S) {
+    if (S.upgraded) return false;
+    for (let r = 0; r < 10; r++) for (let f = 0; f < 9; f++) {
+      const p = S.board[r][f]; if (!p || p.s !== S.turn || p.t === 'k') continue;
+      const T = upgradeState(S, [f, r]); if (T && hasAnyAction(T, true)) return true;
+    }
     return false;
   }
   // 普通走子里“非攻击”的（空格或只剩 1 点的敌子）——困毙只看这些
@@ -801,7 +817,7 @@
     if (S.final) for (const s of ['r', 'b']) if (!findKing(S.board, s)) return { result: { winner: other(s), loser: s, reason: 'kingdead' } };
     if (S.final && S.occ) for (const s of [opp, side]) if (S.occ[s] >= CFG_CUR.finalOccupyRounds) return { result: { winner: s, loser: other(s), reason: 'occupy' } };
     if (inCheckS(S, side)) {
-      if (!hasAnyAction(S)) return { result: { winner: opp, loser: side, reason: 'checkmate' } };
+      if (!hasAnyAction(S, true)) return upEscape(S) ? { check: true, upOnly: true } : { result: { winner: opp, loser: side, reason: 'checkmate' } };
       return { check: true };
     }
     // 四面楚歌：楚军没被将军时可以走将，也可以直接停着
@@ -987,6 +1003,7 @@
     simianCount() { return simianCount(this.S); }
     cdLeft(p, sk) { if (!p) return 0; const k = sk ? cdKey(p, sk) : 'cd'; return Math.max(0, (p[k] || 0) - this.S.cnt[p.s]); }
     mustPass() { return !!this.status.mustPass; }
+    upOnly() { return !this.result && !!this.status.upOnly; }   // 被将军、只有先升级才解得了将
     mayPass() { return !this.result && !!(this.status.mustPass || this.status.mayPass); }
     quietPlies() { return 0; }
   }

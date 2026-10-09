@@ -8,6 +8,8 @@
   // 更新说明（设置里、大厅底部点「更新」查看；最新的放最前）
   const NEWS = [
     ['第六版', '2026 年 10 月', [
+      '技能模式分三个阶段：第 15 回合起进入第二阶段，每回合双方各得 1 点军功；第 45 回合起进入第三阶段，每回合各得 2 点。进入时会弹提示',
+      '技能模式新规则：被将军时，只要先给某枚子升一级就能解将（比如士升二级砍死二血车），就不算将死；这时会提示你先升级',
       '技能模式说明框里的技能分颜色：主动青、被动紫、没解锁的灰色；冷却中变暗，写着还剩几回合；每个技能都标上冷却时间',
       '技能模式：棋子说明框改版——生命（红）、攻击（橙）、功勋（金）做成三块大字；「甲片」改叫「功勋」，杀一个敌子得 1 点，说明框里写着攒满几点自动升级。汉军腰带上换成金边朱心的功勋牌，楚军仍是乌铁甲片',
       '联机、人机对局的结算曲分阵营：汉军赢了放新写的「礼乐」，楚军输了放新写的「乌江」（其余照旧）',
@@ -1801,12 +1803,23 @@
     clearTimeout(bfTipT); bfTipT = setTimeout(() => $('bfTip').classList.add('hidden'), 16000);
     try { Sfx.B.taiko(0, 3, 0.7); } catch (e) { }
   }
+  // 进入第二 / 第三阶段（Ham 10-09 22:17）：第 15 回合起每回合双方各得 1 点军功，第 45 回合起各得 2 点
+  function showPhaseTip(ph) {
+    $('bfTipH').textContent = ph.n === 3 ? '第 三 阶 段' : '第 二 阶 段';
+    $('bfTipBody').innerHTML = [
+      `第 ${ph.round} 回合起，每回合双方各得 <b>${ph.per} 点军功</b>`,
+      ph.n === 3 ? '军功来得更快：抓紧升级，或攒满 20 发终极兵法' : `到第 ${BF.CFG.merit.phase3FromRound} 回合进入第三阶段，每回合各得 ${BF.CFG.merit.phase3PerRound} 点`,
+    ].map(x => `<li>${x}</li>`).join('');
+    $('bfTip').classList.remove('hidden');
+    clearTimeout(bfTipT); bfTipT = setTimeout(() => $('bfTip').classList.add('hidden'), 9000);
+    try { Sfx.B.gong(0, 0.6); } catch (e) { }
+  }
   function showBfTip(manual) {
     const touch = matchMedia('(pointer: coarse)').matches;
     $('bfTipH').textContent = '技 能 模 式 速 览';
     $('bfTipBody').innerHTML = [
       `<b>${touch ? '长按' : '鼠标停在'}棋子上</b>，看它的等级、血量和技能`,
-      '<b>军功</b>：吃子、将军、兵卒过河都得军功',
+      '<b>军功</b>：吃子、将军、兵卒过河都得军功；第 15 回合起每回合各 +1，第 45 回合起各 +2',
       '<b>升级</b>：选中棋子点「升级」；每杀一个敌子得 1 点<b>功勋</b>，攒满<b>自动升级</b>',
       '兵<b>二级</b>就能架拒马，其余<b>三级</b>解锁技能，<b>四级</b>成名将；棋身 木 → 银 → 金 → 玉',
       '打不死的目标头顶标 <b>-1</b>，能一击杀死才标<b>「殺」</b>',
@@ -2242,7 +2255,9 @@
       if (!busy && game.turn === mySide) { turnStartAt = performance.now(); slowIdx = 0; }
       updateHud();
       if (!game.bf) return;   // 演出放完时已经换了一局（退出重开）
+      { const ph = (info.ev || []).find(x => x.e === 'phase'); if (ph && !info.result) showPhaseTip(ph); }
       if (game.mustPass() && canAct() && (mode === 'local' || game.turn === mySide)) toast(`${SIDE_CN[game.turn]}方无子可走，请点「停着」`, 2600);
+      else if (game.upOnly && game.upOnly() && canAct() && (mode === 'local' || game.turn === mySide)) toast('被将军：直接走解不了将，先给能解将的子升一级', 3200);
       else if (game.mayPass() && game.fx.sm > 0 && canAct() && (mode === 'local' || game.turn === mySide)) toast('四面楚歌：楚军只能走将，或点「停着」', 2800);
       if (info.result && !busy) finishGame(info.result);
       else if (!busy && vsAI() && isAI(game.turn)) maybeAI();
