@@ -204,11 +204,53 @@ const EndTunes = (() => {
   //   Ham 10-09 21:38 试听台第二十八批：汉胜用方案三「礼乐」、楚败用方案三「乌江」；汉败留原曲，楚胜三个都没过，也先用原曲
   //   Ham 10-10 试听台第三十批：楚胜挑了「乌骓」「楚凯」两首，随机放（数组 = 从里面随机挑一首）
   //   声音部 10-10 试听台第三十六批：汉胜「礼乐」「未央」随机；汉败原曲（null = 老曲子）和「荥阳」随机
-  const PICK = { r: { win: [2, 3], lose: [null, 3] }, b: { win: [4, 5], lose: 2 } };
+  // 战局开场曲用的乐器（声音部 10-10）：真大鼓（决战鼓那套录音）、真锣、编钟、古筝、古琴；end(t) = t 秒起整体淡出，全长约 3 秒
+  const OI = (k, g = 1) => {
+    const D = Sfx.ctx.createGain(); D.gain.value = g; D.connect(k.bus());
+    const S = (id, t, vol, rate = 1, i) => k.smp(id, { t, vol, rate, rj: 0, pan: 0, dest: D, i });
+    const T0 = Sfx.ctx.currentTime;
+    return {
+      S,
+      end: (t = 2.3) => { D.gain.setValueAtTime(g, T0 + t); D.gain.setTargetAtTime(0.0001, T0 + t, 0.22); },
+      drum: (t, v = 0.8, r = 0.62) => { S('drum', t, v, r); S('soft', t, v * 0.25, 0.5); },
+      gong: (t, v = 0.5, r = 0.8, i = 0) => S('gong', t, v, r, i),
+      zheng: (t, n, v = 0.2) => k.pluck(hz(n), { t, vol: v, decay: 0.996, bright: 0.6, dest: D }),
+      qin: (t, n, v = 0.3) => k.pluck(hz(n), { t, vol: v, decay: 0.9975, bright: 0.3, dest: D, body: true }),
+      bell: (t, n, v = 0.1, len = 2.6) => { const f = hz(n); for (const [r, gg, dd] of [[1, 1, len], [2.0, 0.35, len * 0.6], [2.76, 0.3, len * 0.45], [5.4, 0.12, len * 0.25]]) k.tn({ t, f: f * r, dur: dd, vol: v * gg, dest: D }); },
+    };
+  };
+  const orun = (x, t0, ns, gap = 0.06, v = 0.2) => ns.forEach((n, i) => x.zheng(t0 + i * gap, n, v * (0.7 + 0.3 * i / ns.length)));
+  // 战局开场曲（Ham 10-10 试听台第五十批 b53：汉“这俩都行，随机播放”；楚选丙）。开局出「楚汉相争」题字时放，替掉原来的一声锣 + 三下鼓
+  T.r.open = [
+    { name: '汉 · 丙', desc: '甲的安静版：一下轻鼓，古筝慢慢往上拨，编钟三声，轻锣', play(k) {
+      const x = OI(k, 1.6);
+      x.drum(0, 0.45, 0.7); x.qin(0, 'D2', 0.26); orun(x, 0.15, ['D4', 'Fs4', 'A4', 'D5'], 0.11, 0.16);
+      [['A4', 0.7], ['D5', 1.05], ['Fs5', 1.4]].forEach(([n, t]) => x.bell(t, n, 0.08, n === 'Fs5' ? 1.8 : 1.1));
+      x.gong(1.4, 0.18, 1.0); x.bell(1.42, 'D4', 0.04, 1.8); x.end(2.4);
+    } },
+    { name: '汉 · 丁', desc: '没有鼓：古琴一声低音，编钟和古筝对答一句宫调，一声很轻的锣', play(k) {
+      const x = OI(k, 1.7);
+      x.qin(0, 'D3', 0.3); x.qin(0.02, 'A2', 0.22);
+      [['D5', 0.3], ['E5', 0.55], ['A4', 0.8]].forEach(([n, t]) => x.bell(t, n, 0.08, 1.2));
+      [['Fs4', 0.45], ['A4', 0.68], ['B4', 0.92], ['D5', 1.2]].forEach(([n, t]) => x.zheng(t, n, 0.16));
+      x.bell(1.25, 'D5', 0.08, 1.8); x.gong(1.25, 0.14, 1.05); x.end(2.4);
+    } },
+  ];
+  T.b.open = [
+    { name: '楚 · 丙', desc: '慢：两下沉鼓隔得很开，古琴低音，编钟羽调慢慢往下，一声低锣', play(k) {
+      const x = OI(k, 1.7);
+      x.drum(0, 0.7, 0.52); x.qin(0, 'D2', 0.32);
+      [['A4', 0.35], ['G4', 0.75], ['D4', 1.15]].forEach(([n, t]) => x.bell(t, n, 0.08, n === 'D4' ? 1.8 : 1.3));
+      x.drum(1.15, 0.85, 0.5); x.gong(1.17, 0.3, 0.85, 1); x.qin(1.15, 'A1', 0.22); x.end(2.5);
+    } },
+  ];
+  const PICK = { r: { win: [2, 3], lose: [null, 3], open: [0, 1] }, b: { win: [4, 5], lose: 2, open: 0 } };
   return {
     T, PICK,
     // 放一首：side 'r' / 'b'，kind 'win' / 'lose'；n 不给就用挑定的那个。挑定之前返回 false（调用的地方照旧放老曲子）
     play(side, kind, n) { const L = (T[side] || {})[kind]; let i = n == null ? (PICK[side] || {})[kind] : n; if (Array.isArray(i)) i = i[Math.floor(Math.random() * i.length)]; if (!L || i == null || !L[i] || !Sfx.ctx) return false; Sfx.Music.stop(); L[i].play(Sfx.kit); return true; },
+    // 放战局开场曲：side 'r' / 'b'。和 play 不同，不停背景音乐（开局时背景音乐已经起了）；没有就返回 false（调用处照旧放锣鼓）
+    open(side) { const L = (T[side] || {}).open; let i = (PICK[side] || {}).open; if (Array.isArray(i)) i = i[Math.floor(Math.random() * i.length)]; if (!L || i == null || !L[i] || !Sfx.ctx) return false; L[i].play(Sfx.kit); return true; },
     // 出试听样：离线渲染一首，返回 16 位 WAV 的 base64（tools/tunes.py 调）
     async renderWav(side, kind, n, sec = 22) {
       const buf = await Sfx.renderOffline(() => { if (side === 'old') Sfx.Music.stinger(kind); else T[side][kind][n].play(Sfx.kit); }, sec);

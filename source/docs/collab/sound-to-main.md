@@ -78,3 +78,22 @@
 
 **交之前查过**：合了最新 main；打包不报错；八个测试全过；页面里把五种（0、1、2、3、4 级，以及二级残血、一级残血）各调了一遍，没报错。
 
+
+## S5 · 10-10 · 交付：战局开场音乐（Ham 试听台 b52、b53 通过）
+
+**动了哪些文件**
+- `source/src/endtunes.js`：加 `T.r.open`（汉丙、汉丁）、`T.b.open`（楚丙），`PICK.r.open = [0, 1]`（Ham：“这俩都行，随机播放”）、`PICK.b.open = 0`；加 `EndTunes.open(side)`：放开场曲，**不停背景音乐**（结算曲的 `play` 会先停，开场不能停），没有就返回 false。
+- 乐器只用真大鼓（决战鼓那套录音）、真锣、编钟、古筝、古琴；每首约 3 秒，2.3 秒起整体淡出。没有新素材、没有新署名。
+
+**要 TD 接的**：`main.js` 开局（约 1113 行）现在是
+```js
+Sfx.B.gong(0, 0.9); Sfx.B.taiko(0.5, 0.8); Sfx.B.taiko(0.8, 0.8); Sfx.B.taiko(1.05, 0.9);
+```
+改成按玩家所执一方放（本地双人放汉的），没有就照旧：
+```js
+const openSide = mode === 'local' ? 'r' : mySide;
+if (!(window.EndTunes && EndTunes.open(openSide))) { Sfx.B.gong(0, 0.9); Sfx.B.taiko(0.5, 0.8); Sfx.B.taiko(0.8, 0.8); Sfx.B.taiko(1.05, 0.9); }
+```
+观战（`watch`）建议也按 `mySide` 或直接放汉的，你定。
+
+**交之前查过**：合了最新 main；`node source/build.js` 不报错；用原版渲染脚本把游戏里的三首各出一遍，和试听台上的一致；`source/test/` 全过。
