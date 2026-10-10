@@ -14,7 +14,7 @@ if (a < 0 || b < 0 || src.indexOf('  function score(S, me, P) {', a + 1) >= 0) t
 let s = src.slice(0, a) + require('./score_w.js').source(w).replace(/^  \/\/ ---------- 估值权重（/, '  // ---------- 估值权重（' + path.basename(wf) + '；') + src.slice(b + endMark.length);
 const t = 'hist.clear(); killers.length = 0;';
 if (s.split(t).length !== 2) throw new Error('找不到 think() 开头的清缓存');
-s = s.replace(t, t + ' potC = null;');
+s = s.replace(t, t + ' potC = null; skC = null;');
 fs.writeFileSync('/tmp/bfai_tuned_src.js', s);
 const tmp = path.join(require('os').tmpdir(), 'bfai_tune_patch');
 fs.mkdirSync(tmp + '/a/source/src', { recursive: true }); fs.mkdirSync(tmp + '/b/source/src', { recursive: true });

@@ -36,12 +36,17 @@ add('bias', 0); add('tempo', 0);
 //   hurt_up：掉了血、现在升就回满的子数；ult_ready / ult_near：终极兵法没用过、军功已够 / 差 5 以内
 for (const t of ['r', 'n', 'c', 'p', 'a', 'e']) add('up_' + t, 0);
 add('r_gap3', 0); add('skill_up', 0); add('hurt_up', 0); add('ult_ready', 0); add('ult_near', 0);
+// 第二轮（2026-10-10，原权重 0）：skr_t：t 兵种主技能已解锁、不是被动、冷却好了的子数；att2 / att4：离对方主帅（横竖步数）2 / 4 以内的进攻子数（车马炮、过河兵）；
+//   heavy：有两血以上的进攻子逼到对方家门口（heavyAt，汉有 +1、楚有 −1）
+for (const t of ['r', 'n', 'c', 'p', 'a', 'e']) add('skr_' + t, 0);
+add('att2', 0); add('att4', 0); add('heavy', 0);
 const NAMES = Object.keys(W0);
 const IDX = Object.fromEntries(NAMES.map((k, i) => [k, i]));
 const N = NAMES.length;
 const FIXED = new Set(['fixed']);   // 不调
 const FIT_ONLY = new Set(['bias', 'tempo']);   // 拟合用、不进电脑
 
+const BF0 = () => (typeof global !== 'undefined' && global.BF) || require('../../src/bingfa.js');
 // A：引擎的 BF.ai（要 atk）；CFG：BF.CFG（背水开没开决定楚方兵法值几分，见 W0.art_b）
 function feats(S, A, CFG) {
   const F = new Float64Array(N);
@@ -90,13 +95,15 @@ function feats(S, A, CFG) {
       default: if (fin) { e('fin_def_adv', adv); e('fin_def_near', Math.max(0, 8 - dk)); }
     }
     if (p.jm && p.jm > S.cnt[other(s)]) e('jm', 1);
-    if (dk <= 4 && (p.t === 'r' || p.t === 'c' || p.t === 'n' || (p.t === 'p' && adv >= 5))) { if (s === 'r') attR++; else attB++; }
+    if (dk <= 4 && (p.t === 'r' || p.t === 'c' || p.t === 'n' || (p.t === 'p' && adv >= 5))) { if (s === 'r') attR++; else attB++; e('att4', 1); if (dk <= 2) e('att2', 1); }
+    { const sk = BF0().SKILL_OF(p.t, s), C = CFG.skills[sk]; if (sk && !(C && C.passive) && p.lv >= ((C && C.level) || CFG.skillLevel) && S.cnt[s] >= (p.cd || 0)) e('skr_' + p.t, 1); }
     if (!fin && ek && dk <= 4 && p.hp > (s === 'r' ? dB : dR)) {
       if (p.t === 'r') { if (dk <= 1) e('kd_r1', 1); else if (dk === 2) e('kd_r2', 1); else if (f === ek[0] || r === ek[1]) e('kd_rline', 1); }
       else if (p.t === 'n') { if (dk <= 3) e('kd_n', 1); }
       else if (p.t === 'p' && adv >= 5) { if (dk <= 1) e('kd_p1', 1); else if (dk === 2) e('kd_p2', 1); }
     }
   }
+  F[IDX.heavy] += (hvR ? 1 : 0) - (hvB ? 1 : 0);
   F[IDX.merit] += S.merit.r - S.merit.b;
   // 主帅兵法还没用：汉记 art_r，楚记 art_b（背水开着时线上默认值 BSV = 3，和破釜一样）
   if (!S.used.art.r) F[IDX.art_r] += 1;

@@ -137,7 +137,7 @@ function build(E, tag) {
   if (TUNEW && TUNEFAST) {   // 换估值权重、写回原公式（tools/tune/score_w.js，上线用的写法：不慢）
     const w = JSON.parse(fs.readFileSync(path.resolve(__dirname, '..', '..', TUNEW), 'utf8')).w;
     rep('  function score(S, me, P) {', require('../tune/score_w.js').source(w) + '  function scoreOrig(S, me, P) {');
-    rep('hist.clear(); killers.length = 0;', 'hist.clear(); killers.length = 0; potC = null;');
+    rep('hist.clear(); killers.length = 0;', 'hist.clear(); killers.length = 0; potC = null; skC = null;');
   } else if (TUNEW) {   // 换估值权重（tools/tune/）：score 变成“特征 × 权重”；带 P（分项，只给 scoreParts）时仍用原公式
     const feats = JSON.stringify(path.join(__dirname, '..', 'tune', 'feats.js'));
     const wtxt = JSON.stringify(JSON.parse(fs.readFileSync(path.resolve(__dirname, '..', '..', TUNEW), 'utf8')).w);

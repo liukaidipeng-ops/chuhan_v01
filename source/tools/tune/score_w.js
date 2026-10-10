@@ -14,6 +14,15 @@ function source(w) {
   for (const t of ['r', 'c', 'n', 'p', 'a', 'e']) { EHP[t] = [0, EW[t + '_hp1'], EW[t + '_hp2'], EW[t + '_hp3'], EW[t + '_hp4']]; ELV[t] = EW[t + '_lv']; EUP[t] = EW['up_' + t] || 0; }
   const EAADV = [0, EW.aadv_hp1, EW.aadv_hp2, EW.aadv_hp3, EW.aadv_hp4];
   const EKD = [EW.kd_r1, EW.kd_r2, EW.kd_rline, EW.kd_n, EW.kd_p1, EW.kd_p2];
+  const ESKR = { r: EW.skr_r || 0, n: EW.skr_n || 0, c: EW.skr_c || 0, p: EW.skr_p || 0, a: EW.skr_a || 0, e: EW.skr_e || 0 }, ESK = Object.values(ESKR).some(x => x);
+  // 每个 [方][兵种] 的主技能：名字、几级解锁、是不是被动（think() 开始时随 potC 一起清掉）
+  let skC = null;
+  function skInfo(s, t) {
+    if (!skC) skC = { r: {}, b: {} };
+    let x = skC[s][t];
+    if (x === undefined) { const sk = BF.SKILL_OF(t, s), C = sk && CFG.skills[sk]; x = skC[s][t] = sk && !(C && C.passive) ? ((C && C.level) || CFG.skillLevel) : 99; }
+    return x;
+  }
   const EPOT = ['up_r', 'up_n', 'up_c', 'up_p', 'up_a', 'up_e', 'r_gap3', 'skill_up', 'hurt_up', 'ult_ready', 'ult_near'].some(k => EW[k]);
   // 一枚子本身值多少（按权重表；和下面 baseVal 的结构相同。baseVal 还留给走法排序用）
   function baseValW(p, heavy) {
@@ -91,7 +100,8 @@ function source(w) {
           default: if (fin) x += adv * EW.fin_def_adv + EW.fin_def_near * Math.max(0, 8 - dk);   // 决战里士象也要压上去
         }
         if (p.jm && p.jm > S.cnt[other(s)]) x += EW.jm;
-        if (dk <= 4 && (p.t === 'r' || p.t === 'c' || p.t === 'n' || (p.t === 'p' && adv >= 5))) { if (s === 'r') attR++; else attB++; }
+        if (dk <= 4 && (p.t === 'r' || p.t === 'c' || p.t === 'n' || (p.t === 'p' && adv >= 5))) { if (s === 'r') attR++; else attB++; x += EW.att4; if (dk <= 2) x += EW.att2; }
+        if (ESK && p.lv >= skInfo(s, p.t) && S.cnt[s] >= (p.cd || 0)) x += ESKR[p.t];   // 主技能冷却好了
         if (P) xp = x;
         // 砍不死的进攻子贴到对方主帅身边：这是这个游戏里最主要的杀法（升了级的车马兵贴脸将军，一级的士、帅拿它没办法）
         if (!fin && ek && dk <= 4 && p.hp > (s === 'r' ? dB : dR)) {
@@ -103,6 +113,7 @@ function source(w) {
       v += s === me ? x : -x;
       if (P) { const g = s === me ? 1 : -1; if (p.t === 'k') P['帅'] += g * x; else { P['子力'] += g * xb; P['位置'] += g * (xp - xb); P['贴脸'] += g * (x - xp); } }
     }
+    if (EW.heavy && hvR !== hvB) { const u = (me === 'r' ? 1 : -1) * EW.heavy * (hvR ? 1 : -1); v += u; if (P) P['贴脸'] += u; }
     const mt = EW.merit * (S.merit[me] - S.merit[other(me)]);   // 军功能换成血量和等级
     v += mt; if (P) P['军功'] += mt;
     if (EPOT) { const u = (me === 'r' ? 1 : -1) * potW(S); v += u; if (P) P['军功'] += u; }
