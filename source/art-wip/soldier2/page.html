@@ -1,0 +1,211 @@
+<title>兵卒新模型 · 定格</title>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Noto+Serif+SC:wght@600;900&family=Noto+Sans+SC:wght@400;500&display=swap">
+<style>
+/* 拍板单 q3 甲：重做兵卒的模型和绑定。先出定格姿势图看质感，Ham 点头再做动画 */
+:root{--bg:#1b1a17;--fg:#f0e7d2;--dim:#a39b89;--line:#3a362f;
+  --ef:"Noto Serif SC","Songti SC",serif;--es:"Noto Sans SC","PingFang SC",sans-serif;color-scheme:dark}
+body{background:var(--bg);color:var(--fg);font-family:var(--es);padding-block:24px 48px;padding-inline:16px;margin:0}
+.wrap{max-width:1180px;margin:0 auto;display:flex;flex-direction:column;gap:14px}
+h1{margin:0;font:900 28px/1.2 var(--ef);letter-spacing:.14em}
+.lead{margin:0;color:var(--dim);font-size:14px;line-height:1.8;max-width:74ch}
+.ctl{display:flex;gap:8px;flex-wrap:wrap}
+.ctl button{all:unset;cursor:pointer;border:1.5px solid var(--fg);padding:6px 14px;font:600 14px var(--ef);letter-spacing:.1em}
+.ctl button.on{background:var(--fg);color:var(--bg)}
+.ctl button:focus-visible{outline:2px solid var(--fg);outline-offset:3px}
+canvas{width:100%;max-width:100%;aspect-ratio:16/9;display:block;background:#2b2722;box-shadow:0 0 0 1px var(--line)}
+</style>
+<div class="wrap">
+  <h1>兵卒新模型 · 定格</h1>
+  <p class="lead">新骨架：脊柱三节、脖子、锁骨、手腕，矛可以双手握、换手；身子改成圆润的形体，有手、有脸型。造型照乙「盔胄对巾帻」。</p>
+  <div class="ctl" role="group" aria-label="看哪个"><button data-v="duel" class="on">对峙定格</button><button data-v="turn">三面图</button></div>
+  <canvas id="cv"></canvas>
+</div>
+<script src="https://cdn.jsdelivr.net/npm/three@0.158.0/build/three.min.js"></script>
+<script>
+(() => {
+  const PI = Math.PI, V = (x, y, z) => new THREE.Vector3(x, y, z);
+  // ---------- 材质：和游戏一样的三阶卡通 + 水墨描边 ----------
+  const grad = (() => { const t = new THREE.DataTexture(new Uint8Array([78, 78, 78, 255, 158, 158, 158, 255, 240, 240, 240, 255]), 3, 1, THREE.RGBAFormat); t.minFilter = t.magFilter = THREE.NearestFilter; t.needsUpdate = true; return t; })();
+  const vcMat = new THREE.MeshToonMaterial({ color: 0xffffff, vertexColors: true, gradientMap: grad });
+  const olMat = new THREE.MeshBasicMaterial({ color: 0x15120f, side: THREE.BackSide });
+  olMat.onBeforeCompile = sh => { sh.vertexShader = sh.vertexShader.replace('#include <begin_vertex>', 'vec3 transformed = position + normalize(normal) * 0.011;'); };
+  const M4 = (x, y, z, rx = 0, ry = 0, rz = 0, sx = 1, sy = sx, sz = sx) => new THREE.Matrix4().compose(V(x, y, z), new THREE.Quaternion().setFromEuler(new THREE.Euler(rx, ry, rz)), V(sx, sy, sz));
+  const P = (geo, color, x = 0, y = 0, z = 0, rx = 0, ry = 0, rz = 0, sx = 1, sy = sx, sz = sx) => ({ geo, color, m: M4(x, y, z, rx, ry, rz, sx, sy, sz) });
+  function mk(parts) {   // 合并成一块，顶点色；保留平滑法线
+    const pos = [], nor = [], col = [];
+    for (const p of parts) {
+      const g = (p.geo.index ? p.geo.toNonIndexed() : p.geo.clone()); g.applyMatrix4(p.m);
+      const c = new THREE.Color(p.color), a = g.attributes.position, n = g.attributes.normal;
+      for (let i = 0; i < a.count; i++) { pos.push(a.getX(i), a.getY(i), a.getZ(i)); nor.push(n.getX(i), n.getY(i), n.getZ(i)); col.push(c.r, c.g, c.b); }
+    }
+    const g = new THREE.BufferGeometry(); g.setAttribute('position', new THREE.Float32BufferAttribute(pos, 3)); g.setAttribute('normal', new THREE.Float32BufferAttribute(nor, 3)); g.setAttribute('color', new THREE.Float32BufferAttribute(col, 3));
+    return g;
+  }
+  const inked = geo => { const g = new THREE.Group(); const m = new THREE.Mesh(geo, vcMat); m.castShadow = true; g.add(m, new THREE.Mesh(geo, olMat)); g.matrixAutoUpdate = false; return g; };
+  // ---------- 形体：圆润的锥段、躯干车削 ----------
+  // limb：从原点往 -y 长 L 的一段，上粗 r0 下细 r1，两头圆
+  function limb(r0, r1, L, s = 9) {
+    const pts = [];
+    for (let i = 0; i <= 4; i++) { const a = PI / 2 * (1 - i / 4); pts.push(new THREE.Vector2(Math.cos(a) * r0 * 0.98 + 1e-4, Math.sin(a) * r0 * 0.6)); }
+    for (let i = 1; i < 4; i++) { const t = i / 4; pts.push(new THREE.Vector2(r0 + (r1 - r0) * t + Math.sin(t * PI) * (r0 + r1) * 0.06, -L * t)); }
+    for (let i = 0; i <= 4; i++) { const a = -PI / 2 * (i / 4); pts.push(new THREE.Vector2(Math.cos(a) * r1 + 1e-4, -L + Math.sin(a) * r1 * 0.6)); }
+    pts.reverse(); return new THREE.LatheGeometry(pts, s);
+  }
+  // lathe：按 [半径, 高] 一串点车出来（从下往上）
+  const lathe = (prof, s = 14) => new THREE.LatheGeometry(prof.map(([r, y]) => new THREE.Vector2(Math.max(1e-4, r), y)), s);
+  const sph = (r, w = 12, h = 9) => new THREE.SphereGeometry(r, w, h), box = (a, b, c) => new THREE.BoxGeometry(a, b, c), cyl = (a, b, h, s = 10) => new THREE.CylinderGeometry(a, b, h, s), cone = (r, h, s = 8) => new THREE.ConeGeometry(r, h, s);
+  const tor = (R, r, s = 16, ts = 6, arc = PI * 2) => new THREE.TorusGeometry(R, r, ts, s, arc);
+  const K = { skin: 0xd9bd96, skin2: 0xc9a47e, hair: 0x161412, iron: 0x4f4c48, iron2: 0x6b6862, bronze: 0x9a7a3c, gold: 0xc9a045, wood: 0x6e4a2c, metal: 0xc8c4ba, black: 0x222024, boot: 0x1f1d1b, lip: 0xa86a58 };
+  const HAN = { red: 0xa8321f, red2: 0x7e2216, pants: 0x3a2e2a };
+  const CHU = { robe: 0x262428, leather: 0x5a3a26, leather2: 0x3e281a, wrap: 0x6a5a44, red: 0x6e2a1c, ochre: 0xc69a3c, pants: 0x2a2629 };
+  // ---------- 零件（每件都在自己的骨头坐标里画：原点 = 关节，往 -y 是下一节） ----------
+  function face(f) {   // 脸：下巴、鼻子、眉、眼、嘴
+    return [P(sph(0.105, 14, 11), K.skin, 0, 0.1, 0.005, 0, 0, 0, 0.95, 1.12, 1.0), P(sph(0.07, 10, 8), K.skin, 0, 0.035, 0.035, 0, 0, 0, 1.05, 0.85, 1.0),
+      P(cone(0.018, 0.05, 5), K.skin2, 0, 0.095, 0.108, PI / 2 * 0.95, 0, 0), ...[1, -1].flatMap(s => [P(sph(0.013, 6, 5), K.hair, 0.035 * s, 0.118, 0.094), P(box(0.04, 0.008, 0.012), K.hair, 0.037 * s, 0.14, 0.096, 0, 0, -0.18 * s * f), P(sph(0.022, 6, 5), K.skin, 0.1 * s, 0.1, -0.005, 0, 0, 0, 0.5, 1, 0.8)]),
+      P(box(0.04, 0.007, 0.01), K.lip, 0, 0.045, 0.098)];
+  }
+  function hanParts() {
+    const o = {};
+    o.pelvis = mk([P(lathe([[0.12, -0.1], [0.16, -0.04], [0.17, 0.04], [0.15, 0.1]]), HAN.red, 0, 0, 0, 0, 0, 0, 1.15, 1, 0.85), P(cyl(0.168, 0.165, 0.1, 16), K.black, 0, 0.07, 0, 0, 0, 0, 1.16, 1, 0.87), P(box(0.1, 0.07, 0.03), K.gold, 0, 0.07, 0.148)]);
+    o.spine = mk([P(lathe([[0.15, -0.02], [0.16, 0.06], [0.165, 0.13]]), HAN.red, 0, 0, 0, 0, 0, 0, 1.18, 1, 0.82)]);
+    o.chest = mk([P(lathe([[0.165, -0.02], [0.18, 0.06], [0.175, 0.14], [0.13, 0.21], [0.06, 0.24]]), HAN.red, 0, 0, 0, 0, 0, 0, 1.25, 1, 0.8), P(box(0.035, 0.24, 0.02), HAN.red2, 0.03, 0.1, 0.142, 0, 0, -0.45), P(box(0.035, 0.12, 0.02), HAN.red2, -0.045, 0.17, 0.13, 0, 0, 0.6)]);
+    o.neck = mk([P(limb(0.05, 0.055, 0.09, 8), K.skin, 0, 0.09, 0)]);
+    o.head = mk([...face(1), P(lathe([[0.122, -0.01], [0.128, 0.05], [0.118, 0.11], [0.08, 0.16], [0.02, 0.18]], 16), K.iron, 0, 0.12, -0.005), P(cyl(0.135, 0.135, 0.02, 16), K.iron2, 0, 0.12, -0.005), P(cone(0.025, 0.06, 6), K.iron2, 0, 0.32, -0.005),
+      ...[1, -1].map(s => P(box(0.02, 0.11, 0.09), K.iron, 0.122 * s, 0.07, -0.005, 0, 0, 0.08 * s)), P(box(0.2, 0.1, 0.02), K.iron, 0, 0.08, -0.115)]);
+    o.plume = mk([P(cone(0.06, 0.24, 8), HAN.red, 0, 0.12, 0, 0, 0, 0), P(sph(0.04, 8, 6), HAN.red2, 0, 0.0, 0)]);
+    for (const k of ['W', 'S']) {
+      o['clav' + k] = mk([P(sph(0.075, 10, 8), K.iron, 0, 0, 0, 0, 0, 0, 1.2, 0.75, 1.1), P(sph(0.07, 10, 8), K.iron2, 0, -0.03, 0, 0, 0, 0, 1.1, 0.6, 1.0)]);   // 铁护肩
+      o['uarm' + k] = mk([P(limb(0.052, 0.045, 0.26), HAN.red, 0, 0, 0)]);
+      o['farm' + k] = mk([P(limb(0.045, 0.036, 0.24), HAN.red, 0, 0, 0), P(cyl(0.05, 0.044, 0.1, 10), K.iron, 0, -0.17, 0)]);
+      o['hand' + k] = mk([P(sph(0.042, 9, 7), K.skin, 0, -0.045, 0.005, 0, 0, 0, 0.75, 1.1, 0.95), P(limb(0.016, 0.014, 0.05, 6), K.skin, 0, -0.02, 0.035, 0.6, 0, 0)]);
+    }
+    for (const k of ['L', 'R']) {
+      o['thigh' + k] = mk([P(limb(0.075, 0.058, 0.42), HAN.pants, 0, 0, 0)]);
+      o['shin' + k] = mk([P(limb(0.056, 0.042, 0.41), HAN.pants, 0, 0, 0), P(cyl(0.05, 0.046, 0.16, 10), K.black, 0, -0.32, 0)]);
+      o['foot' + k] = mk([P(sph(0.06, 10, 7), K.boot, 0, -0.03, 0.06, 0, 0, 0, 0.8, 0.55, 1.8)]);
+      o['robe' + k] = mk([P(new THREE.CylinderGeometry(0.175, 0.29, 0.42, 9, 1, true, k === 'R' ? -0.5 : PI - 0.5, PI + 1.0), HAN.red, 0, -0.21, 0, 0, 0, 0, 1.12, 1, 0.9)]);
+    }
+    o.weapon = mk([P(cyl(0.017, 0.02, 2.55, 7), K.wood, 0, 0.55, 0), P(lathe([[0, 0], [0.04, 0.08], [0.03, 0.2], [0, 0.32]], 4), K.metal, 0, 1.83, 0, 0, PI / 4, 0, 1, 1, 0.3), P(cyl(0.026, 0.022, 0.07, 8), K.bronze, 0, 1.8, 0), P(cone(0.06, 0.13, 9), HAN.red, 0, 1.7, 0, PI), P(cone(0.024, 0.07, 6), K.bronze, 0, -0.76, 0, PI)]);
+    o.shield = mk([P(box(0.44, 0.7, 0.045), HAN.red, 0, 0, 0), P(box(0.45, 0.04, 0.06), K.gold, 0, 0.33, 0), P(box(0.45, 0.04, 0.06), K.gold, 0, -0.33, 0), P(box(0.04, 0.66, 0.055), K.black, 0, 0, 0.005), P(sph(0.06, 10, 7), K.iron2, 0, 0.02, 0.03, 0, 0, 0, 1, 1, 0.6)]);
+    return o;
+  }
+  function chuParts() {
+    const o = {};
+    o.pelvis = mk([P(lathe([[0.12, -0.1], [0.155, -0.04], [0.16, 0.04], [0.145, 0.1]]), CHU.robe, 0, 0, 0, 0, 0, 0, 1.12, 1, 0.85), P(cyl(0.158, 0.155, 0.06, 16), K.black, 0, 0.06, 0, 0, 0, 0, 1.13, 1, 0.87)]);
+    o.spine = mk([P(lathe([[0.145, -0.02], [0.152, 0.06], [0.158, 0.13]]), CHU.robe, 0, 0, 0, 0, 0, 0, 1.16, 1, 0.82), P(lathe([[0.152, 0.02], [0.16, 0.13]]), CHU.leather, 0, 0, 0, 0, 0, 0, 1.2, 1, 0.86)]);
+    o.chest = mk([P(lathe([[0.158, -0.02], [0.172, 0.06], [0.168, 0.14], [0.125, 0.21], [0.06, 0.24]]), K.skin, 0, 0, 0, 0, 0, 0, 1.22, 1, 0.8), P(lathe([[0.164, -0.02], [0.178, 0.06], [0.172, 0.15], [0.12, 0.2]]), CHU.leather, 0, 0, 0, 0, 0, 0, 1.24, 1, 0.84),
+      ...[-0.08, 0, 0.08].map(x => P(box(0.012, 0.18, 0.02), CHU.leather2, x, 0.07, 0.145)), P(box(0.36, 0.02, 0.3), CHU.ochre, 0, -0.01, 0)]);
+    o.neck = mk([P(limb(0.05, 0.056, 0.09, 8), K.skin, 0, 0.09, 0)]);
+    o.head = mk([...face(-1), P(sph(0.128, 14, 10), K.black, 0, 0.14, -0.012, 0, 0, 0, 1.02, 0.78, 1.04), P(tor(0.118, 0.022, 18, 6), K.black, 0, 0.135, -0.005, PI / 2, 0, 0, 1, 1.05, 1), P(sph(0.045, 8, 6), K.black, 0, 0.16, -0.14), P(tor(0.12, 0.006, 18, 4), CHU.red, 0, 0.155, 0, PI / 2)]);
+    o.tails = mk([1, -1].map(s => P(box(0.05, 0.34, 0.01), K.black, 0.035 * s, -0.17, 0, -0.1, 0, 0.1 * s)));
+    for (const k of ['W', 'S']) {
+      o['clav' + k] = mk([P(sph(0.07, 10, 8), K.skin, 0, 0, 0, 0, 0, 0, 1.1, 0.8, 1.05)]);
+      o['uarm' + k] = mk([P(limb(0.054, 0.046, 0.26), K.skin, 0, 0, 0), P(cyl(0.056, 0.056, 0.03, 10), CHU.red, 0, -0.05, 0)]);
+      o['farm' + k] = mk([P(limb(0.047, 0.037, 0.24), K.skin, 0, 0, 0), P(cyl(0.05, 0.043, 0.11, 10), CHU.leather, 0, -0.17, 0)]);
+      o['hand' + k] = mk([P(sph(0.042, 9, 7), K.skin, 0, -0.045, 0.005, 0, 0, 0, 0.75, 1.1, 0.95), P(limb(0.016, 0.014, 0.05, 6), K.skin, 0, -0.02, 0.035, 0.6, 0, 0)]);
+    }
+    for (const k of ['L', 'R']) {
+      o['thigh' + k] = mk([P(limb(0.074, 0.056, 0.42), CHU.pants, 0, 0, 0), P(lathe([[0.09, -0.16], [0.08, 0.02]]), CHU.robe, 0, -0.02, 0)]);
+      o['shin' + k] = mk([P(limb(0.055, 0.041, 0.41), CHU.pants, 0, 0, 0), ...[0, 1, 2, 3, 4].map(i => P(cyl(0.058 - i * 0.003, 0.056 - i * 0.003, 0.04, 10), CHU.wrap, 0, -0.12 - i * 0.055, 0, 0.12 * (i % 2 ? 1 : -1)))]);
+      o['foot' + k] = mk([P(sph(0.058, 10, 7), K.boot, 0, -0.03, 0.06, 0, 0, 0, 0.8, 0.55, 1.8)]);
+    }
+    o.weapon = mk([P(cyl(0.017, 0.02, 2.55, 7), 0x5a3d26, 0, 0.55, 0), P(lathe([[0, 0], [0.035, 0.07], [0.028, 0.18], [0, 0.28]], 4), K.metal, 0, 1.84, 0, 0, PI / 4, 0, 1, 1, 0.3), P(lathe([[0, 0], [0.02, 0.03], [0.03, 0.12], [0, 0.24]], 4), K.metal, 0.12, 1.72, 0, 0, 0, -PI / 2 + 0.25, 0.4, 1, 1), P(box(0.05, 0.11, 0.016), K.bronze, 0.02, 1.7, 0), P(cone(0.055, 0.12, 9), CHU.red, 0, 1.6, 0, PI)]);
+    o.shield = mk([P(cyl(0.26, 0.26, 0.04, 26), CHU.robe, 0, 0, 0, PI / 2), P(tor(0.19, 0.02, 28, 6), CHU.red, 0, 0, 0.022), P(tor(0.11, 0.018, 22, 6), CHU.red, 0, 0, 0.022), P(tor(0.25, 0.013, 30, 5), CHU.ochre, 0, 0, 0.022), P(sph(0.045, 10, 7), K.bronze, 0, 0, 0.03, 0, 0, 0, 1, 1, 0.6)]);
+    return o;
+  }
+  // ---------- 骨架 ----------
+  const L_TH = 0.42, L_SH = 0.41, L_UA = 0.26, L_FA = 0.24;
+  const frame = (pos, yAxis, zHint) => { const y = yAxis.clone().normalize(), x = new THREE.Vector3().crossVectors(y, zHint).normalize(); if (x.lengthSq() < 1e-6) x.set(1, 0, 0); const z = new THREE.Vector3().crossVectors(x, y); return new THREE.Matrix4().makeBasis(x, y, z).setPosition(pos); };
+  function ik2(a, b, l1, l2, pole) { const ab = b.clone().sub(a), d = Math.min(l1 + l2 - 1e-3, Math.max(1e-3, ab.length())), n = ab.normalize(); const end = a.clone().addScaledVector(n, d), cosA = (l1 * l1 + d * d - l2 * l2) / (2 * l1 * d), sA = Math.sqrt(Math.max(0, 1 - cosA * cosA)); const pp = pole.clone().addScaledVector(n, -pole.dot(n)).normalize(); return [a.clone().addScaledVector(n, cosA * l1).addScaledVector(pp, sA * l1), end]; }
+  const dirOf = (yaw, pitch) => V(Math.sin(yaw) * Math.cos(pitch), Math.sin(pitch), Math.cos(yaw) * Math.cos(pitch));
+  const R3 = (rx, ry, rz) => new THREE.Matrix4().makeRotationFromEuler(new THREE.Euler(rx, ry, rz, 'YXZ'));
+  const T3 = (x, y, z) => new THREE.Matrix4().makeTranslation(x, y, z);
+  class Soldier2 {
+    constructor(side) { this.root = new THREE.Group(); this.p = {}; const g = side === 'r' ? hanParts() : chuParts(); for (const k in g) { const m = inked(g[k]); this.root.add(m); this.p[k] = m; } }
+    // S：px 前后、side 左右、py 起跳、yaw 整身转；crouch 下蹲、lean 前倾（分给胯和脊柱三节）、twist 拧腰、sway 侧歪；hx 低头、hy 转头
+    //    fL / fR 两脚位置（交锋线上）、liftL / liftR 抬脚；wp 握矛手、wd 矛向 [左右, 俯仰]、g 握在矛杆哪里（离矛根）；two 第二只手也握矛、g2 第二只手握的位置；sp / sd 盾（不双手握时）
+    pose(S) {
+      const M = {}, yw = S.yaw || 0, rY = v => v.applyAxisAngle(V(0, 1, 0), yw), body = V(S.side || 0, S.py || 0, S.px || 0);
+      const pel = T3(S.side || 0, 0.95 - S.crouch + (S.py || 0), S.px || 0).multiply(R3(S.lean * 0.25, S.twist * 0.25 + yw, S.sway * 0.3));
+      M.pelvis = pel;
+      M.spine = pel.clone().multiply(T3(0, 0.11, 0)).multiply(R3(S.lean * 0.25, S.twist * 0.25, S.sway * 0.25));
+      M.chest = M.spine.clone().multiply(T3(0, 0.14, 0)).multiply(R3(S.lean * 0.3 + (S.arch || 0), S.twist * 0.35, S.sway * 0.3));
+      M.neck = M.chest.clone().multiply(T3(0, 0.23, -0.01)).multiply(R3(S.hx * 0.4 - S.lean * 0.25, S.hy * 0.4, 0));
+      M.head = M.neck.clone().multiply(T3(0, 0.09, 0.005)).multiply(R3(S.hx * 0.6, S.hy * 0.6, 0));
+      if (this.p.plume) M.plume = M.head.clone().multiply(T3(0, 0.32, -0.01)).multiply(R3(-0.15 - S.lean * 0.3, 0, 0));
+      if (this.p.tails) M.tails = M.head.clone().multiply(T3(0, 0.16, -0.15)).multiply(R3(-0.35 + S.lean * 0.4, 0, 0));
+      const fwdP = V(0, 0, 1).transformDirection(pel);
+      for (const [k, s] of [['L', -1], ['R', 1]]) {
+        const hip = V(0.095 * s, -0.06, 0).applyMatrix4(pel), ft = rY(V(0.12 * s, (S['lift' + k] || 0) + 0.07, S['f' + k] - (S.px || 0))).add(V(S.side || 0, 0, S.px || 0));
+        const [knee, ank] = ik2(hip, ft, L_TH, L_SH, fwdP.clone().add(V(0, 0.15, 0)));
+        M['thigh' + k] = frame(hip, hip.clone().sub(knee), fwdP); M['shin' + k] = frame(knee, knee.clone().sub(ank), fwdP);
+        M['foot' + k] = new THREE.Matrix4().makeRotationY(yw + (S['fy' + k] || 0) + 0.15 * s).setPosition(ank);
+        if (this.p['robe' + k]) {   // 下摆跟大腿走一部分
+          const u = V(0, 1, 0).transformDirection(M['thigh' + k]).applyMatrix4(new THREE.Matrix4().extractRotation(pel).invert()), a = Math.atan2(-u.z, u.y);
+          M['robe' + k] = pel.clone().multiply(T3(0, 0.04, 0)).multiply(R3(-(a > 0 ? 0.6 : 0.3) * a, 0, 0));
+        }
+      }
+      const ch = M.chest, fwdU = V(0, 0, 1).transformDirection(ch);
+      const shp = { W: V(0.2, 0.19, -0.005).applyMatrix4(ch), S: V(-0.2, 0.19, -0.005).applyMatrix4(ch) };
+      M.clavW = frame(shp.W, V(0, 1, 0).transformDirection(ch), fwdU); M.clavS = frame(shp.S, V(0, 1, 0).transformDirection(ch), fwdU);
+      const wdir = dirOf(S.wd[0] + yw, S.wd[1]), hWt = rY(V(...S.wp)).add(body);
+      const [elW, hW] = ik2(shp.W, hWt, L_UA, L_FA, rY(V(0.7, -1, -0.4)));
+      M.uarmW = frame(shp.W, shp.W.clone().sub(elW), fwdU); M.farmW = frame(elW, elW.clone().sub(hW), fwdU);
+      M.handW = frame(hW, wdir.clone().negate(), elW.clone().sub(hW).normalize().negate());   // 手顺着矛杆握
+      const gg = 0.5 + 0.62 * S.g;
+      M.weapon = frame(hW, wdir, Math.abs(wdir.y) < 0.95 ? V(0, 1, 0) : V(0, 0, 1)).multiply(T3(0, 0.76 - gg, 0));
+      let hSt, poleS = rY(V(-0.7, -1, -0.4));
+      if (S.two) hSt = hW.clone().addScaledVector(wdir, S.g2);   // 第二只手也握在矛杆上
+      else hSt = rY(V(...S.sp)).add(body).addScaledVector(dirOf(S.sd[0] + yw, S.sd[1]), -0.06);
+      const [elS, hS] = ik2(shp.S, hSt, L_UA, L_FA, poleS);
+      M.uarmS = frame(shp.S, shp.S.clone().sub(elS), fwdU); M.farmS = frame(elS, elS.clone().sub(hS), fwdU);
+      M.handS = S.two ? frame(hS, wdir.clone().negate(), elS.clone().sub(hS).normalize().negate()) : frame(hS, elS.clone().sub(hS), fwdU);
+      // 盾：双手握矛时挂在前臂外侧；单手时拿在手里
+      if (S.two) { const fa = M.farmS, out = V(-1, 0, 0).transformDirection(fa); M.shield = fa.clone().multiply(T3(-0.07, -0.13, 0)).multiply(new THREE.Matrix4().makeBasis(V(0, 0, 1), V(0, 1, 0), V(-1, 0, 0))); }
+      else { const n = dirOf(S.sd[0] + yw, S.sd[1]), up = V(0, 1, 0).addScaledVector(n, -n.y).normalize(); M.shield = new THREE.Matrix4().makeBasis(new THREE.Vector3().crossVectors(up, n), up, n).setPosition(hS.clone().addScaledVector(n, 0.05)); }
+      for (const k in M) if (this.p[k]) this.p[k].matrix.copy(M[k]);
+      return M;
+    }
+  }
+  // ---------- 舞台 ----------
+  const canvas = document.getElementById('cv');
+  const R = new THREE.WebGLRenderer({ canvas, antialias: true }); R.setPixelRatio(Math.min(2, devicePixelRatio)); R.shadowMap.enabled = true; R.outputColorSpace = THREE.SRGBColorSpace;
+  const S = new THREE.Scene(); S.background = new THREE.Color(0x2b2722); S.fog = new THREE.Fog(0x2b2722, 10, 24);
+  const cam = new THREE.PerspectiveCamera(28, 16 / 9, 0.1, 60);
+  S.add(new THREE.HemisphereLight(0xfff4e0, 0x5a4a38, 1.45));
+  const sun = new THREE.DirectionalLight(0xffffff, 1.8); sun.position.set(3, 7, 4); sun.castShadow = true; sun.shadow.mapSize.set(2048, 2048); Object.assign(sun.shadow.camera, { left: -4, right: 4, top: 4, bottom: -4 }); S.add(sun);
+  const ground = new THREE.Mesh(new THREE.CircleGeometry(14, 56), new THREE.MeshToonMaterial({ color: 0xd8b98a, gradientMap: grad })); ground.rotation.x = -PI / 2; ground.receiveShadow = true; S.add(ground);
+  const base = { px: 0, side: 0, py: 0, yaw: 0, crouch: 0.06, lean: 0.05, twist: 0.1, sway: 0, fL: 0.12, fR: -0.12, wp: [0.26, 1.0, 0.18], wd: [0, 1.35], g: 1.0, sp: [-0.3, 1.05, 0.28], sd: [0, 0], hx: 0, hy: 0 };
+  const POSES = {
+    // 汉兵：弓步双手长刺——后手在胯边推，前手在矛杆中段；身子压低前探，拧腰送肩
+    hanThrust: { ...base, crouch: 0.2, lean: 0.55, twist: -0.45, sway: -0.05, fL: 0.75, fR: -0.55, wp: [0.18, 0.95, 0.12], wd: [-0.04, -0.05], g: 0.15, two: true, g2: 0.55, hx: 0.15, hy: 0.2, fyL: -0.1, fyR: 0.5 },
+    // 楚卒：压低身子举盾，戟从盾上架出去，准备反刺
+    chuGuard: { ...base, crouch: 0.22, lean: 0.32, twist: 0.35, sway: 0.03, fL: 0.42, fR: -0.38, wp: [0.3, 1.26, 0.05], wd: [0.03, 0.08], g: 0.75, sp: [-0.16, 1.12, 0.42], sd: [0.08, 0.05], hx: -0.05, fyR: 0.6 },
+    hanIdle: { ...base, fL: 0.1, fR: -0.1, wp: [0.26, 1.0, 0.16], wd: [0.02, 1.4], g: 1.0, sp: [-0.3, 1.0, 0.26], sd: [-0.2, 0] },
+    chuIdle: { ...base, fL: 0.1, fR: -0.1, wp: [0.26, 1.0, 0.16], wd: [0.02, 1.4], g: 1.0, sp: [-0.3, 1.0, 0.26], sd: [-0.2, 0] },
+  };
+  const figs = [];
+  function clear() { for (const f of figs) S.remove(f.root); figs.length = 0; }
+  function view(v) {
+    clear();
+    if (v === 'duel') {
+      const A = new Soldier2('r'), D = new Soldier2('b');
+      A.root.position.set(-1.25, 0, 0); A.root.rotation.y = PI / 2; D.root.position.set(1.15, 0, 0); D.root.rotation.y = -PI / 2;
+      A.pose(POSES.hanThrust); D.pose(POSES.chuGuard); S.add(A.root, D.root); figs.push(A, D);
+      cam.fov = 26; cam.position.set(1.2, 1.15, 5.2); cam.lookAt(-0.1, 1.0, 0);
+    } else {
+      const xs = [-2.1, -1.4, -0.7, 0.7, 1.4, 2.1], ys = [0, PI / 2, PI, 0, PI / 2, PI];
+      xs.forEach((x, i) => { const f = new Soldier2(i < 3 ? 'r' : 'b'); f.root.position.set(x, 0, 0); f.root.rotation.y = ys[i]; f.pose(i < 3 ? POSES.hanIdle : POSES.chuIdle); S.add(f.root); figs.push(f); });
+      cam.fov = 24; cam.position.set(0, 1.1, 8.6); cam.lookAt(0, 0.95, 0);
+    }
+    cam.updateProjectionMatrix();
+  }
+  let cur = 'duel'; view(cur);
+  document.querySelectorAll('[data-v]').forEach(b => b.onclick = () => { document.querySelectorAll('[data-v]').forEach(x => x.classList.toggle('on', x === b)); cur = b.dataset.v; view(cur); });
+  function size() { const w = canvas.clientWidth, h = canvas.clientHeight, pr = R.getPixelRatio(); if (canvas.width !== Math.round(w * pr) || canvas.height !== Math.round(h * pr)) { R.setSize(w, h, false); cam.aspect = w / h; cam.updateProjectionMatrix(); } }
+  function loop() { size(); R.render(S, cam); requestAnimationFrame(loop); }
+  window.__view = v => { cur = v; view(v); };
+  window.__tris = () => { let t = 0; for (const f of figs.slice(0, 1)) f.root.traverse(o => { if (o.geometry && o.material === vcMat) t += o.geometry.attributes.position.count / 3; }); return Math.round(t); };
+  requestAnimationFrame(loop);
+})();
+</script>
