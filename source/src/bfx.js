@@ -272,7 +272,7 @@ const BFX = (() => {
     const ev = info.ev || [], side = info.side;
     const before = info.before ? info.before.board : null;
     try {
-      if (info.k === 'up') await levelUp(info);
+      if (info.k === 'up') await levelUp(info, game);
       else if (info.k === 'mv') {
         if (info.extra && info.extra.via) labelPop(info.from, BF.SKILL_CN[info.extra.via], side);
         if (info.extra && info.extra.via === 'shensu') {
@@ -303,10 +303,10 @@ const BFX = (() => {
       for (const e of ev.filter(x => x.e === 'autoup')) {
         const B = info.after && info.after.board; let at = null;
         if (B) for (let r = 0; r < 10 && !at; r++) for (let f = 0; f < 9; f++) if (B[r][f] && B[r][f].id === e.id) { at = [f, r]; break; }
-        if (at) await levelUp({ id: e.id, t: e.t, side: e.s, at, lv: e.lv, nm: e.nm, auto: true });
+        if (at) await levelUp({ id: e.id, t: e.t, side: e.s, at, lv: e.lv, nm: e.nm, auto: true, pre: true }, game);
       }
       // 试行规则：召回后当场花军功升了一级——等它落定，再补上晋升的仪式
-      for (const e of ev.filter(x => x.e === 'reviveUp')) { const rv = ev.find(x => x.e === 'revive' && x.id === e.id); if (rv) await levelUp({ id: e.id, t: e.t, side: 'r', at: rv.at, lv: e.lv, nm: e.nm }); }
+      for (const e of ev.filter(x => x.e === 'reviveUp')) { const rv = ev.find(x => x.e === 'revive' && x.id === e.id); if (rv) await levelUp({ id: e.id, t: e.t, side: 'r', at: rv.at, lv: e.lv, nm: e.nm , pre: true }, game); }
     } catch (e) { console.error(e); }
     if (info.k !== 'mv' && info.k !== 'up') {
       if (Cam.cine) await Cam.home(0.8);
@@ -315,22 +315,22 @@ const BFX = (() => {
     }
   }
 
-  async function levelUp(info) {
+  async function levelUp(info, game) {
     const m = Board.pieces.get(info.id); if (!m) return;
-    const c = m.position.clone(), max = BF.levelInfo(info.t, info.side, 1).maxLv, top = info.lv >= max;
+    const max = BF.levelInfo(info.t, info.side, 1).maxLv, top = info.lv >= max;
     Sfx.B.bell(0, 880, 0.08); Sfx.B.bell(0.12, 1175, 0.06); Sfx.B.gong(0.05, top ? 0.6 : 0.35); Sfx.B.plate(0.1, 0.3);
     if (top) { Sfx.B.taiko(0.15, 0.7); Sfx.B.taiko(0.38, 0.8); Cam.shake(0.08); }
-    Fx.ring(c.clone().setY(TOP + 0.02), top ? 2.3 : 1.6, 0.8, 0xc9a045, 0.9);
-    if (top) Fx.ring(c.clone().setY(TOP + 0.03), 3.2, 1.1, 0xffe2a0, 0.6);
-    for (let i = 0; i < (top ? 34 : 18); i++) Fx.spawn({ pos: c.clone().add(new V3(R(-0.3, 0.3), 0.1, R(-0.3, 0.3))), vel: new V3(R(-0.2, 0.2), R(1.2, top ? 3 : 2.2), R(-0.2, 0.2)), tex: Core.Tex.spark, add: true, color: 0xffd27a, size: 0.12, size2: 0.03, life: R(0.6, top ? 1.4 : 1), drag: 1.2 });
     // 称号题签要等棋子换好新装（落回棋盘）再亮出来
     const hero = BF.heroName({ s: info.side, t: info.t, nm: info.nm }), rk = BF.rankName(info.side, info.t, info.lv);
-    setTimeout(() => rankPop(info.at, hero || rk, info.side, info.lv, max, hero ? rk : info.auto ? '战功晋升' : ''), 200);
+    setTimeout(() => rankPop(info.at, hero || rk, info.side, info.lv, max, hero ? rk : info.auto ? '战功晋升' : ''), 750);
     const said = upLine(info);
     // 四级：名将登场，题字亮名
     if (hero && (cine() || Fx.level === 'std')) { title(hero, (info.side === 'r' ? '汉' : '楚') + ' · ' + rk, 1700); Sfx.B.gong(0.1, 0.8); }
-    await tween(0.3, k => { m.position.y = TOP + Math.sin(k * Math.PI) * 0.35; m.rotation.y = (Board.viewSide === 'b' ? Math.PI : 0) + k * Math.PI * 2; }, ease.inOut);
-    m.position.y = TOP; m.rotation.y = Board.viewSide === 'b' ? Math.PI : 0;
+    // 升级变身：跳起来翻个身，翻到侧面那一刻换新装（美术 M22，Ham 审批台 076 选「翻面」）
+    const pa = game && game.board[info.at[1]] && game.board[info.at[1]][info.at[0]], ok = !!(pa && pa.id === info.id);
+    if (ok && info.pre) Board.decorate(m, { ...pa, lv: info.lv - 1, hp: Math.min(pa.hp, BF.hpOf(pa.t, info.lv - 1)) }, Board.decoOpts(game, pa));
+    await UpFx.play(m, { lv: info.lv, swap: () => { if (ok) Board.decorate(m, pa, Board.decoOpts(game, pa)); } });
+    m.position.y = TOP; m.rotation.set(0, Board.viewSide === 'b' ? Math.PI : 0, 0);
     // 升级词说完再往下走（紧接着走子的话，兵种那一路会把它截掉）
     if (said > 0) await sleep(Math.min(said + 0.3, 3.2) - 0.3);
   }

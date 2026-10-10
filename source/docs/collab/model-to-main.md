@@ -2,6 +2,112 @@
 
 最新的在最上面，编号接着往下排（M1、M2…）。格式见同目录 `MODEL-WORKFLOW.md` 第 6 节。TD 用 `git show origin/model-lab:source/docs/collab/model-to-main.md` 看。
 
+## M22 · 10-10 · 交付 · 特效（棋子升级变身：跳起来翻个身，落下已经换了材质）
+
+- 提交：model-lab 上带这张交付单的那次提交。交付前合过 `origin/dev`（d1c700b），`node build.js` 能过，`test/*.test.js` 全过。
+- Ham 确认：10-09 22:55 在对话里说「做一个棋子升级的变化的特效：比如木棋子变银棋子的过程，出几个方案给我选择」；审批台 art-076 选乙「翻面」（10-10 08:16）。四个方案的小片：https://claude.ai/artifact/WkW3GVpWfpXZDBr2wBmfCQ（看「乙 · 翻面」）。
+- 改了哪些文件：新文件 `source/src/upfx.js`（美术管），对外只有 `UpFx.play(m, { lv, swap })`，返回 Promise（约 1 秒）：
+  - 棋子跳起 0.42、绕镜头水平方向翻一圈，翻到侧面那一刻调一次 `swap()` 换新装，落下时字朝上、已经是新材质；翻到半空亮一下、迸几点星，落地荡开一圈尘、一道光（银白 / 金 / 玉白，看 `lv`）。起跳 `Sfx.lift` + 一声风，落地 `Sfx.place(m)`（按新材质）。
+  - 翻的时候脚下的东西（血圈、拒马桩、锁链、头顶的「宴」）留在原地不跟着翻，落地放回去；腰带上的军功牌跟着棋身翻。
+  - 低特效档（`Fx.level === 'low'`）和系统开了「减少动态效果」：不翻，直接 `swap()`，脚下亮一圈。
+- 没接之前 upfx.js 不会进页面，什么都不变。
+
+**需要 TD 做的**（我在一份拷贝上照下面改完、构建、跑过，见文末）
+1. `build.js` 第 5 行 `order`：`'fx'` 后面加 `'upfx'`。
+2. `board.js` 最后导出的那一串里加上 `decoOpts`（换新装要用同一套装饰选项：拒马、锁链、宴、召回金边）。
+3. `bfx.js` `levelUp`（约 312 行）：
+   - 签名改成 `async function levelUp(info, game)`；三处调用把 `game` 带上：`play` 里 `levelUp(info, game)`；自动晋升（约 300 行）和召回升级（约 303 行）那两处的 info 里再加 `pre: true`——这两处是先 `reconcile` 换好新装再补仪式，翻之前要先换回旧装。
+   - 开头那两道 `Fx.ring` 和一把金星（约 317–319 行）去掉：会和起跳叠在一起，落地的光圈 upfx 自己有。声音、四级的鼓和震屏、名将题字都不动。
+   - 称号题签的 `setTimeout(…, 200)` 改成 `750`（翻面约 0.72 秒落地，等落定换好装再亮）。
+   - 原来跳一下转一圈的那两行（约 326–327 行 `await tween(0.3, …)` 和下一行）换成：
+   ```js
+   // 升级变身：跳起来翻个身，翻到侧面那一刻换新装（美术 M22，Ham 审批台 076 选「翻面」）
+   const pa = game && game.board[info.at[1]] && game.board[info.at[1]][info.at[0]], ok = !!(pa && pa.id === info.id);
+   if (ok && info.pre) Board.decorate(m, { ...pa, lv: info.lv - 1, hp: Math.min(pa.hp, BF.hpOf(pa.t, info.lv - 1)) }, Board.decoOpts(game, pa));
+   await UpFx.play(m, { lv: info.lv, swap: () => { if (ok) Board.decorate(m, pa, Board.decoOpts(game, pa)); } });
+   m.position.y = TOP; m.rotation.set(0, Board.viewSide === 'b' ? Math.PI : 0, 0);
+   ```
+   - `const c = m.position.clone()` 这时候没人用了，可以一起删。
+- 兵种模型那一路（棋子显示「兵种」）升级时棋子本身看不看得见，我没管，按你那边的规矩；看得见的时候就是这一套。
+- 我看过的：本地普通对局里一枚汉兵一级翻成二级，按固定步长逐帧拍（1280×720），起跳、翻到侧面换装、落地光圈、血圈留在地上都对；一局技能对局里真按「升级」走了一遍（`doBF({k:'up'})`），落地后是二级、朝向摆正、装饰齐全。没看的：三升四（名将题字和翻面叠在一起的样子）、手机、低特效档。
+
+## M21 · 10-10 · 交付 · 棋子字面（宋体十四字统一 + 年轮木面每颗不一样；银金玉的字一起换）
+
+- 提交：model-lab 上带这张交付单的那次提交。交付前合过 `origin/dev`（d1c700b），`node build.js` 能过，`test/*.test.js` 全过。
+- Ham 确认：审批台 art-072 选丙「年轮」（10-10 00:13），备注「纹理再深一点，三个形态有疏有密有粗有细，加旋转、翻转，随机分布，尽量每颗都不一样；炮还是靠下；务必保证所有字体统一」；art-074 退回（01:34）「马和相还是很粗，整体换一个统一的字体」；art-078 选乙「宋体」（08:13），备注写着「银、金、玉三级的字跟着一起换」。
+- 换掉 M13 的「牙黄面」：木棋子改成年轮木面，色边、字色不变（汉朱 `#b3241a`、楚墨 `#1a1714`）。
+- 改了哪些文件：新文件 `source/src/face.js`（美术管）。十四个字是思源宋体 TC Bold 的轮廓，直接写成路径（Path2D），**不打包字体文件、不用等字体加载**，各平台画出来一样；同一个缩放，粗细天然一致，按墨迹居中（炮不再靠下）。对外：
+  - `Face.wood(g, w, s, ch, id)`：在 w×w 的画布上画整面木棋子（年轮 + 色边 + 字）。`id` 决定这颗子的年轮：三种形态（疏粗 / 密细 / 疏密相间）× 随机种子 × 随机转角 × 横竖翻转，同一 id 每次画出来一样。
+  - `Face.path(ch, size, cx, cy)`：字的 Path2D（画布像素），`size` 是字面贴图边长，`cx/cy` 默认正中。珐琅字、暗子背面都用它。
+- 构建顺序没加之前 face.js 不会进页面，什么都不变。
+
+**需要 TD 做的**（我在一份拷贝上照下面改完、构建、拍过图，见文末）
+1. `build.js` 第 5 行 `order`：`'core', 'board'` 中间加 `'face'`。
+2. `board.js` 约 487–507 行：`faceCache` 和 `faceTex` 整段换成
+   ```js
+   // 木棋子字面（美术 M21：审批台 078 宋体 + 072 年轮）：画法在 face.js。每颗子的年轮都不一样，所以按棋子 id 缓存；同一 id 换了兵种（揭棋翻出来）就在原画布上重画
+   const faceCache = {};
+   function faceTex(s, t, id = 0) {
+     const key = s + (id | 0), ch = XQ.NAMES[s][t], hit = faceCache[key];
+     if (hit) {
+       if (hit.ch !== ch) { const cv = hit.tex.image; Face.wood(cv.getContext('2d'), cv.width, s, ch, id); hit.ch = ch; hit.tex.needsUpdate = true; }
+       return hit.tex;
+     }
+     const N = Core.quality === 'low' ? 384 : 512;
+     return (faceCache[key] = { ch, tex: canvasTex(N, N, (g, w) => Face.wood(g, w, s, ch, id)) }).tex;
+   }
+   ```
+   - 贴图从 14 张（每种字一张）变成每颗子一张，最多 32 张；低画质档 384、其余 512。这里用 `Core.quality` 没用 `LOWQ()`，因为 `LOWQ` 在 713 行才定义。
+3. `board.js` 三处把 id 带上：`makePiece` 约 558 行、`setFace` 约 572 行 `faceTex(p.s, p.t)` → `faceTex(p.s, p.t, p.id)`；`fx.js` 约 939 行（揭棋翻子浮起的字）`Board.faceTex(p.s, p.t)` → `Board.faceTex(p.s, p.t, p.id)`。
+4. `board.js` 约 548–549 行（揭棋暗子背面那个极淡的兵种字）两行换成一行：
+   ```js
+   g.fillStyle = red ? 'rgba(236,206,140,.075)' : 'rgba(236,206,140,.065)'; g.fill(Face.path(XQ.NAMES[s][pt], w * 0.81, c, c));   // 和字面同一套宋体，小一圈
+   ```
+5. `board.js` `enamelFace` 约 1113–1119 行（`const N = …` 到 `shape` 结束）换成下面，再把约 1126 行渐变那句的 `fs * 0.5` 换成 `N * 0.3`（`createLinearGradient(0, c - N * 0.3, 0, c + N * 0.3)`），其余不动：
+   ```js
+   const N = LOWQ() ? 256 : 384, c = N / 2, lw = N * 0.028, gp = Face.path(ch, N);   // 字形和木棋子同一套宋体、同一大小同一位置（face.js）
+   const shape = (g, strokeCol, fillCol) => {
+     g.lineJoin = 'round';
+     if (strokeCol) { g.strokeStyle = strokeCol; g.lineWidth = lw; g.stroke(gp); }
+     if (fillCol) { g.fillStyle = fillCol; g.fill(gp); }
+   };
+   ```
+- 棋盘上别的字（中间朱印「漢/楚」、楚河汉界、头顶「殺」「-1」）这次没动，还是原来的字体。
+- 我看过的（`source/art-wip/piece-face/m21_check.jpg`）：电脑 1440×900 汉、楚两边木棋子，银、金、玉三级；手机 390×844；揭棋暗子背面；揭棋翻子后贴图换对（同一 id 重画、和面上的是同一张）。十四个字和 078 送审的字模逐像素比过：墨量差 1% 以内、位置差 1 像素以内（512 的图）。没看的：低画质档（只是贴图小一档）、联机。
+
+## M20 · 10-10 · 交付 · 动作（拒马：持矛兵压低重心挡敌，撞上掉一滴血，退开再冲）
+
+- 提交：model-lab 上带这张交付单的那次提交。交付前合过 `origin/dev`（ae6c2f9），`node build.js` 能过，`test/*.test.js` 全过。
+- Ham 确认：10-09 22:52 在对话里说「拒马需要添加动画：士兵（随着等级决定士兵数量）举着长矛，放低重心，抵御敌人，敌人撞上后会受击先掉一滴血，随后再次进攻」；审批台 art-073 选 A「三级前二后一」，备注「四级金甲的斩马刀并没有往前指」；art-075（斩马刀改成前指）通过。分镜图见审批台 073、075。
+- 进攻方背对防守方的 bug Ham 已经直接找你了；下面第 3 条的「倒退着撤」顺带就是那个 bug 的修法。
+- 改了哪些文件：只有本文件。要改的在 `models.js`、`squads.js`（都归你）。我的样稿在 `source/art-wip/juma/jm.js`（包了一层 `Troop.prototype.target`，能直接在页面里跑着看）。
+
+**1. `models.js` · `Troop.target()` 的 `switch (u.pose)` 里加两个姿势**（关节含义见 `poseMatrices`）：
+```js
+// 拒马阵（Ham 10-09）：前腿弓、后腿蹬，身子压低侧过来，矛斜指前上方（约对着马胸），盾顶在前
+case 'jmLow': set({ crouch: 0.22, lean: 0.3, twist: -0.35, sway: 0, hx: -0.35, hy: 0.25, lL: -0.74, lR: 0.74, lLz: 0.1, aW: -0.6, aWz: 0.15, wAbs: 1.24, wz: 0, aS: -1.35, aSz: 0.3, sAbs: 0.3 }); break;
+// 后排（三级前二后一的那一个）：站高一点，矛从前排两人中间伸出去
+case 'jmHigh': set({ crouch: 0.05, lean: 0.12, twist: -0.2, sway: 0, hx: -0.15, hy: 0.15, lL: -0.35, lR: 0.35, lLz: 0.05, aW: -1.35, aWz: 0.2, wAbs: 1.32, wz: 0, aS: -0.9, aSz: -0.25, sAbs: 0.15 }); break;
+```
+  - 四级斩马刀兵（`kind === 'zhanma'`）在这两个姿势上再盖三个数，刀刃才前指：`if (this.kind === 'zhanma' && u.pose.startsWith('jm')) Object.assign(J, { wz: 0.5, wAbs: 1.4, aW: -0.75 });`（放在 switch 后面）。
+  - 挨撞的一下（一次性动作，加在 `switch (u.act)` 里）：`case 'jmHit': J.lean -= 0.3 * s; J.crouch += 0.05 * s; J.wAbs += 0.1 * s; J.hx += 0.25 * s; break;` —— 身子往后一挫、矛杆一沉，脚不退。用 `troop.act(i, 'jmHit', 0.3)`。
+- **腿**：`update()` 每帧把 `J.lL / J.lR` 按走路重算（约 `J.lL = sw * 0.55 * walk + sit` 那一行），弓步会被盖掉。改成拒马姿势时用目标值：
+```js
+if (u.pose === 'jmLow' || u.pose === 'jmHigh') { J.lL += (tg.J.lL - J.lL) * kS; J.lR += (tg.J.lR - J.lR) * kS; }
+else { J.lL = sw * 0.55 * walk + sit; J.lR = -sw * 0.55 * walk + sit; }
+```
+
+**2. 站位**（`squads.js`，拒马守方出场时）：二级两人并排、四级三人照现在（`lineUp`）；**三级改成前二后一**：`offsets = [[-0.15, 0.1], [0.15, 0.1], [0, -0.16]]`（+z 朝来敌），第 3 人用 `jmHigh`，其余 `jmLow`。四级三人都用 `jmLow`。
+
+**3. 演出顺序**（`squads.js` 约 1189 行 `if (c.counter) { … }` 这一段，换成下面的节奏；时长是我分镜里定的，你按手感调）：
+  1. **迎敌**（约 0.6 秒）：守方 `setPose('jmLow')`（三级后排 `jmHigh`），攻方照常冲锋。
+  2. **撞上**（0.35 秒）：攻方冲到离守方中心约 0.8 的地方停住（比现在的 0.55 远一点，矛尖刚好顶到）；同一帧：守方每人 `act('jmHit', 0.3)`，血溅、木屑（你现在这几句照用）、`Cam.shake`；骑兵撞上时头马人立一下（`rearK` 0→1→0.3，约 0.4 秒），步兵、车撞上时用 `act('hit')` 往后一仰。
+  3. **掉一滴血**（0.5 秒）：攻方头顶飘「−1」（用你现有的掉血飘字），脚下血圈同时少一段；攻方被顶回半步（再退 0.2）。
+  4. **退开**（约 0.6 秒）：攻方**面朝守方倒退**到离守方约 1.7 的地方（不转身，`yaw` 保持冲锋方向，走路动作倒放或用慢走）。守方保持拒马姿势。
+  5. **再冲**：守方回 `'ready'`，接你现在的 `att.attack(def, c)`。来犯的子只剩 1 血时照你现在的写法死在矛上，没有 4、5 两步。
+- 低特效档（`fx.js` 约 613 行那套）不用跟，照旧就行。
+- 我看过的：电脑 1280×720，楚骑撞汉兵二、三、四级（审批台 073、075 的图）。没看的：车、卒、象来犯的样子（只改了守方姿势，攻方动作还是你的）、手机。
+
 ## M19 · 10-10 · 交付 · 界面 + 动画（主将卡军功印：加功、花功时飞金光）
 
 - 提交：model-lab 上带这张交付单的那次提交。交付前合过 `origin/dev`（a6f45fd），`node build.js` 能过，`test/*.test.js` 全过。
