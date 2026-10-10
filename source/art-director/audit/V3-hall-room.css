@@ -1,0 +1,6 @@
+/* 美术总监 V3（Ham 审批台 ad-004 通过）：一页只留一个墨色主操作；「揭」字块、对局中的房间不再发粉 */
+#lobby #hallList li .btn.solid{background:none;color:var(--c);border:2px solid var(--c);box-shadow:none}
+#bShare{background:none;color:var(--c);border:2px solid var(--c);box-shadow:none}
+#lobby #hallList li.play{opacity:1}
+#lobby #hallList li.play .hi,#lobby #hallList li.play .hi b{color:var(--c)}
+#lobby #hallList li .hv.jq{background:none;color:var(--c);border-color:var(--c)}
