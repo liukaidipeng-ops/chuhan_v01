@@ -1,0 +1,25 @@
+/* 复盘分析面板 · 收回朱、米白、墨（总审第 6 条） */
+#ana.v3,#ana.v3 #anaCur,#ana.v3 #anaDet{background:#141311;color:#f0e7d2;border:2px solid #f0e7d2;border-radius:0;box-shadow:inset 0 0 0 3px #141311,inset 0 0 0 4px rgba(240,231,210,.55)}
+#ana.v3 .anaH b{color:#f0e7d2;font-family:var(--ef)}#ana.v3 #anaProg{color:rgba(240,231,210,.7)}#ana.v3 #anaX{color:#f0e7d2}
+#ana.v3 .bd{border-radius:0;font-family:var(--ef)}#ana.v3 .bd.r{background:#a8281c;color:#f0e7d2}#ana.v3 .bd.b{background:#f0e7d2;color:#141311}
+#ana.v3 #anaChart .rv{fill:rgba(240,231,210,.35)}#ana.v3 #anaChart .aR{fill:rgba(168,40,28,.85)}#ana.v3 #anaChart .aB{fill:rgba(240,231,210,.4)}#ana.v3 #anaChart .ln{stroke:#f0e7d2}#ana.v3 #anaChart .cur{stroke:#f0e7d2;stroke-width:2}
+#ana.v3 #anaList .ar.tk{background:#2a2723;border-radius:0}#ana.v3 #anaList .ar.tk:hover{background:#3a362f}
+#ana.v3 #anaList .ar.tk.r{box-shadow:inset 0 2px 0 #a8281c}#ana.v3 #anaList .ar.tk.b{box-shadow:inset 0 2px 0 #f0e7d2}
+#ana.v3 #anaList .ar.tk i{border-radius:0;box-sizing:border-box}
+#ana.v3 #anaList .tk .g0{background:#f0e7d2;color:#141311}
+#ana.v3 #anaList .tk .g1{background:none;border:2px solid #f0e7d2}
+#ana.v3 #anaList .tk .g2{background:#6b6458}
+#ana.v3 #anaList .tk .g3{background:none;border:2px solid #a8281c;color:#f0e7d2}
+#ana.v3 #anaList .tk .g4{background:#a8281c;color:#f0e7d2}
+#ana.v3 #anaList .ar.tk.on{outline:2px solid #f0e7d2;outline-offset:2px}
+#ana.v3 #anaList .ar.tk.on i::after{color:inherit;text-shadow:none}
+#ana.v3 .tg{border-radius:0;font-family:var(--ef)}
+#ana.v3 .tg.g0{background:#f0e7d2;color:#141311}#ana.v3 .tg.g1{background:none;color:#f0e7d2;box-shadow:inset 0 0 0 1px #f0e7d2}#ana.v3 .tg.g2{background:#6b6458;color:#f0e7d2}#ana.v3 .tg.g3{background:none;color:#f0e7d2;box-shadow:inset 0 0 0 1.5px #a8281c}#ana.v3 .tg.g4{background:#a8281c;color:#f0e7d2}
+#ana.v3 #anaCur .ch b{color:rgba(240,231,210,.7)}
+#ana.v3 #anaCur .sd,#ana.v3 #anaDet .sd{border-radius:0}#ana.v3 #anaCur .sd.r{background:#a8281c;color:#f0e7d2}#ana.v3 #anaCur .sd.b{background:#f0e7d2;color:#141311}
+#ana.v3 #anaCur .cb{color:rgba(240,231,210,.85)}#ana.v3 #anaCur .cb b{color:#f0e7d2;font-weight:bold}
+#ana.v3 #anaCur .xb,#ana.v3 #anaList .xb,#ana.v3 #anaDet .db{border:2px solid #f0e7d2;background:none;color:#f0e7d2;border-radius:0;font-family:var(--ef)}
+#ana.v3 #anaDet .db.b,#ana.v3 #anaDet .db.r{color:#f0e7d2}#ana.v3 #anaDet .db.r{border-color:#a8281c}
+#ana.v3 #anaDet .dp em{background:#f0e7d2;color:#141311;border-radius:0}#ana.v3 #anaDet .dp b{color:#f0e7d2;font-weight:bold}#ana.v3 #anaDet .dw{color:rgba(240,231,210,.7)}
+#ana.v3 #anaList .ar.tk.on,#ana.v3 #anaList .ar.tk.on i{border-radius:0}
+#ana.v3 #anaList .tk .g3{border-width:3px}
