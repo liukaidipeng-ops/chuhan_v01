@@ -43,17 +43,18 @@ window.ElephantLV = (() => {
   // ---------------- 乙 · 火象：燧象（尾巴绑火把冲阵）的路子，火越烧越旺 ----------------
   function planB(el, lv) {
     flame(el.torch, 0, -0.05, 0, 0.7 + lv * 0.18);
-    add(el.head, [P(G.box(0.03, 0.06, 0.5), RED, 0.86, 0.32, 0.22, 0, 0.3, 0.2), P(G.box(0.03, 0.06, 0.5), RED, 0.86, 0.32, -0.22, 0, -0.3, 0.2)]);   // 额上红纹
+    // Ham char-005：象身上红色少一点，主要是黑色——额上只留一道暗红细纹；二级起披挂一律黑底、红只做细边
+    add(el.head, [P(G.box(0.02, 0.04, 0.42), 0x6a1a12, 0.86, 0.32, 0, 0, 0, 0.2)]);
     if (lv >= 2) {
       for (const [x, z] of [[0.55, 0.45], [0.55, -0.45]].concat(lv >= 3 ? [[-0.55, 0.45], [-0.55, -0.45]] : [])) { add(el.tower, [P(G.cyl(0.13, 0.07, 0.14, 8), lv >= 4 ? GOLD : BR, x, 1.18, z), P(G.cyl(0.02, 0.02, 0.1, 5), BR2, x, 1.08, z)]); flame(el.tower, x, 1.22, z, 0.55 + lv * 0.08); }
       legRings(el, 0x2a1210, 1);
-      if (lv === 2) add(el.body, [1, -1].map(s => P(G.box(2.3, 1.2, 0.05), 0x5a1a12, -0.1, 2.3, 1.0 * s)));
+      add(el.body, [1, -1].flatMap(s => [P(G.box(2.3, 1.22, 0.05), 0x1c1b1d, -0.1, 2.3, 1.0 * s), P(G.box(2.34, 0.035, 0.07), 0x7a2418, -0.1, 1.7, 1.02 * s), P(G.box(2.34, 0.035, 0.07), lv >= 4 ? GOLD2 : 0x7a2418, -0.1, 2.9, 1.02 * s)]), 0.02);
     }
     if (lv >= 3) {   // 青铜兽面：两只弯角 + 獠牙口
       const mk = lv >= 4 ? GOLD : BR;
       add(el.head, [P(G.box(0.12, 0.7, 0.72), mk, 0.94, 0.18, 0, 0, 0, 0.35), ...[1, -1].flatMap(s => [P(G.cone(0.09, 0.62, 6), lv >= 4 ? GOLD2 : BR2, 0.85, 0.82, 0.3 * s, 0.35 * s, 0, -0.55), P(G.sph(0.08, 6), 0xff5a1a, 0.98, 0.25, 0.22 * s)])]);
       for (const [x, y, z] of tuskTips) flame(el.head, x + 0.05, y + 0.05, z, 0.45);
-      barding(el, 0x2a1a18, 0x5a1a12, 3);
+      barding(el, 0x1c1b1d, 0x2e2c2e, 3);
     }
     if (lv >= 4) {   // 背上一道火鬃 + 塔顶大火盆
       for (let i = 0; i < 6; i++) flame(el.body, -1.0 + i * 0.38, 3.32, 0, 0.6 + Math.sin(i * 1.7) * 0.15);
@@ -88,6 +89,8 @@ window.ElephantLV = (() => {
     const el = Models.makeElephant(side, { gold: lv >= 4 && plan !== 'c' });
     PLANS[plan](el, lv);
     el.lvScale = SCALE[lv - 1];
+    if (plan === 'b') { const k = 1 / el.lvScale; el.tower.scale.setScalar(k); el.mahout.scale.multiplyScalar(k); }   // Ham char-005：象变大，人不要变大
+    if (plan === 'b' && lv >= 4) add(el.mahout, [P(G.cyl(0.03, 0.03, 1.1, 6), GOLD, 0.15, 0.95, 0.42, 0.25, 0, 0), P(G.sph(0.09, 8), GOLD2, 0.15, 1.5, 0.56), P(G.cone(0.05, 0.18, 6), GOLD2, 0.15, 1.65, 0.6, 0.25, 0, 0)]);   // 四级象奴手里一根金权杖
     return el;
   }
   return { make, SCALE };
