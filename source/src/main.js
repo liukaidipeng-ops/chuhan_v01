@@ -8,6 +8,7 @@
   // 更新说明（设置里、大厅底部点「更新」查看；最新的放最前）
   const NEWS = [
     ['第六版', '2026 年 10 月', [
+      '跳过去、打过去的走法提示画成一道抛物线（往一侧斜一点，顺着镜头方向跳的也看得出）：炮隔子吃子、飞越，技能里的霹雳、踏营、冲阵、齐射；地上一道淡影',
       '结算画面的「复盘」和「分析」合成一个「复盘」：进去就是复盘加分析面板；复盘条上多一个「分析」，可以收起、再打开（揭棋没有分析，只复盘）；「我的棋局」里的复盘也一样',
       '人机对战输了（被将死、困毙等）先不进结算：弹一个框，10 秒内点「悔棋」就悔回去接着下，点「认输」或等 10 秒才进结算（悔棋次数照常算；用完了就直接结算）',
       '技能模式规则：象、相撞上拒马不挨那 1 点（践踏、齐射本来就不触发）；「飞越」改成被动——三级起冷却好了，象眼被塞住的田字落点直接能点，点了先问一句用不用，用了冷却 5 回合',
@@ -2190,6 +2191,7 @@
     if (a.k === 'mv' && h.ev.some(e => e.e === 'splash' && e.how === 'jianta') && h.ev.some(e => (e.e === 'hit' || e.e === 'kill') && e.how === 'jianta')) return h;
     return null;
   }
+  const ARC_SK = new Set(['taying', 'chongzhen', 'pili', 'qishe', 'feiyue']);   // 这些技能是跳过去 / 打过去的：指示画成抛物线（Ham 审批台 td-021）
   function bfAsk(a, from) {
     // 飞越（Ham 10-10 改被动）：点了象眼被塞住的落点，先问一句用不用飞越
     if (a.k === 'mv' && !a.fy) {
@@ -2702,7 +2704,7 @@
       const cn = BF.SKILL_CN[skn];
       if (k.targets.length === 1 && !k.targets[0].to) { doBF(k.targets[0]); return; }
       bfMode = { kind: 'sk', targets: k.targets, hint: `${cn}：点选目标（${{ chongzhen: '点前方第一枚子当跳板', taying: '无视马腿', pili: '炮击敌子', qishe: '斜线两格内' }[skn] || ''}）` };
-      Board.showMoves(sel, bfDmg(k.targets.map(t => ({ from: t.at, to: t.to, atk: true, skill: true })), k.sk), true);   // 技能的落点都带金色四角框，和普通走子区分开
+      Board.showMoves(sel, bfDmg(k.targets.map(t => ({ from: t.at, to: t.to, atk: true, skill: true, arc: ARC_SK.has(k.sk) })), k.sk), true);   // 技能的落点都带金色四角框，和普通走子区分开
       renderBar(); return;
     }
     if (a === 'art') {

@@ -1505,7 +1505,8 @@ const Board = (() => {
       const a = pts[Math.max(0, i - 1)], b = pts[Math.min(n - 1, i + 1)];
       let tx = b[0] - a[0], tz = b[1] - a[1]; const tl = Math.hypot(tx, tz) || 1; tx /= tl; tz /= tl;
       const nx = -tz * width / 2, nz = tx * width / 2, al = sm(L[i] / 0.32) * sm((tot - L[i]) / 0.3);
-      pos.set([pts[i][0] + nx, y, pts[i][1] + nz, pts[i][0] - nx, y, pts[i][1] - nz], i * 6);
+      const yy = y + (pts[i][2] || 0);   // 第三个数：抬高多少（跳过去的走法画成抛物线）
+      pos.set([pts[i][0] + nx, yy, pts[i][1] + nz, pts[i][0] - nx, yy, pts[i][1] - nz], i * 6);
       uv.set([L[i] / tile, 0, L[i] / tile, 1], i * 4);
       col.set([1, 1, 1, al, 1, 1, 1, al], i * 8);
       if (i) { const k = i * 2; idx.push(k - 2, k - 1, k, k - 1, k + 1, k); }
@@ -1517,9 +1518,21 @@ const Board = (() => {
   // 一组走法 → 若干条墨带的路径：直线走法按方向合并（只铺到最远的落点），马走“日”拐个弯
   function beltPaths(sel, moves, occ) {
     const out = [], straight = new Map(), [sf, sr] = sel, A = [X(sf), Z(sr)];
+    const selT = (meshAt(sf, sr) || { userData: {} }).userData.t;
     for (const m of moves) {
       const df = m.to[0] - sf, dr = m.to[1] - sr, af = Math.abs(df), ar = Math.abs(dr), B = [X(m.to[0]), Z(m.to[1])];
       const endGap = occ(m.to[0], m.to[1]) ? 0.5 : 0.17;
+      // 跳过去的走法画成一道抛物线（Ham 审批台 td-021）：飞越、炮隔子打（普通攻击和霹雳）、踏营、冲阵、齐射——调用方标 arc，或者这里认出来
+      if (m.arc || m.via === 'feiyue' || (selT === 'c' && occ(m.to[0], m.to[1]) && !m.bad)) {
+        const D = Math.hypot(B[0] - A[0], B[1] - A[1]), H = Math.min(1.25, 0.5 + 0.15 * D), n = Math.max(12, Math.ceil(D / 0.12)), pts = [];
+        for (let i = 0; i <= n; i++) { const t = i / n; pts.push([A[0] + (B[0] - A[0]) * t, A[1] + (B[1] - A[1]) * t]); }
+        // 抛物线往屏幕右侧斜一点（约 35°）：顺着镜头方向（往前、往后）跳的时候，竖直的弧和直线叠在一起看不出来
+        const ux = (B[0] - A[0]) / (D || 1), uz = (B[1] - A[1]) / (D || 1), cr = new THREE.Vector3().setFromMatrixColumn(Core.camera.matrixWorld, 0);
+        const sd = (-uz * cr.x + ux * cr.z) >= 0 ? 1 : -1, lx = -uz * sd, lz = ux * sd, LEAN = Math.sin(0.62), UP = Math.cos(0.62);
+        const tp = trimPath(pts, 0.42, endGap).map(p => { const t = Math.hypot(p[0] - A[0], p[1] - A[1]) / (D || 1), h = H * 4 * t * (1 - t); return [p[0] + lx * h * LEAN, p[1] + lz * h * LEAN, h * UP]; });
+        out.push({ pts: tp, via: m.via || (m.skill ? 'skill' : ''), arc: true });
+        continue;
+      }
       if ((af === 1 && ar === 2) || (af === 2 && ar === 1)) {
         // 马：先直走一格（马腿），再斜出去
         const leg = af === 2 ? [X(sf + Math.sign(df)), Z(sr)] : [X(sf), Z(sr + Math.sign(dr))], pts = [];
@@ -1631,8 +1644,12 @@ const Board = (() => {
       const occ = (f, r) => !!meshAt(f, r), good = moves.filter(m => !m.bad), bad = moves.filter(m => m.bad);
       // 送将的方向也画出来，只是标红（画在下面，能走的那一段照常盖在上面）
       for (const [list, isBad] of [[bad, true], [good, false]]) for (const b of beltPaths(sel, list, occ)) {
-        const mesh = new THREE.Mesh(ribbonGeo(b.pts, 0.4, TOP + (isBad ? 0.0040 : 0.0042)), new THREE.MeshBasicMaterial({ map: flowTex, color: isBad ? HINT.beltB : b.via ? HINT.beltV : HINT.belt, transparent: true, opacity: 0.5, depthWrite: false, vertexColors: true, side: THREE.DoubleSide }));
-        mesh.userData.own = true; mesh.renderOrder = 3; markRoot.add(mesh); belts.push(mesh);
+        const mesh = new THREE.Mesh(ribbonGeo(b.pts, b.arc ? 0.3 : 0.4, TOP + (isBad ? 0.0040 : 0.0042)), new THREE.MeshBasicMaterial({ map: flowTex, color: isBad ? HINT.beltB : b.via ? HINT.beltV : HINT.belt, transparent: true, opacity: 0.5, depthWrite: false, vertexColors: true, side: THREE.DoubleSide }));
+        mesh.userData.own = true; mesh.userData.k = b.arc ? 1.35 : 1; mesh.renderOrder = b.arc ? 6 : 3; markRoot.add(mesh); belts.push(mesh);
+        if (b.arc) {   // 抛物线在棋盘上投一道淡影，看得出是从上面跳过去的
+          const sh = new THREE.Mesh(ribbonGeo(b.pts.map(p => [p[0], p[1]]), 0.22, TOP + 0.0039), new THREE.MeshBasicMaterial({ color: 0x1b1a19, transparent: true, opacity: 0.16, depthWrite: false, vertexColors: true }));
+          sh.renderOrder = 2; markRoot.add(sh);
+        }
       }
     }
   }
@@ -1850,7 +1867,7 @@ const Board = (() => {
         d.scale.set(s, 1, s); d.material.opacity = core ? 0.7 + 0.3 * b : 0.62 + 0.3 * b;
       }
       const bb = 0.5 + 0.5 * Math.sin(t * 2.6);
-      for (const m of belts) m.material.opacity = 0.5 + 0.3 * bb;
+      for (const m of belts) m.material.opacity = Math.min(1, (0.5 + 0.3 * bb) * (m.userData.k || 1));
     }
     if (selRing) {
       selRing.rotation.y += dt * 0.6; selShade.rotation.y = selRing.rotation.y;
