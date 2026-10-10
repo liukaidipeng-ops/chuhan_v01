@@ -2,6 +2,37 @@
 
 最新的在最上面，编号接着往下排（M1、M2…）。格式见同目录 `MODEL-WORKFLOW.md` 第 6 节。TD 用 `git show origin/model-lab:source/docs/collab/model-to-main.md` 看。
 
+## M28 · 10-10 · 交付 · 模型 + 分镜（拒马路障：掉血不碎、打死彻底碎掉；相 / 象打拒马三段演出）
+
+- 提交：model-lab 上带这张交付单的那次提交。交付前合过 `origin/dev`（5582b09），`node build.js` 能过，`test/*.test.js` 全过。
+- Ham 确认：你转来的 H29（Ham 10:52「士兵周边还会带刺的有路障，明确表示他们在此建立了防御工事……」）；审批台 art-090（路障 + 三段分镜）基本通过（18:32），备注「被冲散时（棋子被吃掉时），路障需要彻底碎掉，扣血时不碎」；art-093（照备注改）通过（19:09）。分镜页：https://claude.ai/artifact/5NTW7kpgo3VUJsrosKjube
+- 改了哪些文件：新文件 `source/src/juma.js`（归角色部 / 美术）。没进构建之前什么都不变。
+  - `JumaWall.make(side, n)` → `{ group, pieces, update(dt), shake(dir, power), shatter(dir, power), reset(), dispose() }`。`n` 是兵法等级（2 两人并排、3 前二后一、4 三名斩马刀手；1 照 2）。`group` 自己的坐标：+z 朝来敌、+x 往右，单位是棋盘单位（和小队 `offsets` 一样），尺寸按 `SC * bigFor(n)` 配好了。
+  - 鹿角拒马：一根横木穿一排交叉的削尖木桩，朝外那根长、尖头朝前上方，朝里那根撑地；绑绳；横木中间系一条本方颜色布条（汉朱、楚墨）。正面两三段、两侧各一段往后斜，矛从上面伸出去。每段一张合并网格。
+  - `shake(dir, power)`：掉血用。路障不碎，挨撞那一下整排往后一挫、晃两晃（0.8 秒），崩几片木屑。
+  - `shatter(dir, power)`：打死（被冲散、棋子被吃）用。彻底碎掉：每段横木断成三截、尖桩一根根各自崩飞、落地停住，木屑一大蓬。`dir` = 撞过来的方向（世界里、水平），`power` 越大飞得越远越高。低画质档木屑减半。
+  - `reset()` 收回原样；`dispose()` 释放。
+
+**需要 TD 做的**
+1. `build.js` 打包顺序：`'tiger'` 后面加 `'juma'`（它要用 `Models`、`Core`）。我在拷贝上加了、构建过，页面加载无报错；`make('r', 3)` → `shake` → `shatter` → `reset` → `dispose` 跑过一遍无报错。
+2. `squads.js` 的 `jmForm(sq, on)`（约 1310 行）：`on` 时给这一队架路障，`off` 时撤掉。例如：
+   ```js
+   if (on && !sq.wall && window.JumaWall) {   // 拒马路障（美术 M28，Ham 审批台 090 / 093）
+     sq.wall = JumaWall.make(sq.side, sq.elite ? 4 : Math.max(2, sq.troop.count)); sq.group.add(sq.wall.group);
+     sq.updaters.push(sq.wallUp = dt => { if (!sq.wall) return; const g = sq.wall.group; g.position.copy(sq.anchor); g.position.y = gy(sq.anchor); g.rotation.y = sq.yaw; sq.wall.update(dt); });
+   } else if (!on && sq.wall) { sq.wall.dispose(); sq.wall = null; }
+   ```
+   - 化墨（`setVis`）时路障要跟着淡出，请在小队的 `setVis` 里顺带设 `sq.wall.group` 的可见 / 透明（路障材质是 `Models` 的合并材质，和兵一样处理）。
+   - 棋子模式棋盘上那圈小拒马桩（`board.js` decorate 的 `o.jm`）先不换，以后有需要再说。
+3. 三段演出（时长是我分镜里定的，你按手感调；镜头照分镜页那几张的机位）：
+   - **一、二级相打拒马，只掉血**（约 2.4 秒）：虎骑停在离拒马约 1.6 格；身边一阵烟现出一名弩手 `new TroopSquad('e', side, 锚点, yaw, 'xbow', [[-0.4, 0.06]], SC)`（0–0.4）；`setPose('aim')`（0.4–0.7）；`actAll('shoot')` 三连射 0.70 / 0.88 / 1.06，弩箭飞向拒马兵（可以借 `boltVolley`）；前排中箭一挫（`act('jmHit')`）、血溅、箭插盾上，「−1」约 1.3；弩手化烟退下 1.6–2.4。相和弩手不上前，**路障不动**（箭不碰路障）。三、四级用 `TigerRider.guard` 那两名弩手，不另加人。
+   - **相击杀拒马兵**（约 3 秒）：前面同上连射；虎骑扑上去（`m.pounceK` 0→1，约 1.4 起跳），1.7 砸在路障上：`wall.shatter(来路方向, 1.3)` + 兵被砸飞（`kill` 带 `fly`）+ 木屑和血、慢放一下；落地 `roarK` 咆哮 2.2–3.0。
+   - **楚象打拒马**（约 2.5 秒）：冲锋（`speed` 1.2、`trumpetK`），0.8 撞上——
+     - 掉血：象停在路障前（锚点离守方中心约 0.95，别踩进路障），`wall.shake(来路方向, 1.2)`，兵 `act('hit')` 一仰，象 `rearK` 人立 1.0–2.0，「−1」。
+     - 打死：象冲进去，`wall.shatter(来路方向, 2.2)`，兵连人带路障撞飞上天（`kill` 带 `fly`，往上 2.6、往前 2.2），象踏过去人立长嘶 1.8–2.5。
+4. 声音：每个声音在哪一秒、多长，写在 M27，声音部那边已经在看；接进游戏后时间变了的话请告诉他们。
+- 我看过的：对局棋盘上用真模型摆的定格（二、三、四级路障；三段每一镜）、拷贝上的构建和加载。没看的：手机、低画质档、真正接进去以后的连续动画（那要等你接完拍一段给 Ham）。
+
 ## M27 · 10-10 · 转达 · 声音部要的时间点（兵卒对打、拒马三段）
 
 - 给声音部（session_01VsbsKR759MUraiT41MaEAU）。还没交 TD，下面是样片里的时间，接进游戏时可能小调，交付单里会再给一次。
