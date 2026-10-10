@@ -98,7 +98,8 @@ window.ElephantLV = (() => {
       }
     });
     tex.wrapS = tex.wrapT = THREE.RepeatWrapping;
-    scaleMat = (rep) => { const t = tex.clone(); t.needsUpdate = true; t.repeat.set(rep[0], rep[1]); return Core.toon(0xffffff, { map: t, unique: true }); };
+    // char-017：鳞甲有点太密 → repeat 乘 0.6，鳞片放大、排稀
+    scaleMat = (rep) => { const t = tex.clone(); t.needsUpdate = true; t.repeat.set(rep[0] * 0.6, rep[1] * 0.6); return Core.toon(0xffffff, { map: t, unique: true }); };
     return scaleMat;
   }
   function scales(el) {
@@ -141,12 +142,12 @@ window.ElephantLV = (() => {
     for (const o of [...el.head.children]) { const m = o.userData && o.userData.main; if (m && m.geometry && m.geometry.type === 'TubeGeometry') o.visible = false; }   // 原来那对小象牙去掉（char-014：怎么有两对象牙）
     for (const L of el.legs) { sh(new THREE.CylinderGeometry(0.32, 0.29, 0.8, 16, 1, true, 0, PI), [2, 1.4], L.hip, V(0, -0.42, 0)); sh(new THREE.CylinderGeometry(0.29, 0.32, 0.6, 16, 1, true, 0, PI), [2, 1.2], L.knee, V(0, -0.3, 0)); }   // 四条腿正面披鳞甲（char-014）
     for (const s of [1, -1]) {   // 大象牙：比原来粗一倍、长三成，牙根金箍
-      const curve = new THREE.CatmullRomCurve3([V(0.75, -0.35, 0.22 * s), V(1.05, -0.63, 0.3 * s), V(1.4, -0.62, 0.34 * s), V(1.66, -0.38, 0.33 * s), V(1.92, -0.06, 0.32 * s)]);   // 沿原来那对小象牙的走向，粗一倍、长出一截，把小的整个包住
-      const tg = new THREE.TubeGeometry(curve, 24, 0.095, 8), pa = tg.attributes.position;   // 牙尖收细（char-015：象牙的尖部稍微再缩小一点）
+      const T0 = V(0.75, -0.35, 0.22 * s), curve = new THREE.CatmullRomCurve3([T0, V(1.05, -0.63, 0.3 * s), V(1.4, -0.62, 0.34 * s), V(1.66, -0.38, 0.33 * s), V(1.92, -0.06, 0.32 * s)].map(q => q.sub(T0).multiplyScalar(1.4).add(T0)));   // char-017：象牙再大 40%   // 沿原来那对小象牙的走向，粗一倍、长出一截，把小的整个包住
+      const tg = new THREE.TubeGeometry(curve, 24, 0.133, 8), pa = tg.attributes.position;   // 牙尖收细（char-015：象牙的尖部稍微再缩小一点）
       for (let k = 0; k < pa.count; k++) { const u = Math.floor(k / 9) / 24, f = u < 0.55 ? 1 : 1 - 0.8 * Math.pow((u - 0.55) / 0.45, 1.3), c = curve.getPointAt(u), v = V(pa.getX(k), pa.getY(k), pa.getZ(k)).sub(c).multiplyScalar(f).add(c); pa.setXYZ(k, v.x, v.y, v.z); }
       tg.computeVertexNormals(); el.head.add(Core.inked(tg, Core.toon(C.ivory), 0.015));
-      flame(el.head, 1.93, -0.02, 0.32 * s, 0.5);   // 火点在象牙尖上（char-015）
-      add(el.head, [P(G.cyl(0.13, 0.13, 0.12, 10), GOLD2, 0.86, -0.48, 0.27 * s, 0.35, 0, 0.7), P(G.cyl(0.115, 0.115, 0.05, 10), 0x9e2418, 0.95, -0.56, 0.3 * s, 0.35, 0, 0.75)]);
+      { const e = curve.getPointAt(1); flame(el.head, e.x + 0.02, e.y + 0.03, e.z, 0.6); }   // 火点在象牙尖上（char-015）
+      add(el.head, [P(G.cyl(0.175, 0.175, 0.14, 10), GOLD2, 0.9, -0.52, 0.28 * s, 0.35, 0, 0.7), P(G.cyl(0.158, 0.158, 0.06, 10), 0x9e2418, 1.01, -0.62, 0.31 * s, 0.35, 0, 0.75)]);
     }
     el.trunk.forEach((sg, i) => { if (i) sg.position.y = -0.37; const m = sg.children[0]; if (m) { m.scale.y = 1.22; m.position.y = -0.18; } });   // 四级鼻子再长一截（char-015）
     el.ears.forEach((ear, i) => { const m = ear.children[0]; if (m) { m.rotation.y = (i ? -1 : 1) * 0.95; m.position.x = -0.18; } });   // 耳朵往两边张开，正面看得到（char-015）
