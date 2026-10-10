@@ -1577,38 +1577,32 @@ const Board = (() => {
     const own = o => { o.userData.own = true; o.renderOrder = 7; g.add(o); return o; };
     const tube = (r, op, c = col) => own(new THREE.Mesh(new THREE.TubeGeometry(curve, 64, r, 6, false), new THREE.MeshBasicMaterial({ color: c, transparent: true, opacity: op, depthWrite: false })));
     const spr = (size, c, op = 1) => { const sp = own(new THREE.Sprite(new THREE.SpriteMaterial({ map: glowTex, color: c, transparent: true, opacity: op, depthWrite: false, blending: THREE.AdditiveBlending }))); sp.scale.setScalar(size); return sp; };
+    // 五个都是极简的：一道细线打底，只有一处在动（Ham 16:31：轮廓简单、极简风格）
+    const line = (op = 0.7) => tube(0.011, op);
     if (style === 1) {
-      // 一、流光：一笔细线，三颗带尾巴的流星顺着弧往目标跑
-      tube(0.013, 0.5);
-      const st = [0, 1, 2].map(i => ({ o: i / 3, head: spr(0.26, hi), tail: [0.2, 0.15, 0.11, 0.08].map(z => spr(z, col, 0.5)) }));
-      upd.push(t => { for (const q of st) { const u = (t * 0.5 + q.o) % 1, e = arcEnv(u); q.head.position.copy(curve.getPointAt(u)); q.head.material.opacity = e; q.tail.forEach((x, k) => { x.position.copy(curve.getPointAt(Math.max(0, u - 0.03 * (k + 1)))); x.material.opacity = e * (0.55 - k * 0.12); }); } });
+      // 一、光点：细线上一颗小光点从起点跑到落点
+      line(0.6); const dot = spr(0.2, hi);
+      upd.push(t => { const u = (t * 0.6) % 1; dot.position.copy(curve.getPointAt(u)); dot.material.opacity = arcEnv(u); });
     } else if (style === 2) {
-      // 二、箭簇：一串小箭头沿着弧往前走，像一排箭射过去
-      const n = Math.max(6, Math.round(L / 0.26)), up = new THREE.Vector3(0, 1, 0), q = new THREE.Quaternion();
-      const hs = []; for (let i = 0; i < n; i++) { const cone = new THREE.ConeGeometry(0.055, 0.17, 4); hs.push(own(new THREE.Mesh(cone, new THREE.MeshBasicMaterial({ color: i % 2 ? col : hi, transparent: true, depthWrite: false })))); }
-      upd.push(t => hs.forEach((m, i) => { const u = (i / n + t * 0.32) % 1; m.position.copy(curve.getPointAt(u)); m.quaternion.copy(q.setFromUnitVectors(up, curve.getTangentAt(u))); m.material.opacity = 0.95 * arcEnv(u); }));
+      // 二、流动点线：一串小点等距排开，整串往落点方向缓缓流
+      const n = Math.max(10, Math.round(L / 0.13)), ds = [];
+      for (let i = 0; i < n; i++) ds.push(spr(0.085, col, 0.9));
+      upd.push(t => ds.forEach((d, i) => { const u = (i / n + t * 0.12) % 1; d.position.copy(curve.getPointAt(u)); d.material.opacity = 0.95 * arcEnv(u); }));
     } else if (style === 3) {
-      // 三、跳影：一枚半透明的小棋子沿弧跳过去，落下荡开一圈涟漪，反复
-      tube(0.008, 0.3);
-      const disc = own(new THREE.Mesh(new THREE.CylinderGeometry(0.17, 0.17, 0.06, 28), new THREE.MeshBasicMaterial({ color: hi, transparent: true, opacity: 0.6, depthWrite: false })));
-      const end = curve.getPointAt(1), ring = own(new THREE.Mesh(new THREE.RingGeometry(0.17, 0.22, 40), new THREE.MeshBasicMaterial({ color: hi, transparent: true, opacity: 0, depthWrite: false, side: THREE.DoubleSide })));
-      ring.rotation.x = -Math.PI / 2; ring.position.copy(end); ring.position.y += 0.006;
-      upd.push(t => {
-        const P = 1.5, k = (t % P) / P, u = Math.min(1, k / 0.68), e = u * u * (3 - 2 * u);
-        disc.position.copy(curve.getPointAt(e)); disc.rotation.z = e * Math.PI * 2;
-        disc.material.opacity = 0.65 * Math.min(1, k / 0.08) * (k > 0.72 ? Math.max(0, 1 - (k - 0.72) / 0.2) : 1);
-        const r = k > 0.68 ? (k - 0.68) / 0.32 : 0; ring.scale.setScalar(1 + r * 1.8); ring.material.opacity = r ? 0.85 * (1 - r) : 0;
-      });
+      // 三、画线：一道细线从起点一笔画到落点，停一下淡掉，再画
+      const m = line(0.85), cnt = m.geometry.index.count;
+      upd.push(t => { const k = (t % 1.8) / 1.8, d = Math.min(1, k / 0.55); m.geometry.setDrawRange(0, Math.floor(cnt * d / 6) * 6); m.material.opacity = 0.85 * (k > 0.8 ? Math.max(0, 1 - (k - 0.8) / 0.2) : 1); });
     } else if (style === 4) {
-      // 四、珠迹：一颗颗光珠从起点到终点依次亮起、再依次熄灭，像一路跳过去的足迹
-      const n = Math.max(9, Math.round(L / 0.15)), bs = [];
-      for (let i = 0; i <= n; i++) { const sp = spr(0.14, i === n ? hi : col); sp.position.copy(curve.getPointAt(i / n)); bs.push(sp); }
-      upd.push(t => { const k = (t % 1.6) / 1.6; bs.forEach((sp, i) => { const on = k * 1.45 - i / n, v = on < 0 ? 0 : on < 0.12 ? on / 0.12 : Math.max(0, 1 - (on - 0.12) / 0.45); sp.material.opacity = v; sp.scale.setScalar(0.09 + 0.1 * v); }); });
+      // 四、细线 + 箭头：一道细线，落点一个小箭头，整条轻轻一明一暗
+      const m = line(0.7), tip = own(new THREE.Mesh(new THREE.ConeGeometry(0.06, 0.18, 12), new THREE.MeshBasicMaterial({ color: col, transparent: true, depthWrite: false })));
+      const e = curve.getPointAt(0.985); tip.position.copy(e); tip.quaternion.setFromUnitVectors(new THREE.Vector3(0, 1, 0), curve.getTangentAt(0.985));
+      upd.push(t => { const b = 0.55 + 0.35 * (0.5 + 0.5 * Math.sin(t * 3)); m.material.opacity = b; tip.material.opacity = Math.min(1, b + 0.2); });
     } else {
-      // 五、飘带：中间宽、两头尖的半透明绸带，流水纹往前淌，前头一颗亮点
-      const m = own(new THREE.Mesh(ribbonGeo(pts, u => 0.05 + 0.3 * Math.sin(Math.PI * Math.min(1, Math.max(0, u))), TOP + 0.0042, 1.0), new THREE.MeshBasicMaterial({ map: flowTex, color: col, transparent: true, opacity: 0.75, depthWrite: false, vertexColors: true, side: THREE.DoubleSide })));
-      const head = spr(0.3, hi);
-      upd.push(t => { const u = (t * 0.45) % 1; head.position.copy(curve.getPointAt(u)); head.material.opacity = arcEnv(u); m.material.opacity = 0.62 + 0.18 * Math.sin(t * 2.6); });
+      // 五、细线 + 落点涟漪：一道细线，落点荡开一圈细圈
+      line(0.65);
+      const end = curve.getPointAt(1), ring = own(new THREE.Mesh(new THREE.RingGeometry(0.15, 0.175, 48), new THREE.MeshBasicMaterial({ color: col, transparent: true, depthWrite: false, side: THREE.DoubleSide })));
+      ring.rotation.x = -Math.PI / 2; ring.position.copy(end); ring.position.y += 0.004;
+      upd.push(t => { const k = (t % 1.4) / 1.4; ring.scale.setScalar(1 + k * 1.6); ring.material.opacity = 0.9 * (1 - k); });
     }
     g.userData.upd = t => upd.forEach(f => f(t));
     return g;
