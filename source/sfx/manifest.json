@@ -1352,5 +1352,140 @@
    "dur": 1.88,
    "src": "MiniMax 合成（voicelab b42）+ 盾挡声；试听台 b42"
   }
+ ],
+ "xbow": [
+  {
+   "f": "xbow_0.mp3",
+   "dur": 0.47,
+   "src": "0ad (CC BY-SA 3.0) bow_attack 放箭 0.12 秒；试听台 b47"
+  },
+  {
+   "f": "xbow_1.mp3",
+   "dur": 0.47,
+   "src": "0ad (CC BY-SA 3.0) bow_attack 放箭 0.12 秒；试听台 b47"
+  },
+  {
+   "f": "xbow_2.mp3",
+   "dur": 0.47,
+   "src": "0ad (CC BY-SA 3.0) bow_attack 放箭 0.12 秒；试听台 b47"
+  },
+  {
+   "f": "xbow_3.mp3",
+   "dur": 0.47,
+   "src": "0ad (CC BY-SA 3.0) bow_attack 放箭 0.12 秒；试听台 b47"
+  },
+  {
+   "f": "xbow_4.mp3",
+   "dur": 0.47,
+   "src": "0ad (CC BY-SA 3.0) bow_attack 放箭 0.12 秒；试听台 b47"
+  }
+ ],
+ "arrowzip": [
+  {
+   "f": "arrowzip_0.mp3",
+   "dur": 0.44,
+   "src": "CC0 swing 加速高通；b47"
+  },
+  {
+   "f": "arrowzip_1.mp3",
+   "dur": 0.39,
+   "src": "CC0 swing 加速高通；b47"
+  },
+  {
+   "f": "arrowzip_2.mp3",
+   "dur": 0.42,
+   "src": "CC0 swing 加速高通；b47"
+  }
+ ],
+ "arrowhit": [
+  {
+   "f": "arrowhit_0.mp3",
+   "dur": 0.71,
+   "src": "0ad shield_wood + arrow_metal；b44"
+  },
+  {
+   "f": "arrowhit_1.mp3",
+   "dur": 0.6,
+   "src": "0ad shield_wood + arrow_metal；b44"
+  }
+ ],
+ "arrowwood": [
+  {
+   "f": "arrowwood_0.mp3",
+   "dur": 0.57,
+   "src": "0ad arrow_wood；b44"
+  },
+  {
+   "f": "arrowwood_1.mp3",
+   "dur": 1.99,
+   "src": "0ad arrow_wood；b44"
+  }
+ ],
+ "arrowflesh": [
+  {
+   "f": "arrowflesh_0.mp3",
+   "dur": 0.63,
+   "src": "0ad fleshimp；b44"
+  },
+  {
+   "f": "arrowflesh_1.mp3",
+   "dur": 0.68,
+   "src": "0ad fleshimp；b44"
+  }
+ ],
+ "tigerpounce": [
+  {
+   "f": "tigerpounce_0.mp3",
+   "dur": 1.52,
+   "src": "0ad lion 攻击；b44"
+  },
+  {
+   "f": "tigerpounce_1.mp3",
+   "dur": 2.38,
+   "src": "0ad lion 攻击；b44"
+  }
+ ],
+ "tigerland": [
+  {
+   "f": "tigerland_0.mp3",
+   "dur": 1.8,
+   "src": "0ad lion 攻击；b44"
+  }
+ ],
+ "jumashake": [
+  {
+   "f": "jumashake_0.mp3",
+   "dur": 1.65,
+   "src": "库内 punch/soft/wood/plank/block/chain/creak；b44"
+  },
+  {
+   "f": "jumashake_1.mp3",
+   "dur": 1.38,
+   "src": "库内 punch/soft/wood/plank/block/chain/creak；b44"
+  }
+ ],
+ "jumabrk": [
+  {
+   "f": "jumabrk_0.mp3",
+   "dur": 1.1,
+   "src": "库内 woodbreak 等 + CC0 碎裂落地 + 0ad explode_debris；b47/b48"
+  },
+  {
+   "f": "jumabrk_1.mp3",
+   "dur": 2.46,
+   "src": "库内 woodbreak 等 + CC0 碎裂落地 + 0ad explode_debris；b47/b48"
+  }
+ ],
+ "jumabrkbig": [
+  {
+   "f": "jumabrkbig_0.mp3",
+   "dur": 3.11,
+   "src": "同上 + 0ad building_collapse；b47/b48"
+  },
+  {
+   "f": "jumabrkbig_1.mp3",
+   "dur": 3.08,
+   "src": "同上 + 0ad building_collapse；b47/b48"
+  }
  ]
 }

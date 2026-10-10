@@ -223,6 +223,16 @@ const Sfx = (() => {
     sgrunt(t = 0, v = 0.5, pan) { smp('sgrunt', { t, vol: v, pan, rj: 0.05 }); },
     taunt(t = 0, v = 0.5, pan) { smp('taunt', { t, vol: v, pan, rj: 0.03 }); },
     victory(t = 0, v = 0.55, pan) { smp('victory', { t, vol: v, pan, rj: 0.03 }); },
+    // 拒马三段（Ham 10-10 试听台 b44～b48；时间点见角色部 M27 / M30）。t 都对准“那一刻”（放箭、中箭、扑起、撞上）
+    xbow(t = 0, v = 0.6, pan) {   // 放箭：三种随机轮着用（只有“嘣” / 加尖“咻” / 加闷“咔”），放箭那一下在 0.03 秒
+      smp('xbow', { t: Math.max(0, t - 0.03), vol: v, pan, rj: 0.05 });
+      const r = Math.random(); if (r < 1 / 3) smp('arrowzip', { t: t + 0.02, vol: v * 0.5, pan, rj: 0.05 }); else if (r < 2 / 3) smp('thunk', { t, vol: v * 0.5, pan });
+    },
+    arrowHit(t = 0, kind = 'shield', v = 0.6, pan) { smp({ shield: 'arrowhit', wood: 'arrowwood', flesh: 'arrowflesh' }[kind] || 'arrowhit', { t, vol: v, pan, rj: 0.05 }); },
+    tigerPounce(t = 0, v = 0.7) { smp('tigerpounce', { t, vol: v, rj: 0.03 }); },
+    tigerLand(t = 0, v = 0.65) { smp('tigerland', { t, vol: v, rj: 0.03 }); },
+    jumaShake(t = 0, v = 0.7, pan) { smp('jumashake', { t, vol: v, pan, rj: 0.03 }); },   // 象顶路障，不碎
+    jumaBreak(t = 0, big = false, v = 0.8, pan) { smp(big ? 'jumabrkbig' : 'jumabrk', { t, vol: v, pan, rj: 0.02 }); },   // 路障碎：虎扑 / 象撞（big）
     plate(t = 0, v = 0.4) { smp('plate', { t, vol: v }); },
     ring(t = 0, v = 0.3) { smp('unsheathe', { t, vol: v }); },
     whoosh(t = 0, dur = 0.35, v = 0.35, pan) { smp('swing', { t, vol: v, pan, rate: R(0.8, 1.1) / Math.max(0.5, dur / 0.4) }); },
