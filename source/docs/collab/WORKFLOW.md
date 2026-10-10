@@ -16,7 +16,7 @@
 
 | 部门 | 管什么 | 会话 | 分支 | 自己管的文件 | 审核页面 |
 |---|---|---|---|---|---|
-| TD（技术总监） | 整合、上线、音效配音、测试 | session_01RKuN4E66BetRaUCS8BJyti | `dev` / `main` | 除下面各部门以外的所有文件 | 审批台（td-编号）https://claude.ai/artifact/79HGpeuQGk3jehJmHsJsfn ；配音试听台 |
+| TD（技术总监） | 整合、上线、音效配音、测试 | session_01RKuN4E66BetRaUCS8BJyti | `dev` / `main` | 除下面各部门以外的所有文件 | 审批台（td-编号，看的）https://claude.ai/artifact/79HGpeuQGk3jehJmHsJsfn ；配音试听台（听的）https://claude.ai/artifact/DGdGe1guoi1pB8UUNDfkS5 |
 | 数值部（Balance） | 规则数值、平衡、电脑（AI）训练 | session_01Gtcra5Sh6u7nQHPfESA3Sb | `claude/gallant-planck-rwr5az` | `source/tools/`（模拟、调权重、复盘）、`source/docs/collab/code-to-chat.md`、`decisions.md`、`advisors/handoff.md`、`advisors/numbers-to-advisors.md` | Balance拍板单 https://claude.ai/artifact/QaxqVmNF1p2XQiAx8MygEM |
 | 美术（Art，忙完结算动画后改名角色部） | 角色设计、建模、绑定、动画 | session_01NcqhjTJxdTrUxQtViN2iri | `model-lab` | 见 `MODEL-WORKFLOW.md` 第 1 节 | 审批台 https://claude.ai/artifact/79HGpeuQGk3jehJmHsJsfn |
 | 美术总监 | 界面（UI）、棋盘、整体视觉方向 | session_01U1d5RrViuCEaT74h7UkG2M | `claude/art-director` | 分工草案经 Ham 点头、TD 同意后再填 | 待建 |
@@ -32,8 +32,10 @@
 | 要定的是 | 页面 | 例子 |
 |---|---|---|
 | 文字决策：规则、数值、做不做、先做哪个 | 各部门自己的 **“<部门名>拍板单”** | 数值部的 Balance拍板单 |
-| 看的东西：模型、界面、动画、分镜 | **审批台**（出图，标甲 / 乙 / 丙） | 美术的审批台 |
-| 听的东西：配音、音乐、音效 | **试听台** | TD 的配音试听台 |
+| 看的东西：美术方向、模型、界面、动画、分镜 | **审批台**（出图，标甲 / 乙 / 丙） | 美术的审批台 https://claude.ai/artifact/79HGpeuQGk3jehJmHsJsfn |
+| 听的东西：配音、音乐、音效 | **试听台** | TD 的配音试听台 https://claude.ai/artifact/DGdGe1guoi1pB8UUNDfkS5 |
+
+Ham 10-10 原话：“给各部门推送美术方向用审批台，音乐声音用视听台”。别的部门要审看的、听的东西，和页面的主人（美术 / TD）商量怎么放进去；或者照它的样子给自己建一个，名字写成“<部门名>审批台 / 试听台”，这样 Ham 提交时通知的是自己。
 
 **统一流程**
 1. 部门出题。每题必须有：
