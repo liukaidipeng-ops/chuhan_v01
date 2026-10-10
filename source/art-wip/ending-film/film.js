@@ -99,8 +99,8 @@ window.FILM = {};
     const rp = []; for (let i = 0; i < 60; i++) rp.push([SB.rr(-4, -0.5), 0, SB.rr(-40, 30)]);
     SB.reeds(ctx, rp.filter(q => Math.abs(q[2] - BZ) > 5.5), { per: 24, r: 1.3, h: [1.2, 2.4] });   // 船前面那一段不种，背景里看得见亭长（079）
     const F = Ferry.makeFerry({ scale: 1.5 }); F.group.position.set(-6.2, 0, BZ); F.group.rotation.y = PI / 2 + 0.15; ctx.add(SB.shadows(F.group)); F.setPose('pole', 0.01); F.lanternOn(true);
-    const fg = []; for (let i = 0; i < 16; i++) fg.push([SB.rr(7.5, 9.5), 0, SB.rr(-25, 25)]);   // 前景芦苇（虚焦）
-    SB.reeds(ctx, fg, { per: 18, r: 0.8, h: [0.9, 1.6], col: 0x5a5236 });
+    const fg = []; for (let i = 0; i < 16; i++) fg.push([SB.rr(9.6, 10.6), 0, SB.rr(-12, 12)]);   // 前景芦苇（虚焦）：只占画面最底下一条，梢头低过马蹄，不挡人马（079）
+    SB.reeds(ctx, fg, { per: 18, r: 0.6, h: [0.9, 1.1], col: 0x5a5236 });
     SB.dust(ctx, { n: 70, box: [-80, -4, 0, 3, -80, 40], s: [10, 24], op: [0.06, 0.14], col: 0xf1dcc0 });
     const R = rider(ctx, 2);
     const cam = SB.cam([13, 1.55, 0], [0, 1.6, 0], 22);
