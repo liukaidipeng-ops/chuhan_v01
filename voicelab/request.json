@@ -1,5 +1,5 @@
 {
- "batch": "b41",
+ "batch": "b42",
  "list_voices": false,
  "hosts": [
   "https://api.minimax.cn",
@@ -13,291 +13,291 @@
  ],
  "jobs": [
   {
-   "id": "cheer_0_a",
+   "id": "vic_0_h3",
+   "voice": "Spanish_PowerfulSoldier",
+   "text": "吼！吼！吼！",
+   "emotion": "angry",
+   "speed": 0.95,
+   "pitch": 0,
+   "vol": 1,
+   "modify": {
+    "intensity": -95
+   }
+  },
+  {
+   "id": "vic_0_he",
+   "voice": "Spanish_PowerfulSoldier",
+   "text": "嗬——！！",
+   "emotion": "angry",
+   "speed": 0.95,
+   "pitch": 0,
+   "vol": 1,
+   "modify": {
+    "intensity": -95
+   }
+  },
+  {
+   "id": "vic_0_wl",
+   "voice": "Spanish_PowerfulSoldier",
+   "text": "呜啦——！！",
+   "emotion": "angry",
+   "speed": 0.95,
+   "pitch": 0,
+   "vol": 1,
+   "modify": {
+    "intensity": -95
+   }
+  },
+  {
+   "id": "vic_0_ao",
    "voice": "Spanish_PowerfulSoldier",
    "text": "嗷——！！",
-   "emotion": "happy",
-   "speed": 1,
+   "emotion": "angry",
+   "speed": 0.95,
    "pitch": 0,
    "vol": 1,
    "modify": {
-    "intensity": -80
+    "intensity": -95
    }
   },
   {
-   "id": "cheer_0_o",
-   "voice": "Spanish_PowerfulSoldier",
-   "text": "哦吼——！！",
-   "emotion": "happy",
-   "speed": 1,
+   "id": "vic_1_h3",
+   "voice": "Spanish_PowerfulVeteran",
+   "text": "吼！吼！吼！",
+   "emotion": "angry",
+   "speed": 0.95,
    "pitch": 0,
    "vol": 1,
    "modify": {
-    "intensity": -80
+    "intensity": -95
    }
   },
   {
-   "id": "cheer_0_h",
-   "voice": "Spanish_PowerfulSoldier",
-   "text": "哈哈哈哈！",
-   "emotion": "happy",
-   "speed": 1,
+   "id": "vic_1_he",
+   "voice": "Spanish_PowerfulVeteran",
+   "text": "嗬——！！",
+   "emotion": "angry",
+   "speed": 0.95,
    "pitch": 0,
    "vol": 1,
    "modify": {
-    "intensity": -80
+    "intensity": -95
    }
   },
   {
-   "id": "cheer_0_y",
-   "voice": "Spanish_PowerfulSoldier",
-   "text": "喔——！！",
-   "emotion": "happy",
-   "speed": 1,
+   "id": "vic_1_wl",
+   "voice": "Spanish_PowerfulVeteran",
+   "text": "呜啦——！！",
+   "emotion": "angry",
+   "speed": 0.95,
    "pitch": 0,
    "vol": 1,
    "modify": {
-    "intensity": -80
+    "intensity": -95
    }
   },
   {
-   "id": "cheer_1_a",
+   "id": "vic_1_ao",
    "voice": "Spanish_PowerfulVeteran",
    "text": "嗷——！！",
-   "emotion": "happy",
-   "speed": 1,
+   "emotion": "angry",
+   "speed": 0.95,
    "pitch": 0,
    "vol": 1,
    "modify": {
-    "intensity": -80
+    "intensity": -95
    }
   },
   {
-   "id": "cheer_1_o",
-   "voice": "Spanish_PowerfulVeteran",
-   "text": "哦吼——！！",
-   "emotion": "happy",
-   "speed": 1,
+   "id": "vic_2_h3",
+   "voice": "Spanish_PassionateWarrior",
+   "text": "吼！吼！吼！",
+   "emotion": "angry",
+   "speed": 0.95,
    "pitch": 0,
    "vol": 1,
    "modify": {
-    "intensity": -80
+    "intensity": -95
    }
   },
   {
-   "id": "cheer_1_h",
-   "voice": "Spanish_PowerfulVeteran",
-   "text": "哈哈哈哈！",
-   "emotion": "happy",
-   "speed": 1,
+   "id": "vic_2_he",
+   "voice": "Spanish_PassionateWarrior",
+   "text": "嗬——！！",
+   "emotion": "angry",
+   "speed": 0.95,
    "pitch": 0,
    "vol": 1,
    "modify": {
-    "intensity": -80
+    "intensity": -95
    }
   },
   {
-   "id": "cheer_1_y",
-   "voice": "Spanish_PowerfulVeteran",
-   "text": "喔——！！",
-   "emotion": "happy",
-   "speed": 1,
+   "id": "vic_2_wl",
+   "voice": "Spanish_PassionateWarrior",
+   "text": "呜啦——！！",
+   "emotion": "angry",
+   "speed": 0.95,
    "pitch": 0,
    "vol": 1,
    "modify": {
-    "intensity": -80
+    "intensity": -95
    }
   },
   {
-   "id": "cheer_2_a",
+   "id": "vic_2_ao",
    "voice": "Spanish_PassionateWarrior",
    "text": "嗷——！！",
-   "emotion": "happy",
-   "speed": 1,
+   "emotion": "angry",
+   "speed": 0.95,
    "pitch": 0,
    "vol": 1,
    "modify": {
-    "intensity": -80
+    "intensity": -95
    }
   },
   {
-   "id": "cheer_2_o",
-   "voice": "Spanish_PassionateWarrior",
-   "text": "哦吼——！！",
-   "emotion": "happy",
-   "speed": 1,
+   "id": "vic_3_h3",
+   "voice": "Spanish_AngryMan",
+   "text": "吼！吼！吼！",
+   "emotion": "angry",
+   "speed": 0.95,
    "pitch": 0,
    "vol": 1,
    "modify": {
-    "intensity": -80
+    "intensity": -95
    }
   },
   {
-   "id": "cheer_2_h",
-   "voice": "Spanish_PassionateWarrior",
-   "text": "哈哈哈哈！",
-   "emotion": "happy",
-   "speed": 1,
+   "id": "vic_3_he",
+   "voice": "Spanish_AngryMan",
+   "text": "嗬——！！",
+   "emotion": "angry",
+   "speed": 0.95,
    "pitch": 0,
    "vol": 1,
    "modify": {
-    "intensity": -80
+    "intensity": -95
    }
   },
   {
-   "id": "cheer_2_y",
-   "voice": "Spanish_PassionateWarrior",
-   "text": "喔——！！",
-   "emotion": "happy",
-   "speed": 1,
+   "id": "vic_3_wl",
+   "voice": "Spanish_AngryMan",
+   "text": "呜啦——！！",
+   "emotion": "angry",
+   "speed": 0.95,
    "pitch": 0,
    "vol": 1,
    "modify": {
-    "intensity": -80
+    "intensity": -95
    }
   },
   {
-   "id": "cheer_3_a",
+   "id": "vic_3_ao",
    "voice": "Spanish_AngryMan",
    "text": "嗷——！！",
-   "emotion": "happy",
-   "speed": 1,
+   "emotion": "angry",
+   "speed": 0.95,
    "pitch": 0,
    "vol": 1,
    "modify": {
-    "intensity": -80
+    "intensity": -95
    }
   },
   {
-   "id": "cheer_3_o",
-   "voice": "Spanish_AngryMan",
-   "text": "哦吼——！！",
-   "emotion": "happy",
-   "speed": 1,
+   "id": "vic_4_h3",
+   "voice": "Portuguese_AngryMan",
+   "text": "吼！吼！吼！",
+   "emotion": "angry",
+   "speed": 0.95,
    "pitch": 0,
    "vol": 1,
    "modify": {
-    "intensity": -80
+    "intensity": -95
    }
   },
   {
-   "id": "cheer_3_h",
-   "voice": "Spanish_AngryMan",
-   "text": "哈哈哈哈！",
-   "emotion": "happy",
-   "speed": 1,
+   "id": "vic_4_he",
+   "voice": "Portuguese_AngryMan",
+   "text": "嗬——！！",
+   "emotion": "angry",
+   "speed": 0.95,
    "pitch": 0,
    "vol": 1,
    "modify": {
-    "intensity": -80
+    "intensity": -95
    }
   },
   {
-   "id": "cheer_3_y",
-   "voice": "Spanish_AngryMan",
-   "text": "喔——！！",
-   "emotion": "happy",
-   "speed": 1,
+   "id": "vic_4_wl",
+   "voice": "Portuguese_AngryMan",
+   "text": "呜啦——！！",
+   "emotion": "angry",
+   "speed": 0.95,
    "pitch": 0,
    "vol": 1,
    "modify": {
-    "intensity": -80
+    "intensity": -95
    }
   },
   {
-   "id": "cheer_4_a",
+   "id": "vic_4_ao",
    "voice": "Portuguese_AngryMan",
    "text": "嗷——！！",
-   "emotion": "happy",
-   "speed": 1,
+   "emotion": "angry",
+   "speed": 0.95,
    "pitch": 0,
    "vol": 1,
    "modify": {
-    "intensity": -80
+    "intensity": -95
    }
   },
   {
-   "id": "cheer_4_o",
-   "voice": "Portuguese_AngryMan",
-   "text": "哦吼——！！",
-   "emotion": "happy",
-   "speed": 1,
+   "id": "vic_5_h3",
+   "voice": "Japanese_GenerousIzakayaOwner",
+   "text": "吼！吼！吼！",
+   "emotion": "angry",
+   "speed": 0.95,
    "pitch": 0,
    "vol": 1,
    "modify": {
-    "intensity": -80
+    "intensity": -95
    }
   },
   {
-   "id": "cheer_4_h",
-   "voice": "Portuguese_AngryMan",
-   "text": "哈哈哈哈！",
-   "emotion": "happy",
-   "speed": 1,
+   "id": "vic_5_he",
+   "voice": "Japanese_GenerousIzakayaOwner",
+   "text": "嗬——！！",
+   "emotion": "angry",
+   "speed": 0.95,
    "pitch": 0,
    "vol": 1,
    "modify": {
-    "intensity": -80
+    "intensity": -95
    }
   },
   {
-   "id": "cheer_4_y",
-   "voice": "Portuguese_AngryMan",
-   "text": "喔——！！",
-   "emotion": "happy",
-   "speed": 1,
+   "id": "vic_5_wl",
+   "voice": "Japanese_GenerousIzakayaOwner",
+   "text": "呜啦——！！",
+   "emotion": "angry",
+   "speed": 0.95,
    "pitch": 0,
    "vol": 1,
    "modify": {
-    "intensity": -80
+    "intensity": -95
    }
   },
   {
-   "id": "cheer_5_a",
+   "id": "vic_5_ao",
    "voice": "Japanese_GenerousIzakayaOwner",
    "text": "嗷——！！",
-   "emotion": "happy",
-   "speed": 1,
+   "emotion": "angry",
+   "speed": 0.95,
    "pitch": 0,
    "vol": 1,
    "modify": {
-    "intensity": -80
-   }
-  },
-  {
-   "id": "cheer_5_o",
-   "voice": "Japanese_GenerousIzakayaOwner",
-   "text": "哦吼——！！",
-   "emotion": "happy",
-   "speed": 1,
-   "pitch": 0,
-   "vol": 1,
-   "modify": {
-    "intensity": -80
-   }
-  },
-  {
-   "id": "cheer_5_h",
-   "voice": "Japanese_GenerousIzakayaOwner",
-   "text": "哈哈哈哈！",
-   "emotion": "happy",
-   "speed": 1,
-   "pitch": 0,
-   "vol": 1,
-   "modify": {
-    "intensity": -80
-   }
-  },
-  {
-   "id": "cheer_5_y",
-   "voice": "Japanese_GenerousIzakayaOwner",
-   "text": "喔——！！",
-   "emotion": "happy",
-   "speed": 1,
-   "pitch": 0,
-   "vol": 1,
-   "modify": {
-    "intensity": -80
+    "intensity": -95
    }
   }
  ],
