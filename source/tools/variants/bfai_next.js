@@ -14,6 +14,7 @@
 //   BFAI_FASTFP=1：局面指纹提速（剖析：线上霸王 7.4% 的时间花在 fp 上，大半是逐字散列子的字段名）
 //   BFAI_TUNE_W=文件（相对 source/）：换上自动调出来的估值权重（fit.js --out 写的）；r30：对同底版霸王 83%、校尉 84%（f998d98 底版，bfai_tuned.js）
 //     BFAI_TUNE_FAST=1：权重写回原公式（tools/tune/score_w.js，和特征版逐个局面相等、不慢；上线用这个）
+//   BFAI_NODEX=x：节点上限 ×x（比“慢 12% 的打分”时给 0.88，和不慢的公平比）
 //   BFAI_CHKMUST=1：被将军时，相 / 象 / 兵升一级攻击变大的（象二级起攻击 2，H50；兵三级起攻击 2，r6）也算“保命的升级”（TD 在 H52 问的）
 'use strict';
 const fs = require('fs'), path = require('path'), os = require('os');
@@ -152,7 +153,10 @@ function build(E, tag) {
   fs.writeFileSync(out, s);
   process.on('exit', () => { try { fs.unlinkSync(out); } catch (e) { } });
   if (E.BFAI_NEXT_OUT && !tag) fs.writeFileSync(E.BFAI_NEXT_OUT, s);
-  return require(out);
+  const M = require(out);
+  const NODEX = +(E.BFAI_NODEX || 0);   // 按节点数收手时各档的节点上限 ×NODEX（模拟“打分慢了 / 多想了”）：bfsim 的 --nodes 给两边设同一个数，这里拦下来乘
+  if (NODEX) for (const lv of Object.keys(M.LEVELS)) { const H = M.LEVELS[lv]; let n = H.nodes; Object.defineProperty(H, 'nodes', { enumerable: true, configurable: true, get() { return n; }, set(v) { n = v ? Math.round(v * NODEX) : v; } }); }
+  return M;
 }
 module.exports = build(process.env, '');
 module.exports.make = (opts, tag) => build(opts, tag);
