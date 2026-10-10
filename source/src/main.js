@@ -8,11 +8,12 @@
   // 更新说明（设置里、大厅底部点「更新」查看；最新的放最前）
   const NEWS = [
     ['第六版', '2026 年 10 月', [
+      '技能模式电脑会想到「先升级、攻击变大、再吃子」了（比如升象吃炮），原来这种升级被它的筛子挡掉（数值部改的，对原来的霸王不吃亏）',
       '结算画面多了「分 析」：电脑把整局每一步评一遍（佳 / 好 / 缓 / 失 / 错），底下一条兵势河看谁占优，点一枚兵符看这步该怎么走；「详解」结合前后几步讲清楚这步为什么错、应该怎么走、两条路走下去差多少，还能在棋盘上演示（Ham 选的方案三「沙盘兵势」）',
       '结算画面多了「保 存」：存进这台设备的「我的棋局」（大厅右上角），能复盘、复制；设置里粘好 GitHub 令牌后可以「存并发给数值部」，数值部回复、处理完都能在「我的棋局」里看到',
       '棋谱上点某一步可以标「这步笨」，写一句哪里笨，保存、发给数值部时一起带上',
       '兵种模型的战马、骑士、战车、铜炮、战象，每个由几十块零件分开画改成合成一块画：样子不变，每帧少画约四分之一（Ham 选的性能活第二件）',
-      '修好：被将军、只有先给某枚子升一级才解得了将时，电脑有时一步都不走、对局卡住；人升错了子（升完还是无路可走）也会卡住——现在电脑会找到能解将的升法，升错了就判将死（数值部查出来的）',
+      '修好：被将军、只有先给某枚子升一级才解得了将时，电脑有时一步都不走、对局卡住；人升错了子（升完还是无路可走）也会卡住——现在电脑会找到能解将的升法；人这边，升了也解不了将的子不让升（升级按钮写「解不了将」），只能升对的那枚（数值部查出来的，规则 Ham 定）',
       '联机时状态条左边多了信号格（美术画的）：对方一拍没音信变白、两拍变黄、断开或 9 秒没音信变红并闪；信号好就不显示（原来的小圆点去掉了）',
       '安卓手机在微信、QQ 等 App 里打开时，系统字号调大会把网页字也放大、挤乱界面：现在开局量一下放大了多少再缩回来，字号和浏览器里一样',
       '技能模式：主将卡上的军功改成一方金印（美术画的），加功时一团金光从来处飞进印里、金星四溅；花功时印变红、金光飞向升级的子或兵法签；旁边飘「+n 功 · 原因」',
@@ -2570,7 +2571,8 @@
         if (a.p.t !== 'k') {
           if (a.cost != null) {
             const m = game.merit[a.p.s], save = a.base - a.cost;
-            B.push(btn('up', 'up', a.canUp, `升${LVCN[a.p.lv + 1]}级`, game.upgraded ? '本回合已升' : `${a.cost} 功` + (halfNow(a.p) ? '·半价' : '') + (save ? `·省${save}` : ''), game.upgraded ? '每次行动最多升级一次，下次行动再升' : `升级需要 ${a.cost} 军功，现在只有 ${m}`, '', upTip(a.p, a.cost, a.base)));
+            const upNoEsc = !game.upgraded && game.upOnly && game.upOnly() && !game.upEscapes(sel[0], sel[1]);
+            B.push(btn('up', 'up', a.canUp, `升${LVCN[a.p.lv + 1]}级`, game.upgraded ? '本回合已升' : upNoEsc ? '解不了将' : `${a.cost} 功` + (halfNow(a.p) ? '·半价' : '') + (save ? `·省${save}` : ''), game.upgraded ? '每次行动最多升级一次，下次行动再升' : upNoEsc ? '被将军时只能给能解将的子升级：升它解不了将，换一枚' : `升级需要 ${a.cost} 军功，现在只有 ${m}`, '', upTip(a.p, a.cost, a.base)));
           }
           for (const k of a.skills) {
             const cn = BF.SKILL_CN[k.sk], skTip = skillTip(a.p, k.sk), C = BF.CFG.skills[k.sk];
@@ -2637,6 +2639,7 @@
     if (a === 'cancel') { if (bfMode && bfMode.bs) return; exitBfMode(false); Board.clearMoves(false); if (sel) bfSelect(sel[0], sel[1]); renderBar(); return; }
     if (a === 'up' && sel) {
       const av = bfAvail();
+      if (av.p && game.upOnly && game.upOnly() && !game.upEscapes(sel[0], sel[1])) { toast('升它解不了将：被将军时只能给能解将的子升级，换一枚', 2600); return; }   // Ham 10-10 td-017 选 B
       if (!av.p || !av.canUp || av.cost == null) { doBF({ k: 'up', at: sel }); return; }   // 升不了：照原来的路子走（会说明原因）
       if (upOpen) return;
       const at = sel.slice(), key = game.entries.length;
@@ -2792,7 +2795,7 @@
       if (!game.bf) return;   // 演出放完时已经换了一局（退出重开）
       { const ph = (info.ev || []).find(x => x.e === 'phase'); if (ph && !info.result) showPhaseTip(ph); }
       if (game.mustPass() && canAct() && (mode === 'local' || game.turn === mySide)) toast(`${SIDE_CN[game.turn]}方无子可走，请点「停着」`, 2600);
-      else if (game.upOnly && game.upOnly() && canAct() && (mode === 'local' || game.turn === mySide)) toast('被将军：直接走解不了将，先给能解将的子升一级', 3200);
+      else if (game.upOnly && game.upOnly() && canAct() && (mode === 'local' || game.turn === mySide)) toast('被将军：直接走解不了将，先给能解将的子升一级（升了也解不了将的子不让升）', 3200);
       else if (game.mayPass() && game.fx.sm > 0 && canAct() && (mode === 'local' || game.turn === mySide)) toast('四面楚歌：楚军只能走将，或点「停着」', 2800);
       if (info.result && !busy) finishGame(info.result);
       else if (!busy && (vsAI() || hostBot()) && isAI(game.turn)) maybeAI();

@@ -93,8 +93,12 @@ const isRevive = seq => seq.some(a => a.k === 'art' && a.id != null), isPofu = s
       const g = new BF.Game(); g.reset(S);
       assert(g.upOnly(), `C63 局面 ${i} 应该是“只有升级才解得了将”`);
       let bad = null;
-      for (let r = 0; r < 10 && !bad; r++) for (let f = 0; f < 9; f++) { const p = g.at(f, r); if (!p || p.s !== g.turn || !g.canUpgrade(f, r)) continue; const U = BF.ai.upgradeState(BF.cloneState(g.S), [f, r]); if (U && !BF.ai.expand(U).some(k => k.a.k !== 'pass')) { bad = [f, r]; break; } }
-      if (bad) { const info = g.apply({ k: 'up', at: bad }); assert(info && info.result && g.result && g.result.reason === 'checkmate', `C63 局面 ${i} 升错子 ${bad} 应判将死`); }
+      for (let r = 0; r < 10 && !bad; r++) for (let f = 0; f < 9; f++) { const p = g.at(f, r); if (!p || p.s !== g.turn || p.t === 'k' || p.lv >= g.maxLv(p) || g.merit[p.s] < g.upgradeCost(p)) continue; if (!g.upEscapes(f, r)) { bad = [f, r]; break; } }   // 军功够、但升了解不了将的子
+      // Ham 10-10 td-017 选 B：解不了将的子不许升（升不上，对局照旧等着人升对的那枚）；能解将的那枚可以升
+      if (bad) { assert(!g.canUpgrade(bad[0], bad[1]) && !g.apply({ k: 'up', at: bad }) && !g.result && g.upOnly(), `C63 局面 ${i} 升错子 ${bad} 应该不许升`); }
+      let good = null;
+      for (let r = 0; r < 10 && !good; r++) for (let f = 0; f < 9; f++) if (g.canUpgrade(f, r)) { good = [f, r]; break; }
+      assert(good && g.upEscapes(good[0], good[1]), `C63 局面 ${i} 应有能解将的升法`);
     }
     BF.CFG.r6.on = R6; BF.CFG.beishui.on = BS;
     console.log('BFAI UPESCAPE OK', pos.length, '个局面');

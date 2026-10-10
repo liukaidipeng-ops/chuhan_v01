@@ -912,7 +912,14 @@
       CFG_CUR = this.cfg;
       const p = this.at(f, r), S = this.S;
       if (this.result || !p || p.s !== S.turn || p.t === 'k' || p.lv >= maxLv(p.t) || S.upgraded) return false;
-      return S.merit[p.s] >= upCost(p);
+      return S.merit[p.s] >= upCost(p) && this.upEscapes(f, r);
+    }
+    // 被将军、只有先升级才解得了将（upOnly）时，升这枚子能不能解将。Ham 10-10 审批台 td-017 选 B：解不了将的子不许升（不是升了判输）
+    upEscapes(f, r) {
+      CFG_CUR = this.cfg;
+      if (!this.status || !this.status.upOnly) return true;
+      const T = upgradeState(this.S, [f, r]);
+      return !!(T && hasAnyAction(T, true));
     }
     // 记录一条行动（升级或主行动）并执行；返回动画信息
     // 调试「无冷却」：每次行动后把全盘冷却清零
