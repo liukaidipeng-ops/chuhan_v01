@@ -273,17 +273,22 @@ const Core = (() => {
   // 帧时间（真实的，不封顶）：自动降画质和 ?perf 面板用
   const ft = { n: 0, sum: 0, slow: 0, last: performance.now() };
   let nap = 0;
+  let drawN = 0;   // 真画了几帧（?perf 面板用：省电时浏览器照样每秒刷新 60 次，但不是每次都画）
   let lastDraw = 0, shT = 0;
   for (const ev of ['pointerdown', 'pointermove', 'wheel', 'touchstart', 'touchmove', 'keydown']) addEventListener(ev, () => { if (ECO) poke(1500); }, { passive: true, capture: true });   // 手一碰就恢复满帧
   function loop() {
     requestAnimationFrame(loop);
-    if (ECO) {   // 省电：没在动就 30 帧（跳过的这一帧什么都不做，时间留到下一帧一起推）
+    let calm = false;   // 省电故意少画的帧：不算进帧时间统计（不然自动降画质会把它当成卡）
+    if (ECO) {   // 省电：没在动就 15 帧（跳过的这一帧什么都不做，时间留到下一帧一起推）
+      //   优化部 P2（Ham 优化部审批台 perf-001 选 15 帧）：原来 30 帧，对局静止时手机照样一直在画
       const t = performance.now();
-      if (t > activeUntil && t - lastDraw < 31) return;
+      calm = t > activeUntil;
+      if (calm && t - lastDraw < 64) return;
       lastDraw = t;
     }
-    { const t = performance.now(), d = t - ft.last; ft.last = t; if (Core.render && d < 1000) { ft.n++; ft.sum += d; if (d > 40) ft.slow++; } }
-    let raw = Math.min(clock.getDelta(), 0.05);
+    { const t = performance.now(), d = t - ft.last; ft.last = t; if (Core.render && !calm && d < 1000) { ft.n++; ft.sum += d; if (d > 40) ft.slow++; } }
+    // 一帧最多推 0.05 秒（切后台回来别一下跳太远）；省电降帧时一帧本来就有 0.067 秒，放宽到 0.1，不然背景动画会变慢
+    let raw = Math.min(clock.getDelta(), ECO ? 0.1 : 0.05);
     // 大厅整屏盖着、场景不画的时候（main.js 设 sleepy）：动画每 0.1 秒才推一次——兵营里的小兵、旗子照样在动，
     // 补间照样走完，只是省下九成的脚本时间（手机待在大厅时省电、不发热）
     if (Core.sleepy) { nap += raw; if (nap < 0.1) return; raw = Math.min(nap, 0.15); nap = 0; } else nap = 0;
@@ -293,7 +298,7 @@ const Core = (() => {
     if (ECO && renderer.shadowMap.enabled && (performance.now() < activeUntil || (shT += raw) > 0.5)) { renderer.shadowMap.needsUpdate = true; shT = 0; }
     for (const h of frameHooks) h(dt, raw);
     Cam.update(raw);
-    if (Core.render && !held) renderer.render(scene, camera);   // held：换影子开关后，新着色器还在后台编，先停画（不然当场同步编、卡住）
+    if (Core.render && !held) { renderer.render(scene, camera); drawN++; }   // held：换影子开关后，新着色器还在后台编，先停画（不然当场同步编、卡住）
   }
 
   // ---------- 贴图工具 ----------
@@ -501,6 +506,7 @@ const Core = (() => {
     renderer, scene, camera, sun, hemi, Time, onFrame, tween, sleep, ease, Cam, canvasTex, Tex, rnd, inkBlot,
     toon, outlineMat, outlineShared, inked, merge, M4, disposeTree, compileBg, viewShift, get shiftNow() { return shiftF.slice(); },
     start() { clock.start(); loop(); },
+    get drawN() { return drawN; },
     get nUpdaters() { return updaters.size + frameHooks.length; },   // 每帧要跑的回调有几个（查泄漏用）
     // 取走这段时间的帧统计：[帧数, 平均毫秒, 超过 40 毫秒的帧数]，取完清零
     takeFrames() { const r = [ft.n, ft.n ? ft.sum / ft.n : 0, ft.slow]; ft.n = ft.sum = ft.slow = 0; return r; },

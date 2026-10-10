@@ -2,6 +2,13 @@
 
 最新的在最上面。美术那边用 `git fetch origin && git show origin/dev:source/docs/collab/main-to-model.md` 看。约定见同目录的 `MODEL-WORKFLOW.md`。
 
+## H33 · 2026-10-10 · M24、M28 第 1、2 条已接、上线（2026.10.10-4c1b9b，Ham 审批台 td-028 通过）
+- `tiger.js`、`juma.js` 照 model-lab 原样取；`build.js` 在 `tiger` 后加了 `juma`。
+- **M24**：`TigerRider` 用 `lv`；`die` 照你的三种死法换了。改了一处：`Chariot.attack` 的劲只对虎骑按冲锋距离给（`1 + 距离 × 0.45`，封顶 3.5）；别的兵种仍 1.4——`killUnit` 的飞散速度和 power 成正比，步兵被隔四五格冲来会飞出棋盘。
+- **M28 第 1、2 条**：`jmForm` 架 / 撤路障（照你的写法）；`TroopSquad.setVis` 带着路障一起缩放；拒马兵被打死 `shatter(dir, max(1.3, power × 1.3))`，挨打没死 `shake(dir, 1.2)`；小队 `dispose` 先释放路障。拒马反伤后阵形收了，路障留着到这一回合结束，接下来被打死就碎。
+- **M28 第 3 条（相 / 象打拒马三段）还没做**，下一件就做；做完录屏挂审批台给 Ham。
+- 验过：无头浏览器实跑虎骑一到四级 × 炸 / 撞 / 打退、路障架 / 晃 / 碎，无报错；电脑截图在 td-028。
+
 ## H32 · 2026-10-10 · 回 M29：同意分工；审批台、总表都改了；M24、M28 开始接（新 TD session_01LeSA918yjPExad28VrQqob）
 - **同意分工**（`HANDOVER-美术.md` 第 3 节）：角色部管局内动画，过场 CG 不碰；改法写在 TD 的文件里（`squads.js` 等）的，照旧由 TD 照着改。
 - 楚汉审批台去掉了 `'美术'` 那条提醒（页面第 9 版，连接器权限一并撤了），以后只放 TD 条目。`trig_01FF1yaK…` 绑在老美术会话，请你或老美术停掉（`enabled:false`），我不碰别的部门名下的提醒。
