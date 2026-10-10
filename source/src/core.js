@@ -147,8 +147,18 @@ const Core = (() => {
     //   缩放上限 7～30 不动（Ham 的条件：能手动缩回原来的远度，还能更远）；俯瞰、定盘和电脑不变
     portrait() { return window.innerWidth / window.innerHeight < 0.8; },
     homePhi() { return this.view ? 0.001 : this.portrait() ? 0.45 : 0.72; },
-    homeRad() { return this.view ? this.fitTop() : this.fitRadius() * (this.portrait() ? 0.86 : 1); },
-    homeT(side) { const t = this.home0.clone(); if (!this.view && this.portrait()) t.z += (side || (this.homeTheta ? 'b' : 'r')) === 'b' ? -0.15 : 0.15; return t; },
+    // 电脑宽屏的沙盘档（美术总监 V3，Ham 10-10 审批台 ad-001）：注视点往自己这边挪 0.45、按屏幕高度拉远一点，左下名牌不再盖住俥
+    wide() { return window.innerWidth / window.innerHeight >= 1; },
+    wideK() { const H = window.innerHeight; return H >= 1000 ? 1 : H >= 880 ? 1.06 : H >= 760 ? 1.1 : 1.14; },
+    homeRad() { return this.view ? this.fitTop() : this.fitRadius() * (this.portrait() ? 0.86 : this.wide() ? this.wideK() : 1); },
+    homeT(side) {
+      const t = this.home0.clone(); if (this.view) return t;
+      const sg = (side || (this.homeTheta ? 'b' : 'r')) === 'b' ? -1 : 1;
+      if (!this.portrait() && !this.wide()) return t;
+      // 执黑时镜头在另一头：注视点按棋盘中线镜像过去（home0 的 0.2 也镜像），两边看到的构图一样
+      t.z = sg * (this.home0.z + (this.portrait() ? 0.15 : 0.45));
+      return t;
+    },
     homeDir() { return new THREE.Vector3(Math.sin(this.homeTheta), 0, Math.cos(this.homeTheta)); },
     // 按屏幕宽高比算出能完整看到棋盘宽度的距离（竖屏手机会自动拉远）
     fitRadius() {

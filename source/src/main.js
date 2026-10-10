@@ -8,6 +8,7 @@
   // 更新说明（设置里、大厅底部点「更新」查看；最新的放最前）
   const NEWS = [
     ['第六版', '2026 年 10 月', [
+      '电脑上对局镜头往自己这边挪了一点、按屏幕高度拉远一点，左下的名牌不再盖住俥 / 車（执红执黑一样）；大厅、房间里只留一个墨色主按钮，揭棋房间的字块不再发粉，有密码的房间标「锁」字（美术总监）',
       '技能模式：楚战象正面踩死的兵会被踩散、断肢冲飞、一团血雾；践踏震死的整个掀上天，翻着跟头落下来；践踏崩出的碎石加倍，正面踩也崩碎石（美术）。银、金、玉棋子的字外加了一道汉朱 / 楚墨细圈，一眼分出汉楚（美术）',
       '开局过场「落子入局」（美术总监朱墨设计）：点「开战 / 开始」或房间开局后，两颗子飞到帥位、將位翻面，各自生出半张棋盘，在河界会合，再露出对局、镜头抬起；点一下就能跳过，系统开了「减少动态效果」不播。手机竖屏的对局镜头压低拉近了一些（双指照样能缩回原来的远度，还能更远）；手机主界面、联机大厅的底边对齐',
       '技能模式「霸王」更强了（数值部）：同样时间算得更深（靠后的平淡着法少算、先假装停一手试探）；局面复杂或危险时多想一会儿，最多约 8 秒，平时还是 3 秒左右',
@@ -3634,7 +3635,7 @@
       const v = HV[d.v] || HV.std, open = d.st === 'open';
       const tm = (+d.total ? `每方 ${+d.total} 分` : '不限时') + (+d.step ? ` · 每步 ${+d.step >= 60 ? (+d.step / 60) + ' 分' : +d.step + ' 秒'}` : '');
       const code = String(d.code).replace(/[^A-Z0-9]/g, '').slice(0, 5);
-      return `<li class="${open ? 'open' : 'play'}"><span class="hv ${d.v === 'bf' ? 'bf' : d.v === 'jq' ? 'jq' : ''}">${v[0]}</span><span class="hi"><b>${v[1]}</b> · 房间 ${code}${d.lock ? ' 🔒' : ''}<small>${open ? `房主执${d.side === 'r' ? '红（汉）' : '黑（楚）'}，你执${d.side === 'r' ? '黑（楚）' : '红（汉）'}` : '对局中'} · ${tm}</small></span><button class="btn small ${open ? 'red solid' : ''}" data-code="${code}">${open ? '加 入' : '观 战'}</button></li>`;
+      return `<li class="${open ? 'open' : 'play'}"><span class="hv ${d.v === 'bf' ? 'bf' : d.v === 'jq' ? 'jq' : ''}">${v[0]}</span><span class="hi"><b>${v[1]}</b> · 房间 ${code}${d.lock ? ' <span class="lockw">锁</span>' : ''}<small>${open ? `房主执${d.side === 'r' ? '红（汉）' : '黑（楚）'}，你执${d.side === 'r' ? '黑（楚）' : '红（汉）'}` : '对局中'} · ${tm}</small></span><button class="btn small ${open ? 'red solid' : ''}" data-code="${code}">${open ? '加 入' : '观 战'}</button></li>`;
     }).join('');
     L.querySelectorAll('button[data-code]').forEach(b => b.onclick = () => { Sfx.init(); applySettings(); closeHall(); showPane('pJoin'); $('joinCode').value = b.dataset.code; joinRoom(b.dataset.code); });
   }
