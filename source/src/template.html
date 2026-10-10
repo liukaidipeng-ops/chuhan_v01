@@ -592,6 +592,7 @@ body.anaOn #log{display:none}
 @media (max-width:760px){#ana{left:8px;right:8px;width:auto;top:auto;bottom:calc(158px + var(--safe-b));height:36vh;padding:8px 10px}#anaChart{max-height:72px}#anaSum .as{padding:3px 6px}}
 #rpBar button.x{background:transparent;box-shadow:inset 0 0 0 1px rgba(217,184,119,.55)}
 #rpBar button:disabled{opacity:.35;cursor:default}
+#rpBar button.an{min-width:64px;background:transparent;box-shadow:inset 0 0 0 1px rgba(217,184,119,.55)}#rpBar button.an.on{background:rgba(217,184,119,.22)}
 #rpInfo{color:#f1e3c2;font-size:calc(14px * var(--fs,1));letter-spacing:.08em;padding:0 6px;font-family:var(--num);white-space:nowrap}
 body.compact #rpBar{bottom:calc(60px + var(--safe-b))}
 #endcard{position:fixed;inset:0;z-index:11;display:flex;align-items:center;justify-content:center;flex-direction:column;gap:20px;background:radial-gradient(ellipse at center,#f1e8d4 0%,#d9ccb0 100%);padding:20px}
@@ -1659,7 +1660,7 @@ html:has(#endcard:not(.hidden)),html:has(#endcard:not(.hidden)) body,html:has(#e
 <div id="fade"></div>
 <div id="endcard" class="hidden"></div>
 <div id="ana" class="hidden"><div class="anaH"><b>对局分析</b><span id="anaProg"></span><button id="anaX" title="收起">✕</button></div><div id="anaDet" class="hidden"></div><div id="anaCur" class="hidden"></div><div id="anaSum"></div><svg id="anaChart" viewBox="0 0 360 112" preserveAspectRatio="none"></svg><div id="anaList"></div></div>
-<div id="rpBar" class="hidden"><button data-rp="first" title="回到开局">|◀</button><button data-rp="prev" title="后退一步">◀</button><button data-rp="play" class="pl">▶ 播放</button><button data-rp="next" title="前进一步">▶</button><button data-rp="last" title="跳到终局">▶|</button><span id="rpInfo"></span><button data-rp="exit" class="x">退出复盘</button></div>
+<div id="rpBar" class="hidden"><button data-rp="first" title="回到开局">|◀</button><button data-rp="prev" title="后退一步">◀</button><button data-rp="play" class="pl">▶ 播放</button><button data-rp="next" title="前进一步">▶</button><button data-rp="last" title="跳到终局">▶|</button><span id="rpInfo"></span><button data-rp="ana" class="an">分 析</button><button data-rp="exit" class="x">退出复盘</button></div>
 <button class="btn small hidden" id="skip">跳过 ▸▸</button>
 <div id="toast"></div>
 <div id="viewTag" aria-live="polite"><div class="row"><span data-v="0">沙盘</span><span data-v="1">俯瞰</span><span data-v="2" class="lock">定盘</span></div><div class="row lc"><span data-l="flip" class="flip">换边</span><span data-l="free">自由视角</span></div><small id="viewTagS"></small></div>

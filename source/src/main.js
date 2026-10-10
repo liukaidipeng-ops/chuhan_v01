@@ -8,6 +8,7 @@
   // 更新说明（设置里、大厅底部点「更新」查看；最新的放最前）
   const NEWS = [
     ['第六版', '2026 年 10 月', [
+      '结算画面的「复盘」和「分析」合成一个「复盘」：进去就是复盘加分析面板；复盘条上多一个「分析」，可以收起、再打开（揭棋没有分析，只复盘）；「我的棋局」里的复盘也一样',
       '技能模式「拒马」有了新动作（美术画的）：几级就几个兵，压低重心、长矛斜指来敌（三级前二后一，四级金甲的斩马刀也前指），模型模式下拒马的两回合里一直摆着；敌方撞上矛尖先掉 1 点血——头顶飘「−1」、脚下血圈少一段、头马人立——然后面朝拒马倒退几步再冲。顺带修好：原来撞完是转身走回起点，再冲时背对着拒马',
       '棋子换了新字面（美术画的）：十四个字统一成一套宋体，粗细一致、炮字不再偏下；木棋子换成年轮木面，每颗子的年轮疏密、走向都不一样；银、金、玉棋子的珐琅字也换成同一套字',
       '技能模式棋子升级有了变身动画（美术画的）：棋子跳起来翻个身，翻到侧面那一刻换上新材质，落下时迸一圈光（银白 / 金 / 玉白）；脚下血圈、拒马桩留在原地不跟着翻',
@@ -1377,8 +1378,8 @@
       const tune = (mode === 'host' || mode === 'guest' || mode === 'ai' || W) && result.winner ? { side: persp === 'win' ? result.winner : mySide } : null;
       await Ending.play(result, {
         again: W ? () => { Ending.hideCard(); toast('等待棋手开新局…'); } : requestAgain, againText: W ? '继 续 观 战' : '',
-        lobby: toLobby, persp, tune, instant: endSkip || slain, review: startReplay,
-        extra: [...(anaOk(game) ? [{ text: '分 析', fn: anaOpen }] : []), ...(watching() ? [] : [{ text: '保 存', fn: () => openSave() }])],   // 结算卡：复盘 · 分析 · 保存（Ham 10-10 td-014 / td-015）
+        lobby: toLobby, persp, tune, instant: endSkip || slain, review: reviewOpen,
+        extra: watching() ? [] : [{ text: '保 存', fn: () => openSave() }],   // 结算卡：复盘（带分析，Ham 10-10 13:32 合成一个）· 保存
         mine: mode === 'local' || W || aiBoth() || !result.winner ? '' : (persp === 'win' ? '你 胜 了' : '你 败 了'),
       });
       if (pendingRestart) { const st = pendingRestart; pendingRestart = null; restart(st === true ? undefined : st); if (mode === 'host') Net.send({ t: 'restart', state: snapshot() }); }
@@ -1446,13 +1447,16 @@
     $('rpBar').querySelector('[data-rp="play"]').textContent = RP.playing ? '❚❚ 暂停' : '▶ 播放';
     $('rpBar').querySelectorAll('[data-rp]').forEach(b => { const a = b.dataset.rp; b.disabled = a !== 'exit' && a !== 'play' && RP.busy || ((a === 'prev' || a === 'first') && RP.k === 0) || ((a === 'next' || a === 'last') && RP.k >= RP.n); });
   }
+  // 复盘和分析合成一个按钮（Ham 10-10 13:32）：进复盘就把分析面板一起打开；揭棋看不见暗子，只复盘。复盘条上「分析」可以收起 / 再打开
+  function reviewOpen() { if (anaOk(game)) anaOpen(); else startReplay(); }
+  reviewOpen.label = '复 盘';
   function startReplay(quiet) {
     if (RP || !game) return;
     Ending.hideCard();
     clearFinale(); Camp.reset();
     Core.Cam.moveId = (Core.Cam.moveId || 0) + 1; Core.Cam.cine = false; document.body.classList.remove('cine');
     RP = { real: game, k: 0, n: rpSteps(game), busy: false, playing: false };
-    $('rpBar').classList.remove('hidden');
+    $('rpBar').classList.remove('hidden'); $('rpBar').querySelector('[data-rp="ana"]').classList.toggle('hidden', !anaOk(game));
     $('hud').classList.remove('hidden');
     setView(viewSide);
     rpShow(0);
@@ -1471,6 +1475,7 @@
     const b = e.target.closest('[data-rp]'); if (!b || !RP || b.disabled) return;
     const a = b.dataset.rp; Sfx.select && Sfx.select();
     if (a === 'exit') exitReplay(false);
+    else if (a === 'ana') { if ($('ana').classList.contains('hidden')) anaOpen(); else anaClose(); rpAnaBtn(); }
     else if (a === 'play') rpPlay();
     else if (RP.busy) return;
     else if (a === 'next') rpStep();
@@ -1533,7 +1538,7 @@
     const real = RP ? RP.real : game;
     if (!anaOk(real)) { toast('揭棋看不见暗子，这一局没法分析'); return; }
     if (!RP) startReplay(true);
-    $('ana').classList.remove('hidden'); document.body.classList.add('anaOn');
+    $('ana').classList.remove('hidden'); document.body.classList.add('anaOn'); rpAnaBtn();
     // 面板挡住一边：电脑上棋盘往左让一点，手机上往上让一点
     document.body.classList.toggle('anaWide', ANAV === 1 || ANAV === 3);
     anaFit(true); setTimeout(() => anaFit(), 700);
@@ -1559,7 +1564,8 @@
     const from = keep; Core.tween(0.35, k => Core.viewShift(from[0] + (to[0] - from[0]) * k, from[1] + (to[1] - from[1]) * k, from[2] + (to[2] - from[2]) * k), Core.ease.inOut);
   }
   window.addEventListener('resize', () => setTimeout(() => anaFit(), 300));
-  function anaClose() { anaTok2++; anaDet = null; anaDetPaint(); $('ana').classList.add('hidden'); document.body.classList.remove('anaOn', 'anaWide'); Board.showStep(null); Core.viewShift(0, 0); }
+  const rpAnaBtn = () => { const b = $('rpBar').querySelector('[data-rp="ana"]'); if (b) { const on = !$('ana').classList.contains('hidden'); b.textContent = on ? '收起分析' : '分 析'; b.classList.toggle('on', on); } };
+  function anaClose() { anaTok2++; anaDet = null; anaDetPaint(); $('ana').classList.add('hidden'); document.body.classList.remove('anaOn', 'anaWide'); Board.showStep(null); Core.viewShift(0, 0); rpAnaBtn(); }
   async function anaStart(real) {
     const tok = ++anaTok, M = real.bf ? ANA.bf : ANA.std;
     const steps = anaSteps(real), n = steps.length;
@@ -4197,7 +4203,7 @@
     if (o.think) game.__think = o.think;
     if (o.branches) game.__branches = o.branches;
     ended = true;
-    startReplay();
+    reviewOpen();
     toast(`复盘：${rec.head} · ${stampOf(rec.t)}`, 2600);
   }
   // —— 标“这步笨”：点棋谱上的某一步 ——
