@@ -126,11 +126,16 @@ const EndTunes = (() => {
         { name: '楚凯', desc: '编钟奏一段庄重的楚调（羽调，比汉的「礼乐」低沉），古筝拨和声，大鼓两下两下地打，一声深锣收住', play(k) {
           const x = I(k, 1.85), S = (id, t, vol, rate = 1, i) => k.smp(id, { t, vol, rate, rj: 0, pan: 0, dest: x.D, i }); const b = 0.55;
           x.taiko(0, 0.8, 0.8); S('gong', 0, 0.35, 0.7, 1);
-          const end = seq([['D5', b * 2], ['A4', b], ['C5', b], ['D5', b * 2], ['F5', b], ['D5', b], ['C5', b * 2], ['A4', b * 2], ['G4', b], ['A4', b], ['D5', b * 4]], 0.5, (t, f, d) => x.bell(t, f, 0.11, Math.max(1.6, d * 1.4)));
+          // 最后一音（D5）拉长：钟声余韵 6 秒，下面低八度、五度的钟和一层长长的和声慢慢收（Ham 10-10 试听台：「结尾那一声收尾可以拉得再长一点，现在结束得非常硬」）
+          const end = seq([['D5', b * 2], ['A4', b], ['C5', b], ['D5', b * 2], ['F5', b], ['D5', b], ['C5', b * 2], ['A4', b * 2], ['G4', b], ['A4', b], ['D5', b * 4]], 0.5, (t, f, d) => x.bell(t, f, 0.11, d >= b * 4 ? 6.5 : Math.max(1.6, d * 1.4)));
           for (let i = 0; i < 16; i++) x.zheng(0.5 + i * b, hz(['D3', 'A3', 'D4', 'F4', 'C3', 'G3', 'C4', 'G3'][i % 8]), b, 0.15);
           for (let i = 0; i < 8; i++) { const tt = 0.5 + i * b * 2; x.taiko(tt, 0.6, 0.8); x.taiko(tt + 0.22, 0.35, 0.85); }
-          x.qin(0.5, hz('D2'), 1, 0.3); x.qin(0.5 + b * 8, hz('A2'), 1, 0.28); x.qin(end - b * 4, hz('D2'), 1, 0.32);
-          S('gong', end - 0.5, 0.75, 0.65, 0); x.taiko(end - 0.5, 1, 0.75); x.pad(end - b * 4, ['D3', 'A3'], 3.6, 0.03);
+          const last = end - b * 4;   // 最后一音落下的时刻
+          x.qin(0.5, hz('D2'), 1, 0.3); x.qin(0.5 + b * 8, hz('A2'), 1, 0.28); x.qin(last, hz('D2'), 1, 0.32); x.qin(last + 1.1, hz('A2'), 1, 0.16);
+          x.taiko(last, 0.95, 0.75); S('gong', last + 0.02, 0.6, 0.6, 0);   // 重鼓和锣落在最后一音上，不再在末尾补一下硬的
+          x.bell(last + 0.04, hz('D4'), 0.07, 7); x.bell(last + 0.06, hz('A3'), 0.05, 6.5); x.bell(end + 0.4, hz('A5'), 0.018, 4.5);   // 低钟托底；尾巴上极轻的一点泛音
+          x.zheng(last + 0.9, hz('A4'), 1, 0.08); x.zheng(last + 1.25, hz('D5'), 1, 0.07);
+          x.pad(last, ['D3', 'A3', 'D4'], 7, 0.028);
         } },
         { name: '霸王怒', desc: '低音古琴弹一段带脾气的重复短句，重鼓砸在句头，琵琶在高处嘶喊，越来越紧，最后将士一吼、三下重鼓、一声锣', play(k) {
           const x = I(k, 1.1), S = (id, t, vol, rate = 1, i) => k.smp(id, { t, vol, rate, rj: 0, pan: 0, dest: x.D, i });
@@ -170,11 +175,12 @@ const EndTunes = (() => {
   };
   // 挑定之前用原来那两首（Music.stinger 的老曲子）；PICK.r.win = 1 表示汉胜用第二个方案，以此类推
   //   Ham 10-09 21:38 试听台第二十八批：汉胜用方案三「礼乐」、楚败用方案三「乌江」；汉败留原曲，楚胜三个都没过，也先用原曲
-  const PICK = { r: { win: 2, lose: null }, b: { win: null, lose: 2 } };
+  //   Ham 10-10 试听台第三十批：楚胜挑了「乌骓」「楚凯」两首，随机放（数组 = 从里面随机挑一首）
+  const PICK = { r: { win: 2, lose: null }, b: { win: [4, 5], lose: 2 } };
   return {
     T, PICK,
     // 放一首：side 'r' / 'b'，kind 'win' / 'lose'；n 不给就用挑定的那个。挑定之前返回 false（调用的地方照旧放老曲子）
-    play(side, kind, n) { const L = (T[side] || {})[kind], i = n == null ? (PICK[side] || {})[kind] : n; if (!L || i == null || !L[i] || !Sfx.ctx) return false; Sfx.Music.stop(); L[i].play(Sfx.kit); return true; },
+    play(side, kind, n) { const L = (T[side] || {})[kind]; let i = n == null ? (PICK[side] || {})[kind] : n; if (Array.isArray(i)) i = i[Math.floor(Math.random() * i.length)]; if (!L || i == null || !L[i] || !Sfx.ctx) return false; Sfx.Music.stop(); L[i].play(Sfx.kit); return true; },
     // 出试听样：离线渲染一首，返回 16 位 WAV 的 base64（tools/tunes.py 调）
     async renderWav(side, kind, n, sec = 22) {
       const buf = await Sfx.renderOffline(() => { if (side === 'old') Sfx.Music.stinger(kind); else T[side][kind][n].play(Sfx.kit); }, sec);
