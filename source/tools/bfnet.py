@@ -32,7 +32,7 @@ ENT = "JSON.stringify(window.__xq.game.entries)"
 MESH = """(()=>{const x=window.__xq, g=x.game, B=x.Board; const bad=[]; let n=0;
  for(let r=0;r<10;r++)for(let f=0;f<9;f++){const p=g.board[r][f]; if(!p) continue; n++; const m=B.pieces.get(p.id);
   if(!m){bad.push('nomesh '+p.id);continue;} const P=B.pos(f,r); if(Math.abs(m.position.x-P.x)>0.05||Math.abs(m.position.z-P.z)>0.05) bad.push('pos '+p.id);
-  const d=m.userData.deco; const plates=d?d.children.filter(c=>c.userData.plate!=null):[]; const on=plates.filter(c=>c.material===B.plateOn).length;
+  const d=m.userData.deco; const plates=d?d.children.filter(c=>c.userData.plate!=null):[]; const on=plates.length;   // 汉方是朱心圆牌、楚方是乌甲片，材质不同，按个数数
   if(on!==Math.min(8,p.xp||0)) bad.push('plates '+p.id);
   const bar=d?d.children.find(c=>c.userData.hpBar):null; if(p.lv>=2 && (!bar || bar.userData.hpBar.hp!==p.hp)) bad.push('hpbar '+p.id);
   const wood=m.children[0].material===B.pieceWood; if(p.t!=='k' && wood!==(p.lv<2)) bad.push('body '+p.id);}
@@ -40,7 +40,7 @@ MESH = """(()=>{const x=window.__xq, g=x.game, B=x.Board; const bad=[]; let n=0;
  return bad.join(',');})()"""
 try:
     with sync_playwright() as p:
-        brs = {k: p.chromium.launch(args=args) for k in 'ABCD'}
+        brs = {k: p.chromium.launch(executable_path=(os.path.exists('/opt/pw-browsers/chromium') and '/opt/pw-browsers/chromium') or None, args=args) for k in 'ABCD'}
         logs = {}
         def page(name, url, ctx=None):
             c = ctx or brs[name[0]].new_context(viewport={'width': 480, 'height': 360})

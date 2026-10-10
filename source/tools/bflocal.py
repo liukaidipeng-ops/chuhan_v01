@@ -13,7 +13,7 @@ CHECK = """(()=>{const x=window.__xq, g=x.game, B=x.Board; const bad=[];
  let n=0; for(let r=0;r<10;r++)for(let f=0;f<9;f++){const p=g.board[r][f]; if(!p) continue; n++; const m=B.pieces.get(p.id);
   if(!m){bad.push('nomesh '+p.id);continue;} const P=B.pos(f,r); if(Math.abs(m.position.x-P.x)>0.05||Math.abs(m.position.z-P.z)>0.05) bad.push('pos '+p.id);
   if(!m.visible) bad.push('invisible '+p.id);
-  const d=m.userData.deco; const plates=d?d.children.filter(c=>c.userData.plate!=null):[]; const on=plates.filter(c=>c.material===B.plateOn).length;
+  const d=m.userData.deco; const plates=d?d.children.filter(c=>c.userData.plate!=null):[]; const on=plates.length;   // 汉方是朱心圆牌、楚方是乌甲片，材质不同，按个数数
   if(on!==Math.min(8,p.xp||0)) bad.push('plates '+p.id+' '+on+'/'+(p.xp||0));
   const bar=d?d.children.find(c=>c.userData.hpBar):null; if(p.lv>=2 && (!bar || bar.userData.hpBar.hp!==p.hp)) bad.push('hpbar '+p.id); if(p.lv<2 && bar) bad.push('hpbar1 '+p.id);
   const wood=m.children[0].material===B.pieceWood; if(p.t!=='k' && wood!==(p.lv<2)) bad.push('body '+p.id+' lv'+p.lv);
@@ -46,12 +46,14 @@ PICK = """((seed)=>{let s=seed; const rnd=()=>{s=(s*1103515245+12345)%2147483648
  if (a && a.k==='ult') up=null;
  return JSON.stringify({up, a, n:{mv:mv.length, sk:sk.length, art:art.length, ult:ult.length}});})"""
 ok = True
+# 用 file:// 打开时，按需下载的配音 / 音效 / 音乐包会被浏览器的 CORS 拦下（线上走 https 不会）：这类报错不算失败
+FILE_FETCH = lambda t: ('CORS policy' in t and 'file://' in t) or t.strip() == 'Failed to load resource: net::ERR_FAILED'
 with sync_playwright() as p:
-    b = p.chromium.launch(args=['--use-gl=angle', '--use-angle=swiftshader', '--enable-unsafe-swiftshader', '--ignore-gpu-blocklist'])
+    b = p.chromium.launch(executable_path=(os.path.exists('/opt/pw-browsers/chromium') and '/opt/pw-browsers/chromium') or None, args=['--use-gl=angle', '--use-angle=swiftshader', '--enable-unsafe-swiftshader', '--ignore-gpu-blocklist'])
     pg = b.new_page(viewport={'width': 640, 'height': 400}); pg.set_default_timeout(120000)
     pg.add_init_script("localStorage.setItem('xq3d-noaudio','1'); localStorage.setItem('xq3d-quality', JSON.stringify('low'));" + ("localStorage.setItem('xq3d-models','1');" if os.environ.get('XQ_MODELS') else ''))
     logs = []
-    pg.on('console', lambda m: logs.append(f'{m.type}: {m.text}') if m.type in ('error', 'warning') and 'GL Driver' not in m.text and 'deprecated' not in m.text else None)
+    pg.on('console', lambda m: logs.append(f'{m.type}: {m.text}') if m.type in ('error', 'warning') and 'GL Driver' not in m.text and 'deprecated' not in m.text and not FILE_FETCH(m.text) else None)
     pg.on('pageerror', lambda e: logs.append(f'PAGEERROR: {e}'))
     pg.goto(url, wait_until='domcontentloaded'); time.sleep(4)
     pg.evaluate(f"(()=>{{const x=window.__xq; x.Core.Time.boost=8; x.Fx.level='{lv}'; x.Fx.gore=3; x.game.setup(T=>{{T.merit={{r:{M0},b:{M0}}};}}); x.Board.setPosition(x.game);}})()")
