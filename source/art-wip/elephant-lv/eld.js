@@ -45,7 +45,7 @@ window.ElephantLV = (() => {
   // 背上的人都是弩手（以后反击远程用），象头上的驾象人是近战。原来那座塔整个藏起来，按级另搭；立柱加高，人头碰不到顶。
   function howdah(el, lv) {
     const T = el.tower; T.children[0].visible = false; el.archer.visible = false; el.banner.group.visible = lv >= 2;
-    const big = lv >= 4, W = big ? 1.75 : 1.2, D = big ? 1.55 : 1.0, H = big ? 1.95 : 1.8, wood = 0x2a2420, lac = 0x1c1b1d, edge = big ? GOLD2 : 0x7a2418;
+    const big = lv >= 4, W = big ? 1.75 : 1.2, D = big ? 2.05 : 1.0, H = big ? 1.95 : 1.8, wood = 0x2a2420, lac = 0x1c1b1d, edge = big ? GOLD2 : 0x7a2418;
     const ps = [P(G.box(W, 0.09, D), wood, 0, 0.045, 0)];
     for (const s of [1, -1]) ps.push(P(G.box(W, 0.32, 0.04), lac, 0, 0.25, D / 2 * s), P(G.box(W + 0.02, 0.035, 0.06), edge, 0, 0.42, D / 2 * s));
     ps.push(P(G.box(0.04, 0.32, D), lac, -W / 2, 0.25, 0), P(G.box(0.06, 0.035, D + 0.02), edge, -W / 2, 0.42, 0));
@@ -58,9 +58,42 @@ window.ElephantLV = (() => {
     // 弩手：坐着（盘腿、上身直），四级两名分坐两侧各朝外，一到三级一名坐中间朝前
     const seat = { lL: -1.35, lR: -1.35, lLz: 0.55, lRz: 0.55, crouch: 0.42, aS: -1.3, aW: -1.25, aWz: 0.7, wAbs: 1.1 };
     const kind = big ? 'xbowG' : 'xbow';
-    const spots = big ? [[-0.05, 0.42, 0], [-0.05, -0.42, PI]] : [[-0.1, 0, Math.PI / 2]];
+    const spots = big ? [[-0.05, 0.86, 0], [-0.05, -0.86, PI]] : [[-0.1, 0, Math.PI / 2]];   // Ham char-007 截图：两名重弩手放在亭子两边，各朝外
     for (const [x, z, ry] of spots) { const m = Models.soldierStatic('b', kind, seat); m.position.set(x, 0.09, z); m.rotation.y = ry; m.scale.setScalar(0.9); T.add(m); }
     if (lv >= 3) for (const [x, z] of [[1, 1], [1, -1]].concat(big ? [[-1, 1], [-1, -1]] : [])) { add(T, [P(G.cyl(0.12, 0.07, 0.13, 8), big ? GOLD : BR, x * (W / 2 - 0.02), 0.5, z * (D / 2 - 0.02)), P(G.cyl(0.02, 0.02, 0.1, 5), BR2, x * (W / 2 - 0.02), 0.4, z * (D / 2 - 0.02))]); flame(T, x * (W / 2 - 0.02), 0.54, z * (D / 2 - 0.02), 0.6); }
+  }
+
+  // 象屁股重做 + 尾巴（Ham char-007：「象需要有尾巴！象屁股那块重做一下」）：两瓣臀、后腿根鼓出来；尾巴一节节往下、尾尖一簇毛，火把绑在尾尖
+  function rump(el, lv) {
+    const sk = lv >= 4 ? GOLD : 0x6f6a64, sk2 = lv >= 4 ? 0xc4922e : 0x5d5853;
+    add(el.body, [...[1, -1].flatMap(s => [P(G.sph(0.62, 12), sk, -1.22, 2.08, 0.36 * s, 0, 0, 0, 0.8, 1.12, 0.78), P(G.sph(0.42, 10), sk2, -1.0, 1.68, 0.5 * s, 0, 0, 0, 1, 1.15, 0.85)]), P(G.box(0.04, 0.9, 0.02), 0x3a3633, -1.66, 2.05, 0)], 0.025);
+    el.tail.children[0].visible = false; el.tail.position.set(-1.68, 2.62, 0); el.tail.rotation.z = 0.18;
+    const segs = [];
+    for (let i = 0; i < 5; i++) segs.push(P(G.cyl(0.055 - i * 0.007, 0.05 - i * 0.007, 0.2, 7), sk2, 0, -0.1 - i * 0.19, 0));
+    segs.push(P(G.cone(0.08, 0.26, 7), 0x1d1c1b, 0, -1.05, 0, PI));   // 尾尖一簇毛
+    add(el.tail, segs, 0.015);
+    el.torch.position.y = -0.95;
+  }
+  // 四级金甲鳞片（Ham char-007：「给黄金象的金甲增加鳞片，不然像金壳，鳞甲之间的接缝注意用黑线，少量红色作为点缀」）
+  function scales(el) {
+    const ps = [P(G.sph(1, 18), 0x161514, 0, 2.25, 0, 0, 0, 0, 1.56, 1.06, 0.96)], up = V(0, 0, 1);
+    let row = 0;
+    for (let x = -1.32; x <= 1.26; x += 0.17, row++) {
+      const k = Math.sqrt(Math.max(0, 1 - (x / 1.6) ** 2));
+      for (let a = -1.95; a <= 1.95; a += 0.2) {
+        const aa = a + (row % 2 ? 0.1 : 0), y = 2.25 + 1.08 * Math.cos(aa) * k, z = 0.98 * Math.sin(aa) * k;
+        if (Math.abs(z) > 0.82 && y > 1.72 && y < 2.95) continue;   // 披挂底下不用铺
+        const n = V(x / 1.6 ** 2, (y - 2.25) / 1.08 ** 2, z / 0.98 ** 2).normalize(), e = new THREE.Euler().setFromQuaternion(new THREE.Quaternion().setFromUnitVectors(up, n));
+        ps.push(P(G.sph(0.11, 6, 4), (row + Math.round(a * 5)) % 3 ? GOLD : 0xc4922e, x, y, z, e.x, e.y, e.z, 1.0, 0.9, 0.22));
+      }
+    }
+    ps.push(...Array.from({ length: 9 }, (_, i) => P(G.sph(0.045, 6), 0x9e2418, -1.2 + i * 0.3, 3.33, 0)));   // 背脊一路红钉：少量红点缀
+    add(el.body, ps, 0.012);
+    for (const L of el.legs) for (const [grp, y0] of [[L.hip, -0.15], [L.knee, -0.12]]) {
+      const r = []; for (let h = 0; h < 3; h++) for (let i = 0; i < 9; i++) { const t = i / 9 * PI * 2 + (h % 2 ? 0.35 : 0); r.push(P(G.sph(0.1, 6, 4), (i + h) % 3 ? GOLD : 0xc4922e, Math.cos(t) * 0.3, y0 - h * 0.2, Math.sin(t) * 0.3, 0, -t + PI / 2, 0, 1, 0.9, 0.25)); }
+      add(grp, r, 0.01);
+    }
+    add(el.body, [1, -1].flatMap(s => [0, 1, 2, 3, 4].map(i => P(G.cone(0.05, 0.2, 6), 0x9e2418, -0.95 + i * 0.42, 1.6, 1.03 * s, PI))), 0.01);   // 披挂下缘一排红缨
   }
   function planB(el, lv) {
     flame(el.torch, 0, -0.05, 0, 0.7 + lv * 0.18);
@@ -79,7 +112,7 @@ window.ElephantLV = (() => {
     if (lv >= 4) {   // 背上一道火鬃
       for (let i = 0; i < 6; i++) flame(el.body, -1.0 + i * 0.38, 3.32, 0, 0.6 + Math.sin(i * 1.7) * 0.15);
     }
-    howdah(el, lv);
+    howdah(el, lv); rump(el, lv); if (lv >= 4) scales(el);
     if (lv >= 4) {   // 四级驾象人：黑金相间的铠甲 + 金权杖（Ham char-006）
       add(el.mahout, [P(G.box(0.46, 0.42, 0.36), 0x1c1b1d, 0, 1.12, 0), ...[0, 1, 2].map(i => P(G.box(0.47, 0.035, 0.37), GOLD2, 0, 0.95 + i * 0.14, 0)), ...[1, -1].map(s => P(G.sph(0.12, 7), GOLD, 0, 1.36, 0.24 * s, 0, 0, 0, 1, 0.7, 1)), P(G.cyl(0.13, 0.14, 0.1, 8), GOLD, 0, 1.62, 0)]);
       add(el.mahout, [P(G.cyl(0.03, 0.03, 1.3, 6), GOLD, 0.05, 1.35, 0.42, 0.15, 0, 0), P(G.sph(0.1, 8), GOLD2, 0.05, 2.02, 0.52), P(G.cone(0.05, 0.2, 6), GOLD2, 0.05, 2.18, 0.55, 0.15, 0, 0)]);
