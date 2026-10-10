@@ -2,6 +2,35 @@
 
 最新的在最上面，编号接着往下排（M1、M2…）。格式见同目录 `MODEL-WORKFLOW.md` 第 6 节。TD 用 `git show origin/model-lab:source/docs/collab/model-to-main.md` 看。
 
+## M22 · 10-10 · 交付 · 特效（棋子升级变身：跳起来翻个身，落下已经换了材质）
+
+- 提交：model-lab 上带这张交付单的那次提交。交付前合过 `origin/dev`（d1c700b），`node build.js` 能过，`test/*.test.js` 全过。
+- Ham 确认：10-09 22:55 在对话里说「做一个棋子升级的变化的特效：比如木棋子变银棋子的过程，出几个方案给我选择」；审批台 art-076 选乙「翻面」（10-10 08:16）。四个方案的小片：https://claude.ai/artifact/WkW3GVpWfpXZDBr2wBmfCQ（看「乙 · 翻面」）。
+- 改了哪些文件：新文件 `source/src/upfx.js`（美术管），对外只有 `UpFx.play(m, { lv, swap })`，返回 Promise（约 1 秒）：
+  - 棋子跳起 0.42、绕镜头水平方向翻一圈，翻到侧面那一刻调一次 `swap()` 换新装，落下时字朝上、已经是新材质；翻到半空亮一下、迸几点星，落地荡开一圈尘、一道光（银白 / 金 / 玉白，看 `lv`）。起跳 `Sfx.lift` + 一声风，落地 `Sfx.place(m)`（按新材质）。
+  - 翻的时候脚下的东西（血圈、拒马桩、锁链、头顶的「宴」）留在原地不跟着翻，落地放回去；腰带上的军功牌跟着棋身翻。
+  - 低特效档（`Fx.level === 'low'`）和系统开了「减少动态效果」：不翻，直接 `swap()`，脚下亮一圈。
+- 没接之前 upfx.js 不会进页面，什么都不变。
+
+**需要 TD 做的**（我在一份拷贝上照下面改完、构建、跑过，见文末）
+1. `build.js` 第 5 行 `order`：`'fx'` 后面加 `'upfx'`。
+2. `board.js` 最后导出的那一串里加上 `decoOpts`（换新装要用同一套装饰选项：拒马、锁链、宴、召回金边）。
+3. `bfx.js` `levelUp`（约 312 行）：
+   - 签名改成 `async function levelUp(info, game)`；三处调用把 `game` 带上：`play` 里 `levelUp(info, game)`；自动晋升（约 300 行）和召回升级（约 303 行）那两处的 info 里再加 `pre: true`——这两处是先 `reconcile` 换好新装再补仪式，翻之前要先换回旧装。
+   - 开头那两道 `Fx.ring` 和一把金星（约 317–319 行）去掉：会和起跳叠在一起，落地的光圈 upfx 自己有。声音、四级的鼓和震屏、名将题字都不动。
+   - 称号题签的 `setTimeout(…, 200)` 改成 `750`（翻面约 0.72 秒落地，等落定换好装再亮）。
+   - 原来跳一下转一圈的那两行（约 326–327 行 `await tween(0.3, …)` 和下一行）换成：
+   ```js
+   // 升级变身：跳起来翻个身，翻到侧面那一刻换新装（美术 M22，Ham 审批台 076 选「翻面」）
+   const pa = game && game.board[info.at[1]] && game.board[info.at[1]][info.at[0]], ok = !!(pa && pa.id === info.id);
+   if (ok && info.pre) Board.decorate(m, { ...pa, lv: info.lv - 1, hp: Math.min(pa.hp, BF.hpOf(pa.t, info.lv - 1)) }, Board.decoOpts(game, pa));
+   await UpFx.play(m, { lv: info.lv, swap: () => { if (ok) Board.decorate(m, pa, Board.decoOpts(game, pa)); } });
+   m.position.y = TOP; m.rotation.set(0, Board.viewSide === 'b' ? Math.PI : 0, 0);
+   ```
+   - `const c = m.position.clone()` 这时候没人用了，可以一起删。
+- 兵种模型那一路（棋子显示「兵种」）升级时棋子本身看不看得见，我没管，按你那边的规矩；看得见的时候就是这一套。
+- 我看过的：本地普通对局里一枚汉兵一级翻成二级，按固定步长逐帧拍（1280×720），起跳、翻到侧面换装、落地光圈、血圈留在地上都对；一局技能对局里真按「升级」走了一遍（`doBF({k:'up'})`），落地后是二级、朝向摆正、装饰齐全。没看的：三升四（名将题字和翻面叠在一起的样子）、手机、低特效档。
+
 ## M21 · 10-10 · 交付 · 棋子字面（宋体十四字统一 + 年轮木面每颗不一样；银金玉的字一起换）
 
 - 提交：model-lab 上带这张交付单的那次提交。交付前合过 `origin/dev`（d1c700b），`node build.js` 能过，`test/*.test.js` 全过。
