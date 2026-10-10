@@ -388,16 +388,27 @@ Q.push({
     };
     // judge 的判法：走完之后请复盘用的裁判（tools/variants/bfai_trace.js；kind = 'deep' 和电脑看法一样、'wide' 升级全看）
     //   按固定层数算一遍走完的局面，分数不比出题时裁判最好那步低过 tol 就算对（不止一种好着）。同一个局面只算一次
-    let TRM = null; const judged = new Map();
+    let TRM = null; const judged = new Map(), judgeAIs = {};
+    const judgeAI = base => judgeAIs[base] || (judgeAIs[base] = (() => {
+      const fs = require('fs'), os = require('os'), f = path.join(os.tmpdir(), 'bfai-judge-' + base + '.js');
+      if (!fs.existsSync(f)) fs.writeFileSync(f, require('child_process').execFileSync('git', ['show', base + ':source/src/bfai.js'], { cwd: path.join(__dirname, '..'), encoding: 'utf8' }));
+      return require(f);
+    })());
     const judgeVal = async (g, it) => {
       if (g.result) return g.result.winner === it.side ? 9000 : -9000;
-      const J = it.judge, S = g.S, key = J.kind + J.depth + JSON.stringify([S.board, S.turn, S.merit, S.used, S.cnt]);
+      const J = it.judge, S = g.S, key = J.kind + J.depth + (J.base || '') + JSON.stringify([S.board, S.turn, S.merit, S.used, S.cnt]);
       if (judged.has(key)) return judged.get(key);
-      if (!TRM) TRM = require('./variants/bfai_trace.js');
-      const M = J.kind === 'wide' ? TRM.judge('wide') : TRM;
-      M.LEVELS.examFix = { ...M.LEVELS.hard, noise: 0, top: 1, depth: J.depth, nodes: 4000000 };
+      let M, lv = 'examFix';
+      if (J.base) {   // 新题（2026-10-10 起）：裁判 = 那一版线上电脑（git 提交号）自带的复盘开关，和 tools/review/review.js 同一把尺子
+        M = judgeAI(J.base); lv = 'examFixB';
+        M.LEVELS.examFixB = { ...M.LEVELS.hard, noise: 0, top: 1, fixedDepth: J.depth, upAll: J.kind === 'wide', rootUpAll: J.kind === 'wide' };
+      } else {
+        if (!TRM) TRM = require('./variants/bfai_trace.js');
+        M = J.kind === 'wide' ? TRM.judge('wide') : TRM;
+        M.LEVELS.examFix = { ...M.LEVELS.hard, noise: 0, top: 1, depth: J.depth, nodes: 4000000 };
+      }
       const saved = Math.random; let a = 17; Math.random = () => { a = (a * 1103515245 + 12345) % 2147483648; return a / 2147483648; };
-      try { await M.think(BF.cloneState(S), 'examFix'); } finally { Math.random = saved; }
+      try { await M.think(BF.cloneState(S), lv); } finally { Math.random = saved; }
       const v = -M.think.last.v; judged.set(key, v); return v;
     };
     JSON.parse(require('fs').readFileSync(file, 'utf8')).forEach((it, i) => { const rules = it.rules || detectRules(it.data); applyRules(null); Q.push({
@@ -409,7 +420,7 @@ Q.push({
         : (it.mode || (it.answer ? 'same' : 'avoid')) === 'survive'
         ? async (seq, g0) => { const g = play(g0, seq); return !!g && survives(g, it.side, it.judgeNodes); }
         : seq => ((it.mode || (it.answer ? 'same' : 'avoid')) === 'same' ? same(main(seq), main(it.answer)) && it.answer.filter(a => a.k === 'up').every(u => seq.some(a => same(a, u))) : !same(main(seq), main(it.bad))),
-      answer: it.answer || undefined, bad: it.bad, adjudicated: it.adjudicated, disabled: it.disabled,
+      answer: it.answer || undefined, bad: it.bad, adjudicated: it.adjudicated, disabled: it.disabled, inCheck: it.inCheck,
     }); });
   }
 }
