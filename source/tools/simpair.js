@@ -1,4 +1,5 @@
-// 两组模拟逐局对比（同一批种子）：node tools/simpair.js 对照.json[.gz] 新组.json[.gz] [--max-seed N]
+// 两组模拟逐局对比（同一批种子）：node tools/simpair.js 对照.json[.gz] 新组.json[.gz] [--max-seed N] [--skills]
+//   末尾给收敛标准②（汉胜逐局差的 95% 区间含 0 且差 ≤ 5 个点）；加 --skills 再列每种技能每局次数和标准③。
 //   只比两边都有的种子（第八轮 600 局对第七轮 1300 局，就只比前 600 个种子）。
 //   胜负：两边各自的汉胜率；结果不同的局分两类（对照汉胜→新组楚胜、对照楚胜→新组汉胜），
 //   新组净多赢的汉局 = 后者 − 前者，z = 净多 / √(两类之和)（符号检验，|z| > 2 算站得住）。
@@ -71,3 +72,26 @@ row('践踏 打死 / 打伤', s => `${s.jianta.kill} / ${s.jianta.hit}（每局 
 row('飞越 每局 汉/楚', s => `${(s.feiyue.r / s.n).toFixed(2)} / ${(s.feiyue.b / s.n).toFixed(2)}`);
 console.log(`胜负不同的局：对照汉胜→新组楚胜 ${ab} 局，对照楚胜→新组汉胜 ${ba} 局（相同 ${same}，有和局的 ${seeds.length - same - ab - ba}）`);
 console.log(`新组汉净多赢 ${net >= 0 ? '+' : ''}${net} 局（${(100 * net / seeds.length).toFixed(1)} 个百分点），z = ${z.toFixed(2)}${Math.abs(z) > 2 ? '，站得住' : '，在随机波动以内'}`);
+// 收敛标准②：逐局差（汉胜 1、和 0.5、楚胜 0），新组 − 对照，均值和 95% 区间
+const hv = r => r.winner === 'r' ? 1 : r.winner === 'b' ? 0 : 0.5;
+const ci = ds => { const n = ds.length, m = avg(ds), v = ds.reduce((a, d) => a + (d - m) ** 2, 0) / Math.max(1, n - 1), h = 1.96 * Math.sqrt(v / n); return [m, m - h, m + h]; };
+const [dm, dlo, dhi] = ci(seeds.map((_, i) => hv(pb[i]) - hv(pa[i])));
+const pass2 = dlo <= 0 && dhi >= 0 && Math.abs(dm) <= 0.05;
+console.log(`汉胜逐局差（新组 − 对照）${(100 * dm).toFixed(1)} 个点，95% 区间 ${(100 * dlo).toFixed(1)} ~ ${(100 * dhi).toFixed(1)} → 收敛标准② ${pass2 ? '过' : '没过'}（区间含 0 且差 ≤ 5 个点）`);
+// 收敛标准③：每种技能每局用几次（两边分开），逐局差的 95% 区间；区间不含 0 且变了 20% 以上才算“变了”
+if (argv.includes('--skills')) {
+  const keys = new Set();
+  for (const r of pa.concat(pb)) for (const sd of ['r', 'b']) for (const k of Object.keys((r.act || {})[sd] || {})) if (k !== 'mv') keys.add(sd + ':' + k);
+  const use = (r, key) => { const [sd, k] = key.split(':'); return ((r.act || {})[sd] || {})[k] || 0; };
+  let moved = 0;
+  console.log('技能使用（每局次数）      对照     新组     变化     逐局差 95% 区间');
+  for (const key of [...keys].sort()) {
+    const ma2 = avg(pa.map(r => use(r, key))), mb2 = avg(pb.map(r => use(r, key)));
+    if (ma2 < 0.02 && mb2 < 0.02) continue;
+    const [, lo, hi] = ci(seeds.map((_, i) => use(pb[i], key) - use(pa[i], key)));
+    const rel = ma2 ? (mb2 - ma2) / ma2 : 1, flag = (lo > 0 || hi < 0) && Math.abs(rel) > 0.2;
+    if (flag) moved++;
+    console.log(`  ${(key.replace(/^r:/, '汉 ').replace(/^b:/, '楚 ')).padEnd(22)} ${ma2.toFixed(2).padStart(6)}   ${mb2.toFixed(2).padStart(6)}   ${((rel >= 0 ? '+' : '') + (100 * rel).toFixed(0) + '%').padStart(6)}   ${lo.toFixed(2)} ~ ${hi.toFixed(2)}${flag ? '  ← 变了' : ''}`);
+  }
+  console.log(`收敛标准③：${moved ? moved + ' 项技能用法明显变了（区间不含 0 且变 20% 以上）→ 没过' : '各项技能用法没有明显变化 → 过'}`);
+}
