@@ -82,15 +82,20 @@ h2{margin:0 0 6px;font:900 18px/1.3 var(--ef);letter-spacing:.1em}
   const head = (parts) => mk([P(G.sph(0.12, 10), K.skin, 0, 1.6, 0), P(G.box(0.11, 0.018, 0.02), K.hair, 0, 1.63, 0.112), P(G.box(0.022, 0.03, 0.02), 0xc8a07c, 0, 1.585, 0.12)].concat(parts), [0, 1.5, 0]);
   function hanB() { const o = {};
         o.upper = mk([P(G.cyl(0.2, 0.2, 0.52, 10), HAN.red, 0, 1.22, 0), P(G.box(0.44, 0.34, 0.33), HAN.red, 0, 1.28, 0), P(G.box(0.12, 0.34, 0.335), HAN.red2, 0.08, 1.28, 0, 0, 0, 0.25), ...[1, -1].map(s => P(G.sph(0.1, 8), K.iron, 0.25 * s, 1.42, 0, 0, 0, 0, 1, 0.75, 1)), P(G.cyl(0.06, 0.07, 0.1, 8), K.skin, 0, 1.5, 0), P(G.box(0.47, 0.09, 0.36), K.black, 0, 1.05, 0), P(G.box(0.1, 0.07, 0.04), HAN.gold, 0, 1.05, 0.19)], [0, 0.98, 0]);
-        o.pelvis = mk([P(G.cyl(0.21, 0.34, 0.52, 10), HAN.red, 0, 0.78, 0), P(G.box(0.1, 0.5, 0.02), HAN.red2, 0, 0.78, 0.3)], [0, 0.9, 0]);
-        o.head = head([P(G.cyl(0.11, 0.135, 0.13, 10), K.iron, 0, 1.69, 0), P(G.cone(0.045, 0.1, 6), K.iron, 0, 1.8, 0), P(G.cone(0.07, 0.22, 7), HAN.red, 0, 1.94, -0.02, 0.15), ...[1, -1].map(s => P(G.box(0.025, 0.12, 0.11), K.iron, 0.125 * s, 1.6, -0.01)), P(G.box(0.2, 0.1, 0.03), K.iron, 0, 1.6, -0.12)]);
+        o.pelvis = mk([P(G.cyl(0.21, 0.235, 0.12, 10), HAN.red, 0, 0.98, 0)], [0, 0.9, 0]);
+        // 下摆分左右两片，各跟着一条大腿摆（腿不再从袍子里穿出来），再加一点惯性晃动
+        for (const [k, s] of [['L', -1], ['R', 1]]) o['robe' + k] = mk([P(new THREE.CylinderGeometry(0.235, 0.34, 0.42, 7, 1, false, s > 0 ? -0.25 : PI - 0.25, PI + 0.5), HAN.red, 0, 0.73, 0)], [0, 0.94, 0]);
+        o.apron = mk([P(G.box(0.1, 0.42, 0.02), HAN.red2, 0, 0.73, 0.3)], [0, 0.94, 0]);
+        o.head = head([P(G.cyl(0.11, 0.135, 0.13, 10), K.iron, 0, 1.69, 0), P(G.cone(0.045, 0.1, 6), K.iron, 0, 1.8, 0), ...[1, -1].map(s => P(G.box(0.025, 0.12, 0.11), K.iron, 0.125 * s, 1.6, -0.01)), P(G.box(0.2, 0.1, 0.03), K.iron, 0, 1.6, -0.12)]);
+        o.plume = mk([P(G.cone(0.07, 0.22, 7), HAN.red, 0, 1.94, -0.02, 0.15)], [0, 1.5, 0]);   // 红缨：跟着头晃
         o.weapon = spear(HAN.red);
         o.shield = mk([P(G.box(0.46, 0.72, 0.05), HAN.red, 0, 0, 0), P(G.box(0.46, 0.05, 0.07), HAN.gold, 0, 0.34, 0), P(G.box(0.46, 0.05, 0.07), HAN.gold, 0, -0.34, 0), P(G.box(0.05, 0.72, 0.06), K.black, 0, 0, 0.01), P(G.sph(0.07, 8), K.iron, 0, 0.02, 0.04)]);
         legs(o, HAN.pants, K.boot); arms(o, HAN.red, K.iron); return o; }
   function chuB() { const o = {};
         o.upper = mk([P(G.cyl(0.19, 0.18, 0.52, 10), CHU.robe, 0, 1.22, 0), P(G.box(0.42, 0.38, 0.32), 0x5a3a26, 0, 1.25, 0), P(G.box(0.425, 0.03, 0.325), CHU.ochre, 0, 1.08, 0), ...[0, 1, 2].map(i => P(G.box(0.03, 0.03, 0.33), 0x2c1f16, -0.12 + i * 0.12, 1.25, 0.005)), ...[1, -1].map(s => P(G.sph(0.085, 8), K.skin, 0.24 * s, 1.42, 0)), P(G.cyl(0.06, 0.07, 0.1, 8), K.skin, 0, 1.5, 0), P(G.box(0.46, 0.05, 0.35), K.black, 0, 1.04, 0)], [0, 0.98, 0]);
         o.pelvis = mk([P(G.cyl(0.2, 0.28, 0.34, 10), CHU.robe, 0, 0.87, 0)], [0, 0.9, 0]);
-        o.head = head([P(G.sph(0.132, 10), K.black, 0, 1.65, -0.02, 0, 0, 0, 1, 0.75, 1.05), P(G.box(0.27, 0.035, 0.27), K.black, 0, 1.67, -0.01), P(G.sph(0.045, 6), K.black, 0, 1.68, -0.15), ...[1, -1].map(s => P(G.box(0.05, 0.36, 0.012), K.black, 0.04 * s, 1.5, -0.17, -0.35, 0, 0.12 * s)), P(G.box(0.28, 0.02, 0.005), CHU.lac, 0, 1.69, 0.125)]);
+        o.head = head([P(G.sph(0.132, 10), K.black, 0, 1.65, -0.02, 0, 0, 0, 1, 0.75, 1.05), P(G.box(0.27, 0.035, 0.27), K.black, 0, 1.67, -0.01), P(G.sph(0.045, 6), K.black, 0, 1.68, -0.15), P(G.box(0.28, 0.02, 0.005), CHU.lac, 0, 1.69, 0.125)]);
+        o.tails = mk([1, -1].map(s => P(G.box(0.05, 0.36, 0.012), K.black, 0.04 * s, 1.5, -0.17, -0.35, 0, 0.12 * s)), [0, 1.5, 0]);   // 巾尾：拖在脑后，跟着头甩
         o.weapon = ji(CHU.lac);
         o.shield = mk([P(G.cyl(0.27, 0.27, 0.05, 20), CHU.robe, 0, 0, 0, PI / 2), P(new THREE.TorusGeometry(0.2, 0.025, 6, 24), CHU.lac, 0, 0, 0.03), P(new THREE.TorusGeometry(0.12, 0.022, 6, 20), CHU.lac, 0, 0, 0.03), P(new THREE.TorusGeometry(0.255, 0.015, 6, 24), CHU.ochre, 0, 0, 0.03), P(G.sph(0.045, 8), K.bronze, 0, 0, 0.035)]);
         legs(o, CHU.pants, K.boot, 0x6a5a44); arms(o, 0x5a3a26, 0x5a3a26, true); return o; }
@@ -109,11 +114,48 @@ h2{margin:0 0 6px;font:900 18px/1.3 var(--ef);letter-spacing:.1em}
     return [a.clone().addScaledVector(n, cosA * l1).addScaledVector(pp, sA * l1), end];
   }
   const dirOf = (yaw, pitch) => V(Math.sin(yaw) * Math.cos(pitch), Math.sin(pitch), Math.cos(yaw) * Math.cos(pitch));
+  // 跟随摆动（重排时加：袍子、红缨、巾尾不再是硬的）。k 零件、par 挂在哪件上、piv 支点（父件坐标）、dir 1 = 往下垂、-1 = 往上竖
+  const DANGLE = [
+    { k: 'robeL', par: 'pelvis', piv: [0, 0.04, 0], dir: 1, K: 90, C: 11, G: 0.035, leg: 'L' },
+    { k: 'robeR', par: 'pelvis', piv: [0, 0.04, 0], dir: 1, K: 90, C: 11, G: 0.035, leg: 'R' },
+    { k: 'apron', par: 'pelvis', piv: [0, 0.04, 0], dir: 1, K: 60, C: 7, G: 0.05, leg: 'LR' },
+    { k: 'plume', par: 'head', piv: [0, 0.33, 0], dir: -1, K: 70, C: 5, G: 0.05 },
+    { k: 'tails', par: 'head', piv: [0, 0.18, -0.15], dir: 1, K: 35, C: 3.5, G: 0.09, grav: 0.7 },
+  ];
+  const clampA = x => Math.max(-1.25, Math.min(1.25, x));
   class Soldier {
     constructor(side) {
       this.root = new THREE.Group(); this.p = {}; this.gone = new Set();
       const geos = parts(side);
       for (const k in geos) { const g = inked(geos[k]); g.matrixAutoUpdate = false; this.root.add(g); this.p[k] = g; }
+      this.dg = DANGLE.filter(d => this.p[d.k]).map(d => ({ ...d, ax: 0, az: 0, vx: 0, vz: 0, pv: null, pp: null }));
+    }
+    resetSwing() { for (const d of this.dg) { d.ax = d.az = d.vx = d.vz = 0; d.pv = d.pp = null; } }
+    // 每步在 pose 之后调：算支点的加速度，换到父件坐标里推弹簧；袍子的静止角度跟着大腿走
+    swing(dt) {
+      if (!this.M || dt <= 0) return;
+      const Rw = this.root.matrixWorld;
+      for (const d of this.dg) {
+        if (this.gone.has(d.k)) continue;
+        const PM = this.M[d.par]; if (!PM) continue;
+        const pw = V(...d.piv).applyMatrix4(PM).applyMatrix4(Rw);
+        let acc = V(0, 0, 0);
+        if (d.pp) { const v = pw.clone().sub(d.pp).divideScalar(dt); if (d.pv) acc = v.clone().sub(d.pv).divideScalar(dt); d.pv = v; }
+        d.pp = pw;
+        const inv = new THREE.Matrix4().multiplyMatrices(Rw, PM).extractRotation(new THREE.Matrix4().multiplyMatrices(Rw, PM)).invert();
+        const al = acc.clone().applyMatrix4(inv).clampLength(0, 60);
+        let rx = 0, rz = 0;
+        if (d.leg) {   // 下摆跟大腿：大腿往前抬多少，这片往前摆六成五
+          const ang = l => { const u = V(0, 1, 0).transformDirection(this.M['thigh' + l]).applyMatrix4(new THREE.Matrix4().extractRotation(PM).invert()); return Math.atan2(-u.z, u.y); };
+          const a = d.leg === 'LR' ? (Math.max(ang('L'), ang('R')) * 0.8) : ang(d.leg);
+          rx = -0.65 * a;
+        }
+        if (d.grav) { const g = V(0, -1, 0).applyMatrix4(inv); rx += d.grav * Math.atan2(-g.z, -g.y); rz += d.grav * Math.atan2(g.x, -g.y); }
+        const fx = -d.K * (d.ax - rx) - d.C * d.vx + d.G * d.K * d.dir * al.z, fz = -d.K * (d.az - rz) - d.C * d.vz - d.G * d.K * d.dir * al.x;
+        d.vx += fx * dt; d.vz += fz * dt; d.ax = clampA(d.ax + d.vx * dt); d.az = clampA(d.az + d.vz * dt);
+        const pv = V(...d.piv), m = PM.clone().multiply(new THREE.Matrix4().makeTranslation(pv.x, pv.y, pv.z)).multiply(new THREE.Matrix4().makeRotationFromEuler(new THREE.Euler(d.ax, 0, d.az))).multiply(new THREE.Matrix4().makeTranslation(-pv.x, -pv.y, -pv.z));
+        this.M[d.k] = m; this.p[d.k].matrix.copy(m);
+      }
     }
     // S：px 沿交锋线往前、side 往盾那边为负、py 起跳；crouch、lean 前倾、twist 拧腰（往盾那边为正）、sway 侧歪；
     //    fL / fR 两脚在交锋线上的位置、liftL / liftR 抬脚；wp 握矛的手、wd 矛的朝向 [左右, 俯仰]、g 手离矛根多远；sp 盾心、sd 盾面朝向；hx 低头、hy 转头；fall 下半身倒地
@@ -151,6 +193,7 @@ h2{margin:0 0 6px;font:900 18px/1.3 var(--ef);letter-spacing:.1em}
       M.uarmS = frame(sh.S, sh.S.clone().sub(elS), fwdU); M.farmS = frame(elS, elS.clone().sub(hS), fwdU);
       const shC = hS.clone().addScaledVector(n, 0.07), upS = V(0, 1, 0).addScaledVector(n, -n.y).normalize();
       M.shield = new THREE.Matrix4().makeBasis(new THREE.Vector3().crossVectors(upS, n), upS, n).setPosition(shC);
+      for (const d of DANGLE) if (this.p[d.k] && M[d.par]) M[d.k] = M[d.par].clone();   // 先跟着父件，step 里 swing() 再摆
       for (const k in M) if (this.p[k] && !this.gone.has(k)) this.p[k].matrix.copy(M[k]);
       this.M = M; this.hW = hW; this.wdir = wdir; this.shC = shC; this.shN = n; this.gg = gg; this.upS = upS;
       return M;
@@ -254,6 +297,22 @@ h2{margin:0 0 6px;font:900 18px/1.3 var(--ef);letter-spacing:.1em}
       beats: [[0, '对峙'], [0.55, '汉兵冲刺'], [1.2, '弓步突刺'], [1.32, '楚卒举盾挡'], [1.48, '楚卒反刺'], [1.56, '汉兵侧身躲过'], [1.72, '拧腰横扫'], [1.88, '拦腰斩断'], [2.5, '收势'], [2.8, '举矛举盾，跳起来吼']],
     },
   };
+  // ---------- 重排到 7 秒（Ham 拍板单 q2）：老时间 → 新时间，分段拉伸。交手放慢、蓄力拉长，嘲讽 / 庆祝稍压 ----------
+  const WARP = {
+    hurt: [[0, 0], [0.45, 1.0], [0.6, 1.3], [1.06, 1.85], [1.3, 2.2], [1.62, 2.82], [1.84, 3.24], [2.8, 4.45], [5.6, 7.0]],
+    kill: [[0, 0], [0.45, 1.0], [0.6, 1.3], [1.06, 1.85], [1.3, 2.2], [1.5, 2.55], [1.56, 2.75], [1.68, 3.1], [1.78, 3.34], [1.88, 3.46], [2.15, 3.85], [2.5, 4.35], [2.8, 4.7], [5.6, 7.0]],
+  };
+  const warpT = (k, x) => { const w = WARP[k]; for (let i = 1; i < w.length; i++) if (x <= w[i][0]) { const [a0, b0] = w[i - 1], [a1, b1] = w[i]; return b0 + (x - a0) / (a1 - a0) * (b1 - b0); } return w[w.length - 1][1]; };
+  // 开场对峙：两人各挪半步、汉兵换一下握矛、楚卒压低盾，四目相对（新时间写的，不拉伸）
+  const STAND_A = [[0.3, { side: 0.07, hy: 0.08, crouch: 0.12 }], [0.62, { side: -0.03, g: 0.82, wp: [0.3, 1.06, 0.2], hy: -0.04 }], [0.9, { side: 0, g: 0.95, wp: [0.3, 1.02, 0.22], hy: 0 }]];
+  const STAND_D = [[0.35, { side: -0.06, crouch: 0.26, hy: -0.06 }], [0.7, { sp: [-0.2, 1.17, 0.5], crouch: 0.28 }], [1.0, { side: 0, hy: 0 }]];
+  // 预备：冲刺前先往后一沉（重心后坐、矛往回收），再弹出去
+  const ANTIC_A = [[1.12, { px: -0.12, crouch: 0.22, lean: -0.04, wp: [0.3, 1.0, 0.0] }]];
+  for (const k in SCEN) {
+    const s = SCEN[k], W = x => warpT(k, x), wk = arr => arr.map(([t, o, ...r]) => [W(t), o, ...r]);
+    s.A = wk(s.A).concat(STAND_A, ANTIC_A).sort((a, b) => a[0] - b[0]); s.D = wk(s.D).concat(STAND_D).sort((a, b) => a[0] - b[0]);
+    s.ev = wk(s.ev); s.cam = wk(s.cam); s.beats = wk(s.beats); s.T = W(s.T); s.W = W;
+  }
   for (const k in SCEN) { const s = SCEN[k]; s.tA = tracks(s.A); s.tD = tracks(s.D); s.tC = tracks(s.cam); s.beats.sort((a, b) => a[0] - b[0]); }
   const at = (tr, base, t) => { const o = {}; for (const k in base) o[k] = tr[k] ? sample(tr[k], t) : base[k]; return o; };
 
@@ -331,23 +390,23 @@ h2{margin:0 0 6px;font:900 18px/1.3 var(--ef);letter-spacing:.1em}
     const [, kind] = ev;
     if (kind === 'clank' || kind === 'block') {   // 盾挡：一大蓬火星 + 一下亮光 + 顿一下（085「格挡的火花再大一点，明显一点」）
       const p = ev[3] || D.shC.clone().applyMatrix4(D.root.matrixWorld), n = D.shN.clone().transformDirection(D.root.matrixWorld);
-      spray(p, 46, 1.9, n, 2.2, true); flash(p, 0.9); flash(p, 0.45, 0xffffff); shake = Math.max(shake, 0.1); slow = 0.3; slowUntil = t + 0.07;
+      spray(p, 46, 1.9, n, 2.2, true); flash(p, 0.9); flash(p, 0.45, 0xffffff); shake = Math.max(shake, 0.1); slow = 0.15; slowUntil = t + 0.025;
     }
     if (kind === 'thud') { const p = W(A, A.hW.clone().addScaledVector(A.wdir, -(A.hW.y))); p.y = 0.02; puff(p, 3, 0.28, 0xc9b896); shake = Math.max(shake, 0.025); }
     if (kind === 'tap') { const p = ev[3] || A.shC.clone().applyMatrix4(A.root.matrixWorld), n = A.shN.clone().transformDirection(A.root.matrixWorld); spray(p, 34, 1.7, n, 2, true); flash(p, 0.75); flash(p, 0.35, 0xffffff); shake = Math.max(shake, 0.07); slow = 0.35; slowUntil = t + 0.05; }
     if (kind === 'parry') { const p = W(A, A.hW.clone().addScaledVector(A.wdir, 0.9)); spray(p, 26, 1.5, null, 1.8, true); flash(p, 0.6); shake = Math.max(shake, 0.05); }
-    if (kind === 'hit') { puff(W(D, V(0.24, 0.38, 0).applyMatrix4(D.M.upper)), 4, 0.45, 0x9e180c, V(0.6, 0, 0)); spray(W(D, V(0.24, 1.36 - 0.98, 0).applyMatrix4(D.M.upper)), 26, 1.1, V(1, 0, 0)); shake = Math.max(shake, 0.12); slow = 0.45; slowUntil = t + 0.12; }
+    if (kind === 'hit') { puff(W(D, V(0.24, 0.38, 0).applyMatrix4(D.M.upper)), 4, 0.45, 0x9e180c, V(0.6, 0, 0)); spray(W(D, V(0.24, 1.36 - 0.98, 0).applyMatrix4(D.M.upper)), 26, 1.1, V(1, 0, 0)); shake = Math.max(shake, 0.14); slow = 0.12; slowUntil = t + 0.035; }
     if (kind === 'cut') {
       const waist = W(D, V(0, 0.02, 0).applyMatrix4(D.M.upper));
-      sever(D, ['upper', 'head', 'uarmW', 'farmW', 'uarmS', 'farmS', 'weapon', 'shield'], V(1.4, 3.4, 2.4), V(7, 3, -4));
-      spray(waist, 70, 1.6, V(0.3, 0.6, 1)); puff(waist, 10, 0.9, 0x9e180c, V(0.2, 0.2, 0.6)); shake = Math.max(shake, 0.3); slow = 0.35; slowUntil = t + 0.3; sc.fountain = { p: waist, until: t + 0.9 };
+      sever(D, ['upper', 'head', 'tails', 'uarmW', 'farmW', 'uarmS', 'farmS', 'weapon', 'shield'], V(1.4, 3.4, 2.4), V(7, 3, -4));
+      spray(waist, 70, 1.6, V(0.3, 0.6, 1)); puff(waist, 10, 0.9, 0x9e180c, V(0.2, 0.2, 0.6)); shake = Math.max(shake, 0.32); slow = 0.12; slowUntil = t + 0.06; sc.fountain = { p: waist, until: t + 0.9 };
     }
   }
   // ---------- 主循环 ----------
   let scen = 'hurt', rate = 1, t = 0, last = performance.now(), fired = new Set();
   const beat = document.getElementById('beat'), fade = { v: 0 };
   function reset() {
-    t = 0; fired = new Set(); shake = 0; slow = 1; slowUntil = -1;
+    t = 0; fired = new Set(); shake = 0; slow = 1; slowUntil = -1; A.resetSwing(); D.resetSwing();
     for (const d of drops) S.remove(d.m); drops.length = 0; for (const c of [...S.children]) if (c.userData.pad) S.remove(c);
     for (const f of flying) { for (const k of f.keys) { const o = f.sol.p[k]; f.g.remove(o); f.sol.root.add(o); f.sol.gone.delete(k); } S.remove(f.g); } flying.length = 0;
     for (const q of mists) S.remove(q.m); mists.length = 0; for (const f of flashes) S.remove(f.m); flashes.length = 0; delete SCEN[scen].fountain;
@@ -358,8 +417,10 @@ h2{margin:0 0 6px;font:900 18px/1.3 var(--ef);letter-spacing:.1em}
     const gdt = dt * slow; t += gdt;
     if (t >= sc.T) reset();
     const ja = at(sc.tA, RA, t), jd = at(sc.tD, RD, t);
-    if (scen === 'hurt' && t > 3.0) jd.crouch += Math.sin(t * 3.4) * 0.012;   // 防守时喘气
-    A.stab = scen === 'hurt' ? t > 1.78 && t < 2.08 : t > 1.8 && t < 2.2; A.free = scen === 'kill' && t > 1.8 && t < 2.0; A.pose(ja); D.pose(jd); A.root.updateMatrixWorld(true); D.root.updateMatrixWorld(true); solve(A, ja, D); solve(D, jd, A);
+    const Wt = sc.W;
+    ja.crouch += Math.sin(t * 2.9) * 0.007; jd.crouch += Math.sin(t * 3.3 + 1) * (scen === 'hurt' && t > Wt(2.8) ? 0.016 : 0.007);   // 站着也在呼吸；楚卒挨了一下以后喘得更重
+    if (scen === 'hurt' && t > Wt(3.0)) { jd.hy += Math.sin(t * 0.9) * 0.08; jd.side += Math.sin(t * 0.7) * 0.03; }   // 防守时盯着他、脚下慢慢挪
+    A.stab = scen === 'hurt' ? t > Wt(1.78) && t < Wt(2.08) : t > Wt(1.8) && t < Wt(2.2); A.free = scen === 'kill' && t > Wt(1.8) && t < Wt(2.0); A.pose(ja); D.pose(jd); A.root.updateMatrixWorld(true); D.root.updateMatrixWorld(true); solve(A, ja, D); solve(D, jd, A); A.swing(gdt); D.swing(gdt);
     {   // 盾挡的火星在真碰上的那一帧出，出在矛尖碰到盾的那个点
       if (A.contact && !fired.has('blockA')) { fired.add('blockA'); fire([t, 'block', 'D', A.contact.clone()], sc, t); }
       if (D.contact && !D.gone.size && !fired.has('blockD')) { fired.add('blockD'); fire([t, 'tap', 'A', D.contact.clone()], sc, t); }
