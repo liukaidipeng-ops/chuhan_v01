@@ -334,7 +334,13 @@ const Sfx = (() => {
   const U = {
     // 兵：真实的行军脚步（不擂鼓）。n = 技能模式里这一队几个人（0 = 普通模式的整队）；冲锋：一队人跑步的原声；接敌：矛刺 + 兵器碰撞 + 喊杀
     inf: {
-      move(dur = 1.3, n = 0) { B.march(0.05, dur, n || 12, 0.24); },
+      // lv：兵的等级（1～4，不给 = 照旧按人数）；hurt：残血。Ham 10-10 试听台 b49 / b50：初级兵 = 原来的行军声 / 三个人（随机），
+      //   二级 = 整齐行军，三级 = 行军 + 鼓，四级 = 重甲大队，残血的非初级兵 = 散着走
+      move(dur = 1.3, n = 0, lv = 0, hurt = false) {
+        const id = lv >= 2 && hurt ? 'marchhurt' : lv >= 4 ? 'march4' : lv === 3 ? 'march3' : lv === 2 ? 'march2' : lv === 1 && Math.random() < 0.5 ? 'march1' : null;
+        if (id && has(id)) { run(id, { t: 0.05, dur: dur + 0.35, vol: 0.24 * MARCH_GAIN, rj: 0.02 }); return; }
+        B.march(0.05, dur, n || 12, 0.24);
+      },
       charge(dur = 1, n = 0) { smp('trooprun', { t: 0, vol: 0.6 * (n ? [0.6, 0.6, 0.75, 0.9][Math.min(3, n)] : 1), rj: 0.02, dur: dur + 0.5, fade: 0.4 }); },
       impact() { for (let i = 0; i < 4; i++) B.stab(i * 0.08 + R(0, 0.04), 0.4); B.clang(0.02, 0.4); B.clang(0.12, 0.35); B.shout(0.05, 6, 0.08, 0.5); },
     },
