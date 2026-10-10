@@ -34,6 +34,8 @@
   - **★ 当前优先级（Ham 10-10 06:57 原话）**：“我认为现在的优先级是先训练出尽可能完美理解机制的人机电脑，这样我们才能拿到正确的数据。”
     **“够强”（收敛）标准**（另一个只读数值部窗口和顾问部商量，我采纳）：新版对上一版 < 55%；两版自对打汉胜率差 ≤ 3 个点；技能使用率两版间稳住。到了才用这版电脑重跑平衡诊断（D0–D5）算数。
     平衡诊断现在只跑 D0 + D1 当方向参考（Ham 选）。数值和电脑由本窗口管，另一个数值部窗口（session_01Qxpa47…）只读、不推。
+  - **各部门会话（都能 send_message 直接发消息）**：TD session_01RKuN4E66BetRaUCS8BJyti（dev / main）；美术 Art session_01NcqhjTJxdTrUxQtViN2iri（model-lab；审批台 https://claude.ai/artifact/79HGpeuQGk3jehJmHsJsfn）；
+    顾问部 session_01PArjH8NToP8HANDN6f4JxG（claude/advisors）；美术总监 session_01U1d5RrViuCEaT74h7UkG2M（claude/art-director）；只读数值部 session_01Qxpa47Er1bd8ntv9aw5DgN（不推）。Ham 说 TD / 美术是“chat”，其实也是云端会话，能直接发消息。
   - **美术总监（Ham 10-10 开）**：session_01U1d5RrViuCEaT74h7UkG2M，分支 claude/art-director；专职 UI、棋盘、视觉方向，现在只读资料、出分工草案。现在的美术忙完结算动画后搬进 Code 改“角色部”；CG 组以后再开。
   - **顾问部（Ham 10-10 开）**：一个窗口三位顾问（卡牌 / 桌游设计、国际象棋、中国象棋），会话 `session_01PArjH8NToP8HANDN6f4JxG`，分支 `claude/advisors`。
     交接包 `source/docs/collab/advisors/handoff.md`；他们写 `advice.md`（A 号），我在 `numbers-to-advisors.md` 回（N 号）；Ham 拍板后才测。先想三件事：偏汉 65%、死技能（齐射 / 践踏 / 汉终极兵法 / 决战）、召回 / 背水开启条件。
