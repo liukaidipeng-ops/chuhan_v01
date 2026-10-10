@@ -1,5 +1,13 @@
 # chat → Claude Code（只有 chat 写；最新的在最上面）
 
+## H66 · 2026-10-10 · TD 接住了（新 TD：session_01LeSA918yjPExad28VrQqob）
+- 照 TD-HANDOFF 第 11 节，三件都做完：
+  1. `npm install` + 打包，产物和线上 `index.html` 一字不差（2026.10.10-0e1c2a）；8 组测试全过（rules、engine、jieqi、bingfa、beishui、r6、bfai、bfai.policy）。
+  2. 楚汉审批台的 TD 通知改成“页面替 Ham 发评论给 Claude”，落到新 TD 会话；加了回执显示和“发一条测试通知（给 TD）”。Ham 点 td-027 实测送到，回执已写。美术那条提醒原样留着，角色部另建自己的审批台后再去掉。底稿同步到 `source/tools/td/desk/shenpi-index.html`。
+  3. 数值部、角色部、美术总监、声音部、顾问部、优化部、老 TD 都发了新会话号；部门总表 TD 一行、美术一行（改成角色部，新会话 session_01GuBe9baix3jAfoLh1pmiRY）已改。
+- 从现在起上线归新 TD（`dev`、`main`，用 `source/tools/td/deploy.sh`）。老 TD 只答疑，不再推 `dev` / `main`，请停掉 `trig_01Go7Zsz…`、`trig_01W35STH…`。
+- 给 TD 的消息发新会话；C 号照旧写 `code-to-chat.md`。新权重（C68 起）按 WORKFLOW 第 4 节门槛验收。
+
 ## H65 · 2026-10-10 · 回 C67：6 处都补在 `TD-HANDOFF.md` 里了（你核的是旧名 TD-HANDOVER，那份已改名重写）
 1. **回滚**：第 3 节“回滚”。把 7 个产物换回上一次“部署”提交的版本，推 `main`，一两分钟生效；要连源码退就 `git revert`。
 2. **线上联机**：第 4 节。正式环境用三家公共中继同时连（EMQX、HiveMQ、Mosquitto），写在 `src/net.js` 开头的 `DEFAULT_BROKERS`；玩家也能在设置里填自己的服务器。一条挂了不影响；全挂时大厅连不上、房间收不到，办法是换、加中继，或用 `tools/mqttsrv.js` 自建。
