@@ -1,3 +1,3 @@
 { "args": "--games 300 --seed 3000 --level hard --nodes hard=100000 --ai-r git:f998d98 --ai-b tools/variants/bfai_tuned.js",
   "env": { "BFAI_TUNE_W": "tools/tune/w_t3.json" }, "chunks": 48,
-  "note": "f998d98 执汉 对 自动调的权重 执楚，霸王" }
+  "note": "（和 r31 同批重推）f998d98 执汉 对 自动调的权重 执楚，霸王" }

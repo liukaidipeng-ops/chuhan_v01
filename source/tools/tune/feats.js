@@ -31,6 +31,11 @@ add('fixed', 1);
 // 只在拟合里用、不进电脑的（原权重 0）：汉方天生的胜率差（bias，常数 1）、轮到谁走（tempo，汉走 +1 楚走 −1）。
 //   放进来是为了让别的权重不去“背”这两样；它们对同一次搜索里比较各步没有影响
 add('bias', 0); add('tempo', 0);
+// 潜力特征（第七版的想法并进来，2026-10-10；原公式里没有，原权重 0，让数据定值多少）：
+//   up_t：这一方现在军功就够升的 t 兵种子数（升级回满血、加级）；r_gap3：车还差 1～3 功就能升；skill_up：升一级就解锁技能、军功也够的子数；
+//   hurt_up：掉了血、现在升就回满的子数；ult_ready / ult_near：终极兵法没用过、军功已够 / 差 5 以内
+for (const t of ['r', 'n', 'c', 'p', 'a', 'e']) add('up_' + t, 0);
+add('r_gap3', 0); add('skill_up', 0); add('hurt_up', 0); add('ult_ready', 0); add('ult_near', 0);
 const NAMES = Object.keys(W0);
 const IDX = Object.fromEntries(NAMES.map((k, i) => [k, i]));
 const N = NAMES.length;
@@ -101,6 +106,7 @@ function feats(S, A, CFG) {
   if (hm) { F[IDX.hm] -= hm; F[IDX.hm_att] -= hm * Math.min(4, attB); }
   if (fin && S.occ) F[IDX.occ] += (S.occ.r || 0) - (S.occ.b || 0);
   F[IDX.bias] = 1; F[IDX.tempo] = S.turn === 'r' ? 1 : -1;
+  potFeats(S, A, CFG, F);
   return F;
 }
 const dot = (W, F) => { let v = 0; for (let i = 0; i < N; i++) v += W[i] * F[i]; return v; };
@@ -123,4 +129,26 @@ function unpack(str) {
   return { board, turn: a[0], cnt: { r: +a[1], b: +a[2] }, merit: { r: +a[3], b: +a[4] }, used: { art: { r: +a[5], b: +a[6] }, ult: { r: +a[7], b: +a[8] } }, fx: { sm: +a[9], hm: +a[10], pf: +a[11] }, final: a[12] === '1', occ: { r: +a[13], b: +a[14] } };
 }
 
+// 潜力特征（见上）。要引擎：A.upCost（按 r6 价表、甲片折扣）、BF.maxLvOf、BF.SKILLS_OF、BF.levelInfo（每级血量）
+function potFeats(S, A, CFG, F) {
+  const BF = (typeof global !== 'undefined' && global.BF) || null; if (!BF || !A.upCost) return;
+  const U = CFG.ultimates, skLv = sk => (CFG.skills[sk] && CFG.skills[sk].level) || CFG.skillLevel;
+  for (const s of ['r', 'b']) {
+    const sg = s === 'r' ? 1 : -1, m = S.merit[s];
+    let rookGap = 99;
+    for (const row of S.board) for (const p of row) {
+      if (!p || p.s !== s || p.t === 'k' || p.lv >= BF.maxLvOf(p.t)) continue;
+      const c = A.upCost(p); if (c == null) continue;
+      if (p.t === 'r') rookGap = Math.min(rookGap, c - m);
+      if (c > m) continue;
+      F[IDX['up_' + p.t]] += sg;
+      if (BF.SKILLS_OF(p.t, s).some(sk => skLv(sk) === p.lv + 1)) F[IDX.skill_up] += sg;
+      const info = BF.levelInfo ? BF.levelInfo(p.t, s, p.lv) : null;
+      if (info && info.hp != null && p.hp < info.hp) F[IDX.hurt_up] += sg;
+    }
+    if (rookGap >= 1 && rookGap <= 3) F[IDX.r_gap3] += sg;
+    const left = (S.used.ult[s] || 0) < U[s === 'r' ? 'simian' : 'hongmen'].usesPerGame;
+    if (left && m >= U.cost) F[IDX.ult_ready] += sg; else if (left && m >= U.cost - 5) F[IDX.ult_near] += sg;
+  }
+}
 module.exports = { NAMES, IDX, N, W0, FIXED, FIT_ONLY, feats, dot, vec, pack, unpack };
