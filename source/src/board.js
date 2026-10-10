@@ -564,6 +564,8 @@ const Board = (() => {
     return flatNorm;
   }
   function normStep() {
+    // 优化部 P5：页面刚开、大厅盖着棋盘时，先把升级皮肤预做好（原来等第一局技能模式开局 1.5 秒后才做，正好卡在开局），这一轮先不算法线图
+    if (!skins && !decorateAll.warm) { decorateAll.warm = true; prewarmSkins(); normT = setTimeout(normStep, 30); return; }
     const t0 = performance.now();
     while (normQ.length && performance.now() - t0 < 25) {   // 一次最多算 25 毫秒（至少一颗），剩下的下一轮
       const q = normQ.shift();
