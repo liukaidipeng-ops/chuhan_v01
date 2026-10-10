@@ -17,7 +17,7 @@ def lp(x, f):
 def add(buf, x, t, db):
     s = int(t * SR); n = min(len(x), len(buf) - s)
     if n > 0 and s >= 0: buf[s:s + n] += x[:n] * 10 ** (db / 20)
-def march(men, dur, beat, instep, ground='gravel', gear=1.0, seed=0, drum=False, war=0):
+def march(men, dur, beat, instep, ground='gravel', gear=1.0, seed=0, drum=False, war=0, hit=None, every=4):
     r = np.random.default_rng(seed); buf = np.zeros(int((dur + 1) * SR))
     for m in range(men):
         dist = r.uniform(0, 1)          # 远近：远的轻、闷
@@ -33,6 +33,9 @@ def march(men, dur, beat, instep, ground='gravel', gear=1.0, seed=0, drum=False,
     if drum:
         D = lib('drum')
         for i in range(int(dur / (beat * 2)) + 1): add(buf, D[i % len(D)], i * beat * 2, -10 if i % 2 == 0 else -14)
+    if hit is not None:   # b51：换鼓、放稀（Ham：“换个鼓，鼓太密集了”）——每 every 步一下
+        i = 0
+        while i * beat < dur: add(buf, hit, i * beat, -4); i += every
     if war:   # 四级：真实战鼓（和游戏决战鼓同一套大鼓录音，降调更沉）。war=1 每步一下重鼓；war=2 “咚——咚咚”
         D, SO = lib('drum'), lib('soft')
         def big(t, db): add(buf, rate(D[int(r.integers(len(D)))], 0.62), t, db); add(buf, rate(SO[int(r.integers(len(SO)))], 0.5), t, db - 14)
@@ -47,10 +50,33 @@ def march(men, dur, beat, instep, ground='gravel', gear=1.0, seed=0, drum=False,
             i += 1
     e = np.ones(len(buf)); f = int(0.6 * SR); e[:f] = np.linspace(0, 1, f); e[int(dur * SR) - f:int(dur * SR)] = np.linspace(1, 0, f); e[int(dur * SR):] = 0
     return V.norm(V.reverb(buf * e, wet=0.12, rt=0.8)[:int((dur + 0.3) * SR)], 0.9)
-V.save(march(12, 5, 0.55, True, 'gravel', 1.0, 1), O + '/march_step.mp3', '64k')        # 整齐行军：步调一致
-V.save(march(12, 5, 0.55, False, 'gravel', 1.0, 2), O + '/march_loose.mp3', '64k')      # 散着走：各走各的
-V.save(march(12, 5, 0.55, True, 'gravel', 1.0, 3, True), O + '/march_drum.mp3', '64k')  # 整齐行军 + 鼓点
-V.save(march(20, 5, 0.5, True, 'sand', 1.6, 4), O + '/march_heavy.mp3', '64k')          # 重甲大队：人多、甲片响
-V.save(march(3, 4, 0.55, False, 'gravel', 1.0, 5), O + '/march_three.mp3', '64k')        # 三个人
-V.save(march(20, 5, 0.5, True, 'sand', 1.6, 4, war=1), O + '/march_heavy_war1.mp3', '64k')  # 四级：重甲 + 战鼓每步一下（b50）
-V.save(march(20, 5, 0.5, True, 'sand', 1.6, 4, war=2), O + '/march_heavy_war2.mp3', '64k')  # 四级：重甲 + 战鼓“咚——咚咚”（b50）
+if len(sys.argv) <= 4:   # 不带批次参数：出 b49 / b50 那几条
+    V.save(march(12, 5, 0.55, True, 'gravel', 1.0, 1), O + '/march_step.mp3', '64k')        # 整齐行军：步调一致
+    V.save(march(12, 5, 0.55, False, 'gravel', 1.0, 2), O + '/march_loose.mp3', '64k')      # 散着走：各走各的
+    V.save(march(12, 5, 0.55, True, 'gravel', 1.0, 3, True), O + '/march_drum.mp3', '64k')  # 整齐行军 + 鼓点
+    V.save(march(20, 5, 0.5, True, 'sand', 1.6, 4), O + '/march_heavy.mp3', '64k')          # 重甲大队：人多、甲片响
+    V.save(march(3, 4, 0.55, False, 'gravel', 1.0, 5), O + '/march_three.mp3', '64k')        # 三个人
+    V.save(march(20, 5, 0.5, True, 'sand', 1.6, 4, war=1), O + '/march_heavy_war1.mp3', '64k')  # 四级：重甲 + 战鼓每步一下（b50）
+    V.save(march(20, 5, 0.5, True, 'sand', 1.6, 4, war=2), O + '/march_heavy_war2.mp3', '64k')  # 四级：重甲 + 战鼓“咚——咚咚”（b50）
+
+# b51：几种别的鼓，放稀
+if len(sys.argv) > 4 and sys.argv[4] == 'b51':
+    AL = AU + '/interface/alarm/'
+    def firsthit(x, sec):   # 取第一下击打（能量最高处往前 20 毫秒起）
+        w = int(0.01 * SR); e = np.convolve(np.abs(x), np.ones(w) / w, 'same'); pk = int(np.argmax(e[:int(1.5 * SR)])); s0 = max(0, pk - int(0.02 * SR))
+        y = x[s0:s0 + int(sec * SR)]; return y * np.minimum(1, (len(y) - np.arange(len(y))) / (0.5 * SR))
+    # 0ad 警报声不衰减（像号角不像鼓），不用。改用原声筒鼓滚奏（drumroll，CC0）里切出的单击，降调成大鼓
+    def hits(x, n=6):   # 切出能量最大的几下
+        w = int(0.01 * SR); e = np.convolve(np.abs(x), np.ones(w) / w, 'same'); out = []
+        for i in np.argsort(e)[::-1]:
+            if all(abs(i - j) > 0.12 * SR for j, _ in out): out.append((int(i), e[i]))
+            if len(out) == n: break
+        return [x[max(0, i - int(0.01 * SR)):i + int(0.5 * SR)] for i, _ in sorted(out)]
+    T0, T1 = hits(lib('drumroll')[0]), hits(lib('drumroll')[1])
+    big = lambda h, r: (lambda y: y * np.minimum(1, (len(y) - np.arange(len(y))) / (0.35 * SR)))(rate(h, r))
+    ST = lib('stomp')[0]
+    H = {'tomA': big(T0[0], 0.55), 'tomB': big(T1[0], 0.5),
+         'tomC': (lambda a, b: V.norm(np.pad(a, (0, max(0, len(b) - len(a)))) + 0.6 * np.pad(b, (0, max(0, len(a) - len(b)))), 0.9))(big(T0[1], 0.5), rate(ST, 0.8))}
+    for k, h in H.items():
+        V.save(V.norm(h, 0.9), O + f'/hit_{k}.mp3', '64k')
+        V.save(march(20, 6, 0.5, True, 'sand', 1.6, 4, hit=V.norm(h, 0.9)), O + f'/march_heavy_{k}.mp3', '64k')
