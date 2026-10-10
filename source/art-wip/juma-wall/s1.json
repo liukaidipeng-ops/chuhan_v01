@@ -1,0 +1,6 @@
+[{"name": "L2", "setup": {"lv": 2, "from": [1, 7], "to": [1, 4]}, "pose": "wall", "att": {"k": 0.0}, "cam": {"f": 0.72, "dist": 1.45, "h": 0.42, "back": -0.1, "lf": 0.6, "lh": 0.2}},
+ {"name": "L3", "setup": {"lv": 3, "form": "stack", "from": [1, 7], "to": [1, 4]}, "pose": "wall", "po": {"form": "stack"}, "att": {"k": 0.0}, "cam": {"f": 0.72, "dist": 1.45, "h": 0.42, "back": -0.1, "lf": 0.6, "lh": 0.2}},
+ {"name": "L4", "setup": {"lv": 4, "from": [1, 7], "to": [1, 4]}, "pose": "wall", "att": {"k": 0.0}, "cam": {"f": 0.72, "dist": 1.6, "h": 0.45, "back": -0.1, "lf": 0.6, "lh": 0.2}},
+ {"name": "L3front", "pose": "wall", "po": {"form": "stack"}, "att": {"k": 0.0}, "cam": {"f": 0.5, "dist": 0.0, "h": 0.6, "back": -0.9, "lf": 0.85, "lh": 0.15}},
+ {"name": "L3wide", "setup": {"lv": 3, "form": "stack", "from": [1, 7], "to": [1, 4]}, "pose": "wall", "po": {"form": "stack"}, "att": {"k": 0.25, "speed": 1}, "cam": {"f": 0.5, "dist": 2.3, "h": 0.8, "back": -0.2, "lf": 0.45, "lh": 0.2}},
+ {"name": "L3scatter", "pose": "wall", "po": {"form": "stack"}, "att": {"k": 0.25}, "cam": {"f": 0.6, "dist": 1.8, "h": 0.6, "back": -0.1, "lf": 0.6, "lh": 0.2}, "wall": {"lv": 3}, "scatter": 1.2, "sWait": 0.35}]

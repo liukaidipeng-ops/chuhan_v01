@@ -1,0 +1,6 @@
+[
+ {"name": "a1", "js": ["SB.setup({atk:'tiger', alv:2, dlv:3}); SB.atkAt(1.6, {speed:0, roarK:0.2}); SB.xbPose('idle'); SB.xbShow(1)", "await SB.cam({f:0.72, dist:2.6, h:0.85, back:-0.1, lf:0.35, lh:0.2})"], "wait": 3},
+ {"name": "a2", "js": ["SB.xbPose('aim')"], "wait": 1.2},
+ {"name": "a3", "js": ["SB.xbPose('aim','shoot'); SB.bolt(0.5, {n:3})"], "wait": 0.25},
+ {"name": "a4", "js": ["SB.clearBolts(); SB.bolt(1.0, {n:1}); SB.defPose({hit:1}); SB.hitFx({at:0.05, n:14})", 0.2, "SB.minus('−1 血', {h:0.62})"], "wait": 0.3}
+]
