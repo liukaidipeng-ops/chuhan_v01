@@ -28,6 +28,26 @@ h1 { margin: 2px 0 0; font-family: var(--f-display); font-weight: 700; font-size
 .batch { margin: 10px 0 0; font-weight: 500; }
 .empty { background: var(--card); border: 1px dashed var(--line); border-radius: 10px; padding: 20px 16px; color: var(--muted); }
 #open { display: flex; flex-direction: column; gap: 14px; }
+/* 进度（meta/progress，部门写）：一步一格，做完的实心，正在做的半色 */
+.prog { background: var(--card); border: 1px solid var(--line); border-radius: 12px; padding: 14px 16px; display: flex; flex-direction: column; gap: 10px; min-width: 0; }
+.prog-top { display: flex; justify-content: space-between; align-items: baseline; gap: 10px; flex-wrap: wrap; }
+.prog h2 { margin: 0; font-family: var(--f-display); font-size: 19px; text-wrap: balance; }
+.prog-pct { font-variant-numeric: tabular-nums; font-weight: 700; color: var(--chu); font-size: 18px; }
+.pbar { display: flex; height: 14px; border-radius: 7px; overflow: hidden; background: var(--line); }
+.pbar i { display: block; height: 100%; }
+.pbar i.done { background: var(--chu); }
+.pbar i.doing { background: repeating-linear-gradient(45deg, var(--chu-soft), var(--chu-soft) 4px, var(--chu) 4px, var(--chu) 6px); opacity: .55; }
+.prog-pct { font-size: 28px; line-height: 1; }
+.pnote { margin: 0; color: var(--muted); font-size: 14px; }
+.psteps { margin: 0; padding: 0; list-style: none; display: flex; flex-direction: column; gap: 6px; }
+.psteps li { display: grid; grid-template-columns: 1.4em 1fr; gap: 6px; font-size: 14px; }
+.psteps .pi { text-align: center; }
+.psteps li.done .pi { color: var(--chu); } .psteps li.doing .pi { color: var(--warn); } .psteps li.todo .pi { color: var(--muted); }
+.psteps .ps-n { display: block; color: var(--muted); font-size: 13px; }
+.pstage { margin: 4px 0 0; font-size: 13px; letter-spacing: .08em; color: var(--muted); }
+.plog summary { cursor: pointer; font-size: 14px; }
+.plog ul { margin: 6px 0 0; padding-left: 1.2em; font-size: 14px; display: flex; flex-direction: column; gap: 4px; }
+.pupd { margin: 0; color: var(--muted); font-size: 12px; }
 .q { background: var(--card); border: 1px solid var(--line); border-radius: 12px; padding: 16px; display: flex; flex-direction: column; gap: 10px; min-width: 0; }
 .q-top { display: flex; justify-content: space-between; align-items: center; gap: 8px; font-size: 13px; color: var(--muted); font-variant-numeric: tabular-nums; }
 .tag { font-size: 12px; padding: 1px 8px; border-radius: 999px; border: 1px solid var(--line); white-space: nowrap; }
@@ -84,6 +104,14 @@ details.closed summary { cursor: pointer; font-weight: 500; }
     <p class="lede">要你定的事都放在这里。每题已经选好了 {{DEPT}} 的建议（红色“{{DEPT}} 建议”），你只改不同意的；想补充就点“补一句”。最后点底部的“提交答案”。</p>
     <p class="batch" id="batch"></p>
   </header>
+  <section class="prog" id="prog" hidden aria-labelledby="pt">
+    <div class="prog-top"><h2 id="pt"></h2><span class="prog-pct" id="pp"></span></div>
+    <div class="pbar" id="pbar" role="img"></div>
+    <p class="pnote" id="pn"></p>
+    <div id="ps"></div>
+    <details class="plog" id="plw"><summary>变强记录</summary><ul id="pl"></ul></details>
+    <p class="pupd" id="pu"></p>
+  </section>
   <section id="open" aria-live="polite">
     <div class="empty" id="empty">正在读取要你拍板的问题……</div>
   </section>
@@ -130,6 +158,26 @@ details.closed summary { cursor: pointer; font-weight: 500; }
     if (a && a.choice) return { choice: a.choice, note: a.note || '' };
     if (draft[q.id] && q.options.some(o => o.key === draft[q.id].choice)) return draft[q.id];
     return { choice: q.rec || (q.options[0] && q.options[0].key), note: '' };
+  }
+
+  // 进度条（meta/progress：{title, note, stages:[{name, steps:[{label, state:'done'|'doing'|'todo', note}]}], log:[{date, text}], updatedAt}）
+  function renderProg(P) {
+    const box = $('prog'); if (!P || !Array.isArray(P.stages)) { box.hidden = true; return; }
+    // 百分比 = 做完的步骤的权重 / 全部权重（w 默认 1）；正在做的只在条上浅色标出，不算进百分比
+    const steps = P.stages.flatMap(g => g.steps || []), W = x => (x.w > 0 ? x.w : 1);
+    const tot = steps.reduce((a, x) => a + W(x), 0) || 1, wd = steps.filter(x => x.state === 'done').reduce((a, x) => a + W(x), 0), wg = steps.filter(x => x.state === 'doing').reduce((a, x) => a + W(x), 0);
+    const pct = Math.round(wd / tot * 100), pg = Math.round(wg / tot * 100);
+    $('pt').textContent = P.title || '进度';
+    $('pp').textContent = pct + '%';
+    $('pbar').innerHTML = `<i class="done" style="width:${pct}%"></i><i class="doing" style="width:${pg}%"></i>`;
+    $('pbar').setAttribute('aria-label', `完成 ${pct}%，另有 ${pg}% 正在做`);
+    $('pn').textContent = P.note || '';
+    const icon = { done: '✓', doing: '◐', todo: '○' };
+    $('ps').innerHTML = P.stages.map(g => `<p class="pstage">${esc(g.name || '')}</p><ol class="psteps">${(g.steps || []).map(x => `<li class="${esc(x.state)}"><span class="pi">${icon[x.state] || '○'}</span><span>${esc(x.label)}${x.w ? ` <small>（${Math.round(W(x) / tot * 100)}%）</small>` : ''}${x.note ? `<span class="ps-n">${esc(x.note)}</span>` : ''}</span></li>`).join('')}</ol>`).join('');
+    const log = Array.isArray(P.log) ? P.log : [];
+    $('plw').hidden = !log.length; $('pl').innerHTML = log.map(x => `<li><b>${esc(x.date || '')}</b> ${esc(x.text || '')}</li>`).join('');
+    $('pu').textContent = P.updatedAt ? '更新于 ' + P.updatedAt : '';
+    box.hidden = false;
   }
 
   function render() {
@@ -323,6 +371,7 @@ details.closed summary { cursor: pointer; font-weight: 500; }
       state.qs = snap.docs.map(d => ({ id: d.id, ...d.data() })).filter(q => Array.isArray(q.options) && q.options.length);
       render();
     }, fail);
+    db.collection('meta').onSnapshot(snap => { const d = snap.docs.find(x => x.id === 'progress'); renderProg(d ? d.data() : null); }, () => {});
     db.collection('answers').onSnapshot(snap => {
       const m = {}; for (const d of snap.docs) m[d.id] = d.data(); state.ans = m; if (state.qs.length) render();
     }, fail);
