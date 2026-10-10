@@ -134,12 +134,14 @@ window.ElephantLV = (() => {
     sh(new THREE.SphereGeometry(0.75, 28, 18, PI - 1.15, 2.3, 0, 1.75), [4, 2.5], el.head, V(0.36, -0.04, 0), V(0.96, 1.01, 0.87));
     // 身上披一件黄金鳞甲（char-012：「大象身上的黄金鳞甲呢？你至少得披甲呀！」）：背和两肋盖住，耳朵、腿、肚底、屁股露原色
     for (const [ps, pl] of [[0.55, PI - 1.05], [PI + 0.5, PI - 1.05]]) sh(new THREE.SphereGeometry(1, 36, 20, ps, pl, 0, 1.95), [5, 3], el.body, V(-0.05, 2.25, 0), V(1.6, 1.1, 1.08));   // 比原来的黑披挂大一圈，把它盖住
-    for (const s of [1, -1]) { const m = Core.inked(new THREE.BoxGeometry(2.34, 1.26, 0.025), mat([4, 2.2]), 0.01); m.position.set(-0.1, 2.35, 1.0 * s); el.body.add(m); }   // 两肋各一块鳞甲片，把原来的黑披挂整块盖住
-    add(el.body, [...[1, -1].flatMap(s => [0, 1, 2, 3, 4, 5].map(i => P(G.cone(0.05, 0.2, 6), 0x9e2418, -0.95 + i * 0.36, 1.68, 1.03 * s, PI))), ...[1, -1].flatMap(s => [P(G.box(2.36, 0.05, 0.05), GOLD2, -0.1, 1.73, 1.02 * s), P(G.box(2.36, 0.05, 0.05), GOLD2, -0.1, 2.98, 1.02 * s)])], 0.01);   // 甲边一道金线、一排红缨
+    for (const s of [1, -1]) { const m = Core.inked(new THREE.BoxGeometry(2.34, 1.26, 0.025), mat([4, 2.2]), 0.01); m.position.set(-0.1, 2.35, 1.12 * s); el.body.add(m); }   // 挪到金甲壳外面（char-014：侧面穿模）   // 两肋各一块鳞甲片，把原来的黑披挂整块盖住
+    add(el.body, [...[1, -1].flatMap(s => [0, 1, 2, 3, 4, 5].map(i => P(G.cone(0.05, 0.2, 6), 0x9e2418, -0.95 + i * 0.36, 1.68, 1.14 * s, PI))), ...[1, -1].flatMap(s => [P(G.box(2.36, 0.05, 0.05), GOLD2, -0.1, 1.73, 1.14 * s), P(G.box(2.36, 0.05, 0.05), GOLD2, -0.1, 2.98, 1.14 * s)])], 0.01);   // 甲边一道金线、一排红缨
     sh(new THREE.SphereGeometry(0.52, 22, 14, PI - 1.2, 2.4, 0, 1.6), [3, 2], el.head, V(0.56, 0.29, 0), V(0.81, 0.81, 1.01));
     el.trunk.slice(0, 3).forEach((sg, i) => add(sg, [P(G.cyl(0.235 - i * 0.022, 0.235 - i * 0.022, 0.1, 10), GOLD, 0, -0.15, 0), P(G.cyl(0.24 - i * 0.022, 0.24 - i * 0.022, 0.02, 10), 0x9e2418, 0, -0.09, 0)]));
+    for (const o of [...el.head.children]) { const m = o.userData && o.userData.main; if (m && m.geometry && m.geometry.type === 'TubeGeometry') o.visible = false; }   // 原来那对小象牙去掉（char-014：怎么有两对象牙）
+    for (const L of el.legs) { sh(new THREE.CylinderGeometry(0.32, 0.29, 0.8, 16, 1, true, 0, PI), [2, 1.4], L.hip, V(0, -0.42, 0)); sh(new THREE.CylinderGeometry(0.29, 0.32, 0.6, 16, 1, true, 0, PI), [2, 1.2], L.knee, V(0, -0.3, 0)); }   // 四条腿正面披鳞甲（char-014）
     for (const s of [1, -1]) {   // 大象牙：比原来粗一倍、长三成，牙根金箍
-      const curve = new THREE.CatmullRomCurve3([V(0.72, -0.32, 0.22 * s), V(1.05, -0.72, 0.34 * s), V(1.55, -0.78, 0.42 * s), V(1.95, -0.42, 0.42 * s), V(2.08, -0.1, 0.38 * s)]);
+      const curve = new THREE.CatmullRomCurve3([V(0.75, -0.35, 0.22 * s), V(1.05, -0.63, 0.3 * s), V(1.4, -0.62, 0.34 * s), V(1.66, -0.38, 0.33 * s), V(1.92, -0.06, 0.32 * s)]);   // 沿原来那对小象牙的走向，粗一倍、长出一截，把小的整个包住
       el.head.add(Core.inked(new THREE.TubeGeometry(curve, 16, 0.095, 8), Core.toon(C.ivory), 0.015));
       add(el.head, [P(G.cyl(0.13, 0.13, 0.12, 10), GOLD2, 0.86, -0.48, 0.27 * s, 0.35, 0, 0.7), P(G.cyl(0.115, 0.115, 0.05, 10), 0x9e2418, 0.95, -0.56, 0.3 * s, 0.35, 0, 0.75)]);
     }
