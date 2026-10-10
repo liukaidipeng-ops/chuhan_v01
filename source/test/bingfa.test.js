@@ -232,6 +232,24 @@ const ok = (x, msg) => { assert(x, msg); };
   ok(g.legalFrom(2, 5).some(m => m.to[0] === 0 && m.to[1] === 7), '不塞的田字照走');
   console.log('飞跃冷却 OK');
 }
+{
+  // Ham 10-10：踏营改被动——三级马在敌方半场、冷却好了，蹩马腿的日字落点能走（via taying），走完冷却 2；自家半场不行
+  ok(BF.CFG.skills.taying.passive && BF.CFG.skills.taying.cooldown === 2, '踏营被动、冷却 2');
+  const mk = (lv, r) => setup([[4, 0, K('r')], [5, 9, K('b')], [4, r, P('r', 'n', lv)], [4, r + 1, P('b', 'p')], [0, 9, P('b', 'r')]]);
+  const g = mk(3, 6);   // 红马在 4,6（敌方半场），马腿 4,7 被卒蹩住
+  ok(!g.skillTargets(4, 6).length, '技能栏里没有踏营了');
+  const m = g.legalFrom(4, 6).find(m => m.to[0] === 5 && m.to[1] === 8);
+  ok(m && m.via === 'taying', '蹩腿的落点 5,8 能走，标着踏营');
+  ok(!mk(2, 6).legalFrom(4, 6).some(m => m.to[0] === 5 && m.to[1] === 8), '二级马：蹩腿就走不了');
+  ok(!mk(3, 2).legalFrom(4, 2).some(m => m.to[0] === 5 && m.to[1] === 4), '自家半场：踏营不能用');
+  const i = g.apply({ k: 'mv', from: [4, 6], to: [5, 8] });
+  ok(i && i.ev.some(e => e.e === 'passive' && e.sk === 'taying'), '踏营走过去，记一次被动');
+  ok(g.apply({ k: 'mv', from: [0, 9], to: [0, 8] }), '黑走');
+  ok(!g.legalFrom(5, 8).some(m => m.via === 'taying'), '冷却中没有踏营走法');
+  const g4 = mk(3, 6);
+  ok(g4.apply({ k: 'sk', sk: 'taying', at: [4, 6], to: [5, 8] }), '老棋谱里的主动踏营照旧认');
+  console.log('踏营被动 OK');
+}
 // 7. 冲阵
 {
   const g = setup([[4, 0, K('r')], [3, 9, K('b')], [0, 0, P('r', 'r', 3)], [0, 5, P('b', 'p')], [0, 6, P('b', 'n')], [0, 8, P('b', 'c', 2)]]);

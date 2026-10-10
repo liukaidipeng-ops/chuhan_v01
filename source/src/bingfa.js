@@ -30,7 +30,7 @@
       huifang: { level: 4, passive: true, move: true, cooldown: 2 }, // 兵四级被动：可后退一格
       jinwei: { level: 4, passive: true, move: true, cooldown: 2 }, // 士四级被动「铁甲禁卫」：九宫内上下左右走一格
       chongzhen: { cooldown: 3, springDamage: 1 }, // 车：前方第一枚子当跳板（挨 1 点），落到它身后一格
-      taying: { cooldown: 2, enemyHalfOnly: true }, // 马：只能在敌方半场用
+      taying: { cooldown: 2, enemyHalfOnly: true, passive: true, move: true }, // 马三级被动（Ham 10-10 由主动改被动，同飞越）：在敌方半场、冷却好了，蹩马腿的日字落点也能走
       pili: { cooldown: 4, splashDamage: 1, splashMinLevel: 2 },
       feiyue: { cooldown: 5, passive: true, move: true }, // 相 / 象三级被动（Ham 10-10 由主动改被动）：冷却好了，塞象眼的田字落点也能走，走了进冷却
       qishe: { level: 4, cooldown: 3, range: 2, damage: 1 }, // 汉相四级
@@ -93,7 +93,7 @@
     shensu: '八个方向疾行 1～2 格，可以越子，只能落在空格。',
     huifang: '可以后退一格。',
     jinwei: '士在田字格内获得自由移动的能力：可上下左右走一格。',
-    taying: '这一步无视蹩马腿。只能在敌方半场用。',
+    taying: '被动：在敌方半场、冷却好了，马腿被蹩住也能跳过去（会先问你用不用）。',
     feiyue: '被动：冷却好了，象眼被塞住也能走田字（会先问你用不用；仍不能过河）。',
     pili: '炮击一个敌子，落点四周二级以上的敌子各扣 1 点。',
     qishe: '不动身，射斜线 1～2 格内的一个敌子，扣 1 点。',
@@ -304,6 +304,12 @@
       const q = S.board[tr][tf]; if (q && (q.s === p.s || emptyOnly)) return;
       seen.add(tf + ',' + tr); ms.push({ from: [f, r], to: [tf, tr], via: sk });
     };
+    // 踏营（被动，Ham 10-10）：在敌方半场、冷却好了，马腿被蹩住的日字落点也能走
+    if (!ignoreLeg && p.t === 'n' && hasSkill(p, 'taying') && cdReady(S, p, 'taying') && !(CFG_CUR.skills.taying.enemyHalfOnly && ownHalf(p.s, r)))
+      for (const [df, dr] of [[1, 2], [-1, 2], [1, -2], [-1, -2], [2, 1], [2, -1], [-2, 1], [-2, -1]]) {
+        const lf = Math.abs(df) === 2 ? f + Math.sign(df) : f, lr = Math.abs(dr) === 2 ? r + Math.sign(dr) : r;
+        if (inBoard(lf, lr) && S.board[lr][lf]) extra('taying', f + df, r + dr);
+      }
     // 飞跃（被动）：冷却好了，象眼被塞住的田字落点也能走（仍不能过河）
     if (!ignoreLeg && p.t === 'e' && hasSkill(p, 'feiyue') && cdReady(S, p, 'feiyue')) for (const [df, dr] of [[2, 2], [2, -2], [-2, 2], [-2, -2]]) if (p.j || ownHalf(p.s, r + dr)) extra('feiyue', f + df, r + dr);
     if (!ignoreLeg && p.t === 'p') {
@@ -393,7 +399,7 @@
       const p = own(a.at[0], a.at[1]); if (!p) return null;
       const sk = a.sk || SKILL_OF(p.t, p.s);
       // 老棋谱里的「飞跃」是主动技能：照旧认（现在是被动，新走法记作普通走子）
-      const legacyFy = sk === 'feiyue' && isPassive(sk) && hasSkill(p, sk) && cdReady(S, p, sk) && !S.freeUsed;
+      const legacyFy = (sk === 'feiyue' || sk === 'taying') && isPassive(sk) && hasSkill(p, sk) && cdReady(S, p, sk) && !S.freeUsed;
       if (!sk || !(skillOk(S, p, sk) || legacyFy)) return null;
       if (frozen(S, p) && sk !== 'juma' && sk !== 'qishe') return null;   // 冻结的子只能用原地的技能
       extra.sk = sk;

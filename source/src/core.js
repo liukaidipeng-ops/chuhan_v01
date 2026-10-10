@@ -66,7 +66,7 @@ const Core = (() => {
     camera.aspect = w / h;
     camera.fov = w / h < 0.8 ? 58 : 42;
     camera.updateProjectionMatrix(); applyShift();
-    try { if (!Cam.cine) Cam.radius = Cam.view ? Cam.fitTop() : Cam.fitRadius(); } catch (e) { /* 初始化时 Cam 尚未定义 */ }
+    try { if (!Cam.cine) Cam.radius = Cam.homeRad(); } catch (e) { /* 初始化时 Cam 尚未定义 */ }
   }
   // 画面整体挪一挪（对局分析的面板挡住一边时，把棋盘往另一边让）：fx、fy 是画面宽、高的几分之几，正数 = 内容往左 / 往上
   let shiftF = [0, 0, 1];
@@ -129,20 +129,36 @@ const Core = (() => {
     //   转的时候 spinning = true，棋子的朝向跟着 theta 一起转（Board.faceViewer 第二个参数），字一直是正的
     setSide(side, snap = true, dur = 1.4) {
       this.homeTheta = side === 'b' ? Math.PI : 0;
-      const th = this.homeTheta, phi = this.view ? 0.001 : 0.72;   // 正上方时 phi 不能是 0（lookAt 会翻）
-      const rad = this.view ? this.fitTop() : this.fitRadius();
+      const th = this.homeTheta, phi = this.homePhi();   // 正上方时 phi 不能是 0（lookAt 会翻）
+      const rad = this.homeRad(), home = this.homeT(side);
       const id = this.spinId = (this.spinId || 0) + 1;
-      if (snap) { this.spinning = false; this.theta = th; this.phi = phi; this.target.copy(this.home0); this.radius = rad; this.pos.copy(this.orbitPos()); this.look.copy(this.target); this.upTh = this.theta; return Promise.resolve(); }
+      if (snap) { this.spinning = false; this.theta = th; this.phi = phi; this.target.copy(home); this.radius = rad; this.pos.copy(this.orbitPos()); this.look.copy(this.target); this.upTh = this.theta; return Promise.resolve(); }
       const th0 = this.theta, ph0 = this.phi, r0 = this.radius, t0 = this.target.clone();
       let d = th - th0; d = Math.atan2(Math.sin(d), Math.cos(d));
       this.spinning = Math.abs(d) > 0.01;
       return tween(this.spinning ? dur : 0.6, k => {
         if (this.spinId !== id) return;
         this.theta = th0 + d * k; this.upTh = this.theta;
-        this.phi = ph0 + (phi - ph0) * k; this.radius = r0 + (rad - r0) * k; this.target.lerpVectors(t0, this.home0, k);
+        this.phi = ph0 + (phi - ph0) * k; this.radius = r0 + (rad - r0) * k; this.target.lerpVectors(t0, home, k);
       }, ease.sine).then(() => { if (this.spinId === id) { this.theta = th; this.upTh = th; this.spinning = false; } });
     },
     setView(v, side) { this.view = v; this.setSide(side, false); },
+    // 手机竖屏的沙盘档（美术总监 V1，Ham 10-10 点头）：镜头压低（phi 0.72 → 0.45）、拉近到 0.86 倍、注视点往自己这边挪 0.15。
+    //   缩放上限 7～30 不动（Ham 的条件：能手动缩回原来的远度，还能更远）；俯瞰、定盘和电脑不变
+    portrait() { return window.innerWidth / window.innerHeight < 0.8; },
+    homePhi() { return this.view ? 0.001 : this.portrait() ? 0.45 : 0.72; },
+    // 电脑宽屏的沙盘档（美术总监 V3，Ham 10-10 审批台 ad-001）：注视点往自己这边挪 0.45、按屏幕高度拉远一点，左下名牌不再盖住俥
+    wide() { return window.innerWidth / window.innerHeight >= 1; },
+    wideK() { const H = window.innerHeight; return H >= 1000 ? 1 : H >= 880 ? 1.06 : H >= 760 ? 1.1 : 1.14; },
+    homeRad() { return this.view ? this.fitTop() : this.fitRadius() * (this.portrait() ? 0.86 : this.wide() ? this.wideK() : 1); },
+    homeT(side) {
+      const t = this.home0.clone(); if (this.view) return t;
+      const sg = (side || (this.homeTheta ? 'b' : 'r')) === 'b' ? -1 : 1;
+      if (!this.portrait() && !this.wide()) return t;
+      // 执黑时镜头在另一头：注视点按棋盘中线镜像过去（home0 的 0.2 也镜像），两边看到的构图一样
+      t.z = sg * (this.home0.z + (this.portrait() ? 0.15 : 0.45));
+      return t;
+    },
     homeDir() { return new THREE.Vector3(Math.sin(this.homeTheta), 0, Math.cos(this.homeTheta)); },
     // 按屏幕宽高比算出能完整看到棋盘宽度的距离（竖屏手机会自动拉远）
     fitRadius() {
@@ -177,7 +193,7 @@ const Core = (() => {
       this.target.x += (-dx * c - dy * s) * k; this.target.z += (dx * s - dy * c) * k;
       this.target.x = Math.max(-9, Math.min(9, this.target.x)); this.target.z = Math.max(-10, Math.min(10.4, this.target.z));
     },
-    get panned() { return Math.hypot(this.target.x - this.home0.x, this.target.z - this.home0.z) > 0.12; },
+    get panned() { const h = this.homeT(); return Math.hypot(this.target.x - h.x, this.target.z - h.z) > 0.12; },
     update(dt) {
       if (!this.cine) {
         const p = this.orbitPos();

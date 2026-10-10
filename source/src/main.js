@@ -8,8 +8,15 @@
   // 更新说明（设置里、大厅底部点「更新」查看；最新的放最前）
   const NEWS = [
     ['第六版', '2026 年 10 月', [
+      '技能模式：暂时用不了的技能按钮改成深暖灰底、细斜纹（原来半透明压在军营上发粉、字糊）（美术总监）',
+      '技能模式：升级时的「晋升」题签、被动技能的小字提示钉在棋子头上，转镜头、拉远拉近都跟着棋子走（美术总监）',
+      '电脑上对局镜头往自己这边挪了一点、按屏幕高度拉远一点，左下的名牌不再盖住俥 / 車（执红执黑一样）；大厅、房间里只留一个墨色主按钮，揭棋房间的字块不再发粉，有密码的房间标「锁」字（美术总监）',
+      '技能模式：楚战象正面踩死的兵会被踩散、断肢冲飞、一团血雾；践踏震死的整个掀上天，翻着跟头落下来；践踏崩出的碎石加倍，正面踩也崩碎石（美术）。银、金、玉棋子的字外加了一道汉朱 / 楚墨细圈，一眼分出汉楚（美术）',
+      '开局过场「落子入局」（美术总监朱墨设计）：点「开战 / 开始」或房间开局后，两颗子飞到帥位、將位翻面，各自生出半张棋盘，在河界会合，再露出对局、镜头抬起；点一下就能跳过，系统开了「减少动态效果」不播。手机竖屏的对局镜头压低拉近了一些（双指照样能缩回原来的远度，还能更远）；手机主界面、联机大厅的底边对齐',
       '技能模式「霸王」更强了（数值部）：同样时间算得更深（靠后的平淡着法少算、先假装停一手试探）；局面复杂或危险时多想一会儿，最多约 8 秒，平时还是 3 秒左右',
       '省电（Ham 说手机发烫）：画面没在动的时候每秒只画 30 帧（原来高刷手机跟着屏幕 90～120 帧在画），影子有东西在动才重算；一碰屏幕、走子演出、镜头在动时照常满帧。手机默认开，设置 → 画面里有「省电」开关',
+      '跳过去、打过去的走法提示画成一道抛物线，从这枚子的顶上落到目标子的顶上，一道细线从起点一笔画到落点（Ham 在五个方案里选的「画线」）：炮隔子吃子、飞越、踏营，技能里的霹雳、冲阵、齐射；地上一道淡影',
+      '技能模式规则：马的「踏营」也改成被动（同飞越）——三级马在敌方半场、冷却好了，马腿被蹩住的日字落点直接能点，点了先问一句用不用，用了冷却 2 回合',
       '结算画面的「复盘」和「分析」合成一个「复盘」：进去就是复盘加分析面板；复盘条上多一个「分析」，可以收起、再打开（揭棋没有分析，只复盘）；「我的棋局」里的复盘也一样',
       '人机对战输了（被将死、困毙等）先不进结算：弹一个框，10 秒内点「悔棋」就悔回去接着下，点「认输」或等 10 秒才进结算（悔棋次数照常算；用完了就直接结算）',
       '技能模式规则：象、相撞上拒马不挨那 1 点（践踏、齐射本来就不触发）；「飞越」改成被动——三级起冷却好了，象眼被塞住的田字落点直接能点，点了先问一句用不用，用了冷却 5 回合',
@@ -453,7 +460,7 @@
       const q = g.at(e.to[0], e.to[1]); let n = notation(g.board, e);
       // 被动走法（神速营 / 回防 / 铁甲禁卫）前面标出技能名
       const mv = p && p.lv >= 3 ? g.legalFrom(e.from[0], e.from[1]).find(m => m.to[0] === e.to[0] && m.to[1] === e.to[1]) : null;
-      if (mv && mv.via) n = { shensu: '神速', huifang: '回防', jinwei: '禁衛', feiyue: '飛越' }[mv.via] + '·' + n;
+      if (mv && mv.via) n = { shensu: '神速', huifang: '回防', jinwei: '禁衛', feiyue: '飛越', taying: '踏營' }[mv.via] + '·' + n;
       return q && p && q.hp > g.atkOf(p) ? n + '·攻' : n;
     }
     if (e.k === 'sk' && p) {
@@ -1023,7 +1030,20 @@
   function setView(side, smooth) { viewSide = side; Core.Cam.setSide(side, !smooth); Board.faceViewer(side, smooth); Board.viewSide = side; paintCards(); }
   let finaleHero = null;
   function clearFinale() { if (finaleHero) { try { if (finaleHero.dropped) Core.disposeTree(finaleHero.dropped); finaleHero.dispose(); } catch (e) { } finaleHero = null; } }
-  async function startGame(m, side, o, { state = null, intro = true } = {}) {
+  // 落子入局（美术总监 V1，Ham 10-10 点头）：正上方视角下 9 条竖线、10 条横线在屏幕上的像素位置（ys[0] 是屏幕最上面那条）
+  function topGrid() {
+    const cam = Core.camera, R = innerWidth, H = innerHeight, xs = [], ys = [];
+    // 大厅盖着时主循环不推镜头（Core.sleepy），这里自己把镜头摆到 Cam 记的位置再算
+    try { Core.Cam.update(0); } catch (e) { }
+    cam.updateMatrixWorld(); cam.updateProjectionMatrix && cam.updateProjectionMatrix();
+    const pr = (f, r) => { const v = Board.pos(f, r, 0).project(cam); return [(v.x + 1) / 2 * R, (1 - v.y) / 2 * H]; };
+    for (let f = 0; f < 9; f++) xs.push(pr(f, 0)[0]);
+    for (let r = 0; r < 10; r++) ys.push(pr(0, r)[1]);
+    if (xs[0] > xs[8]) xs.reverse(); if (ys[0] > ys[9]) ys.reverse();
+    return { xs, ys };
+  }
+  const nextFrames = (n = 2) => new Promise(res => { const k = () => { try { Core.poke(); } catch (e) { } if (--n < 0) res(); else requestAnimationFrame(k); }; k(); });
+  async function startGame(m, side, o, { state = null, intro = true, lz = null } = {}) {
     cancelAI(); closeRoom();
     mode = m; mySide = side; opts = { ...o }; ended = false; started = false; lobbySpin = false;
     // 技能模式的楚方主帅兵法用哪一套，记在这一局的选项里（bs = 1 背水一战）：新开的局用背水一战；
@@ -1049,11 +1069,23 @@
     bfMode = null; dbgOn = false; dbgNoCd = false; dbgFree = false; $('bfDebug').classList.add('hidden'); $('bfReport').innerHTML = ''; $('bfReport').classList.toggle('hidden', !game.bf);
     $('tRule').classList.toggle('hidden', !game.bf);
     Core.Cam.view = mode === 'local' ? 0 : Math.max(0, Math.min(2, +store.get('view', 0) || 0));   // 本地双人先照旧（「视」= 换边看），不用三档
+    // 落子入局：只在新开的局、有开场的时候播（续局、观战、复盘不播）。朱底盖满之前大厅照常显示，飞的子从按钮 / 座位原地起飞
+    let lzEnd = null, lzView = 0, lzRel = null;
+    if (lz && intro && typeof LuoZi !== 'undefined' && !(state && ((state.moves || []).length || (state.bfe || []).length))) {
+      lzView = Core.Cam.view; Core.Cam.view = 2;   // 画盘时镜头在正上方「定盘」，格线对得上；过场完再抬回去
+      setView(mode === 'local' ? 'r' : side);       // 先摆好（大厅还盖着，看不见）：飞的子落点也按正上方算
+      let atReady; const readyP = new Promise(r => { atReady = r; }), relP = new Promise(r => { lzRel = r; });
+      lzEnd = LuoZi.play({ pieces: lz, side: mode === 'local' ? 'r' : side, grid: topGrid, ready: () => { atReady(); return relP; } }).catch(e => { console.warn('落子入局', e); });
+      lzEnd.then(() => { atReady(); if (lzRel) lzRel(); });
+      await Promise.race([readyP, lzEnd]);
+      if (mode !== m) { lzRel(); return; }
+    }
     $('tView').title = mode === 'local' ? '换边 / 自由视角' : '换视角：沙盘 → 俯瞰 → 定盘';
     $('viewTag').classList.toggle('lc', mode === 'local');   // 本地双人：「视」只有换边 / 自由视角两档（美术 M14）
     setView(mode === 'local' ? 'r' : side);
     $('lobby').classList.add('hidden'); $('hud').classList.remove('hidden');
     $('netbadge').classList.add('hidden');
+    if (lzRel) { await nextFrames(2); lzRel(); }
     Core.Cam.moveId = (Core.Cam.moveId || 0) + 1;
     for (const id of ['tUndo', 'tResign', 'tPause']) $(id).classList.toggle('hidden', m === 'watch');
     $('tLaugh').classList.toggle('hidden', m !== 'watch');
@@ -1065,6 +1097,8 @@
     resetFinalFx(); Sfx.Music.start(S.music); Sfx.Music.setIntensity(0.35);
     paintCards();
     if (vsAI()) { try { AI.warm(); } catch (e) { } }
+    // 开场白、「楚汉相争」题字等过场放完再出（美术总监 V1 第 4 条：不然朱底淡出时和题字的模糊底叠在一起）
+    if (lzEnd) { await lzEnd; if (mode !== m) return; Core.Cam.setView(lzView, viewSide); }
     if (intro && !game.history.length) {
       Sfx.B.gong(0, 0.9); Sfx.B.taiko(0.5, 0.8); Sfx.B.taiko(0.8, 0.8); Sfx.B.taiko(1.05, 0.9);
       let sub = mode === 'local' ? '红方先行' : vsAI() ? `人机 · ${LV[opts.level]} · ${mySide === 'r' ? '你执红（汉）先行' : '你执黑（楚）后手'}` : mode === 'watch' ? '观战' : (mySide === 'r' ? '你执红（汉）· 先行' : '你执黑（楚）· 后手');
@@ -2192,13 +2226,14 @@
     if (a.k === 'mv' && h.ev.some(e => e.e === 'splash' && e.how === 'jianta') && h.ev.some(e => (e.e === 'hit' || e.e === 'kill') && e.how === 'jianta')) return h;
     return null;
   }
+  const ARC_SK = new Set(['chongzhen', 'pili', 'qishe']);   // 这些技能是跳过去 / 打过去的：指示画成抛物线（Ham 审批台 td-021）
   function bfAsk(a, from) {
     // 飞越（Ham 10-10 改被动）：点了象眼被塞住的落点，先问一句用不用飞越
     if (a.k === 'mv' && !a.fy) {
       const m = selMoves.find(x => x.to[0] === a.to[0] && x.to[1] === a.to[1]), me = game.at(from[0], from[1]);
-      if (m && m.via === 'feiyue' && me) {
-        const cd = BF.CFG.skills.feiyue.cooldown;
-        ask('飞 越', `${XQ.NAMES[me.s].e}眼被塞住了，要用「飞越」强行跳过去吗？用了之后冷却 ${cd} 回合。`, 0, '飞 越', '不 用').then(y => { if (y && sel && sel[0] === from[0] && sel[1] === from[1]) bfAsk({ ...a, fy: 1 }, from); });
+      if (m && (m.via === 'feiyue' || m.via === 'taying') && me) {   // 踏营也改了被动（Ham 审批台 td-024），同样先问
+        const fy = m.via === 'feiyue', cd = BF.CFG.skills[m.via].cooldown, nm = fy ? '飞 越' : '踏 营';
+        ask(nm, fy ? `${XQ.NAMES[me.s].e}眼被塞住了，要用「飞越」强行跳过去吗？用了之后冷却 ${cd} 回合。` : `马腿被蹩住了，要用「踏营」强行跳过去吗？用了之后冷却 ${cd} 回合。`, 0, nm, '不 用').then(y => { if (y && sel && sel[0] === from[0] && sel[1] === from[1]) bfAsk({ ...a, fy: 1 }, from); });
         return;
       }
     }
@@ -2704,7 +2739,7 @@
       const cn = BF.SKILL_CN[skn];
       if (k.targets.length === 1 && !k.targets[0].to) { doBF(k.targets[0]); return; }
       bfMode = { kind: 'sk', targets: k.targets, hint: `${cn}：点选目标（${{ chongzhen: '点前方第一枚子当跳板', taying: '无视马腿', pili: '炮击敌子', qishe: '斜线两格内' }[skn] || ''}）` };
-      Board.showMoves(sel, bfDmg(k.targets.map(t => ({ from: t.at, to: t.to, atk: true, skill: true })), k.sk), true);   // 技能的落点都带金色四角框，和普通走子区分开
+      Board.showMoves(sel, bfDmg(k.targets.map(t => ({ from: t.at, to: t.to, atk: true, skill: true, arc: ARC_SK.has(k.sk) })), k.sk), true);   // 技能的落点都带金色四角框，和普通走子区分开
       renderBar(); return;
     }
     if (a === 'art') {
@@ -2882,6 +2917,7 @@
     else if (info.k === 'pass') line = `${SIDE_ARMY[s]}按兵不动`;
     if (info.k === 'mv' && info.extra && info.extra.via === 'shensu') line = `${nm(s, 'p')}神速营疾行` + (info.check ? '，将军！' : '');
     if (info.k === 'mv' && info.extra && info.extra.via === 'feiyue') line = line ? line.replace(nm(s, 'e'), nm(s, 'e') + '飞越，') : `${nm(s, 'e')}飞越`;   // 被动飞越：在原句里标出来
+    if (info.k === 'mv' && info.extra && info.extra.via === 'taying') line = line ? line.replace(nm(s, 'n'), nm(s, 'n') + '踏营，') : `${nm(s, 'n')}踏营`;
     if (ev.some(x => x.e === 'final')) { line = (line ? line + '；' : '') + '决战：双方车马兵炮尽没，象、士、帅将皆可过河'; }
     const oc = ev.find(x => x.e === 'occupy');
     if (oc) line = (line ? line + '；' : '') + `${oc.s === 'r' ? '汉帅' : '楚将'}占住${oc.s === 'r' ? '楚' : '汉'}营九宫 ${oc.n}/${BF.CFG.finalOccupyRounds}` + (oc.n >= BF.CFG.finalOccupyRounds ? '，夺营！' : '');
@@ -3161,7 +3197,7 @@
         if (mode) return;
         clearInterval(joinTimer); closeRoom();
         hostSide = d.state.hostSide;
-        startGame('guest', other(d.state.hostSide), d.state.opts, { state: d.state, intro: !(d.state.moves || []).length });
+        startGame('guest', other(d.state.hostSide), d.state.opts, { state: d.state, intro: !(d.state.moves || []).length, lz: seatLz(other(d.state.hostSide)) });
         break;
       case 'full': if (!mode && !enteringWatch) enterWatch(Net.code); break;
       case 'vacant':
@@ -3601,7 +3637,7 @@
       const v = HV[d.v] || HV.std, open = d.st === 'open';
       const tm = (+d.total ? `每方 ${+d.total} 分` : '不限时') + (+d.step ? ` · 每步 ${+d.step >= 60 ? (+d.step / 60) + ' 分' : +d.step + ' 秒'}` : '');
       const code = String(d.code).replace(/[^A-Z0-9]/g, '').slice(0, 5);
-      return `<li class="${open ? 'open' : 'play'}"><span class="hv ${d.v === 'bf' ? 'bf' : d.v === 'jq' ? 'jq' : ''}">${v[0]}</span><span class="hi"><b>${v[1]}</b> · 房间 ${code}${d.lock ? ' 🔒' : ''}<small>${open ? `房主执${d.side === 'r' ? '红（汉）' : '黑（楚）'}，你执${d.side === 'r' ? '黑（楚）' : '红（汉）'}` : '对局中'} · ${tm}</small></span><button class="btn small ${open ? 'red solid' : ''}" data-code="${code}">${open ? '加 入' : '观 战'}</button></li>`;
+      return `<li class="${open ? 'open' : 'play'}"><span class="hv ${d.v === 'bf' ? 'bf' : d.v === 'jq' ? 'jq' : ''}">${v[0]}</span><span class="hi"><b>${v[1]}</b> · 房间 ${code}${d.lock ? ' <span class="lockw">锁</span>' : ''}<small>${open ? `房主执${d.side === 'r' ? '红（汉）' : '黑（楚）'}，你执${d.side === 'r' ? '黑（楚）' : '红（汉）'}` : '对局中'} · ${tm}</small></span><button class="btn small ${open ? 'red solid' : ''}" data-code="${code}">${open ? '加 入' : '观 战'}</button></li>`;
     }).join('');
     L.querySelectorAll('button[data-code]').forEach(b => b.onclick = () => { Sfx.init(); applySettings(); closeHall(); showPane('pJoin'); $('joinCode').value = b.dataset.code; joinRoom(b.dataset.code); });
   }
@@ -3623,7 +3659,9 @@
   $('bAIGo').onclick = () => {
     Sfx.init(); applySettings();
     const side = aopts.side === 'x' ? (Math.random() < 0.5 ? 'r' : 'b') : aopts.side;
-    startGame('ai', side, { undo: aopts.undo, total: aopts.total, step: aopts.step || 0, hints: aopts.hints, level: aopts.level, skin: aopts.skin || 0, bf: aopts.bf ? 1 : 0 });
+    // 落子入局：自己那颗从「开战」按钮起飞，电脑那颗从选中的难度（校尉 / 霸王……）方块起飞（Ham：人机也要有电脑的子）
+    const lz = [{ el: $('bAIGo'), to: 'K' }, { el: document.querySelector('#aiLv button.on'), to: 'J' }].filter(p => p.el);
+    startGame('ai', side, { undo: aopts.undo, total: aopts.total, step: aopts.step || 0, hints: aopts.hints, level: aopts.level, skin: aopts.skin || 0, bf: aopts.bf ? 1 : 0 }, { lz });
   };
   $('bHall').onclick = () => showPane('pHall');
   $('bRoomStart').onclick = roomBegin;
@@ -3649,7 +3687,11 @@
     Sfx.init(); applySettings();
     const o = { undo: ropts.undo, total: ropts.total, step: ropts.step, hints: ropts.hints, jq: ropts.v === 'jq' ? 1 : 0, bf: ropts.v === 'bf' ? 1 : 0, skin: ropts.v === 'bf' ? 0 : ropts.skin || 0, pub: createFor === 'host' && +ropts.pub ? 1 : 0 };
     const side = ropts.side === 'x' ? (Math.random() < 0.5 ? 'r' : 'b') : ropts.side;
-    if (createFor === 'local') { startGame('local', 'r', o); return; }
+    if (createFor === 'local') {   // 本地：下面那颗从「开始」起飞，上面那颗从屏幕顶上落进来
+      const sz = innerWidth <= 640 ? 32 : 60;
+      startGame('local', 'r', o, { lz: [{ el: $('bCreateGo'), to: 'K' }, { rect: { x: innerWidth / 2 - sz / 2, y: -sz * 1.5, w: sz, h: sz }, round: true, text: '將', to: 'J' }] });
+      return;
+    }
     const code = Net.gen(), pw = $('lockOn').checked ? $('lockPw').value.trim() : '';
     if ($('lockOn').checked && !pw) { toast('请输入房间密码，或取消勾选'); $('lockPw').focus(); return; }
     if (pw) { o.pwh = pwHash(code, pw); store.set('pw-' + code, o.pwh); }
@@ -3733,6 +3775,13 @@
   $('roomSeats').addEventListener('click', e => { if (e.target.closest('[data-back]')) roomSit(false); });
   $('roomSeats').addEventListener('keydown', e => { if ((e.key === 'Enter' || e.key === ' ') && e.target.closest('[data-back]')) { e.preventDefault(); roomSit(false); } });
   function roomTell() { if (room && room.host && room.seated) Net.send({ t: 'seat', hostSide, opts, ready: room.ready, hostOut: !!room.hostOut, ai2: room.hostOut ? room.ai2 || null : null }); }
+  // 落子入局（房间）：两边各播各的——自己的座位飞到下方帥位，对手的座位飞到上方（座位不在屏幕上就不播）
+  function seatLz(me) {
+    const el = s => document.querySelector('#roomSeats .seat.' + s), a = el(me), b = el(other(me));
+    if (!a || !b || !a.offsetParent) return null;
+    const t = e => ((e.querySelector('.sd') || e).textContent || '').trim();
+    return [{ el: a, to: 'K', text: t(a) }, { el: b, to: 'J', text: t(b) }];
+  }
   function roomBegin() {
     if (!room || !room.host || mode || mode_starting) return;
     if (room.hostOut && !room.ai2) { toast('你的座位空着：给它加个人机，或者点空座位坐回去'); return; }
@@ -3742,8 +3791,9 @@
     if (room.ai) opts = { ...opts, ai: room.ai, level: room.ai, ai2 };
     else opts = { ...opts, ai: null, ai2 };   // 对面是真人；房主座位上有电脑时由房主这台机器替他走（hostBot）
     if (room.ai || ai2) store.set('host', { code: room.code, opts, side: hostSide, t: Date.now() });
+    const lz = seatLz(hostSide);
     closeRoom();
-    startGame('host', hostSide, opts).then(() => { mode_starting = false; publish(); });
+    startGame('host', hostSide, opts, { lz }).then(() => { mode_starting = false; publish(); });
     Net.send({ t: 'welcome', state: snapshot() });
   }
   const closeRoom = () => { if (room) { clearInterval(room.timer); room = null; } };

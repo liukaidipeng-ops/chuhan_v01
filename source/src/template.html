@@ -924,7 +924,6 @@ html,body{-webkit-text-size-adjust:100%!important;text-size-adjust:100%!importan
 #bfRow,#bfBar.cmp #bfRow{gap:10px}
 /* 手机：技能栏和「技能未用」提示贴在自己牌的上方，让开牌外那圈朱框（伸出牌外 6px） */
 body.compact #bfBar.cmp,body.compact #skHint{translate:0 -2px}
-.sk:disabled,.sk.off{opacity:.5;filter:none}
 .sk .cd{border-radius:0}
 .sk .cdn{border:1.5px solid var(--k);background:var(--c);color:var(--k)}
 #bfHint{border:0;border-radius:0;background:var(--k);color:var(--c);box-shadow:inset 0 0 0 1px var(--c);font-family:var(--es)}
@@ -1315,6 +1314,28 @@ html:has(#endcard:not(.hidden)),html:has(#endcard:not(.hidden)) body,html:has(#e
   #pHall:not(.hidden){grid-template-columns:minmax(0,1fr) 200px;grid-template-rows:56px minmax(0,1fr);column-gap:40px}
   #lobby .lv{margin-bottom:52px}
 }
+/* 手机主界面、联机大厅底边对齐（美术总监 V1 第 3 条，Ham 圈出来的两处） */
+@media (max-width:640px){
+  #pMain{padding-bottom:calc(24px + var(--safe-b))!important}
+  #pMain .menu .btn:last-child{margin-bottom:0}
+  #pHall .e-body{display:flex;flex-direction:column}
+  #lobby #hallList{flex:1 1 auto;display:flex;flex-direction:column;overflow:auto}
+  #lobby #hallList li{flex:none}
+  #lobby #hallList:after{content:"";flex:1 0 0;min-height:0;border:solid var(--c);border-width:0 2px;background:repeating-linear-gradient(to top,transparent 0 90px,var(--c) 90px 92px)}
+  #lobby #pHall.pane .e-bar{margin-top:0}
+  #lobby #pHall.pane h3{border-bottom-width:0}
+}
+/* 美术总监 V3（Ham 审批台 ad-004 通过）：一页只留一个墨色主操作；「揭」字块、对局中的房间不再发粉 */
+#lobby #hallList li .btn.solid{background:none;color:var(--c);border:2px solid var(--c);box-shadow:none}
+#bShare{background:none;color:var(--c);border:2px solid var(--c);box-shadow:none}
+#lobby #hallList li.play{opacity:1}
+#lobby #hallList li.play .hi,#lobby #hallList li.play .hi b{color:var(--c)}
+#lobby #hallList li .hv.jq{background:none;color:var(--c);border-color:var(--c)}
+/* 房间有密码：用「锁」字，不用表情符号（美术总监 V3） */
+.lockw{display:inline-block;border:2px solid var(--c);padding:1px 4px;font-family:var(--ef);font-weight:900;font-size:.8em;line-height:1.1;vertical-align:.1em}
+/* 美术总监 V4（Ham 审批台 ad-007 选乙「深暖灰」）：暂时用不了的技能按钮——不靠透明度，深暖灰底、细斜纹、字照样看得清 */
+.sk:disabled,.sk.off{opacity:1;filter:none;background:#b9b2a4;background-image:repeating-linear-gradient(-45deg,transparent 0 6px,rgba(20,19,17,.08) 6px 7px);color:#4a453d;box-shadow:inset 0 0 0 1.5px #6b6458;outline:none;animation:none}
+.sk:disabled small,.sk.off small{color:#4a453d;opacity:.85}
 </style>
 </head>
 <body>
@@ -1432,7 +1453,7 @@ html:has(#endcard:not(.hidden)),html:has(#endcard:not(.hidden)) body,html:has(#e
     </div>
 
     <div id="pWait" class="pane hidden">
-      <div class="e-hd"><h3>房间 <span class="roomcode" id="roomCode" style="font-size:1em;display:inline;letter-spacing:.18em">·····</span> <span id="roomLock" class="hidden" title="有密码">🔒</span></h3><button class="link e-back" id="bBack2">离开房间</button></div>
+      <div class="e-hd"><h3>房间 <span class="roomcode" id="roomCode" style="font-size:1em;display:inline;letter-spacing:.18em">·····</span> <span id="roomLock" class="lockw hidden" title="有密码">锁</span></h3><button class="link e-back" id="bBack2">离开房间</button></div>
       <div class="e-body">
       <div class="seats" id="roomSeats"></div>
       <div class="specs"><b>观战席</b><span id="roomSpecs">暂时没有观众</span></div>
