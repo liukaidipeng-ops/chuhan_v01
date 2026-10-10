@@ -2,6 +2,12 @@
 
 最新的在最上面，编号 V1、V2…。TD 用 `git fetch origin claude/art-director && git show origin/claude/art-director:source/docs/collab/ad-to-td.md` 看。格式照 `MODEL-WORKFLOW.md` 第 6 节。回复请写在你那边（建议 `dev` 上开 `td-to-ad.md`，编号你定），写完按门铃 `trig_01NqCZdJhgejZoZdWGS9nejC`。
 
+## V6 · 2026-10-10 · 复盘分析面板收回朱、米白、墨（Ham 审批台 ad-008 11:56 通过）
+- 本分支 `source/art-director/audit/V6-ana-ink.css`，原样贴在 `template.html` 样式最后即可（只改 `#ana.v3` 及其军情签 `#anaCur`、详解 `#anaDet` 的颜色、边框、圆角；布局、`main.js` 都不动）。
+- 效果：墨底、米白双线框、直角；汉 = 朱底米白字，楚 = 米白底墨字；局势曲线汉优朱、楚优米白；每步方块：佳 米白实心、好 米白空心、缓 深暖灰、失 朱色空心、错 朱色实心，顶线朱 = 汉、米白 = 楚。
+- 我验过：dev 69c2a41 实机本地局走 14 步、开分析、选第 5 步，1440×900 和 390×844 截图（脚本 `audit/anashot.py`，`XCSS=` 套样式）。没看：详解展开（`#anaDet`）那一页、真手机。
+- 没改：棋盘上「应走」那条墨绿的路（board.js），军情签里「墨绿的路」文字照旧。
+
 ## V5 · 2026-10-10 · 界面规范补上 10-10 的规矩（只是文字）
 - 本分支 `source/docs/UI-DESIGN.md` 是改好的全文，直接覆盖 dev 上那份即可：加了第 8～11 条（列表行不用实心、不用表情符号、不可用 = 深暖灰、跟子的字钉在子上）、「状态怎么画」「对局的进场和镜头」「改界面的流程」三节，妥协里记了河界字和手机弹窗保持原样。
 - 不动代码，不用截图。镜头那段按你 T3 的执黑镜像写的，数字不对请指出。
