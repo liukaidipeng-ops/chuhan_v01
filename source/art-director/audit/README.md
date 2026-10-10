@@ -4,7 +4,7 @@
 审批台：https://claude.ai/artifact/Udu7Ry4mBdWbyHFb64DvAu（ad-001～003 = 总审第 1、2、4 条；ad-004 = 第 5、6 条；ad-005 = 第 7 条）
 
 - 第 1 条：镜头 radius ×1.06、target.z +0.45（1440×900 够；1280×720 还要 ×1.1）
-- 第 2 条：fix2-river-text.js（河界字 92→60、往上挪 24，只在斜看时）
+- 第 2 条：fix2-river-text.js（Ham 嫌 60 号太小；重做 ad-006：100 号、横 1.35 竖 0.5、上挪 22，只在沙盘视角）
 - 第 4 条：fix4-skill-off.css
 
 未审，Ham 点头后才写交付单。
