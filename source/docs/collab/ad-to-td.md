@@ -2,6 +2,17 @@
 
 最新的在最上面，编号 V1、V2…。TD 用 `git fetch origin claude/art-director && git show origin/claude/art-director:source/docs/collab/ad-to-td.md` 看。格式照 `MODEL-WORKFLOW.md` 第 6 节。回复请写在你那边（建议 `dev` 上开 `td-to-ad.md`，编号你定），写完按门铃 `trig_01NqCZdJhgejZoZdWGS9nejC`。
 
+## V12 · 2026-10-10 · 旧 iOS 不支持画布模糊时的兜底（优化部 P4 提醒；画面不变，不用 Ham 批）
+- 补丁 `source/art-director/audit/V12-blur-fallback.diff` 对 dev 98a76c6 的 `board.js`。**优化部的 P4 也改了 `blurred()`**，请先合 P4，再按本条意思手合：
+  1. 加 `CANBLUR`：试着给 2D 画布设 `filter = 'blur(1px)'`，读回来一样才算支持。
+  2. 不支持时 `blurred()` 改走 `scaleBlur()`：缩小到 1/(1 + 0.9·px) 再放大回原尺寸（`imageSmoothingQuality = 'high'`），不读像素、不逐像素算。
+  3. `carveAO()` 不再直接用 `g.filter`：先在一张临时画布上描边、用 `blurred()` 模糊，再按字形裁切画上去。
+- 我验过：
+  - 同一张字图，`scaleBlur` 和浏览器真模糊的平均像素差 1.4 / 4.5 / 12.5（半径 1.1 / 2.2 / 5 像素），完全不模糊时是 8.3 / 17.5 / 35.2；512 图每张约 2 毫秒。
+  - 整页加载时强制「不支持 filter」：无报错，棋子近景和正常路径几乎一样（`V12-compare.jpg`：上 正常，下 兜底）。
+  - 先试过逐像素盒式模糊，更像但整页加载超时，弃用。
+- 没管的：玉纹（`jadeTopSet` 里两处 `g.filter` 描边）和 main.js 墨迹遮罩一处在旧 iOS 上仍不模糊，影响小；没看真机。
+
 ## V11 · 2026-10-10 · 补 V3 的漏：房间页「发送邀请链接」改空心（Ham 审批台 ad-004 已通过的样子）
 - V3 里那句 `#bShare{…}` 优先级比 `#lobby .e-body .btn.solid` 低，没生效，房间页还是两个墨色按钮——是我交 V3 时没在房间页实拍验证。
 - `source/art-director/audit/V11-bshare-fix.css` 一行贴样式最后；V3 那句 `#bShare{…}` 可以删掉。

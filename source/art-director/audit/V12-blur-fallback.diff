@@ -1,0 +1,33 @@
+diff --git a/source/src/board.js b/source/src/board.js
+index c31f748..96a173c 100644
+--- a/source/src/board.js
++++ b/source/src/board.js
+@@ -534,8 +534,8 @@ const Board = (() => {
+   // 刻槽里的柔和暗部（不描黑边）：沿字的边往里渐暗
+   function carveAO(g, w, ch, a) {
+     const p = Face.path(ch, w); if (!p) return;
+-    g.save(); g.clip(p); g.filter = `blur(${(w * 0.012).toFixed(1)}px)`;
+-    g.strokeStyle = `rgba(30,12,4,${a})`; g.lineWidth = w * 0.03; g.stroke(p); g.restore();
++    const sh = blurred(mkCanvas(w, w, t => { t.strokeStyle = `rgba(30,12,4,${a})`; t.lineWidth = w * 0.03; t.stroke(p); }), w * 0.012);
++    g.save(); g.clip(p); g.drawImage(sh, 0, 0); g.restore();
+   }
+   // 升级后（银、金、玉）的掐丝珐琅字也刻下去：只有字
+   const charNormCache = {};
+@@ -863,7 +863,16 @@ const Board = (() => {
+       g.putImageData(im, 0, 0);
+     });
+   }
+-  const blurred = (c, px) => mkCanvas(c.width, c.height, g => { g.filter = `blur(${px}px)`; g.drawImage(c, 0, 0); g.filter = 'none'; });
++  // 画布模糊：ctx.filter 较老的 iOS Safari 不支持（会静默不模糊，刻痕边变硬），那时先缩小再放大来模糊，样子接近
++  const CANBLUR = (() => { try { const t = document.createElement('canvas').getContext('2d'); t.filter = 'blur(1px)'; return t.filter === 'blur(1px)'; } catch (e) { return false; } })();
++  function scaleBlur(c, px) {   // 先缩小再放大，靠图像平滑模糊；不逐像素算，旧手机上也快
++    const w = c.width, h = c.height, k = 1 + px * 0.9, sw = Math.max(1, Math.round(w / k)), sh = Math.max(1, Math.round(h / k));
++    const sm = mkCanvas(sw, sh, g => { g.imageSmoothingEnabled = true; g.imageSmoothingQuality = 'high'; g.drawImage(c, 0, 0, sw, sh); });
++    return mkCanvas(w, h, g => { g.imageSmoothingEnabled = true; g.imageSmoothingQuality = 'high'; g.drawImage(sm, 0, 0, w, h); });
++  }
++  const blurred = (c, px) => CANBLUR
++    ? mkCanvas(c.width, c.height, g => { g.filter = `blur(${px}px)`; g.drawImage(c, 0, 0); g.filter = 'none'; })
++    : scaleBlur(c, px);
+   // 旋压（车床）拉丝的各向异性方向：沿同心圆切向
+   function spunAniso(n) {
+     return mkCanvas(n, n, g => {
