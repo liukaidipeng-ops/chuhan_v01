@@ -66,13 +66,13 @@ window.ElephantLV = (() => {
   // 象屁股重做 + 尾巴（Ham char-007：「象需要有尾巴！象屁股那块重做一下」）：两瓣臀、后腿根鼓出来；尾巴一节节往下、尾尖一簇毛，火把绑在尾尖
   function rump(el, lv) {
     const sk = lv >= 4 ? GOLD : 0x6f6a64, sk2 = lv >= 4 ? 0xc4922e : 0x5d5853;
-    add(el.body, [...[1, -1].flatMap(s => [P(G.sph(0.62, 12), sk, -1.22, 2.08, 0.36 * s, 0, 0, 0, 0.8, 1.12, 0.78), P(G.sph(0.42, 10), sk2, -1.0, 1.68, 0.5 * s, 0, 0, 0, 1, 1.15, 0.85)]), P(G.box(0.04, 0.9, 0.02), 0x3a3633, -1.66, 2.05, 0)], 0.025);
-    el.tail.children[0].visible = false; el.tail.position.set(-1.68, 2.62, 0); el.tail.rotation.z = 0.18;
+    add(el.body, [...[1, -1].flatMap(s => [P(G.sph(0.55, 12), sk, -1.3, 2.12, 0.3 * s, 0, 0, 0, 0.72, 1.1, 0.78), P(G.sph(0.42, 10), sk2, -1.0, 1.68, 0.5 * s, 0, 0, 0, 1, 1.15, 0.85)]), P(G.box(0.04, 0.9, 0.02), 0x3a3633, -1.66, 2.05, 0)], 0.025);
+    el.tail.children[0].visible = false; el.tail.position.set(-1.72, 2.7, 0); el.tail.rotation.z = 0.32;
     const segs = [];
-    for (let i = 0; i < 5; i++) segs.push(P(G.cyl(0.055 - i * 0.007, 0.05 - i * 0.007, 0.2, 7), sk2, 0, -0.1 - i * 0.19, 0));
-    segs.push(P(G.cone(0.08, 0.26, 7), 0x1d1c1b, 0, -1.05, 0, PI));   // 尾尖一簇毛
+    for (let i = 0; i < 5; i++) segs.push(P(G.cyl(0.08 - i * 0.01, 0.07 - i * 0.01, 0.24, 8), sk2, 0, -0.12 - i * 0.23, 0));
+    segs.push(P(G.cone(0.1, 0.32, 8), 0x1d1c1b, 0, -1.3, 0, PI));   // 尾尖一簇毛
     add(el.tail, segs, 0.015);
-    el.torch.position.y = -0.95;
+    el.torch.position.y = -1.15;
   }
   // 四级金甲鳞片（Ham char-007：「给黄金象的金甲增加鳞片，不然像金壳，鳞甲之间的接缝注意用黑线，少量红色作为点缀」）
   function scales(el) {
@@ -86,6 +86,11 @@ window.ElephantLV = (() => {
         const n = V(x / 1.6 ** 2, (y - 2.25) / 1.08 ** 2, z / 0.98 ** 2).normalize(), e = new THREE.Euler().setFromQuaternion(new THREE.Quaternion().setFromUnitVectors(up, n));
         ps.push(P(G.sph(0.11, 6, 4), (row + Math.round(a * 5)) % 3 ? GOLD : 0xc4922e, x, y, z, e.x, e.y, e.z, 1.0, 0.9, 0.22));
       }
+    }
+    for (const s of [1, -1]) for (let a = 0; a < 7; a++) for (let b = 0; b < 6; b++) {   // 两瓣臀上也铺鳞
+      const th = -1.2 + a * 0.38 + (b % 2 ? 0.19 : 0), ph = -0.9 + b * 0.33, n = V(Math.cos(ph) * -Math.abs(Math.cos(th)), Math.sin(ph), Math.sin(th) * 0.9 * s).normalize();
+      const pnt = V(-1.3 + n.x * 0.55 * 0.74, 2.12 + n.y * 0.55 * 1.12, 0.3 * s + n.z * 0.55 * 0.8); if (n.x > 0.2) continue;
+      const e = new THREE.Euler().setFromQuaternion(new THREE.Quaternion().setFromUnitVectors(up, n)); ps.push(P(G.sph(0.1, 6, 4), (a + b) % 3 ? GOLD : 0xc4922e, pnt.x, pnt.y, pnt.z, e.x, e.y, e.z, 1, 0.9, 0.22));
     }
     ps.push(...Array.from({ length: 9 }, (_, i) => P(G.sph(0.045, 6), 0x9e2418, -1.2 + i * 0.3, 3.33, 0)));   // 背脊一路红钉：少量红点缀
     add(el.body, ps, 0.012);
