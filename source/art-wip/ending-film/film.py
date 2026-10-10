@@ -16,7 +16,7 @@ with sync_playwright() as p:
     pg.goto(pathlib.Path(SRC + '/dist/site/index.html').resolve().as_uri(), wait_until='domcontentloaded')
     pg.wait_for_function("()=>{const l=document.getElementById('lobby');return l&&!l.classList.contains('hidden')}"); time.sleep(2)
     pg.evaluate("()=>{ Core.render = false; }")
-    for f in (A + 'liubang-v2/lb2.js', A + 'xiangyu-v3/xy3.js', H + '/ferry2.js', H + '/sb2.js', SP + '/horse/horse.js', SP + '/horse/xy4.js', H + '/film.js'):
+    for f in (A + 'liubang-v2/lb2.js', A + 'xiangyu-v3/xy3.js', H + '/ferry2.js', H + '/sb2.js', A + 'wuzhui3d/horse.js', A + 'wuzhui3d/xy4.js', H + '/film.js'):
         nm = os.path.basename(f).split('.')[0]
         extra = {'lb2': 'window.LB2=LB2;', 'xy3': 'window.XY3=XY3;', 'horse': 'window.WuZhui=WuZhui;', 'xy4': 'window.XY4=XY4;'}.get(nm, '')
         pg.add_script_tag(content=open(f, encoding='utf-8').read() + '\n' + extra)

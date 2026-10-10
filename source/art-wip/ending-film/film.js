@@ -140,6 +140,44 @@ window.FILM = {};
         post.focus = cam.position.distanceTo(head);
       } };
   };
+  // ---------- F3b · 下马（审批台 094 选乙）：项王俯身、右腿从马背上跨过来，扶鞍滑下，落地站定，回身看乌骓（3.6 秒） ----------
+  FILM.F3b = () => {
+    const ctx = riverStage({ seed: 10, sun: [0.55, 0.2, -0.8] });   // 光从镜头这边打过去，看得清跨腿、滑下
+    const rp = []; for (let i = 0; i < 40; i++) rp.push([SB.rr(-10, -4), 0, SB.rr(-16, 4)]);
+    SB.reeds(ctx, rp, { per: 22, r: 1.2, h: [1.1, 2.3] });
+    SB.dust(ctx, { n: 50, box: [-60, 20, 0, 3, -60, -6], s: [8, 20], op: [0.05, 0.12], col: 0xf1dcc0 });
+    const R = rider(ctx, 2); R.H.group.position.set(0, gy(ctx, 0, 0), 0); R.H.group.rotation.y = 0; R.H.speed = 0; R.step(1 / 24);
+    const X = R.X; X.group.updateMatrixWorld(true);
+    // 从马背上摘下来，之后在世界里摆：起点是鞍上，终点在马的左侧（-z）、马肩旁边
+    const P0 = X.group.getWorldPosition(V(0, 0, 0)), Q0 = X.group.getWorldQuaternion(new THREE.Quaternion());
+    let root = X.group; while (root.parent) root = root.parent; root.attach(X.group);
+    const yaw0 = new THREE.Euler().setFromQuaternion(Q0, 'YXZ').y;
+    const G = V(0.35, gy(ctx, 0.35, -0.78), -0.78);
+    const cam = SB.cam([2.4, 1.25, -5.6], [0.25, 1.35, -0.4], 30);
+    const post = { focus: 5.6, ap: 0.6, maxR: 13, exp: 1.0, gain: [1.07, 0.98, 0.87], sat: 0.9, vign: 0.46, grain: 0.05 };
+    return { ctx, cam, dur: 3.6, post,
+      update(t, dt) {
+        R.H.earK = 0.5; R.H.headK = t > 2.4 ? -0.15 * sm((t - 2.4) / 0.8) : 0; R.H.lookY = t > 2.2 ? -0.3 * sm((t - 2.2) / 1) : 0; R.H.snortK = t > 2.9 && t < 3.3 ? 1 : 0;
+        R.H.update(dt); R.H.group.updateMatrixWorld(true);
+        const lean = sm(t / 0.5) * (1 - sm((t - 1.1) / 0.4));                 // 0–0.5 俯身
+        const sw = sm((t - 0.45) / 0.8);                                       // 0.45–1.25 右腿跨过马背、身子转到左边
+        const dn = sm((t - 1.2) / 0.75);                                       // 1.2–1.95 扶鞍滑下
+        const land = Math.max(0, Math.sin(Math.max(0, Math.min(1, (t - 1.9) / 0.45)) * PI));   // 1.9–2.35 落地屈膝
+        const turn = sm((t - 2.35) / 0.9);                                     // 2.35 以后回身看马
+        // 位置：先往左上挪一点（跨腿时身子离鞍），再往下滑到地上
+        const side = lerp(0, 0.45, sw) + lerp(0, 0.33, dn), up = 0.12 * sw * (1 - dn);
+        const p = V(lerp(P0.x, G.x, dn), lerp(P0.y + up, G.y, dn * dn), P0.z - side);
+        X.group.position.copy(p);
+        X.group.rotation.set(0, yaw0 + lerp(0, -0.55, sw) * (1 - dn) + lerp(0, -0.25, dn) + lerp(0, -1.2, turn), 0);   // 落地以后转身面向乌骓（背对镜头半侧）
+        // 腿：右腿抬起跨过去，滑下时两腿伸直，落地一蹲
+        const ride = [0.85, 0.55, 0.9];
+        const R1 = [lerp(lerp(ride[0], 1.35, sw), 0.05, dn) + land * 0.35, lerp(lerp(ride[1], -0.25, sw), 0.05, dn), lerp(lerp(ride[2], 0.35, sw), 0.1, dn) + land * 0.7];
+        const L1 = [lerp(ride[0], 0.05, sm((t - 0.9) / 0.9)) + land * 0.35, lerp(ride[1], 0.06, sm((t - 0.9) / 0.9)), lerp(ride[2], 0.1, sm((t - 0.9) / 0.9)) + land * 0.7];
+        X.pose({ hipsRx: 0.05 + 0.35 * lean + 0.15 * land, hipsY: -0.12 * land, chestRx: 0.2 * lean - 0.02, chestRy: 0.15 * turn, headRx: 0.1 * lean + 0.12 * turn, headRy: lerp(0, -0.25, turn), legs: { 1: R1, '-1': L1 } });
+        X.update(dt); X.group.updateMatrixWorld(true); R.reins();
+        post.focus = cam.position.distanceTo(p.clone().add(V(0, 1.4, 0)));
+      } };
+  };
   // ---------- F4 · 赠马：抚马，把缰绳递给亭长（「吾知公长者……以赐公。」，16 秒） ----------
   // 双人中景：乌骓侧身朝左，项王站在马头前（侧脸朝右）抚它；亭长从画左走近，双手接缰
   FILM.F4 = () => {
@@ -217,8 +255,23 @@ window.FILM = {};
     SB.ground(ctx, { col: '#8a7a60', flat: 6, hills: 0, ridge: { z: -48, h: 9, w: 26 } });
     SB.ridges(ctx, { dist: 300, h: 30, col: 0x6d6a6a, seed: 6, layers: 2 });
     const pts = [];
-    for (let row = 0; row < 20; row++) for (let i = 0; i < 52; i++) { const x = -70 + i * 2.7 + SB.rr(-0.9, 0.9) + (row % 2) * 1.35, z = -88 + row * 2.1 + SB.rr(-0.8, 0.8); pts.push({ x, z, yaw: PI / 2 + SB.rr(-0.1, 0.1), ph: SB.rr(0, 6) }); }
-    const geo = Models.cavalryStaticGeo('r'), inst = new THREE.InstancedMesh(geo, Models.vcMat, pts.length); inst.castShadow = true; inst.frustumCulled = false; ctx.add(inst);
+    for (let row = 0; row < 20; row++) for (let i = 0; i < 52; i++) { const x = -70 + i * 2.7 + SB.rr(-0.9, 0.9) + (row % 2) * 1.35, z = -88 + row * 2.1 + SB.rr(-0.8, 0.8); pts.push({ x, z, yaw: -PI / 2 + SB.rr(-0.1, 0.1), ph: SB.rr(0, 6) }); }   // 马头朝镜头（朝前冲的方向）；原来朝后，跑起来是倒着走
+    // 前八排换成对局里的高精度骑兵，按奔跑的八个相位烘成八份合并网格，每帧按各自的步子换着用（审批台 094 选乙）；后面远处照旧用简模
+    const NPH = 8, bake = (() => { const c = Models.makeCavalry('r', true, 'dao'); c.speed = 1; const out = [];
+      for (let k = 0; k < NPH; k++) { c.t = (2 * PI * k / NPH) / 7.5; c.update(0); c.group.updateMatrixWorld(true); const inv = c.group.matrixWorld.clone().invert(), pos = [], nor = [], col = [];
+        c.group.traverse(m => { if (!m.isMesh || !m.visible || !(m.layers.mask & 1)) return; const mat = Array.isArray(m.material) ? m.material[0] : m.material; if (!mat || mat.side === THREE.BackSide) return;
+          // 合并过的单元是蒙皮网格：顶点按骨头算到当下的姿势（CPU 上算一遍），法线按三角形重算
+          const g0 = m.geometry, P = g0.attributes.position, C = g0.attributes.color, mc = mat.color || new THREE.Color(1, 1, 1), Mw = new THREE.Matrix4().multiplyMatrices(inv, m.matrixWorld);
+          if (m.isSkinnedMesh) m.skeleton.update();
+          const bt = m.isSkinnedMesh ? (m.applyBoneTransform || m.boneTransform) : null, ix = g0.index ? g0.index.array : null, n = ix ? ix.length : P.count, v = V(0, 0, 0), tri = [];
+          for (let k = 0; k < n; k++) { const i = ix ? ix[k] : k; v.fromBufferAttribute(P, i); if (bt) bt.call(m, i, v); v.applyMatrix4(Mw); tri.push(v.clone());
+            pos.push(v.x, v.y, v.z); if (C) col.push(C.getX(i) * mc.r, C.getY(i) * mc.g, C.getZ(i) * mc.b); else col.push(mc.r, mc.g, mc.b);
+            if (tri.length === 3) { const nn = tri[1].clone().sub(tri[0]).cross(tri[2].clone().sub(tri[0])).normalize(); for (let j = 0; j < 3; j++) nor.push(nn.x, nn.y, nn.z); tri.length = 0; } } });
+        const G2 = new THREE.BufferGeometry(); G2.setAttribute('position', new THREE.Float32BufferAttribute(pos, 3)); G2.setAttribute('normal', new THREE.Float32BufferAttribute(nor, 3)); G2.setAttribute('color', new THREE.Float32BufferAttribute(col, 3)); out.push(G2); }
+      return out; })();
+    const front = pts.filter(p => p.z > -88 + 11.5 * 2.1), back = pts.filter(p => p.z <= -88 + 11.5 * 2.1);
+    const hd = bake.map(g => { const m = new THREE.InstancedMesh(g, Models.vcMat, front.length); m.castShadow = true; m.frustumCulled = false; m.count = 0; ctx.add(m); return m; });
+    const geo = Models.cavalryStaticGeo('r'), inst = new THREE.InstancedMesh(geo, Models.vcMat, back.length); inst.castShadow = true; inst.frustumCulled = false; ctx.add(inst);
     const M4 = new THREE.Matrix4(), q = new THREE.Quaternion(), Y = V(0, 1, 0);
     const flags = []; for (let i = 0; i < 22; i++) { const g = new THREE.Group(); const pole = new THREE.Mesh(new THREE.CylinderGeometry(0.04, 0.05, 7.5, 6), new THREE.MeshStandardMaterial({ color: 0x2a2018 })); pole.position.y = 3.75; g.add(pole);
       const fg = new THREE.PlaneGeometry(1.8, 2.6, 12, 4); const f = new THREE.Mesh(fg, new THREE.MeshStandardMaterial({ color: 0xa8321f, side: THREE.DoubleSide, roughness: 0.9 })); f.position.set(0.9, 7.5 - 1.4, 0); g.add(f); g.rotation.y = -PI / 2 + 0.3; ctx.add(SB.shadows(g)); flags.push({ g, f, base: fg.attributes.position.array.slice(), x: -60 + i * 5.6 + SB.rr(-2, 2), z: -64 + SB.rr(0, 8), ph: SB.rr(0, 6) }); }
@@ -231,8 +284,11 @@ window.FILM = {};
     return { ctx, cam, dur: 5, post: { focus: 31, ap: 0.5, maxR: 14, exp: 1.05, gain: [1.06, 0.97, 0.88], sat: 0.88, vign: 0.45, grain: 0.055 },
       update(t, dt) {
         const adv = 2.6 * t;   // 整片骑兵往前压，一排排从山脊后面冒出来
-        pts.forEach((p, i) => { const z = p.z + adv, y = ctx.hAt(p.x, z) - 0.05 + Math.abs(Math.sin(t * 9 + p.ph)) * 0.06; q.setFromAxisAngle(Y, p.yaw); M4.compose(V(p.x, y, z), q, V(1, 1, 1)); inst.setMatrixAt(i, M4); });
+        back.forEach((p, i) => { const z = p.z + adv, y = ctx.hAt(p.x, z) - 0.05 + Math.abs(Math.sin(t * 9 + p.ph)) * 0.06; q.setFromAxisAngle(Y, p.yaw); M4.compose(V(p.x, y, z), q, V(1, 1, 1)); inst.setMatrixAt(i, M4); });
         inst.instanceMatrix.needsUpdate = true;
+        for (const m of hd) m.count = 0;
+        front.forEach(p => { const k = ((Math.floor((t * 19.5 + p.ph * 3) / (2 * PI) * NPH) % NPH) + NPH) % NPH, m = hd[k], z = p.z + adv; q.setFromAxisAngle(Y, p.yaw); M4.compose(V(p.x, ctx.hAt(p.x, z) - 0.04, z), q, V(1, 1, 1)); m.setMatrixAt(m.count++, M4); });
+        for (const m of hd) m.instanceMatrix.needsUpdate = true;
         flags.forEach(F => { const z = F.z + adv; F.g.position.set(F.x, ctx.hAt(F.x, z) - 0.3, z); const P = F.f.geometry.attributes.position; for (let k = 0; k < P.count; k++) { const x0 = F.base[k * 3] + 0.9; P.setZ(k, Math.sin(x0 * 2.2 - t * 7 + F.ph) * 0.14 * x0); } P.needsUpdate = true; F.f.geometry.computeVertexNormals(); });
         dA.position.z = adv * 0.8; dB.position.z = adv;
         const sh = 0.012 + 0.02 * sm(t / 4); cam.position.copy(c0).add(V(Math.sin(t * 37) * sh, Math.sin(t * 53 + 1) * sh, 0)); cam.lookAt(0, 7.6 - 0.6 * sm(t / 5), -40);
