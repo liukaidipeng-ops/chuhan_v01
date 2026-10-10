@@ -47,7 +47,7 @@ const Core = (() => {
   const hemi = new THREE.HemisphereLight(0xfff6e6, 0x8a7a66, 1.6);
   scene.add(hemi);
   const sun = new THREE.DirectionalLight(0xfff0dc, 2.6);
-  sun.position.set(-6, 14, 7);
+  sun.position.set(-2.5, 16, 3);   // 美术总监 V10（ad-015 丙）：灯挤高，影子收到棋子脚下（原来 -6, 14, 7）
   sun.castShadow = quality !== 'low';
   sun.shadow.mapSize.set(quality === 'high' ? 2048 : 1024, quality === 'high' ? 2048 : 1024);
   const sc = sun.shadow.camera;
