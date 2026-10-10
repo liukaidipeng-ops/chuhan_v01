@@ -42,10 +42,17 @@ duel_kill = [   # 击杀版
   (4.3, S('victory'), -8)]
 # 第四十一批（b44）按 Ham 备注改：“弩的声音不对”→ 真弩：弩炮发射声开头（调高变小）的“嘣”+ 箭飞“嗖”；
 # “老虎的声音太慢了，不像攻击”→ 0 A.D. 狮子短促扑击咆哮；“需要有被打击的声音”→ 象顶上加撞击 + 兵挨撞；“木头声音听不到”→ 木头断裂提响拉长
-def xbow(t, k=0):   # 一发弩：嘣（弦）+ 嗖（箭）
-    tw = rate(A('siege/ballist_attack_0' + str(1 + k % 2))[:int(0.35 * SR)], 1.6)
-    tw = tw * np.minimum(1, (len(tw) - np.arange(len(tw))) / (0.08 * SR))
-    return [(t, tw, -2), (t + 0.03, A('weapon/arrowfly_0' + str(1 + k % 3)), -6)]
+# 第四十二批（b45）：“现在听着像回旋镖……你试试射箭的声音呢？”→ 去掉箭飞的“嗖”，改用 0 A.D. 真弓发射（bow_attack），放箭那一下对准射击时刻
+MODE = 'bow'
+def release(n):   # 取 bow_attack_0n 里放箭那一下（能量最大处往前 30 毫秒起，留 0.6 秒）
+    x = A(f'weapon/bow_attack_0{n}'); w = int(0.01 * SR); e = np.convolve(np.abs(x), np.ones(w) / w, 'same'); pk = int(np.argmax(e))
+    s0 = max(0, pk - int(0.03 * SR)); y = x[s0:s0 + int(0.6 * SR)]
+    return y * np.minimum(1, (len(y) - np.arange(len(y))) / (0.2 * SR)), (pk - s0) / SR
+def xbow(t, k=0):
+    if MODE == 'oga': return [(t, S('bow'), -4)]
+    y, off = release(1 + k % 5); c = [(t - off, y, -2)]
+    if MODE == 'bowthunk': c.append((t, S('thunk'), -8))
+    return c
 def xbow_volley(n=1):   # 弩手现身、上弦、三连射、中箭（插盾 / 插木桩 / 入肉）
   c = [(0.0, S('twirl'), -14), (0.45, S('creak'), -12), (0.55, S('chain'), -16)]
   for j, t in enumerate((0.70, 0.88, 1.06)):
@@ -68,6 +75,22 @@ juma_ele_kill = [(0.0, S('elecry'), -8), *[(t, S('stomp'), -6, 0.8) for t in (0.
   (0.80, S('punch'), -2, 0.8), (0.80, S('boom'), -10), (0.84, S('death'), -4), (0.9, S('sgrunt'), -6),
   (1.2, S('stones'), -8), (1.4, S('plank'), -8), (1.6, S('soft'), -4, 0.8), (1.62, S('wood'), -8),
   *[(t, S('stomp'), -6, 0.8) for t in (1.2, 1.5)], (1.8, S('elecry'), -6, 0.92)]
+import sys as _s
+OUTS = _s.argv[4:] or ['all']
+if 'b45' in OUTS:
+    for m in ('bow', 'bowthunk', 'oga'):
+        MODE = m; V.save(render(xbow_volley(), 2.4), O + f'/juma_xiang_hit_{m}.mp3', '64k'); print('xiang_hit', m)
+    MODE = 'bow'
+    xk = xbow_volley() + juma_xiang_kill[len(xbow_volley()):]
+    V.save(render(xk, 3.0), O + '/juma_xiang_kill.mp3', '64k'); print('xiang_kill')
+    ek = [(0.0, S('elecry'), -4), *[(t, S('stomp'), -6, 0.8) for t in (0.1, 0.35, 0.6)], (0.0, S('elerun'), -10),
+      (0.80, S('woodbreak', 0), 2), (0.82, S('woodbreak', 1), 0, 0.8), (0.86, S('woodbreak', 2), -1, 1.1), (0.92, S('woodbreak', 3), -2, 0.9),
+      (1.02, S('woodbreak', 0), -4, 1.2), (1.15, S('woodbreak', 1), -6, 0.7), (1.3, S('woodbreak', 2), -8, 1.3),
+      (0.80, S('boom'), -8), (0.80, S('rumble'), -10), (0.84, S('death'), -4), (0.9, S('sgrunt'), -6),
+      (1.1, S('plank'), -6), (1.25, S('wood'), -6), (1.4, S('plank'), -8), (1.62, S('soft'), -4, 0.8), (1.62, S('stones'), -10),
+      *[(t, S('stomp'), -6, 0.8) for t in (1.2, 1.5)], (1.8, S('elecry'), -2, 0.92)]
+    V.save(render(ek, 2.6), O + '/juma_ele_kill.mp3', '64k'); print('ele_kill')
+    raise SystemExit
 for name, cues, T in (('juma_xiang_hit', juma_xiang_hit, 2.4),
                       ('juma_xiang_kill', juma_xiang_kill, 3.0), ('juma_ele_hit', juma_ele_hit, 2.5), ('juma_ele_kill', juma_ele_kill, 2.6)):
     V.save(render(cues, T), O + f'/{name}.mp3', '64k'); print(name, 'ok')
