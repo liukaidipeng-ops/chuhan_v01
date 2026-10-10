@@ -752,7 +752,7 @@ const TigerHD = (() => {
     let staff0 = null;
     o.update(0);
     if (staff) staff0 = relQ(staff, new THREE.Quaternion()).clone();
-    // 两种死法（美术 M23，Ham 审批台 077）：TD 在 TigerRider.die 里按挨打的方式调，都返回 Promise
+    // 两种死法（美术 M24，Ham 审批台 077）：TD 在 TigerRider.die 里按挨打的方式调，都返回 Promise
     //   o.blast()：炮击——一团火光，虎骑被掀翻，虎身、虎头、四条腿、尾巴、文臣、节杖四散飞出（都熏黑），碎屑落一地；不流血
     //   o.fall()：中刀——虎仰头一挫，踉跄着往 deadSide 那边倒下；文臣被颠离鞍座，摔向另一边侧躺，节杖脱手另落一处
     //   拆下来的件挂到小队的 group 上（g.parent），之后化墨、释放跟着小队走
