@@ -549,6 +549,29 @@ const Board = (() => {
   }
   // 木字面凹凸：圈线刻下去，字更深，木纹按明暗带一点起伏（每颗子一张，跟字面贴图一样按 id 缓存）
   const normCache = {};
+  // 优化部 P4：木字面法线图（32 张 512）原来开局时一口气算完，手机上要好几秒、整页卡住。
+  //   改成先挂一张平的（画出来和没有法线图一样，着色器也是同一个，换图不用重编），空闲时一颗一颗算好再换上。
+  //   页面刚打开时大厅盖着棋盘，等玩家开局早就算完了；算好的照旧按 id 缓存
+  const flatNorm = (() => { const t = new THREE.DataTexture(new Uint8Array([128, 128, 255, 255]), 1, 1); t.needsUpdate = true; return t; })();
+  const normQ = [];
+  let normT = 0;
+  function lazyNorm(mat, s, t, id = 0) {
+    const key = s + (id | 0) + XQ.NAMES[s][t];
+    mat.userData.normKey = key;
+    if (normCache[key]) return normCache[key];
+    normQ.push({ mat, s, t, id, key });
+    if (!normT) normT = setTimeout(normStep, 50);
+    return flatNorm;
+  }
+  function normStep() {
+    const t0 = performance.now();
+    while (normQ.length && performance.now() - t0 < 25) {   // 一次最多算 25 毫秒（至少一颗），剩下的下一轮
+      const q = normQ.shift();
+      if (q.mat.userData.normKey !== q.key) continue;   // 这期间换了字面（揭棋翻开、换兵种）：作废
+      q.mat.normalMap = faceNorm(q.s, q.t, q.id);
+    }
+    normT = normQ.length ? setTimeout(normStep, 30) : 0;
+  }
   function faceNorm(s, t, id = 0) {
     const ch = XQ.NAMES[s][t], key = s + (id | 0) + ch;
     if (normCache[key]) return normCache[key];
@@ -627,7 +650,8 @@ const Board = (() => {
     const g = new THREE.Group();
     const body = new THREE.Mesh(pieceGeo, pieceWood);
     body.castShadow = true; body.receiveShadow = true;
-    const face = new THREE.Mesh(faceGeo, new THREE.MeshStandardMaterial({ map: p.h ? backTex(p.s, p.pt) : faceTex(p.s, p.t, p.id), normalMap: p.h ? null : faceNorm(p.s, p.t, p.id), transparent: true, roughness: p.h ? 0.32 : 0.5, polygonOffset: true, polygonOffsetFactor: -2 }));
+    const face = new THREE.Mesh(faceGeo, new THREE.MeshStandardMaterial({ map: p.h ? backTex(p.s, p.pt) : faceTex(p.s, p.t, p.id), normalMap: null, transparent: true, roughness: p.h ? 0.32 : 0.5, polygonOffset: true, polygonOffsetFactor: -2 }));
+    if (!p.h) face.material.normalMap = lazyNorm(face.material, p.s, p.t, p.id);
     face.position.y = PH + 0.001;
     const band = new THREE.Mesh(bandGeo, goldM); band.position.y = PH * 0.6;
     g.add(body, face, band);
@@ -643,7 +667,7 @@ const Board = (() => {
   function setFace(m, p) {
     const face = m.children[1]; if (!face) return;
     const std = m.userData.faceStd || face.material;
-    std.map = p.h ? backTex(p.s, p.pt) : faceTex(p.s, p.t, p.id); std.normalMap = p.h ? null : faceNorm(p.s, p.t, p.id);
+    std.map = p.h ? backTex(p.s, p.pt) : faceTex(p.s, p.t, p.id); std.normalMap = p.h ? null : lazyNorm(std, p.s, p.t, p.id);
     std.roughness = p.h ? 0.32 : 0.5;
     std.needsUpdate = true;
     m.userData.t = p.h ? 'h' : p.t; m.userData.h = !!p.h;
@@ -841,7 +865,8 @@ const Board = (() => {
     return t;
   }
   function sTex(c, wrap) { const t = new THREE.CanvasTexture(c); t.colorSpace = THREE.SRGBColorSpace; t.anisotropy = 8; if (wrap) t.wrapS = THREE.RepeatWrapping; return t; }
-  const mkCanvas = (w, h, draw) => { const c = document.createElement('canvas'); c.width = w; c.height = h; const g = c.getContext('2d'); draw(g, w, h); return c; };
+  // 这些画布都要读像素（getImageData）：放内存里（willReadFrequently），不放显卡上，读的时候不用等显卡（优化部 P4：手机上每次能省几到几十毫秒，开局要读一百多次）
+  const mkCanvas = (w, h, draw) => { const c = document.createElement('canvas'); c.width = w; c.height = h; const g = c.getContext('2d', { willReadFrequently: true }); draw(g, w, h); return c; };
   // 高度图 → 法线贴图（横向环绕；k = 起伏强度）
   //   dome > 0：整面再叠一个微微隆起的弧面（中心平、越往边越斜）
   function normalFrom(hc, k, wrapX, dome = 0) {
