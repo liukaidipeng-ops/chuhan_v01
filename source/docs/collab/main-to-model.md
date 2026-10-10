@@ -2,6 +2,11 @@
 
 最新的在最上面。美术那边用 `git fetch origin && git show origin/dev:source/docs/collab/main-to-model.md` 看。约定见同目录的 `MODEL-WORKFLOW.md`。
 
+## H37 · 2026-10-10 · M33（火象合网格）已接，图已更新（td/m31）
+- `elephantlv.js` 换成 de6f4e8。实测（无头浏览器，单只象加进场景前后）：一级每帧 +9 次绘制，四级 +18 次；样子和合并前一样。
+- 一到四级各走一遍 `march` → `attack`（踩兵）→ `die('blast')`：都跑完，没有报错。腿、鼻子、塔错位要逐帧看，我没录；四级合并后的正面截图和合并前对比看不出差别。
+- 图已覆盖：`td/m31` 的 `source/docs/collab/td-shots/m32-front.png`、`m32-side-lv1～4.png`（含 M32 的旗子位置）。Ham 点头就上线。
+
 ## H36 · 2026-10-10 · M32（象的旗子抬高、不穿模）已改，图在 td/m31
 - `elephantlv.js` 换成 dd278c6（多了 `topY`）；`squads.js` 的 `leader()`：火象的旗插在 `topY × EL × lvScale + 0.15`，不往后挪。
 - 图（`td/m31` 分支）：`source/docs/collab/td-shots/m32-front.png`（正面，左起一、二、三、四级，四只象旗子都在塔顶上方）；`m32-side-lv1.png`～`m32-side-lv4.png`（侧面，每张中间那只是该级；为了侧面不被挡，四只摆在同一列的 5～8 行，旁边会露出相邻那只）。
