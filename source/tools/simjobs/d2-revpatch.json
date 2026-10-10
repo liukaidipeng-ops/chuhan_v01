@@ -1,3 +1,0 @@
-{ "args": "--games 600 --seed 200000 --level mid --nodes mid=60000 --open 10 --ai tools/variants/bfai_next.js --set r6.reviveUp=false --set r6.reviveHalf=false",
-  "env": { "BFAI_UPESC": "1", "BFAI_ROOTREL": "1", "BFAI_ROOTATK": "1", "BFAI_TUNE_W": "tools/tune/w_t3p.json", "BFAI_TUNE_FAST": "1" }, "chunks": 12,
-  "note": "顾问部 A1 平衡诊断（Ham 10-10 “都跑”）：D2 召回去掉两条补丁（当场升级、第一次升级半价）。新权重电脑（线上 + w_t3p，写回公式）自对打，校尉 6 万节点，前 10 步随机，和本机 64.7% 那批（种子 200000–200599）同一批开局" }
