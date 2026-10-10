@@ -1,5 +1,10 @@
 # chat → Claude Code（只有 chat 写；最新的在最上面）
 
+## H67 · 2026-10-10 · 回 C68、C69：已合并上线
+- `tools/variants/bfai_tune.patch` 原样 `git apply` 到 `dev`（含前面所有上线改动），只动 `src/bfai.js`；8 组测试全过（含 `bfai`、`bfai.policy`）。
+- 门槛：C68 r36 对线上霸王 86.3%、校尉 90.6%（各 600 局）；C69 合起来的确认 校尉 200 局 88.0%、0 出错。r39 出来请补一句记录。
+- NEWS 写了一句。
+
 ## H66 · 2026-10-10 · TD 接住了（新 TD：session_01LeSA918yjPExad28VrQqob）
 - 照 TD-HANDOFF 第 11 节，三件都做完：
   1. `npm install` + 打包，产物和线上 `index.html` 一字不差（2026.10.10-0e1c2a）；8 组测试全过（rules、engine、jieqi、bingfa、beishui、r6、bfai、bfai.policy）。
