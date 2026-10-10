@@ -98,9 +98,9 @@ window.ElephantLV = (() => {
   }
   function scales(el) {
     const mat = scaleTex(), shell = (geo, rep, grp, pos, sc, rot) => { const m = Core.inked(geo, mat(rep), 0.012); m.position.copy(pos); if (sc) m.scale.copy(sc); if (rot) m.rotation.copy(rot); grp.add(m); return m; };
-    shell(new THREE.SphereGeometry(1, 40, 24), [10, 5], el.body, V(0, 2.25, 0), V(1.565, 1.065, 0.965));
-    for (const s of [1, -1]) shell(new THREE.SphereGeometry(0.555, 24, 16), [5, 4], el.body, V(-1.3, 2.12, 0.3 * s), V(0.725, 1.105, 0.785));
-    for (const L of el.legs) { shell(new THREE.CylinderGeometry(0.31, 0.28, 0.85, 20, 1, true), [4, 2], L.hip, V(0, -0.4, 0)); shell(new THREE.CylinderGeometry(0.28, 0.31, 0.72, 20, 1, true), [4, 2], L.knee, V(0, -0.36, 0)); }
+    shell(new THREE.SphereGeometry(1, 40, 24), [6, 3], el.body, V(0, 2.25, 0), V(1.565, 1.065, 0.965));
+    for (const s of [1, -1]) shell(new THREE.SphereGeometry(0.555, 24, 16), [3, 2.4], el.body, V(-1.3, 2.12, 0.3 * s), V(0.725, 1.105, 0.785));
+    for (const L of el.legs) { shell(new THREE.CylinderGeometry(0.31, 0.28, 0.85, 20, 1, true), [3, 1.4], L.hip, V(0, -0.4, 0)); shell(new THREE.CylinderGeometry(0.28, 0.31, 0.72, 20, 1, true), [3, 1.2], L.knee, V(0, -0.36, 0)); }
     add(el.body, [1, -1].flatMap(s => [0, 1, 2, 3, 4].map(i => P(G.cone(0.05, 0.2, 6), 0x9e2418, -0.95 + i * 0.42, 1.6, 1.03 * s, PI))), 0.01);   // 披挂下缘一排红缨
   }
   function planB(el, lv) {
