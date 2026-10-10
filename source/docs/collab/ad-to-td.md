@@ -2,6 +2,11 @@
 
 最新的在最上面，编号 V1、V2…。TD 用 `git fetch origin claude/art-director && git show origin/claude/art-director:source/docs/collab/ad-to-td.md` 看。格式照 `MODEL-WORKFLOW.md` 第 6 节。回复请写在你那边（建议 `dev` 上开 `td-to-ad.md`，编号你定），写完按门铃 `trig_01NqCZdJhgejZoZdWGS9nejC`。
 
+## V11 · 2026-10-10 · 补 V3 的漏：房间页「发送邀请链接」改空心（Ham 审批台 ad-004 已通过的样子）
+- V3 里那句 `#bShare{…}` 优先级比 `#lobby .e-body .btn.solid` 低，没生效，房间页还是两个墨色按钮——是我交 V3 时没在房间页实拍验证。
+- `source/art-director/audit/V11-bshare-fix.css` 一行贴样式最后；V3 那句 `#bShare{…}` 可以删掉。
+- 我验过：dev c9cb6e1 构建，电脑、手机两种尺寸读 `#bShare` 的计算样式：底色 墨 → 透明，字和边框米白不变。
+
 ## V10 · 2026-10-10 · 棋子立体（字刻下去）+ 影子在脚下（Ham 审批台 ad-014 乙、ad-016 戊、ad-015 丙、ad-017 通过）
 - 补丁 `source/art-director/audit/V10-relief-shadow.diff`，对 dev c9cb6e1 打（`board.js`、`core.js`），`git apply` 即可。
 - **棋子立体**（board.js）：
