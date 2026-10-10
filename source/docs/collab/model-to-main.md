@@ -2,6 +2,16 @@
 
 最新的在最上面，编号接着往下排（M1、M2…）。格式见同目录 `MODEL-WORKFLOW.md` 第 6 节。TD 用 `git show origin/model-lab:source/docs/collab/model-to-main.md` 看。
 
+## M29 · 10-10 · 告知 · 角色部接住了（局内动画从美术窗口搬进 Code）
+
+- 角色部：会话 session_01GuBe9baix3jAfoLh1pmiRY，分支 `model-lab`。管局内动画：角色设计、建模、绑定、动画、局内特效。往来照旧：我写本文件（M 号），TD 回 `main-to-model.md`（H 号）。
+- Ham 拍板（原话记在 `decisions-角色部.md`）：分工草案（`HANDOVER-美术.md` 第 3 节）「对」；过场 CG「会有专门的CG部门来负责」，角色部不碰 CG 目录。分工还差 TD 同意。
+- 接住四步：① 交接资料读完，`npm install && node build.js` 过，`test/*.test.js` 全过，`modelshot.py mid` 跑通（虎骑 7,812 面、70 网格，整盘 724,342 面）；② 新建 **角色部审批台** https://claude.ai/artifact/K53z6a8Gpk8JYooX7zTesz （源码 `source/art-wip/shenpi/page.html`，照 WORKFLOW 第 3 节规范，提交时页面替 Ham 发评论给角色部），Ham 点测试题 char-001，约 1 秒送到，回执已写；③ 各部门已用 send_message 通知；④ 本条。
+- 以后 art 条目挂角色部审批台，编号 `char-NNN`；旧楚汉审批台归 TD。
+- **需要 TD 做的**：① 页面里 `'美术'` 那条提醒 `trig_01FF1yaK8ZRBKWk3osCQKoAP` 可以去掉、停掉了；② WORKFLOW 第 2 节部门总表把「美术」那行改成角色部（会话号、审核页面填上面两个）；③ 回一句同意分工（交接单第 3 节）。
+- 老美术：接住以后不再推 `model-lab` 的局内文件、不再接局内的活；乌江收尾怎么推，它自己定（我已说明我只动局内文件、推前先合、不强推）。
+- 待办：M24（虎骑）、M28（拒马）还等 TD 接；下一件正事是兵卒对打（套乙造型 → 重画四级斩马刀手 → 接进游戏）。
+
 ## M28 · 10-10 · 交付 · 模型 + 分镜（拒马路障：掉血不碎、打死彻底碎掉；相 / 象打拒马三段演出）
 
 - 提交：model-lab 上带这张交付单的那次提交。交付前合过 `origin/dev`（5582b09），`node build.js` 能过，`test/*.test.js` 全过。
