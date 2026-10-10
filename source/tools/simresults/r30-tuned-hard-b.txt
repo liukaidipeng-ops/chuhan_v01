@@ -1,0 +1,99 @@
+# r30-tuned-hard-b（GitHub Actions 运行 38009906171）
+# 请求：{"args":"--games 300 --seed 3000 --level hard --nodes hard=100000 --ai-r git:f998d98 --ai-b tools/variants/bfai_tuned.js","env":{"BFAI_TUNE_W":"tools/tune/w_t3.json"},"chunks":48,"note":"（和 r31 同批重推）f998d98 执汉 对 自动调的权重 执楚，霸王"}
+# 收到 48/48 段
+== current | hard vs hard  [汉 git:f998d98 | 楚 tools/variants/bfai_tuned.js] | 294 局 | 0s ==
+胜负：汉 48  楚 245  和/超时 1   汉方胜率（分胜负的局）16.4%  95%CI 13–21%  ✗ 另有 6 局出错、没算进来，结果可能有偏差
+结局：b:checkmate 245  r:checkmate 47  r:stalemate 1  -:cap 1
+回合：平均 45.2  中位 44  P90 68  60 回合内结束 83.7%  进入决战 0.0%
+将死 292 局：将军的子有 2 血以上 88.4%（其中贴在帅将身边 74.0%），双将 8.2%
+攻防指标：车参与的将死 61.0%（三级以上的车 41.1%）；贴脸将死 78.4%；被将死的一方开局 4 个士象，终局平均丢 1.47 个（丢 0/1/2/3/4 个的局：80/80/67/45/20）
+士象技能（两方合计，每局平均次数）：护驾 1.59，铁甲禁卫 0.60，飞越 0.24，齐射 0.03，践踏打中 0.00，反击 0.00
+行动（用过的局占比 / 每局平均次数）  汉 | 楚
+  破釜沉舟         0.0%   0.00 |  33.0%   0.33
+  召回良将        33.7%   0.34 |   0.0%   0.00
+  召回后马上升级     23.5%   0.23 |   0.0%   0.00
+  普通走子       100.0%  41.09 | 100.0%  41.39
+  冲阵          16.3%   0.24 |  23.5%   0.30
+  飞越          10.5%   0.15 |   8.5%   0.10
+  护驾          61.2%   1.17 |  25.5%   0.41
+  拒马          86.7%   3.94 |  93.5%   4.52
+  霹雳          23.5%   0.36 |  21.1%   0.27
+  齐射           2.7%   0.03 |   0.0%   0.00
+  踏营          19.4%   0.34 |  18.7%   0.39
+  终极兵法         1.0%   0.01 |  11.6%   0.12
+  回防(被动)       1.7%   0.02 |   7.1%   0.13
+  铁甲禁卫(被动)    23.8%   0.38 |  15.3%   0.21
+  神速营(被动)     11.2%   0.21 |  28.2%   0.53
+升级（* = 甲片自动晋升）  汉 | 楚 （用过的局占比 / 每局平均）
+  a2     88.8%  1.60 |  77.6%  1.23
+  a3     77.6%  1.26 |  56.5%  0.81
+  a4     45.9%  0.64 |  29.3%  0.41
+  c2     89.1%  1.23 |  84.4%  1.21
+  c3     54.8%  0.67 |  55.1%  0.65
+  e2     64.6%  0.81 |  43.5%  0.50
+  e2*     0.7%  0.01 |   0.7%  0.01
+  e3     40.8%  0.48 |  39.1%  0.43
+  e4     12.6%  0.16 |   7.8%  0.09
+  n2     87.1%  1.49 |  84.0%  1.13
+  n3     59.2%  0.83 |  48.0%  0.57
+  p2     96.6%  2.21 |  99.0%  2.22
+  p2*     0.0%  0.00 |   0.3%  0.00
+  p3     52.7%  0.86 |  76.2%  1.26
+  p4     19.4%  0.30 |  37.4%  0.50
+  r2     65.3%  0.82 |  79.9%  1.08
+  r3     28.6%  0.32 |  50.7%  0.56
+  r4     10.5%  0.11 |  10.9%  0.11
+击杀来源（每局平均）  汉 | 楚
+  普通吃子         6.03 |   6.15
+  冲阵           0.13 |   0.12
+  飞越           0.01 |   0.01
+  践踏           0.00 |   0.00
+  拒马反伤         0.00 |   0.00
+  霹雳           0.24 |   0.17
+  齐射           0.01 |   0.00
+  踏营           0.05 |   0.03
+  回防(被动)       0.00 |   0.01
+  铁甲禁卫(被动)     0.07 |   0.01
+造成伤害但没打死（每局平均）  汉 | 楚
+  强攻           3.80 |   3.87
+  冲阵           0.16 |   0.20
+  飞越           0.03 |   0.00
+  霹雳           0.31 |   0.28
+  齐射           0.02 |   0.00
+  踏营           0.04 |   0.04
+军功来源（每局平均）  汉 | 楚
+  击杀       18.0 |   20.7
+  哀兵        6.5 |    6.5
+  回合       37.4 |   36.7
+  将军        3.4 |    7.3
+  过河        0.9 |    1.0
+终极兵法：汉用 3 局（平均第 67.3 回合，用了的局胜 100.0%）  楚用 34 局（第 62.1 回合，胜 88.2%）  护驾破鸿门宴 6 局
+主帅兵法：汉召回 99 局（第 32.8 回合，胜 15.2%）  楚背水 97 局（第 38.8 回合，胜 62.9%）
+召回的子（99 次）：士 2、炮 8、马 3、车 86；死时 1 级 68、2 级 23、3 级 7、4 级 1；回来 1 级 68、2 级 31；召回的子第一次升级：当场 69 次（平均花 5.0）、之后手动 25 次（召回后平均 4.5 回合、平均花 4.9）、甲片自动 0 次；没升过 5 次；死时一级的那些局汉胜 16.2%（68 局），二级以上 12.9%（31 局）
+少子才能用的主帅兵法（汉召回）：轮到自己时满足用的条件（车马炮比对方少；第三版还要至少丢了一半）过 147 局，第一次平均第 30.1 回合；真用了 99 局（胜 15.2%）
+少子才能用的主帅兵法（楚背水）：轮到自己时满足用的条件（车马炮比对方少；第三版还要至少丢了一半）过 155 局，第一次平均第 31.1 回合；真用了 97 局（胜 62.9%）
+车马炮持续落后（自己走完还少、到下回合还少）：汉 151 局（51.4%，第一次平均第 24.7 回合、平均落后 8.9 回合；这些局汉胜 13.2%；其中用了主帅兵法 84 局、胜 15.5%） | 楚 176 局（59.9%，第一次平均第 23.3 回合、平均落后 17.5 回合；这些局楚胜 76.7%；其中用了主帅兵法 91 局、胜 60.4%）
+手动升级时的血量（升级回满血，掉了血再升更划算）：汉 满血 89.4%、掉过血 10.6%（只剩 1 血 9.3%），共 3988 次 | 楚 满血 86.9%、掉过血 13.1%（只剩 1 血 11.9%），共 3750 次
+先有二级车的一方：两边都有的 151 局里先到的胜 61.6%；只有一方有的 99 局里有的一方胜 80.8%
+背水前后（97 局，分数 + 汉优；背水没有封锁期，这里的“之后”只是汉方紧接着的一手）：背水那一手汉方 -7.95 分（子力 -4.90）；汉方随后一手 +1.18 分；这些局汉胜 37.1%
+首次升到 N 级（平均回合 / 出现的局占比）  汉 | 楚
+  2 级  第 2.7 回合 100.0% | 第 1.9 回合 100.0%
+  3 级  第 21.4 回合 91.8% | 第 18.5 回合 95.6%
+  4 级  第 39.8 回合 52.0% | 第 40.8 回合 50.0%
+局面分随回合（汉方视角，正 = 汉优）/ 军功 / 等级总和
+  R5（294 局在下）分 0.76  军功 汉 1.2 楚 1.2  等级 汉 0.9 楚 1.0
+  R10（294 局在下）分 0.74  军功 汉 2.2 楚 2.4  等级 汉 1.4 楚 1.4
+  R15（288 局在下）分 0.84  军功 汉 3.6 楚 3.6  等级 汉 2.2 楚 2.3
+  R20（276 局在下）分 1.34  军功 汉 3.9 楚 4.0  等级 汉 4.2 楚 4.0
+  R30（236 局在下）分 0.39  军功 汉 4.5 楚 4.5  等级 汉 7.5 楚 7.0
+  R40（177 局在下）分 -0.27  军功 汉 4.9 楚 5.9  等级 汉 9.8 楚 9.3
+翻盘（某回合落后 ≥ T 分的一方最后赢了）
+  R10≥2：139 局，落后方赢 92（66.2%），和 1
+  R10≥4：53 局，落后方赢 31（58.5%），和 1
+  R20≥2：196 局，落后方赢 108（55.1%），和 1
+  R20≥4：130 局，落后方赢 65（50.0%），和 0
+  R30≥2：187 局，落后方赢 75（40.1%），和 1
+  R30≥4：147 局，落后方赢 54（36.7%），和 1
+每步平均 2739ms
+✗ 出错的局 6 个（没算进胜负；出错的局往往不是随便哪局，结果可能有偏差）： 3054 Error: 电脑没有给出行动（汉方，第 42 回合，被将军，普通行动 0 种，破釜 / 背水组合 0 种） | 3069 Error: 电脑没有给出行动（楚方，第 66 回合，被将军，普通行动 0 种，破釜 / 背水组合 0 种） | 3177 Error: 电脑没有给出行动（楚方，第 40 回合，被将军，普通行动 0 种，破釜 / 背水组合 0 种）
+（合并 48 份：/home/runner/work/chuhan_v01/chuhan_v01/parts/r30-tuned-hard-b-0.json、/home/runner/work/chuhan_v01/chuhan_v01/parts/r30-tuned-hard-b-1.json、/home/runner/work/chuhan_v01/chuhan_v01/parts/r30-tuned-hard-b-2.json、/home/runner/work/chuhan_v01/chuhan_v01/parts/r30-tuned-hard-b-3.json、/home/runner/work/chuhan_v01/chuhan_v01/parts/r30-tuned-hard-b-4.json、/home/runner/work/chuhan_v01/chuhan_v01/parts/r30-tuned-hard-b-5.json、/home/runner/work/chuhan_v01/chuhan_v01/parts/r30-tuned-hard-b-6.json、/home/runner/work/chuhan_v01/chuhan_v01/parts/r30-tuned-hard-b-7.json、/home/runner/work/chuhan_v01/chuhan_v01/parts/r30-tuned-hard-b-8.json、/home/runner/work/chuhan_v01/chuhan_v01/parts/r30-tuned-hard-b-9.json、/home/runner/work/chuhan_v01/chuhan_v01/parts/r30-tuned-hard-b-10.json、/home/runner/work/chuhan_v01/chuhan_v01/parts/r30-tuned-hard-b-11.json、/home/runner/work/chuhan_v01/chuhan_v01/parts/r30-tuned-hard-b-12.json、/home/runner/work/chuhan_v01/chuhan_v01/parts/r30-tuned-hard-b-13.json、/home/runner/work/chuhan_v01/chuhan_v01/parts/r30-tuned-hard-b-14.json、/home/runner/work/chuhan_v01/chuhan_v01/parts/r30-tuned-hard-b-15.json、/home/runner/work/chuhan_v01/chuhan_v01/parts/r30-tuned-hard-b-16.json、/home/runner/work/chuhan_v01/chuhan_v01/parts/r30-tuned-hard-b-17.json、/home/runner/work/chuhan_v01/chuhan_v01/parts/r30-tuned-hard-b-18.json、/home/runner/work/chuhan_v01/chuhan_v01/parts/r30-tuned-hard-b-19.json、/home/runner/work/chuhan_v01/chuhan_v01/parts/r30-tuned-hard-b-20.json、/home/runner/work/chuhan_v01/chuhan_v01/parts/r30-tuned-hard-b-21.json、/home/runner/work/chuhan_v01/chuhan_v01/parts/r30-tuned-hard-b-22.json、/home/runner/work/chuhan_v01/chuhan_v01/parts/r30-tuned-hard-b-23.json、/home/runner/work/chuhan_v01/chuhan_v01/parts/r30-tuned-hard-b-24.json、/home/runner/work/chuhan_v01/chuhan_v01/parts/r30-tuned-hard-b-25.json、/home/runner/work/chuhan_v01/chuhan_v01/parts/r30-tuned-hard-b-26.json、/home/runner/work/chuhan_v01/chuhan_v01/parts/r30-tuned-hard-b-27.json、/home/runner/work/chuhan_v01/chuhan_v01/parts/r30-tuned-hard-b-28.json、/home/runner/work/chuhan_v01/chuhan_v01/parts/r30-tuned-hard-b-29.json、/home/runner/work/chuhan_v01/chuhan_v01/parts/r30-tuned-hard-b-30.json、/home/runner/work/chuhan_v01/chuhan_v01/parts/r30-tuned-hard-b-31.json、/home/runner/work/chuhan_v01/chuhan_v01/parts/r30-tuned-hard-b-32.json、/home/runner/work/chuhan_v01/chuhan_v01/parts/r30-tuned-hard-b-33.json、/home/runner/work/chuhan_v01/chuhan_v01/parts/r30-tuned-hard-b-34.json、/home/runner/work/chuhan_v01/chuhan_v01/parts/r30-tuned-hard-b-35.json、/home/runner/work/chuhan_v01/chuhan_v01/parts/r30-tuned-hard-b-36.json、/home/runner/work/chuhan_v01/chuhan_v01/parts/r30-tuned-hard-b-37.json、/home/runner/work/chuhan_v01/chuhan_v01/parts/r30-tuned-hard-b-38.json、/home/runner/work/chuhan_v01/chuhan_v01/parts/r30-tuned-hard-b-39.json、/home/runner/work/chuhan_v01/chuhan_v01/parts/r30-tuned-hard-b-40.json、/home/runner/work/chuhan_v01/chuhan_v01/parts/r30-tuned-hard-b-41.json、/home/runner/work/chuhan_v01/chuhan_v01/parts/r30-tuned-hard-b-42.json、/home/runner/work/chuhan_v01/chuhan_v01/parts/r30-tuned-hard-b-43.json、/home/runner/work/chuhan_v01/chuhan_v01/parts/r30-tuned-hard-b-44.json、/home/runner/work/chuhan_v01/chuhan_v01/parts/r30-tuned-hard-b-45.json、/home/runner/work/chuhan_v01/chuhan_v01/parts/r30-tuned-hard-b-46.json、/home/runner/work/chuhan_v01/chuhan_v01/parts/r30-tuned-hard-b-47.json）
