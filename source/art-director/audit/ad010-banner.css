@@ -1,0 +1,22 @@
+/* 乙 · 河界横幅 */
+#banner.vB{background:none;-webkit-backdrop-filter:none;backdrop-filter:none}
+#banner.vB::before{content:'';position:absolute;left:0;right:0;top:50%;height:calc(clamp(150px,30vw,300px) * var(--fs,1));transform:translateY(-50%);background:#f0e7d2;box-shadow:inset 0 2px 0 #141311,inset 0 -2px 0 #141311,inset 0 8px 0 #f0e7d2,inset 0 10px 0 rgba(20,19,17,.5),inset 0 -8px 0 #f0e7d2,inset 0 -10px 0 rgba(20,19,17,.5)}
+#banner.vB.on::before{animation:bnBand .6s cubic-bezier(.2,.7,.3,1) both}
+@keyframes bnBand{from{transform:translateY(-50%) scaleX(0)}to{transform:translateY(-50%) scaleX(1)}}
+#banner.vB>*{position:relative}
+#banner.vB .t{font-family:var(--ef);font-weight:900;color:#141311;text-shadow:none;letter-spacing:.35em;padding-left:.35em;font-size:calc(clamp(56px,13vw,128px) * var(--fs,1))}
+#banner.vB.on .t{animation:bnIn .7s .35s cubic-bezier(.2,.7,.2,1) both}
+@keyframes bnIn{from{opacity:0;transform:translateY(.15em)}to{opacity:1;transform:none}}
+#banner.vB .bseal{border-radius:0;filter:none;background:#a8281c;color:#f0e7d2;font-family:var(--ef);box-shadow:inset 0 0 0 2px #f0e7d2,inset 0 0 0 3px #a8281c}
+#banner.vB .ln{background:#141311;height:2px;width:min(360px,60vw);margin:6px auto 8px}
+#banner.vB .s{color:#141311;font-family:var(--es,system-ui,sans-serif)}
+/* 丙 · 朱印 */
+#banner.vC{background:rgba(20,19,17,.28);-webkit-backdrop-filter:none;backdrop-filter:none}
+#banner.vC .tw{background:#a8281c;padding:.18em .22em;box-shadow:inset 0 0 0 4px #a8281c,inset 0 0 0 6px #f0e7d2,inset 0 0 0 10px #a8281c,inset 0 0 0 11px rgba(240,231,210,.6)}
+#banner.vC .t{font-family:var(--ef);font-weight:900;color:#f0e7d2;text-shadow:none;white-space:normal;width:2.1em;line-height:1.05;letter-spacing:.06em;padding:.12em 0 .12em .06em;font-size:calc(clamp(72px,17vw,150px) * var(--fs,1))}
+#banner.vC.on .tw{animation:bnSeal .55s cubic-bezier(.3,1.4,.5,1) both}
+@keyframes bnSeal{0%{opacity:0;transform:scale(1.6)}100%{opacity:1;transform:none}}
+#banner.vC.on .t{animation:none}
+#banner.vC .bseal{display:none}
+#banner.vC .ln{display:none}
+#banner.vC .s{margin-top:18px;background:#141311;color:#f0e7d2;padding:.3em 1em .3em 1.3em;font-family:var(--es,system-ui,sans-serif)}
