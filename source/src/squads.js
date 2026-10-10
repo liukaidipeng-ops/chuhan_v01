@@ -622,9 +622,12 @@ const Squads = (() => {
   }
   // 楚军战象（象）
   class Elephant extends Squad {
-    constructor(side, anchor, yaw, gold = false) {
+    constructor(side, anchor, yaw, n = 0) {
       super('e', side, anchor, yaw);
-      this.m = Models.makeElephant(side, { gold }); this.m.group.scale.setScalar(EL);
+      // 技能模式按等级换火象造型（角色部 M31，Ham 角色部审批台 char-018）：每级一只、越大越威风；普通模式（n = 0）照旧
+      const lv = Math.max(0, Math.min(4, n | 0));
+      this.m = lv && window.ElephantLV ? ElephantLV.make(side, { lv, plan: 'b' }) : Models.makeElephant(side, { gold: n >= 4 });
+      this.m.group.scale.setScalar(EL * (this.m.lvScale || 1));
       this.group.add(this.m.group);
       this.updaters.push(dt => { this.m.update(dt); this.sync(); if (this.m.fire > 0.1 && !LOW()) P.flame(this.m.torch.getWorldPosition(new V3()), 0.12); });
       this.sync();
@@ -1164,7 +1167,8 @@ const Squads = (() => {
     const sq = make0(t, side, anchor, yaw, role, n);
     if (t === 'r' && n >= 4 && sq instanceof Chariot) { vanguard(sq); const d0 = sq.die; sq.die = (hit, dir, ...a) => { sq.echoesDie(dir || new V3(0, 0, 1)); return d0(hit, dir, ...a); }; return sq.rank ? sq.rank(lv) : sq; }
     if (n > 1) {
-      if (sq instanceof Elephant || sq instanceof Chariot) sq.addEchoes([sq.m.group], t === 'e' ? Math.min(3, n) : n, t === 'r' ? 0.36 : 0.4);   // 四级战象：三头黄金象，不再加数量
+      if (sq instanceof Elephant && sq.m.lvScale) { }   // 火象（角色部 M31）：每级一只，不加数量、不叠影
+      else if (sq instanceof Elephant || sq instanceof Chariot) sq.addEchoes([sq.m.group], t === 'e' ? Math.min(3, n) : n, t === 'r' ? 0.36 : 0.4);   // 四级战象：三头黄金象，不再加数量
       else if (sq instanceof Cannon && sq.mode !== 'battery') sq.addEchoes([sq.gun.group].concat(sq.horse ? [sq.horse.group] : []), n, 0.42);
       if (sq.echoes) { const die = sq.die.bind(sq); sq.die = (hit, dir, ...a) => { sq.echoesDie(dir || new V3(0, 0, 1)); return die(hit, dir, ...a); }; }
     }
@@ -1174,7 +1178,7 @@ const Squads = (() => {
     switch (t) {
       case 'p': return new Infantry(side, anchor, yaw, n);
       case 'a': return new Guards(side, anchor, yaw, n);
-      case 'e': return side === 'r' ? (TIGER ? new TigerRider(side, anchor, yaw, n, role) : new Crossbow(side, anchor, yaw, n)) : new Elephant(side, anchor, yaw, n >= 4);
+      case 'e': return side === 'r' ? (TIGER ? new TigerRider(side, anchor, yaw, n, role) : new Crossbow(side, anchor, yaw, n)) : new Elephant(side, anchor, yaw, n);
       case 'r': return new Chariot(side, anchor, yaw);
       case 'n': return new Cavalry(side, anchor, yaw, n);
       case 'c': return new Cannon(side, anchor, yaw, role === 'attack' ? 'battery' : role === 'defend' ? 'defend' : 'march', n);
