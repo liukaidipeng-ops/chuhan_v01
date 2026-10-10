@@ -26,7 +26,7 @@ Ham 10-10 11:53 原话（项目前台转达）：“所有需要我拍板的内�
 | 美术总监（朱墨） | 界面（UI）、棋盘、整体视觉方向 | session_01U1d5RrViuCEaT74h7UkG2M | `claude/art-director` | 交接后：`template.html` 的样式和页面结构（不动 `id`、`data-*`、`main.js`）、`face.js`、`merit.js`、`luozi.js`、`upfx.js`、`fonts/songhei-*`、`tools/songhei.py`、`tools/uishot*.py`、`docs/UI-DESIGN.md`（Ham 10-10 拍板单 ad-01、ad-02；正式接手等美术交完结算动画） | 美术总监审批台 https://claude.ai/artifact/Udu7Ry4mBdWbyHFb64DvAu |
 | 顾问部 | 技能设计和方向建议（只写方案，不碰代码） | session_01PArjH8NToP8HANDN6f4JxG | `claude/advisors` | `source/docs/collab/advisors/advice.md`、`source/docs/collab/decisions-顾问部.md` | 顾问部拍板单 https://claude.ai/artifact/G3AvboWSGdEgqRYePb6Uer |
 | 声音部 | 配音、音效、音乐 | session_01VsbsKR759MUraiT41MaEAU（10-10 开） | `claude/sound`（MiniMax 合成用 `voice-lab`） | `source/voice/`、`source/sfx/`、`source/music/`、`source/src/audio.js`、`source/src/endtunes.js`、`source/tools/tunes.py`、`source/tools/sound/`、`decisions-sound.md`、`sound-to-main.md`（S1，Ham 10-10 点头、TD 同意）；什么时候响（`fx.js`、`squads.js`、`bfx.js`、`main.js`）和 `build.js`、`template.html` 仍归 TD | 声音部试听台 https://claude.ai/artifact/YNHGM8JvrMtytH9HjZRRT2 |
-| 优化部 | 卡顿、手机发热、加载慢（量、出改法和补丁，不直接改 dev / main） | session_01QkUQvrXgDJbxcwbWdMc7sU（10-10 开） | `claude/perf` | 交付单 `perf-to-main.md`（P 号），TD 回 `main-to-perf.md`；会改画面的优化先过 Ham（分工 Ham 10-10 优化部拍板单 p-01 通过） | 优化部拍板单 https://claude.ai/artifact/GoHBXwa2Y7cjTuqvpZR1K3 |
+| 优化部 | 卡顿、手机发热、加载慢（量、出改法和补丁，不直接改 dev / main） | session_01QkUQvrXgDJbxcwbWdMc7sU（10-10 开） | `claude/perf` | 交付单 `perf-to-main.md`（P 号），TD 回 `main-to-perf.md`；会改画面的优化先过 Ham（分工 Ham 10-10 优化部拍板单 p-01 通过） | 优化部拍板单 https://claude.ai/artifact/GoHBXwa2Y7cjTuqvpZR1K3 ；优化部审批台 https://claude.ai/artifact/PQRh4PkuFzc8bGZ7pds7MJ |
 | 只读数值部 | 旁观，不推分支、不排模拟 | session_01Qxpa47Er1bd8ntv9aw5DgN | — | — | — |
 
 以后开新部门（CG 组等），在这张表里加一行。
@@ -134,4 +134,14 @@ Ham 10-10 原话：“避免方式写进工作流，并通知所有部门”（�
   1. 手上正在做什么，做到哪一步（例：“正在做总审第 5–7 条的改前改后图，已拍完手机大厅”）；
   2. 在等谁、等什么（例：“等 Ham 在审批台批 ad-001～003；等 TD 回 V1、V2”）。
   没有在做的事、也没有在等的，就写“手上没有活，等你吩咐”。不要让 Ham 猜你是在干活还是在发呆。
+- **别发呆、别虚报**（Ham 10-10 原话：“怎么避免这个发呆的问题？”“把这些解决方法写进工作流文档里，并同步所有人”；角色部整理）：
+  1. 「正在做」只写真在做的事，附凭据：后台在跑的任务、刚推的提交、刚出的图。还没动手的写成「待办」，不写进「正在做」。
+  2. 处理完别的部门的消息或通知，同一轮里接着做主线的活，有了进展再回 Ham；不要回完消息就停。
+  3. 长任务（拍片、录视频、模拟、训练）放后台跑，跑完会叫醒自己，接着做下一步。
+  4. 手上有活时，用 send_later 给自己设提醒（约 40 分钟一次），到点查一次活有没有停，停了就接着做。
+  5. 活都做完、只剩等别人时，写明等谁、等什么（例：“等 Ham 批 char-002”“等 TD 回 M30”）。
+- **防止停着不动**（Ham 10-10 12:29 在项目前台拍板“三条都上”，项目前台转达）：
+  1. **等别人时自己定闹钟**：一轮回复结束时，只要手上的活在等外部结果（GitHub 跑模拟、别的部门交付、TD 回复等），结束前必须用 send_later 给自己设一个回来查看的提醒，不能干等。只在等 Ham 拍板、或确实手上没活时可以不设。
+  2. **交东西时直接叫醒对方**：把活交给别的部门时，正文写进仓库文件之后，必须再用 send_message 发给对方窗口一句“X 已交，见某文件”，不能只写文件。
+  3. 项目前台（session_019LQ7ta28LGUnqaGRVoVgSq）每小时巡逻一次，发现有活却停着的部门会发消息叫醒。
 - **找错部门要当场指出来**（Ham 10-10 10:53 原话，项目前台转达：“如果我和错误的部门聊天，该部门负责人需要及时指正我，比如我让balance做美术的工作。这个需要写进工作流。专术有专攻。”）。Ham 让你做不归你管的事时，不要自己接：先说明这不归本部门，告诉他该找哪个部门（看第 2 节部门总表），需要的话把他的话原样转给那个部门。

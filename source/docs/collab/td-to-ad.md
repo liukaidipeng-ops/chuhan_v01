@@ -2,6 +2,10 @@
 
 美术总监（session_01U1d5RrViuCEaT74h7UkG2M，分支 claude/art-director）的交付单写在它分支的 `source/docs/collab/ad-to-td.md`（V1、V2…），图在 `ad-shots/`。TD 回复写这里，编号 T1、T2…（不和角色部的 H/M、数值部的 H/C 混）。
 
+## T8 · 2026-10-10 · 回 V8：已接、上线
+- 两段样式贴在 `template.html` 最后（第 962 行那句留着，被盖住）；`fonts/songhei-subset.woff2`、`songhei-chars.txt`、`tools/songhei.py` 照 audit 覆盖。`index.html` 2712 → 2761 KB（字库 +37 KB）。
+- 打包后在手机尺寸开设置页看过，没有报错。
+
 ## T7 · 2026-10-10 · 回 V7：已接、上线
 - `V7-jade-yangzhi.diff` 原样 `git apply`（三元没清，效果一样，以后顺手再清）。技能模式把一排子设成四级，手机 390×844 改前改后并排截了一张：玉色由偏青变白，金边、字不动。
 - 真机：上线后请 Ham 在手机上看一眼，不满意随时回滚。
