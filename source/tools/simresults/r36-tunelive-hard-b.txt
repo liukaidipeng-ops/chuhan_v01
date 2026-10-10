@@ -1,0 +1,101 @@
+# r36-tunelive-hard-b（GitHub Actions 运行 38033187845）
+# 请求：{"args":"--games 300 --seed 9000 --level hard --nodes hard=100000 --ai-r src/bfai.js --ai-b tools/variants/bfai_next.js","env":{"BFAI_UPESC":"1","BFAI_ROOTREL":"1","BFAI_ROOTATK":"1","BFAI_TUNE_W":"tools/tune/w_t3p.json"},"chunks":48,"note":"（和 D0、D1、r35 同批重推）线上 执汉 对 线上 + 权重 w_t3p 执楚，霸王"}
+# 收到 48/48 段
+== current | hard vs hard  [汉 src/bfai.js | 楚 tools/variants/bfai_next.js] | 300 局 | 0s ==
+胜负：汉 46  楚 252  和/超时 2   汉方胜率（分胜负的局）15.4%  95%CI 12–20%
+结局：b:checkmate 252  r:checkmate 46  -:cap 2
+回合：平均 42.3  中位 42  P90 64  60 回合内结束 89.0%  进入决战 0.0%
+将死 298 局：将军的子有 2 血以上 87.9%（其中贴在帅将身边 72.5%），双将 6.7%
+攻防指标：车参与的将死 63.1%（三级以上的车 41.9%）；贴脸将死 77.2%；被将死的一方开局 4 个士象，终局平均丢 1.43 个（丢 0/1/2/3/4 个的局：71/99/70/46/12）
+士象技能（两方合计，每局平均次数）：护驾 1.44，铁甲禁卫 0.62，飞越 0.27，齐射 0.04，践踏打中 0.01，反击 0.00
+行动（用过的局占比 / 每局平均次数）  汉 | 楚
+  破釜沉舟         0.0%   0.00 |  30.3%   0.30
+  召回良将        32.7%   0.33 |   0.0%   0.00
+  召回后马上升级     23.7%   0.24 |   0.0%   0.00
+  普通走子       100.0%  38.51 | 100.0%  38.57
+  停着           0.0%   0.00 |   0.7%   0.01
+  冲阵           9.3%   0.15 |  26.3%   0.35
+  飞越          11.0%   0.14 |  10.3%   0.12
+  护驾          56.7%   1.12 |  21.7%   0.32
+  拒马          70.7%   2.25 |  63.0%   2.04
+  霹雳          22.0%   0.29 |  17.7%   0.24
+  齐射           3.0%   0.04 |   0.0%   0.00
+  踏营          16.0%   0.35 |  24.0%   0.55
+  终极兵法         1.0%   0.01 |   6.3%   0.06
+  回防(被动)       2.7%   0.03 |   7.7%   0.13
+  铁甲禁卫(被动)    24.0%   0.37 |  13.7%   0.25
+  神速营(被动)      7.0%   0.09 |  21.3%   0.38
+升级（* = 甲片自动晋升）  汉 | 楚 （用过的局占比 / 每局平均）
+  a2     85.7%  1.53 |  76.3%  1.27
+  a2*     0.3%  0.00 |   0.0%  0.00
+  a3     74.0%  1.17 |  58.7%  0.87
+  a4     39.0%  0.53 |  22.3%  0.31
+  c2     91.0%  1.26 |  80.7%  1.14
+  c3     46.3%  0.54 |  46.3%  0.57
+  e2     65.7%  0.83 |  54.3%  0.65
+  e2*     0.3%  0.00 |   0.0%  0.00
+  e3     40.3%  0.46 |  43.3%  0.50
+  e4     17.0%  0.18 |   9.7%  0.11
+  n2     82.0%  1.26 |  78.0%  1.10
+  n3     44.3%  0.60 |  45.7%  0.54
+  p2     90.3%  1.97 |  86.7%  1.75
+  p2*     0.0%  0.00 |   0.3%  0.00
+  p3     46.3%  0.69 |  66.7%  1.01
+  p4     13.3%  0.20 |  30.7%  0.40
+  r2     67.0%  0.86 |  77.3%  1.05
+  r3     25.3%  0.28 |  50.3%  0.59
+  r4      6.0%  0.06 |   7.3%  0.07
+击杀来源（每局平均）  汉 | 楚
+  普通吃子         5.43 |   5.79
+  冲阵           0.08 |   0.15
+  飞越           0.01 |   0.02
+  践踏           0.00 |   0.00
+  拒马反伤         0.01 |   0.01
+  霹雳           0.17 |   0.17
+  齐射           0.01 |   0.00
+  踏营           0.05 |   0.10
+  回防(被动)       0.01 |   0.02
+  铁甲禁卫(被动)     0.07 |   0.02
+造成伤害但没打死（每局平均）  汉 | 楚
+  强攻           3.26 |   2.91
+  冲阵           0.08 |   0.28
+  飞越           0.01 |   0.01
+  践踏           0.00 |   0.00
+  霹雳           0.30 |   0.28
+  齐射           0.03 |   0.00
+  踏营           0.02 |   0.04
+军功来源（每局平均）  汉 | 楚
+  击杀       15.7 |   19.4
+  哀兵        6.3 |    5.8
+  回合       32.9 |   32.4
+  将军        3.2 |    7.0
+  过河        0.7 |    1.0
+终极兵法：汉用 3 局（平均第 76.0 回合，用了的局胜 100.0%）  楚用 19 局（第 62.1 回合，胜 89.5%）  护驾破鸿门宴 4 局
+主帅兵法：汉召回 98 局（第 30.2 回合，胜 7.1%）  楚背水 91 局（第 37.0 回合，胜 60.4%）
+召回的子（98 次）：炮 3、兵 2、车 93；死时 1 级 79、2 级 18、3 级 1；回来 1 级 79、2 级 19；召回的子第一次升级：当场 71 次（平均花 5.1）、之后手动 13 次（召回后平均 3.5 回合、平均花 4.9）、甲片自动 0 次；没升过 14 次；死时一级的那些局汉胜 5.1%（79 局），二级以上 15.8%（19 局）
+少子才能用的主帅兵法（汉召回）：轮到自己时满足用的条件（车马炮比对方少；第三版还要至少丢了一半）过 141 局，第一次平均第 28.2 回合；真用了 98 局（胜 7.1%）
+少子才能用的主帅兵法（楚背水）：轮到自己时满足用的条件（车马炮比对方少；第三版还要至少丢了一半）过 128 局，第一次平均第 29.6 回合；真用了 91 局（胜 60.4%）
+车马炮持续落后（自己走完还少、到下回合还少）：汉 143 局（47.7%，第一次平均第 22.1 回合、平均落后 13.1 回合；这些局汉胜 7.0%；其中用了主帅兵法 78 局、胜 5.1%） | 楚 157 局（52.3%，第一次平均第 20.3 回合、平均落后 19.4 回合；这些局楚胜 72.0%；其中用了主帅兵法 88 局、胜 59.1%）
+手动升级时的血量（升级回满血，掉了血再升更划算）：汉 满血 91.6%、掉过血 8.4%（只剩 1 血 7.4%），共 3664 次 | 楚 满血 86.7%、掉过血 13.3%（只剩 1 血 12.4%），共 3583 次
+先有二级车的一方：两边都有的 161 局里先到的胜 63.4%；只有一方有的 94 局里有的一方胜 80.9%
+背水前后（91 局，分数 + 汉优；背水没有封锁期，这里的“之后”只是汉方紧接着的一手）：背水那一手汉方 -8.71 分（子力 -5.36）；汉方随后一手 +1.36 分；这些局汉胜 37.4%
+首次升到 N 级（平均回合 / 出现的局占比）  汉 | 楚
+  2 级  第 2.6 回合 100.0% | 第 8.1 回合 100.0%
+  3 级  第 21.0 回合 87.3% | 第 18.1 回合 93.7%
+  4 级  第 38.5 回合 47.0% | 第 39.3 回合 42.7%
+局面分随回合（汉方视角，正 = 汉优）/ 军功 / 等级总和
+  R5（300 局在下）分 0.51  军功 汉 1.3 楚 3.6  等级 汉 0.9 楚 0.2
+  R10（300 局在下）分 0.63  军功 汉 2.1 楚 4.1  等级 汉 1.3 楚 0.8
+  R15（296 局在下）分 1.30  军功 汉 3.2 楚 4.7  等级 汉 2.1 楚 1.9
+  R20（274 局在下）分 1.50  军功 汉 3.9 楚 5.3  等级 汉 4.1 楚 3.6
+  R30（224 局在下）分 -0.14  军功 汉 4.2 楚 5.6  等级 汉 7.4 楚 6.7
+  R40（157 局在下）分 0.45  军功 汉 5.1 楚 6.7  等级 汉 9.7 楚 9.1
+翻盘（某回合落后 ≥ T 分的一方最后赢了）
+  R10≥2：103 局，落后方赢 57（55.3%），和 2
+  R10≥4：47 局，落后方赢 18（38.3%），和 1
+  R20≥2：209 局，落后方赢 100（47.8%），和 1
+  R20≥4：156 局，落后方赢 70（44.9%），和 1
+  R30≥2：183 局，落后方赢 59（32.2%），和 2
+  R30≥4：152 局，落后方赢 42（27.6%），和 2
+每步平均 2964ms
+（合并 48 份：/home/runner/work/chuhan_v01/chuhan_v01/parts/r36-tunelive-hard-b-0.json、/home/runner/work/chuhan_v01/chuhan_v01/parts/r36-tunelive-hard-b-1.json、/home/runner/work/chuhan_v01/chuhan_v01/parts/r36-tunelive-hard-b-2.json、/home/runner/work/chuhan_v01/chuhan_v01/parts/r36-tunelive-hard-b-3.json、/home/runner/work/chuhan_v01/chuhan_v01/parts/r36-tunelive-hard-b-4.json、/home/runner/work/chuhan_v01/chuhan_v01/parts/r36-tunelive-hard-b-5.json、/home/runner/work/chuhan_v01/chuhan_v01/parts/r36-tunelive-hard-b-6.json、/home/runner/work/chuhan_v01/chuhan_v01/parts/r36-tunelive-hard-b-7.json、/home/runner/work/chuhan_v01/chuhan_v01/parts/r36-tunelive-hard-b-8.json、/home/runner/work/chuhan_v01/chuhan_v01/parts/r36-tunelive-hard-b-9.json、/home/runner/work/chuhan_v01/chuhan_v01/parts/r36-tunelive-hard-b-10.json、/home/runner/work/chuhan_v01/chuhan_v01/parts/r36-tunelive-hard-b-11.json、/home/runner/work/chuhan_v01/chuhan_v01/parts/r36-tunelive-hard-b-12.json、/home/runner/work/chuhan_v01/chuhan_v01/parts/r36-tunelive-hard-b-13.json、/home/runner/work/chuhan_v01/chuhan_v01/parts/r36-tunelive-hard-b-14.json、/home/runner/work/chuhan_v01/chuhan_v01/parts/r36-tunelive-hard-b-15.json、/home/runner/work/chuhan_v01/chuhan_v01/parts/r36-tunelive-hard-b-16.json、/home/runner/work/chuhan_v01/chuhan_v01/parts/r36-tunelive-hard-b-17.json、/home/runner/work/chuhan_v01/chuhan_v01/parts/r36-tunelive-hard-b-18.json、/home/runner/work/chuhan_v01/chuhan_v01/parts/r36-tunelive-hard-b-19.json、/home/runner/work/chuhan_v01/chuhan_v01/parts/r36-tunelive-hard-b-20.json、/home/runner/work/chuhan_v01/chuhan_v01/parts/r36-tunelive-hard-b-21.json、/home/runner/work/chuhan_v01/chuhan_v01/parts/r36-tunelive-hard-b-22.json、/home/runner/work/chuhan_v01/chuhan_v01/parts/r36-tunelive-hard-b-23.json、/home/runner/work/chuhan_v01/chuhan_v01/parts/r36-tunelive-hard-b-24.json、/home/runner/work/chuhan_v01/chuhan_v01/parts/r36-tunelive-hard-b-25.json、/home/runner/work/chuhan_v01/chuhan_v01/parts/r36-tunelive-hard-b-26.json、/home/runner/work/chuhan_v01/chuhan_v01/parts/r36-tunelive-hard-b-27.json、/home/runner/work/chuhan_v01/chuhan_v01/parts/r36-tunelive-hard-b-28.json、/home/runner/work/chuhan_v01/chuhan_v01/parts/r36-tunelive-hard-b-29.json、/home/runner/work/chuhan_v01/chuhan_v01/parts/r36-tunelive-hard-b-30.json、/home/runner/work/chuhan_v01/chuhan_v01/parts/r36-tunelive-hard-b-31.json、/home/runner/work/chuhan_v01/chuhan_v01/parts/r36-tunelive-hard-b-32.json、/home/runner/work/chuhan_v01/chuhan_v01/parts/r36-tunelive-hard-b-33.json、/home/runner/work/chuhan_v01/chuhan_v01/parts/r36-tunelive-hard-b-34.json、/home/runner/work/chuhan_v01/chuhan_v01/parts/r36-tunelive-hard-b-35.json、/home/runner/work/chuhan_v01/chuhan_v01/parts/r36-tunelive-hard-b-36.json、/home/runner/work/chuhan_v01/chuhan_v01/parts/r36-tunelive-hard-b-37.json、/home/runner/work/chuhan_v01/chuhan_v01/parts/r36-tunelive-hard-b-38.json、/home/runner/work/chuhan_v01/chuhan_v01/parts/r36-tunelive-hard-b-39.json、/home/runner/work/chuhan_v01/chuhan_v01/parts/r36-tunelive-hard-b-40.json、/home/runner/work/chuhan_v01/chuhan_v01/parts/r36-tunelive-hard-b-41.json、/home/runner/work/chuhan_v01/chuhan_v01/parts/r36-tunelive-hard-b-42.json、/home/runner/work/chuhan_v01/chuhan_v01/parts/r36-tunelive-hard-b-43.json、/home/runner/work/chuhan_v01/chuhan_v01/parts/r36-tunelive-hard-b-44.json、/home/runner/work/chuhan_v01/chuhan_v01/parts/r36-tunelive-hard-b-45.json、/home/runner/work/chuhan_v01/chuhan_v01/parts/r36-tunelive-hard-b-46.json、/home/runner/work/chuhan_v01/chuhan_v01/parts/r36-tunelive-hard-b-47.json）

@@ -1,0 +1,98 @@
+# r35-up3k-hard-b（GitHub Actions 运行 38033187845）
+# 请求：{"args":"--games 300 --seed 7000 --level hard --nodes hard=100000 --ai-r tools/variants/bfai_c65.js --ai-b tools/variants/bfai_next.js","env":{"BFAI_LMR2":"6","BFAI_NMP":"2","BFAI_UP3K":"2"},"chunks":40,"note":"（和 D0、D1、r36 同批）C65 执汉 对 C65 + 对方第二手的贴帅升级 执楚，霸王"}
+# 收到 40/40 段
+== current | hard vs hard  [汉 tools/variants/bfai_c65.js | 楚 tools/variants/bfai_next.js] | 297 局 | 0s ==
+胜负：汉 160  楚 137  和/超时 0   汉方胜率（分胜负的局）53.9%  95%CI 48–59%  ✗ 另有 3 局出错、没算进来，结果可能有偏差
+结局：r:checkmate 160  b:checkmate 137
+回合：平均 51.5  中位 51  P90 76  60 回合内结束 71.4%  进入决战 0.0%
+将死 297 局：将军的子有 2 血以上 90.6%（其中贴在帅将身边 70.4%），双将 4.4%
+攻防指标：车参与的将死 60.9%（三级以上的车 48.8%）；贴脸将死 73.1%；被将死的一方开局 4 个士象，终局平均丢 1.79 个（丢 0/1/2/3/4 个的局：49/73/90/61/24）
+士象技能（两方合计，每局平均次数）：护驾 1.74，铁甲禁卫 0.78，飞越 0.21，齐射 0.02，践踏打中 0.00，反击 0.00
+行动（用过的局占比 / 每局平均次数）  汉 | 楚
+  破釜沉舟         0.0%   0.00 |  43.1%   0.43
+  召回良将        47.1%   0.47 |   0.0%   0.00
+  召回后马上升级     40.4%   0.40 |   0.0%   0.00
+  普通走子       100.0%  47.20 | 100.0%  46.79
+  停着           0.0%   0.00 |   1.0%   0.01
+  冲阵          31.0%   0.47 |  22.9%   0.30
+  飞越           7.1%   0.08 |  10.1%   0.12
+  护驾          48.1%   0.96 |  43.1%   0.77
+  拒马          82.5%   4.02 |  87.2%   4.21
+  霹雳          29.0%   0.40 |  26.3%   0.33
+  齐射           1.7%   0.02 |   0.0%   0.00
+  踏营          21.5%   0.46 |  27.6%   0.63
+  终极兵法         3.0%   0.03 |   6.7%   0.07
+  回防(被动)       6.7%   0.08 |   6.1%   0.10
+  铁甲禁卫(被动)    22.2%   0.36 |  27.6%   0.43
+  神速营(被动)     25.9%   0.52 |  29.0%   0.53
+升级（* = 甲片自动晋升）  汉 | 楚 （用过的局占比 / 每局平均）
+  a2     82.8%  1.45 |  79.1%  1.32
+  a3     69.0%  1.09 |  65.7%  0.99
+  a4     43.8%  0.64 |  46.5%  0.64
+  c2     91.2%  1.36 |  87.5%  1.20
+  c3     60.3%  0.82 |  61.3%  0.72
+  e2     52.5%  0.63 |  58.2%  0.70
+  e2*     0.7%  0.01 |   1.0%  0.01
+  e3     36.7%  0.42 |  41.1%  0.47
+  e4     15.2%  0.19 |  17.5%  0.20
+  n2     86.2%  1.28 |  88.9%  1.39
+  n3     59.9%  0.77 |  64.3%  0.89
+  p2     98.7%  2.58 |  98.3%  2.55
+  p3     68.4%  1.23 |  71.0%  1.28
+  p4     33.0%  0.55 |  39.1%  0.61
+  r2     84.8%  1.21 |  70.0%  0.94
+  r3     55.6%  0.67 |  47.8%  0.55
+  r4     19.2%  0.21 |  11.8%  0.12
+击杀来源（每局平均）  汉 | 楚
+  普通吃子         6.54 |   6.46
+  冲阵           0.24 |   0.13
+  飞越           0.02 |   0.01
+  拒马反伤         0.00 |   0.00
+  霹雳           0.26 |   0.24
+  齐射           0.01 |   0.00
+  踏营           0.08 |   0.11
+  回防(被动)       0.03 |   0.01
+  铁甲禁卫(被动)     0.05 |   0.05
+造成伤害但没打死（每局平均）  汉 | 楚
+  强攻           4.34 |   4.07
+  冲阵           0.35 |   0.23
+  飞越           0.01 |   0.01
+  霹雳           0.40 |   0.27
+  齐射           0.01 |   0.00
+  踏营           0.03 |   0.04
+军功来源（每局平均）  汉 | 楚
+  击杀       21.3 |   21.7
+  哀兵        6.9 |    7.0
+  回合       46.3 |   45.5
+  将军        6.8 |    5.8
+  过河        1.0 |    1.1
+终极兵法：汉用 9 局（平均第 72.9 回合，用了的局胜 66.7%）  楚用 20 局（第 62.3 回合，胜 85.0%）  护驾破鸿门宴 0 局
+主帅兵法：汉召回 140 局（第 34.4 回合，胜 45.0%）  楚背水 128 局（第 40.8 回合，胜 26.6%）
+召回的子（140 次）：炮 3、马 1、车 136；死时 1 级 99、2 级 36、3 级 5；回来 1 级 99、2 级 41；召回的子第一次升级：当场 120 次（平均花 5.3）、之后手动 15 次（召回后平均 4.5 回合、平均花 5.1）、甲片自动 0 次；没升过 5 次；死时一级的那些局汉胜 40.4%（99 局），二级以上 56.1%（41 局）
+少子才能用的主帅兵法（汉召回）：轮到自己时满足用的条件（车马炮比对方少；第三版还要至少丢了一半）过 166 局，第一次平均第 31.3 回合；真用了 140 局（胜 45.0%）
+少子才能用的主帅兵法（楚背水）：轮到自己时满足用的条件（车马炮比对方少；第三版还要至少丢了一半）过 168 局，第一次平均第 32.6 回合；真用了 128 局（胜 26.6%）
+车马炮持续落后（自己走完还少、到下回合还少）：汉 155 局（52.2%，第一次平均第 27.0 回合、平均落后 14.6 回合；这些局汉胜 42.6%；其中用了主帅兵法 115 局、胜 40.9%） | 楚 166 局（55.9%，第一次平均第 25.7 回合、平均落后 20.8 回合；这些局楚胜 30.7%；其中用了主帅兵法 119 局、胜 25.2%）
+手动升级时的血量（升级回满血，掉了血再升更划算）：汉 满血 90.0%、掉过血 10.0%（只剩 1 血 9.0%），共 4370 次 | 楚 满血 88.8%、掉过血 11.2%（只剩 1 血 10.1%），共 4327 次
+先有二级车的一方：两边都有的 176 局里先到的胜 61.4%；只有一方有的 82 局里有的一方胜 89.0%
+背水前后（128 局，分数 + 汉优；背水没有封锁期，这里的“之后”只是汉方紧接着的一手）：背水那一手汉方 -7.34 分（子力 -4.59）；汉方随后一手 +1.85 分；这些局汉胜 73.4%
+首次升到 N 级（平均回合 / 出现的局占比）  汉 | 楚
+  2 级  第 3.2 回合 100.0% | 第 2.3 回合 100.0%
+  3 级  第 22.9 回合 93.9% | 第 21.9 回合 93.9%
+  4 级  第 44.7 回合 58.2% | 第 42.5 回合 59.9%
+局面分随回合（汉方视角，正 = 汉优）/ 军功 / 等级总和
+  R5（297 局在下）分 0.38  军功 汉 1.5 楚 1.4  等级 汉 0.8 楚 0.9
+  R10（297 局在下）分 0.51  军功 汉 2.1 楚 1.9  等级 汉 1.3 楚 1.4
+  R15（290 局在下）分 0.53  军功 汉 3.7 楚 3.4  等级 汉 2.0 楚 2.2
+  R20（282 局在下）分 0.80  军功 汉 3.9 楚 4.0  等级 汉 3.8 楚 3.9
+  R30（256 局在下）分 1.35  军功 汉 4.7 楚 4.1  等级 汉 6.9 楚 7.1
+  R40（216 局在下）分 2.25  军功 汉 5.7 楚 6.3  等级 汉 9.1 楚 9.4
+翻盘（某回合落后 ≥ T 分的一方最后赢了）
+  R10≥2：90 局，落后方赢 38（42.2%），和 0
+  R10≥4：40 局，落后方赢 13（32.5%），和 0
+  R20≥2：181 局，落后方赢 66（36.5%），和 0
+  R20≥4：118 局，落后方赢 41（34.7%），和 0
+  R30≥2：197 局，落后方赢 62（31.5%），和 0
+  R30≥4：155 局，落后方赢 41（26.5%），和 0
+每步平均 2396ms
+✗ 出错的局 3 个（没算进胜负；出错的局往往不是随便哪局，结果可能有偏差）： 7101 Error: 电脑没有给出行动（汉方，第 38 回合，被将军，普通行动 0 种，破釜 / 背水组合 0 种） | 7193 Error: 电脑没有给出行动（楚方，第 61 回合，被将军，普通行动 0 种，破釜 / 背水组合 0 种） | 7278 Error: 电脑没有给出行动（楚方，第 18 回合，被将军，普通行动 0 种，破釜 / 背水组合 0 种）
+（合并 40 份：/home/runner/work/chuhan_v01/chuhan_v01/parts/r35-up3k-hard-b-0.json、/home/runner/work/chuhan_v01/chuhan_v01/parts/r35-up3k-hard-b-1.json、/home/runner/work/chuhan_v01/chuhan_v01/parts/r35-up3k-hard-b-2.json、/home/runner/work/chuhan_v01/chuhan_v01/parts/r35-up3k-hard-b-3.json、/home/runner/work/chuhan_v01/chuhan_v01/parts/r35-up3k-hard-b-4.json、/home/runner/work/chuhan_v01/chuhan_v01/parts/r35-up3k-hard-b-5.json、/home/runner/work/chuhan_v01/chuhan_v01/parts/r35-up3k-hard-b-6.json、/home/runner/work/chuhan_v01/chuhan_v01/parts/r35-up3k-hard-b-7.json、/home/runner/work/chuhan_v01/chuhan_v01/parts/r35-up3k-hard-b-8.json、/home/runner/work/chuhan_v01/chuhan_v01/parts/r35-up3k-hard-b-9.json、/home/runner/work/chuhan_v01/chuhan_v01/parts/r35-up3k-hard-b-10.json、/home/runner/work/chuhan_v01/chuhan_v01/parts/r35-up3k-hard-b-11.json、/home/runner/work/chuhan_v01/chuhan_v01/parts/r35-up3k-hard-b-12.json、/home/runner/work/chuhan_v01/chuhan_v01/parts/r35-up3k-hard-b-13.json、/home/runner/work/chuhan_v01/chuhan_v01/parts/r35-up3k-hard-b-14.json、/home/runner/work/chuhan_v01/chuhan_v01/parts/r35-up3k-hard-b-15.json、/home/runner/work/chuhan_v01/chuhan_v01/parts/r35-up3k-hard-b-16.json、/home/runner/work/chuhan_v01/chuhan_v01/parts/r35-up3k-hard-b-17.json、/home/runner/work/chuhan_v01/chuhan_v01/parts/r35-up3k-hard-b-18.json、/home/runner/work/chuhan_v01/chuhan_v01/parts/r35-up3k-hard-b-19.json、/home/runner/work/chuhan_v01/chuhan_v01/parts/r35-up3k-hard-b-20.json、/home/runner/work/chuhan_v01/chuhan_v01/parts/r35-up3k-hard-b-21.json、/home/runner/work/chuhan_v01/chuhan_v01/parts/r35-up3k-hard-b-22.json、/home/runner/work/chuhan_v01/chuhan_v01/parts/r35-up3k-hard-b-23.json、/home/runner/work/chuhan_v01/chuhan_v01/parts/r35-up3k-hard-b-24.json、/home/runner/work/chuhan_v01/chuhan_v01/parts/r35-up3k-hard-b-25.json、/home/runner/work/chuhan_v01/chuhan_v01/parts/r35-up3k-hard-b-26.json、/home/runner/work/chuhan_v01/chuhan_v01/parts/r35-up3k-hard-b-27.json、/home/runner/work/chuhan_v01/chuhan_v01/parts/r35-up3k-hard-b-28.json、/home/runner/work/chuhan_v01/chuhan_v01/parts/r35-up3k-hard-b-29.json、/home/runner/work/chuhan_v01/chuhan_v01/parts/r35-up3k-hard-b-30.json、/home/runner/work/chuhan_v01/chuhan_v01/parts/r35-up3k-hard-b-31.json、/home/runner/work/chuhan_v01/chuhan_v01/parts/r35-up3k-hard-b-32.json、/home/runner/work/chuhan_v01/chuhan_v01/parts/r35-up3k-hard-b-33.json、/home/runner/work/chuhan_v01/chuhan_v01/parts/r35-up3k-hard-b-34.json、/home/runner/work/chuhan_v01/chuhan_v01/parts/r35-up3k-hard-b-35.json、/home/runner/work/chuhan_v01/chuhan_v01/parts/r35-up3k-hard-b-36.json、/home/runner/work/chuhan_v01/chuhan_v01/parts/r35-up3k-hard-b-37.json、/home/runner/work/chuhan_v01/chuhan_v01/parts/r35-up3k-hard-b-38.json、/home/runner/work/chuhan_v01/chuhan_v01/parts/r35-up3k-hard-b-39.json）
