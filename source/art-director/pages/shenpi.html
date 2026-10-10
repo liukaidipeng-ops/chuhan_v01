@@ -51,6 +51,9 @@ button:focus-visible, textarea:focus-visible { outline: 2px solid var(--zhu); ou
 .opts { display: flex; flex-direction: column; gap: 8px; }
 .opt { text-align: left; font: inherit; color: var(--ink); background: transparent; border: 1.5px solid var(--ink); padding: 10px 14px; cursor: pointer; display: flex; flex-direction: column; gap: 2px; }
 .opt b { font-weight: 700; } .opt span { font-size: 14px; color: var(--ink2); }
+.opt .rec { font-style: normal; display: inline-block; margin-left: 8px; padding: 0 6px; font-size: 12px; font-weight: 700; color: var(--card); background: var(--zhu); vertical-align: 2px; }
+.recline { margin: 0; padding: 6px 10px; border-left: 3px solid var(--zhu); font-size: 15px; }
+.recline b { color: var(--zhu); }
 .opt[aria-pressed="true"] { background: var(--ink); color: var(--card); }
 .opt[aria-pressed="true"] span { color: var(--card); opacity: .8; }
 .opt[aria-pressed="true"] b::after { content: "　✓ 已选"; font-weight: 500; font-size: 14px; }
@@ -391,12 +394,13 @@ textarea:focus { border-color: var(--ink); }
     if (Array.isArray(it.points) && it.points.length) { const ul = el('ul', 'points'); for (const p of it.points) { const li = el('li'); li.append(linked(p)); ul.appendChild(li); } c.appendChild(ul); }
     c.appendChild(shots(it, id));
     if (it.after) { const a = el('p', 'after'); a.append(linked(it.after)); c.appendChild(a); }
+    if (it.recWhy) { const r = el('p', 'recline'), ro = (it.options || []).find(x => String(x.key) === String(it.rec)); r.append(el('b', null, '推荐：' + (ro ? (ro.label || ro.key) : (it.rec === 'approve' ? '通过' : it.rec || '')) + '　')); r.append(linked(it.recWhy)); c.appendChild(r); }
     if (it.kind === 'choice' && Array.isArray(it.options)) {
       const box = el('div', 'opts');
       for (const o of it.options) {
         const p = { status: 'chosen', choice: String(o.key) };
         const b = el('button', 'opt'); b.type = 'button'; b.disabled = allBusy; b.setAttribute('aria-pressed', same(st.pick, p) ? 'true' : 'false');
-        b.append(el('b', null, o.label || o.key)); if (o.desc) b.append(el('span', null, o.desc));
+        const bt = el('b', null, o.label || o.key); if (String(o.key) === String(it.rec)) bt.append(el('i', 'rec', '推荐')); b.append(bt); if (o.desc) b.append(el('span', null, o.desc));
         b.addEventListener('click', () => choose(id, p)); box.appendChild(b);
       }
       const other = el('button', 'b quiet', '都不合适，另说'); other.type = 'button'; other.disabled = allBusy;
