@@ -2,6 +2,54 @@
 
 最新的在最上面，编号接着往下排（M1、M2…）。格式见同目录 `MODEL-WORKFLOW.md` 第 6 节。TD 用 `git show origin/model-lab:source/docs/collab/model-to-main.md` 看。
 
+## M26 · 10-10 · 转达 · 音效（兵卒对打里的盾牌格挡要配一声）
+
+- Ham 确认：审批台 art-085（兵卒对打第三版）备注 15:58「帮我给TD：因为现在有格挡，需要给盾牌格挡配音效」。
+- 改了哪些文件：只有本文件。对打本身还没交付（085 退回改穿模、火花大小，改好再审），这单先请你把音备上。
+
+**需要 TD 做的**
+1. `audio.js` 加一声盾挡（比如 `Sfx.B.block(pan, vol)`）：矛尖扎在蒙皮木盾、铜钉上被顶住——闷的「咚」垫底、上面一点短促的金属「锵」，比 `thud` 脆、比 `clang` 闷、不拖尾；挡住时画面上同时迸一团火花。
+2. 对打一回合里会响两三次：汉兵突刺被楚兵举盾挡住（最响）、楚兵盾后反刺被汉兵矛杆拨开（这次是杆碰杆，用现有 `clang` 就行）。哪一帧发、盾在哪个位置，等对打交付时我在单子里写成事件（`block` / `parry`）给你接。
+
+## M25 · 10-10 · 交付 · 特效（战象：正面踩死的肢解冲飞、一团血雾；践踏震死的掀上天；碎石加倍）
+
+- 提交：model-lab 上带这张交付单的那次提交。交付前合过 `origin/dev`（2321c9c），`node build.js` 能过，`test/*.test.js` 全过。
+- Ham 确认：10-10 11:53 在对话里说「被象直接击杀的棋子，会被肢解并冲飞，产生大量血雾，被践踏的棋子，会被直接击飞到天上。践踏总会产生大量碎石块」；审批台 art-084（样片）通过（15:55）。样片：https://claude.ai/artifact/G3wKc22GFRWbxzpkLuWVba
+- 改了哪些文件：只有本文件。要改的在 `squads.js`、`bfx.js`（都归你），我在一份拷贝上照下面改完、构建、拍过样片（`source/art-wip/elephant-fx/`）。
+
+**需要 TD 做的**
+1. `squads.js` 兵被打死那一段（约 215 行 `case 'ram': case 'trample':`）拆成三个：
+   ```js
+   case 'ram': {   // 原样
+     const v = dir.clone().multiplyScalar(R(1.5, 3) * power).add(away.clone().multiplyScalar(0.8)).add(new V3(0, R(0.8, 2) * power, 0));
+     troop.kill(i, { dir: dirAng + R(-0.5, 0.5), speed: 3.5, fly: { v, g: 9, w: R(-6, 6), floor: 0 } });
+     bleed(12, 0.8);
+     if (G >= 3 && Math.random() < 0.35) dismember(troop, i, Math.random() < 0.5 ? 'armS' : 'legR', dir);
+     break;
+   }
+   case 'trample': {   // 战象踩死（美术 M25，Ham 10-10）：整个人被踩散、顺着象冲的方向冲飞——断肢飞出、一大团血雾
+     const v = dir.clone().multiplyScalar(R(2.4, 4) * power).add(away.clone().multiplyScalar(1.3)).add(new V3(0, R(1.8, 3.4) * power, 0));
+     troop.kill(i, { dir: dirAng + R(-0.8, 0.8), speed: 4, fly: { v, g: 9, w: R(-12, 12), floor: 0 } });
+     bleed(22, 1.1, away);
+     P.smoke(pos, 3, 0.9, Math.random() < 0.5 ? 0x8e1408 : 0x6e0f06);   // 血雾
+     if (G >= 2) { dismember(troop, i, ['head', 'armW', 'armS'][Math.floor(Math.random() * 3)], dir.clone().add(away)); if (Math.random() < 0.6) dismember(troop, i, Math.random() < 0.5 ? 'legL' : 'legR', dir); }
+     break;
+   }
+   case 'crush': {   // 践踏震死（美术 M25，Ham 10-10）：整个人被掀上天，翻着跟头落下来
+     const v = away.clone().multiplyScalar(R(0.4, 1.2)).add(new V3(0, R(5, 7.5) * Math.min(1.6, power / 1.5), 0));
+     troop.kill(i, { dir: awayAng, speed: 3, fly: { v, g: 9, w: R(-16, 16), floor: 0 } });
+     bleed(14, 0.9, away);
+     if (G >= 3 && Math.random() < 0.4) dismember(troop, i, Math.random() < 0.5 ? 'armW' : 'legL', away);
+     break;
+   }
+   ```
+   - `'crush'` 现在走的是 `default`（就地中刀倒下），践踏的 `blowAway` 默认就传它，所以改完践踏震死的那一队就会被掀上天。
+2. 碎石：`bfx.js` 的 `rubble()` 挪到 `Fx`（或 `Squads`）里让两边都能用，石头大小 `R(0.5, 1.7)` → `R(0.6, 2.2)`、寿命 `R(1.2, 2.2)` → `R(1.4, 2.6)`；然后
+   - `bfx.js` `trampleFx`（约 131 行）`rubble(c…, 22, 1.2, 1.1)` → `rubble(c…, 44, 1.4, 1.35)`（加倍、崩得更远）；
+   - `squads.js` `Elephant.attack` 跺下那一行（`Fx.Marks.crack(B, 1.4);` 后面）加 `rubble(B.clone().setY(TOP), 30, 0.9, 1.2);`——正面踩也崩碎石。
+- 低画质档 `rubble` 本来就减半，不用另管。
+- 我看过的：本地对局棋盘上，楚战象正面踩死一队三级汉兵（`attack` → `die('trample')`）、跺地践踏把旁边一队掀上天（`die('crush', d, 2.25)` + 碎石 44 块），电脑 960×540 逐帧。没看的：手机、低画质档、棋子模式（`Fx.chunks` / `Fx.flyFace` 那一路飞多高没动）。
+
 ## M23 · 10-10 · 交付 · 棋子字面（银、金、玉棋面加一道汉朱 / 楚墨细圈，一眼分出汉楚）
 
 - 提交：model-lab 上带这张交付单的那次提交。交付前合过 `origin/dev`（d1c700b），`node build.js` 能过，`test/*.test.js` 全过。
