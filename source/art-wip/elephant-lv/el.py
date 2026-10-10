@@ -11,7 +11,7 @@ with sync_playwright() as p:
     pg.add_script_tag(content=open(EH + '/eld.js', encoding='utf-8').read())
     for pl in plans:
         pg.evaluate("(p)=>ELD.lineup(p)", pl); time.sleep(1)
-        for nm, c in [('front', {'d': 7.4, 'el': 0.26, 'az': 0.15}), ('hero', {'d': 2.9, 'el': 0.18, 'az': 0.55, 'lx': 2.55, 'lh': 0.6})]:
+        for nm, c in [('front', {'d': 5.6, 'el': 0.22, 'az': 0.15, 'lh': 0.45}), ('hero', {'d': 3.6, 'el': 0.2, 'az': 0.6, 'lx': 2.55, 'lh': 0.85})]:
             pg.evaluate("(c)=>ELD.cam(c)", c); time.sleep(2.5)
             pg.screenshot(path=f'{EH}/shots/plan_{pl}_{nm}.png'); print('shot', pl, nm, flush=True)
     b.close()
