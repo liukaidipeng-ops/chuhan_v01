@@ -33,14 +33,44 @@ window.FILM = {};
     return ctx;
   }
   const gy = (ctx, x, z) => Math.max(0, ctx.hAt(x, z));
+  // ---------- F0 · 亭长特写：船上的老人听见身后马蹄声，回头（4.5 秒；审批台 079 加的开头） ----------
+  FILM.F0 = () => {
+    const ctx = riverStage({ seed: 21, sun: [0.55, 0.14, -0.8], fogD: 0.02 });
+    const rp = []; for (let i = 0; i < 40; i++) rp.push([SB.rr(-0.5, 6), 0, SB.rr(-30, -6)]);   // 背后岸上的芦苇（虚焦）
+    SB.reeds(ctx, rp, { per: 22, r: 1.3, h: [1.2, 2.5] });
+    SB.dust(ctx, { n: 60, box: [-40, 30, 0, 4, -60, 20], s: [6, 16], op: [0.05, 0.12], col: 0xf1dcc0 });
+    const F = Ferry.makeFerry({ scale: 1.5 }); F.group.position.set(-3.6, 0, 0); F.group.rotation.y = -PI / 2; ctx.add(SB.shadows(F.group)); F.setPose('stand', 0.01); F.lanternOn(true);
+    F.update(0.1); F.group.updateMatrixWorld(true);
+    const head = V(0, 0, 0); F.man.J.head.getWorldPosition(head); head.y += 0.06;
+    const toward = V(1, 0, -0.55).normalize();   // 马蹄声从他身后岸上来（他面朝下游 +z）；镜头在那个方向，他一回头脸就转过来
+    const cam = SB.cam(head.clone().addScaledVector(toward, 0.95).add(V(0, -0.1, 0)).toArray(), head.toArray(), 28);
+    SB.fill(ctx, toward.clone().add(V(0, -0.15, 0)).toArray(), 0xffe2c0, 1.1);   // 斗笠底下压着阴影，从镜头这边往脸上补一盏
+    ctx.shadowAt(head.toArray(), 6);
+    const post = { focus: 0.95, ap: 1.0, maxR: 16, exp: 1.0, gain: [1.07, 0.98, 0.88], sat: 0.9, vign: 0.5, grain: 0.055 };
+    const c0 = cam.position.clone();
+    return { ctx, cam, dur: 4.5, post,
+      update(t, dt) {
+        // 先望着江面出神；1.3 秒听见马蹄，愣一下；1.6 秒起慢慢回头，越过左肩望向来路，眯眼、头微微抬起
+        const k = sm((t - 1.6) / 1.3);
+        F.look(lerp(0.05 * Math.sin(t * 0.7), 2.0, k), lerp(-0.05, 0.06, k) + (t > 1.3 && t < 1.6 ? 0.03 : 0));
+        F.update(dt); F.group.position.y = 0.02 * Math.sin(t * 1.3); F.group.rotation.z = 0.01 * Math.sin(t * 0.9);
+        F.group.updateMatrixWorld(true);
+        const h = V(0, 0, 0); F.man.J.head.getWorldPosition(h); h.y += 0.06;
+        cam.position.copy(c0).addScaledVector(toward, -0.12 * sm(t / 4.5)); cam.lookAt(h);
+        post.focus = cam.position.distanceTo(h);
+      } };
+  };
   // ---------- F1 · 乌江黎明大全景：项王一行沿岸奔来（7 秒） ----------
   FILM.F1 = () => {
     const ctx = riverStage();
+    const BOAT = V(-2.7, 0, 10), CAM = V(3.5, 3.2, 22);
     const rp = []; for (let i = 0; i < 70; i++) rp.push([-2 + SB.rr(-2.5, 1.5), 0, 20 - i * 2.4 + SB.rr(-1, 1)]);
     for (let i = 0; i < 30; i++) rp.push([SB.rr(-9, -4), 0, SB.rr(-30, 18)]);
-    SB.reeds(ctx, rp, { per: 26, r: 1.4, h: [1.2, 2.6] });
-    const F = Ferry.makeFerry(); F.group.position.set(-4.6, 0, 6); F.group.rotation.y = -1.35; ctx.add(SB.shadows(F.group)); F.setPose('pole', 0.01);
-    SB.glow(ctx, [-4.6, 2.2, 6], 0xffb060, 1.2, 0.8);
+    // 芦苇别挡人（079）：镜头到船、船四周三米以内的都拔掉
+    const seg = (p, a, b) => { const ab = b.clone().sub(a), t = Math.max(0, Math.min(1, p.clone().sub(a).dot(ab) / ab.lengthSq())); return p.distanceTo(a.clone().addScaledVector(ab, t)); };
+    SB.reeds(ctx, rp.filter(q => { const P = V(q[0], 1.5, q[2]); return seg(P, CAM, BOAT.clone().setY(1.5)) > 2.6 && P.distanceTo(BOAT.clone().setY(1.5)) > 3.4; }), { per: 26, r: 1.4, h: [1.2, 2.6] });
+    const F = Ferry.makeFerry({ scale: 1.5 }); F.group.position.copy(BOAT); F.group.rotation.y = -1.35; ctx.add(SB.shadows(F.group)); F.setPose('pole', 0.01); F.lanternOn(true);
+    SB.glow(ctx, [BOAT.x, 2.6, BOAT.z], 0xffb060, 1.2, 0.8);
     const R = rider(ctx, 2);
     const pack = [];
     for (let i = 0; i < 24; i++) { const c = Models.makeCavalry('b', true, i % 3 ? 'dao' : 'ji'); c.group.rotation.y = -PI / 2 + SB.rr(-0.05, 0.05); ctx.add(SB.shadows(c.group)); c.speed = 1; pack.push({ c, dx: 1.5 + SB.rr(0, 4.5), dz: -2 - i * 1.15 + SB.rr(-0.6, 0.6), ph: SB.rr(0, 1) }); }
@@ -57,14 +87,18 @@ window.FILM = {};
         R.H.speed = 2; const p = lead(z); R.H.group.position.set(p.x, gy(ctx, p.x, p.z), p.z); R.H.group.rotation.y = -PI / 2; R.step(dt);
         for (const k of pack) { const x = 3.2 + k.dx, zz = z + k.dz; k.c.group.position.set(x, gy(ctx, x, zz), zz); k.c.update(dt); }
         dustG.position.set(1.5, 0, z);
+        { const e = F.man.group.getWorldPosition(V(0, 0, 0)), d = R.H.group.position.clone().sub(e), fw = V(1, 0, 0).applyQuaternion(F.man.group.getWorldQuaternion(new THREE.Quaternion()));
+          const ang = Math.atan2(fw.clone().cross(d).y, fw.dot(d)); F.look(Math.max(-1.9, Math.min(1.9, ang)) * sm((t - 1.5) / 1.5), 0.05); F.update(dt); }
         cam.position.copy(c0).add(V(-0.4 * t / 7, -0.15 * t / 7, -2.2 * sm(t / 7))); cam.lookAt(L0.clone().add(V(0, 0, 4 * t / 7)));
       } };
   };
   // ---------- F2 · 侧面长焦跟拍：项王勒马，由快步到慢走、停下（5 秒） ----------
   FILM.F2 = () => {
     const ctx = riverStage({ seed: 12, sun: [-0.6, 0.12, -0.8] });
+    const BZ = 4.5;
     const rp = []; for (let i = 0; i < 60; i++) rp.push([SB.rr(-4, -0.5), 0, SB.rr(-40, 30)]);
-    SB.reeds(ctx, rp, { per: 24, r: 1.3, h: [1.2, 2.4] });
+    SB.reeds(ctx, rp.filter(q => Math.abs(q[2] - BZ) > 5.5), { per: 24, r: 1.3, h: [1.2, 2.4] });   // 船前面那一段不种，背景里看得见亭长（079）
+    const F = Ferry.makeFerry({ scale: 1.5 }); F.group.position.set(-6.2, 0, BZ); F.group.rotation.y = PI / 2 + 0.15; ctx.add(SB.shadows(F.group)); F.setPose('pole', 0.01); F.lanternOn(true);
     const fg = []; for (let i = 0; i < 16; i++) fg.push([SB.rr(7.5, 9.5), 0, SB.rr(-25, 25)]);   // 前景芦苇（虚焦）
     SB.reeds(ctx, fg, { per: 18, r: 0.8, h: [0.9, 1.6], col: 0x5a5236 });
     SB.dust(ctx, { n: 70, box: [-80, -4, 0, 3, -80, 40], s: [10, 24], op: [0.06, 0.14], col: 0xf1dcc0 });
@@ -77,6 +111,11 @@ window.FILM = {};
         R.H.speed = sp; v = sp * 3.6; z += v * dt;
         R.H.headK = t > 3.4 ? 0.45 * sm((t - 3.4) / 0.8) : 0; R.H.earK = 0.8;
         R.H.group.position.set(1.2, gy(ctx, 1.2, z), z); R.H.group.rotation.y = -PI / 2; R.step(dt);
+        // 亭长：撑着篙，望见项王就停手，扭头一直看着他
+        if (t > 2.6 && F.pose === 'pole') F.setPose('stand', 0.8);
+        { const e = F.man.group.getWorldPosition(V(0, 0, 0)), d = R.H.group.position.clone().sub(e), fw = V(1, 0, 0).applyQuaternion(F.man.group.getWorldQuaternion(new THREE.Quaternion()));
+          F.look(Math.max(-1.9, Math.min(1.9, Math.atan2(fw.clone().cross(d).y, fw.dot(d)))), 0.04); }
+        F.update(dt); F.group.position.y = 0.02 * Math.sin(t * 1.2);
         // 停下以后项王慢慢回头，望向西边来路
         R.X.pose({ chestRy: -0.35 * sm((t - 3.9) / 1.1), headRy: -0.6 * sm((t - 3.9) / 1.1) });
         const tz = z + 0.4; cam.position.set(13, 1.55, lerp(cam.position.z, tz, t === 0 ? 1 : Math.min(1, dt * 3))); cam.lookAt(0, 1.6, cam.position.z);
@@ -108,7 +147,11 @@ window.FILM = {};
     const rp = []; for (let i = 0; i < 46; i++) rp.push([SB.rr(-9, -3.5), 0, SB.rr(-14, -2)]);
     SB.reeds(ctx, rp, { per: 22, r: 1.2, h: [1.1, 2.3] });
     SB.dust(ctx, { n: 60, box: [-60, 10, 0, 3, -60, -6], s: [8, 20], op: [0.05, 0.12], col: 0xf1dcc0 });
-    const F = Ferry.makeFerry(); F.group.position.set(-5.2, 0, -1.2); F.group.rotation.y = 0.15; ctx.add(SB.shadows(F.group));
+    const F = Ferry.makeFerry({ scale: 1.5 }); F.group.position.set(-6.4, 0, -1.6); F.group.rotation.y = 0.15; ctx.add(SB.shadows(F.group));
+    // 背景里剩下的楚骑（079）：二十来骑勒马立在后面，马在原地踏、甩头
+    const guards = [];
+    for (let i = 0; i < 18; i++) { const c = Models.makeCavalry('b', true, i % 3 ? 'dao' : 'ji'), x = -3 + (i % 6) * 2.2 + SB.rr(-0.5, 0.5), z = -11 - Math.floor(i / 6) * 2.4 + SB.rr(-0.6, 0.6);
+      c.group.position.set(x, gy(ctx, x, z), z); c.group.rotation.y = PI / 2 + SB.rr(-0.25, 0.25) + 0.3; ctx.add(SB.shadows(c.group)); c.speed = 0; guards.push(c); }
     const elder = F.man.group; ctx.add(elder);
     Ferry.POSES.take = Object.assign({}, Ferry.POSES.offer, { shL: [0, -0.15, 1.4], elL: [0, 0, 0.2] });
     const H = WuZhui.make({ stage: 2 }); H.group.position.set(1.5, gy(ctx, 1.5, 0), 0); H.group.rotation.y = PI; ctx.add(SB.shadows(H.group));
@@ -145,7 +188,10 @@ window.FILM = {};
         X.POSES.dyn.head = [hRx, 0, 0]; X.POSES.dyn.chest = [t < 6 ? 0.08 : 0.02, 0, 0];
         X.setPose('dyn', 0.001); X.update(dt); X.J.sword.position.copy(swordRest);
         // 亭长：从船边走过来，作揖，双手接缰
-        elder.position.copy(ep); { const de = X.group.position.clone().sub(ep); elder.rotation.y = Math.atan2(-de.z, de.x); }
+        { const pe = elder.position.clone(); elder.position.copy(ep); const moved = t > 0 ? pe.distanceTo(ep) : 0; F.walk(moved, moved > 0.0005); }
+        { const de = X.group.position.clone().sub(ep); elder.rotation.y = Math.atan2(-de.z, de.x); }
+        F.look(0, t < 9.2 ? 0.12 : 0);   // 走近时抬头看着项王
+        for (const c of guards) c.update(dt);
         const want = t < 9.2 ? 'stand' : t < 10.8 ? 'bow' : 'take'; if (F.pose !== want) F.setPose(want, want === 'bow' ? 0.7 : 0.8); F.update(dt);
         elder.updateMatrixWorld(true);
         // 缰绳：先垂在马颈下；7.5 秒起在项王右手里；12 秒交到亭长手上

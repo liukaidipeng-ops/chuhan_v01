@@ -128,7 +128,24 @@ window.SB = (() => {
     const N = 512, nt = cvTex(N, N, (g, w) => { g.fillStyle = 'rgb(128,128,255)'; g.fillRect(0, 0, w, w); for (let i = 0; i < 2600; i++) { const x = rnd() * w, y = rnd() * w, l = rr(8, 40); g.strokeStyle = `rgba(${rnd() < 0.5 ? 100 : 156},128,255,${rr(0.15, 0.4)})`; g.lineWidth = rr(1, 3); g.beginPath(); g.moveTo(x, y); g.lineTo(x + l, y + rr(-1, 1)); g.stroke(); } }, false);
     nt.wrapS = nt.wrapT = THREE.RepeatWrapping; nt.repeat.set(o.rep ?? 60, o.rep ?? 60);
     const m = new THREE.Mesh(new THREE.PlaneGeometry(o.size ?? 1600, o.size ?? 1600), new THREE.MeshStandardMaterial({ color: o.col ?? 0x55636a, roughness: o.rough ?? 0.08, metalness: 0.0, envMap: env, envMapIntensity: o.env ?? 1.2, normalMap: nt, normalScale: new THREE.Vector2(0.35, 0.35) }));
-    m.rotation.x = -Math.PI / 2; m.position.set(o.x ?? 0, o.y ?? 0, o.z ?? 0); m.receiveShadow = true; return ctx.add(m);
+    m.rotation.x = -Math.PI / 2; m.position.set(o.x ?? 0, o.y ?? 0, o.z ?? 0); m.receiveShadow = true;
+    // 倒影：拍的时候先把整个场景沿水面翻过来拍一张（只留水面以上的东西），水面按屏幕位置取这张图，跟着波纹抖，越斜看越亮
+    if (o.refl !== false) {
+      const U = { tRef: { value: null }, rRes: { value: new THREE.Vector2(1, 1) }, rAmt: { value: o.reflAmt ?? 0.85 }, rDist: { value: o.reflDist ?? 0.035 }, rTint: { value: new THREE.Color(o.reflTint ?? 0xb8c2c4) } };
+      m.material.onBeforeCompile = sh => {
+        Object.assign(sh.uniforms, U);
+        sh.fragmentShader = 'uniform sampler2D tRef; uniform vec2 rRes; uniform float rAmt, rDist; uniform vec3 rTint;\n' + sh.fragmentShader.replace('#include <opaque_fragment>', `{
+          vec2 suv = gl_FragCoord.xy / rRes; suv += normal.xy * rDist;
+          vec3 refl = texture2D(tRef, suv).rgb * rTint;
+          float fr = 0.35 + 0.65 * pow(1.0 - max(dot(normalize(normal), normalize(vViewPosition)), 0.0), 3.0);
+          outgoingLight = mix(outgoingLight, refl, clamp(rAmt * fr, 0.0, 1.0));
+        }
+        #include <opaque_fragment>`);
+      };
+      m.material.customProgramCacheKey = () => 'sbWaterRefl';
+      ctx.waterRefl = { mesh: m, U, h: o.y ?? 0 };
+    }
+    return ctx.add(m);
   }
   // 芦苇：一丛丛细长的弯锥
   function reeds(ctx, pts, o = {}) {
@@ -186,6 +203,15 @@ window.SB = (() => {
     for (const f of ctx.anim) f(cam);
     const dt = new THREE.DepthTexture(w, h); dt.type = THREE.UnsignedIntType;
     const rt = new THREE.WebGLRenderTarget(w, h, { type: THREE.HalfFloatType, depthTexture: dt }), rt2 = new THREE.WebGLRenderTarget(w, h, { type: THREE.HalfFloatType });
+    let rRT = null;
+    if (ctx.waterRefl && o.refl !== false) {   // 倒影：整个场景沿水面翻过来（灯光、天空一起翻，等于把镜头翻到水下），只画水面以上的东西
+      const W8 = ctx.waterRefl; rRT = new THREE.WebGLRenderTarget(w >> 1, h >> 1, { type: THREE.HalfFloatType });
+      W8.mesh.visible = false; const S0 = ctx.S; S0.scale.y = -1; S0.position.y = 2 * W8.h; S0.updateMatrixWorld(true);
+      R.clippingPlanes = [new THREE.Plane(V(0, -1, 0), W8.h + 0.002)];
+      R.setRenderTarget(rRT); R.setClearColor(0x000000, 1); R.clear(); R.render(S0, cam);
+      R.clippingPlanes = []; S0.scale.y = 1; S0.position.y = 0; S0.updateMatrixWorld(true); W8.mesh.visible = true;
+      W8.U.tRef.value = rRT.texture; W8.U.rRes.value.set(w, h);
+    }
     R.setRenderTarget(rt); R.setClearColor(0x000000, 1); R.clear(); R.render(ctx.S, cam);
     const U = dofMat.uniforms; U.tC.value = rt.texture; U.tD.value = dt; U.res.value.set(w, h); U.near.value = cam.near; U.far.value = cam.far; U.focus.value = o.focus ?? 10; U.ap.value = o.ap ?? 0.5; U.maxR.value = (o.maxR ?? 14) * ss;
     let src = rt;
@@ -194,7 +220,7 @@ window.SB = (() => {
     R.toneMappingExposure = 1;
     pass(finMat, null);
     const url = R.domElement.toDataURL('image/png');
-    rt.dispose(); rt2.dispose(); dt.dispose();
+    rt.dispose(); rt2.dispose(); dt.dispose(); if (rRT) rRT.dispose();
     return url;
   }
   function cam(pos, look, fov, near = 0.1, far = 2500) { const c = new THREE.PerspectiveCamera(fov, 2.39, near, far); c.position.set(...pos); c.lookAt(...look); return c; }
