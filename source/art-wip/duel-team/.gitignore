@@ -1,0 +1,7 @@
+_t.html
+*.png
+*.log
+*.mp4
+frames/
+v_*/
+pick_*.jpg
