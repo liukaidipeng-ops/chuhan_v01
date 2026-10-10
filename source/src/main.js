@@ -8,6 +8,13 @@
   // 更新说明（设置里、大厅底部点「更新」查看；最新的放最前）
   const NEWS = [
     ['第六版', '2026 年 10 月', [
+      '联机、人机对局楚军获胜时的结算曲换成新写的两首，随机放一首：「乌骓」（马嘶、马蹄、古筝往上扬）、「楚凯」（编钟奏的庄重楚调，最后一声钟余音拉长）',
+      '技能模式电脑会想到「先升级、攻击变大、再吃子」了（比如升象吃炮），原来这种升级被它的筛子挡掉（数值部改的，对原来的霸王不吃亏）',
+      '结算画面多了「分 析」：电脑把整局每一步评一遍（佳 / 好 / 缓 / 失 / 错），底下一条兵势河看谁占优，点一枚兵符看这步该怎么走；「详解」结合前后几步讲清楚这步为什么错、应该怎么走、两条路走下去差多少，还能在棋盘上演示（Ham 选的方案三「沙盘兵势」）',
+      '结算画面多了「保 存」：存进这台设备的「我的棋局」（大厅右上角），能复盘、复制；设置里粘好 GitHub 令牌后可以「存并发给数值部」，数值部回复、处理完都能在「我的棋局」里看到',
+      '棋谱上点某一步可以标「这步笨」，写一句哪里笨，保存、发给数值部时一起带上',
+      '兵种模型的战马、骑士、战车、铜炮、战象，每个由几十块零件分开画改成合成一块画：样子不变，每帧少画约四分之一（Ham 选的性能活第二件）',
+      '修好：被将军、只有先给某枚子升一级才解得了将时，电脑有时一步都不走、对局卡住；人升错了子（升完还是无路可走）也会卡住——现在电脑会找到能解将的升法；人这边，升了也解不了将的子不让升（升级按钮写「解不了将」），只能升对的那枚（数值部查出来的，规则 Ham 定）',
       '联机时状态条左边多了信号格（美术画的）：对方一拍没音信变白、两拍变黄、断开或 9 秒没音信变红并闪；信号好就不显示（原来的小圆点去掉了）',
       '安卓手机在微信、QQ 等 App 里打开时，系统字号调大会把网页字也放大、挤乱界面：现在开局量一下放大了多少再缩回来，字号和浏览器里一样',
       '技能模式：主将卡上的军功改成一方金印（美术画的），加功时一团金光从来处飞进印里、金星四溅；花功时印变红、金光飞向升级的子或兵法签；旁边飘「+n 功 · 原因」',
@@ -183,7 +190,9 @@
   { const canDraw = Core.render && !DG.has('nogl'); if (canDraw) {
     let ready = false, warm = 3; Core.render = false;
     const done = () => { ready = true; };
-    Core.compileBg(Core.scene, Core.camera, 900).then(() => setTimeout(done, 50));
+    // 兵种模型合成网格（蒙皮）的着色器一起先编：放一匹马在地底下陪着编，编完拿走（不然第一次出兵种模型时要当场编，卡一下）
+    let warmHorse = null; try { if (Models.FUSE) { warmHorse = Models.makeHorse(); warmHorse.group.position.set(0, -40, 0); Core.scene.add(warmHorse.group); } } catch (e) { warmHorse = null; }
+    Core.compileBg(Core.scene, Core.camera, 900).then(() => { if (warmHorse) Core.disposeTree(warmHorse.group); setTimeout(done, 50); });
     setTimeout(done, 8000);   // 万一一直不回话，也别一直不画
     // 不画的时候（大厅整屏盖着）把三维画布藏起来：浏览器就不用再拿它去合成画面。
     //   10-09 Ham（RTX 5060 Ti + Chrome）：把标签拖成独立窗口后窗口发白、不刷新，Alt+Tab 切一下才看到变化，连别的软件都卡
@@ -462,12 +471,25 @@
     for (const h of game.history) { notes.push(noteOf(g.board, h, h.rv)); g.play({ from: h.from, to: h.to, rv: h.rv }); }
     renderLog();
   }
+  function escH(t) { return String(t == null ? '' : t).replace(/&/g, '&amp;').replace(/"/g, '&quot;').replace(/</g, '&lt;').replace(/>/g, '&gt;'); }
+  // 标了“这步笨”的那几步：ply → { ply, at, turn, side, move, note }。正在下的局先把悔掉的步上的标记去掉（棋谱对不上的）
+  function flagMap() {
+    const m = new Map();
+    try {
+      const G = RP ? RP.real : game; if (!G || !G.__flags) return m;
+      if (!RP) G.__flags = G.__flags.filter(f => f.ply < notes.length && f.move === noteText(notes[f.ply]));
+      for (const f of G.__flags) m.set(f.ply, f);
+    } catch (e) { }
+    return m;
+  }
   const noteHtml = n => { if (!n) return ''; const [a, b] = n.split('='); return b ? `${a}<em class="rv">${b}</em>` : a; };
   function renderLog() {
     let html = '';
+    const fl = flagMap();
+    const sp = (i, cls) => notes[i] == null ? `<span class="${cls}"></span>` : `<span class="${cls}${fl.has(i) ? ' flag' : ''}" data-i="${i}"${fl.has(i) && fl.get(i).note ? ` title="${escH(fl.get(i).note)}"` : ''}>${noteHtml(notes[i])}</span>`;
     for (let i = 0; i < notes.length; i += 2) {
       const last = notes.length - 1;
-      html += `<li><i>${i / 2 + 1}</i><span class="r${i === last ? ' last' : ''}">${noteHtml(notes[i])}</span><span class="${i + 1 === last ? 'last' : ''}">${noteHtml(notes[i + 1])}</span></li>`;
+      html += `<li><i>${i / 2 + 1}</i>${sp(i, 'r' + (i === last ? ' last' : ''))}${sp(i + 1, i + 1 === last ? 'last' : '')}</li>`;
     }
     const L = $('logList'); L.innerHTML = html || '<li style="display:block;text-align:center;color:#8a8580;font-size:calc(13px * var(--fs,1))">尚未落子</li>'; L.scrollTop = L.scrollHeight;
   }
@@ -1353,6 +1375,7 @@
       await Ending.play(result, {
         again: W ? () => { Ending.hideCard(); toast('等待棋手开新局…'); } : requestAgain, againText: W ? '继 续 观 战' : '',
         lobby: toLobby, persp, tune, instant: endSkip || slain, review: startReplay,
+        extra: [...(anaOk(game) ? [{ text: '分 析', fn: anaOpen }] : []), ...(watching() ? [] : [{ text: '保 存', fn: () => openSave() }])],   // 结算卡：复盘 · 分析 · 保存（Ham 10-10 td-014 / td-015）
         mine: mode === 'local' || W || aiBoth() || !result.winner ? '' : (persp === 'win' ? '你 胜 了' : '你 败 了'),
       });
       if (pendingRestart) { const st = pendingRestart; pendingRestart = null; restart(st === true ? undefined : st); if (mode === 'host') Net.send({ t: 'restart', state: snapshot() }); }
@@ -1365,6 +1388,7 @@
   }
   let pendingRestart = null;
   function restart(state) {
+    anaTok++;   // 正在分析的停下
     if (RP) exitReplay(true);
     Ending.hideCard(); Core.Time.skip = false; pendingJ = null;
     startGame(mode, mySide, mode !== 'host' && state && state.opts ? state.opts : opts, { state, intro: true });   // 再来一局：客人、观众都用房主带来的选项（规则记号在里面）
@@ -1385,7 +1409,7 @@
     Fx.clearMarks(); Board.setPosition(game); Board.faceViewer(viewSide); Board.clearMoves(); Fx.ply = game.history.length;
     const last = game.history[game.history.length - 1];
     Board.showLast(last && last.from ? last.from : null, last && last.to ? last.to : null);
-    rebuildNotes(); rpPaint(); updateHud();
+    rebuildNotes(); rpPaint(); updateHud(); anaFollow();
   }
   async function rpStep() {
     if (!RP || RP.busy || RP.k >= RP.n) return;
@@ -1405,7 +1429,7 @@
       }
     } catch (err) { console.error(err); }
     Core.Time.skip = false; Core.Time.scale = 1; Core.Cam.cine = false; document.body.classList.remove('cine');
-    if (RP) { RP.busy = false; rpPaint(); updateHud(); }
+    if (RP) { RP.busy = false; rpPaint(); updateHud(); anaFollow(); }
   }
   async function rpPlay() {
     if (!RP) return;
@@ -1419,7 +1443,7 @@
     $('rpBar').querySelector('[data-rp="play"]').textContent = RP.playing ? '❚❚ 暂停' : '▶ 播放';
     $('rpBar').querySelectorAll('[data-rp]').forEach(b => { const a = b.dataset.rp; b.disabled = a !== 'exit' && a !== 'play' && RP.busy || ((a === 'prev' || a === 'first') && RP.k === 0) || ((a === 'next' || a === 'last') && RP.k >= RP.n); });
   }
-  function startReplay() {
+  function startReplay(quiet) {
     if (RP || !game) return;
     Ending.hideCard();
     clearFinale(); Camp.reset();
@@ -1429,14 +1453,15 @@
     $('hud').classList.remove('hidden');
     setView(viewSide);
     rpShow(0);
-    toast('复盘：用下方按钮逐步前进、后退或自动播放', 2600);
+    if (quiet !== true) toast('复盘：用下方按钮逐步前进、后退或自动播放', 2600);
   }
   async function exitReplay(silent) {
     if (!RP) return;
     const real = RP.real; RP.playing = false;
     while (RP && RP.busy) await new Promise(r => setTimeout(r, 100));
-    RP = null; $('rpBar').classList.add('hidden');
+    RP = null; $('rpBar').classList.add('hidden'); anaClose();
     game = real; Fx.clearMarks(); Board.setPosition(game); Board.faceViewer(viewSide); rebuildNotes(); updateHud();
+    if (savedView) { toLobby(); return; }   // 「我的棋局」进来的复盘：退出就回大厅
     if (!silent) $('endcard').classList.remove('hidden');
   }
   $('rpBar').addEventListener('click', e => {
@@ -1450,6 +1475,438 @@
     else if (a === 'first') rpShow(0);
     else if (a === 'last') rpShow(RP.n);
   });
+
+  // ---------- 对局分析（Ham 10-09 22:36）：结算界面「分析」——局势曲线、每步电脑认为最好的走法、哪步是错棋 ----------
+  //   做法：把每一步走之前的局面交给电脑各算一遍（标准象棋用人机引擎，技能模式用技能电脑），得到「这一方最好的一步」和局面分 V（轮到的一方看）。
+  //   第 i 步损失 = V(走之前) + V(走之后，对方看)：走了最好的一步损失约 0，走坏了对方的分涨上来。按损失分五档：最佳 / 好棋 / 缓着 / 失误 / 错棋
+  //   技能模式按「一回合」算（升级 + 主行动 + 拒马算一回合）。揭棋看不见暗子，不做分析
+  const ANA = {
+    std: { cut: [0, 20, 50, 120], scale: 300, cap: 1500, time: 450 },     // 引擎分：车约 200、马炮约 90、兵 10～40
+    bf: { cut: [0, 0.5, 1.2, 3], scale: 6, cap: 40, time: 0 },            // 技能电脑的分：车 9、马炮 4 多、兵 1 多
+    tags: ['最佳', '好棋', '缓着', '失误', '错棋'], cls: ['best', 'good', 'slow', 'miss', 'err'],
+  };
+  let anaTok = 0;
+  const anaOk = g => !!g && !g.jq;
+  // 每一步（技能模式是每一回合）：{ side, note, k0（从第几条记录起）, k1（到第几条为止，复盘用）, mv（主行动，画线用） }
+  function anaSteps(real) {
+    const out = [];
+    if (real.bf) {
+      const g = new BF.Game(); g.reset(real.base); let cur = null;
+      real.entries.forEach((e, i) => {
+        if (!cur) cur = { side: g.turn, notes: [], k0: i, S: BF.cloneState(g.S), mv: null };
+        cur.notes.push(bfNote(g, e));
+        if (e.k !== 'up') cur.mv = e.from ? { from: e.from, to: e.to } : e.at ? { from: e.at, to: e.to || e.at } : cur.mv;
+        if (!g.apply(e)) return;
+        if (g.ends[g.ends.length - 1]) { cur.k1 = i + 1; cur.note = cur.notes.join(' '); out.push(cur); cur = null; }
+      });
+      if (cur) { cur.k1 = real.entries.length; cur.note = cur.notes.join(' '); out.push(cur); }
+      out.endS = BF.cloneState(g.S);
+    } else {
+      const g = real.jq ? new XQ.Game(real.opts) : new XQ.Game();
+      real.history.forEach((h, i) => { out.push({ side: g.turn, note: noteOf(g.board, h, h.rv), k0: i, k1: i + 1, mv: { from: h.from, to: h.to } }); g.play({ from: h.from, to: h.to, rv: h.rv }); });
+    }
+    return out;
+  }
+  // 算一个局面：{ v（轮到的一方看）, best（主行动 from/to）, bestNote }
+  async function anaPos(real, steps, i) {
+    if (real.bf) {
+      const S = i < steps.length ? steps[i].S : steps.endS;
+      const g = new BF.Game(); g.reset(BF.cloneState(S));
+      if (g.status.result) return { v: -9000, over: true };
+      const seq = await bfThink(BF.cloneState(S), 'ana', async () => { });
+      const st = bfThink.last || {};
+      let note = [], best = null;
+      for (const a of seq || []) { note.push(bfNote(g, a)); if (a.k !== 'up') best = a.from ? { from: a.from, to: a.to } : a.at ? { from: a.at, to: a.to || a.at } : null; if (!g.apply(a)) break; }
+      return { v: st.v || 0, best, bestNote: note.filter(Boolean).join(' ') };
+    }
+    const moves = real.history.slice(0, i).map(h => ({ from: h.from, to: h.to }));
+    const r = await AI.analyzePos(moves, ANA.std.time);
+    if (!r || r.over) return { v: -10000, over: true };
+    let bestNote = '';
+    if (r.best) { const g = new XQ.Game(); for (const h of real.history.slice(0, i)) g.play({ from: h.from, to: h.to }); bestNote = notation(g.board, r.best); }
+    return { v: r.score, best: r.best, bestNote };
+  }
+  function anaOpen() {
+    const real = RP ? RP.real : game;
+    if (!anaOk(real)) { toast('揭棋看不见暗子，这一局没法分析'); return; }
+    if (!RP) startReplay(true);
+    $('ana').classList.remove('hidden'); document.body.classList.add('anaOn');
+    // 面板挡住一边：电脑上棋盘往左让一点，手机上往上让一点
+    document.body.classList.toggle('anaWide', ANAV === 1 || ANAV === 3);
+    anaFit(true); setTimeout(() => anaFit(), 700);
+    if (!real.__ana) anaStart(real); else anaPaint();
+  }
+  // 面板挡住一块：把整张棋盘挪进空着的那块、必要时缩小一点（量棋盘四角投到屏幕上的位置算）。soft = 先按估计直接放好，不动画
+  function anaFit(soft) {
+    const el = $('ana'); if (!el || el.classList.contains('hidden')) return;
+    const W = innerWidth, H = innerHeight, b = el.getBoundingClientRect(), bar = $('rpBar').getBoundingClientRect();
+    let R = { l: 8, t: 64, r: W - 8, b: (bar.height ? bar.top : H) - 8 };
+    const side = b.left > W * 0.45 && b.height > H * 0.4;   // 右侧一栏
+    if (side) R.r = b.left - 10; else R.b = Math.min(R.b, b.top - 8);
+    if (ANAV === 3) { const c = [$('anaCur'), $('anaDet')].find(x => !x.classList.contains('hidden')); if (c && W > 760) R.r = Math.min(R.r, c.getBoundingClientRect().left - 8); }
+    if (W <= 760) { R.t = 96; if (ANAV === 3) { const c = !$('anaCur').classList.contains('hidden') ? $('anaCur') : $('anaDet').classList.contains('demo') ? $('anaDet') : null; if (c) R.t = Math.max(R.t, c.getBoundingClientRect().bottom + 6); } }   // 手机上详解那张大卡片盖在棋盘上看，演示时缩成一行再让开
+    const cam = Core.camera, keep = Core.shiftNow; Core.viewShift(0, 0, 1); cam.updateMatrixWorld();
+    let x0 = 1e9, x1 = -1e9, y0 = 1e9, y1 = -1e9;
+    for (const [f, r] of [[0, 0], [8, 0], [0, 9], [8, 9]]) { const p = Board.pos(f, r); for (const d of [-0.6, 0.6]) for (const e of [-0.6, 0.6]) for (const y of [0, 0.5]) { const v = p.clone().add(new THREE.Vector3(d, y, e)).project(cam); const x = (v.x + 1) / 2 * W, yy = (1 - v.y) / 2 * H; x0 = Math.min(x0, x); x1 = Math.max(x1, x); y0 = Math.min(y0, yy); y1 = Math.max(y1, yy); } }
+    const z = Math.max(1, (x1 - x0) / Math.max(80, R.r - R.l), (y1 - y0) / Math.max(80, R.b - R.t));
+    const offX = (x0 + x1) / 2 - (R.l + R.r) / 2 * z, offY = (y0 + y1) / 2 - (R.t + R.b) / 2 * z;
+    const to = [(offX + W * (z - 1) / 2) / W, (offY + H * (z - 1) / 2) / H, z];
+    if (soft) { Core.viewShift(...to); return; }
+    Core.viewShift(...keep);
+    const from = keep; Core.tween(0.35, k => Core.viewShift(from[0] + (to[0] - from[0]) * k, from[1] + (to[1] - from[1]) * k, from[2] + (to[2] - from[2]) * k), Core.ease.inOut);
+  }
+  window.addEventListener('resize', () => setTimeout(() => anaFit(), 300));
+  function anaClose() { anaTok2++; anaDet = null; anaDetPaint(); $('ana').classList.add('hidden'); document.body.classList.remove('anaOn', 'anaWide'); Board.showStep(null); Core.viewShift(0, 0); }
+  async function anaStart(real) {
+    const tok = ++anaTok, M = real.bf ? ANA.bf : ANA.std;
+    const steps = anaSteps(real), n = steps.length;
+    const A = real.__ana = { steps, V: new Array(n + 1).fill(null), done: 0, n, bf: !!real.bf, sel: -1 };
+    anaPaint();
+    for (let i = 0; i <= n; i++) {
+      let r;
+      try { r = await anaPos(real, steps, i); } catch (e) { console.error(e); r = { v: 0 }; }
+      if (tok !== anaTok || real.__ana !== A) return;   // 已经换了一局 / 关掉了
+      A.V[i] = r;
+      if (i < n) { steps[i].best = r.best; steps[i].bestNote = r.bestNote; }
+      if (i > 0) anaGrade(A, i - 1, M);
+      A.done = i + 1; anaPaint();
+    }
+  }
+  // 给第 i 步打分：损失 = V(i) + V(i+1)（分数先压到 ±cap，杀棋算到头）
+  function anaGrade(A, i, M) {
+    const c = v => Math.max(-M.cap, Math.min(M.cap, v)), s = A.steps[i];
+    const loss = c(A.V[i].v) + c(A.V[i + 1].v);
+    const same = s.best && s.mv && s.best.from[0] === s.mv.from[0] && s.best.from[1] === s.mv.from[1] && s.best.to[0] === s.mv.to[0] && s.best.to[1] === s.mv.to[1];
+    let g = 4; for (let k = 1; k < 4; k++) if (loss <= M.cut[k]) { g = k; break; }
+    if (same && g <= 2) g = 0;   // 走的就是电脑认为最好的那步
+    s.loss = loss; s.grade = g;
+  }
+  // 局势：汉（红）方看的优势，压到 -1..1
+  const anaAdv = (A, i) => { const r = A.V[i]; if (!r) return null; const side = i < A.steps.length ? A.steps[i].side : (A.steps.length ? (A.steps[A.steps.length - 1].side === 'r' ? 'b' : 'r') : 'r'); const M = A.bf ? ANA.bf : ANA.std; const v = (side === 'r' ? 1 : -1) * r.v; return Math.tanh(v / M.scale); };
+  // 面板四种样子（Ham 10-09 审批台 td-011：再做几个和天天象棋不一样的设计）。网址 ?anav=0/1/2/3 预览，选定后改默认值
+  //   0 侧栏（原来那版）/ 1 战报长卷（底部横卷：水墨局势 + 一根根竹简）/ 2 古谱朱批（米黄纸页，竖排记谱，朱笔圈点）/ 3 沙盘兵势（棋盘不挡：底部一条兵势河 + 军情签）
+  const ANAV = Math.max(0, Math.min(3, +(Core.DIAG.get('anav') || 3)));   // Ham 10-10 审批台 td-012 选了方案三（沙盘兵势）
+  const ANA1 = ['佳', '好', '缓', '失', '错'], ANA2 = ['◎', '○', '、', '△', '✕'];
+  function anaCurve(A, W, H, pad = 6) {   // 局势曲线的点（汉优在上）
+    const n = Math.max(1, A.n), X = i => pad + (W - pad * 2) * i / n, Y = a => H / 2 - a * (H / 2 - 4);
+    const pts = []; for (let i = 0; i <= A.n; i++) { const a = anaAdv(A, i); if (a == null) break; pts.push([X(i), Y(a)]); }
+    return { pts, X, Y };
+  }
+  function anaPaint() {
+    const real = RP ? RP.real : game, A = real && real.__ana; if (!A) return;
+    const SN = { r: SIDE_CN.r, b: SIDE_CN.b }, el = $('ana');
+    el.classList.remove('v0', 'v1', 'v2', 'v3'); el.classList.add('v' + ANAV);
+    $('anaProg').textContent = A.done > A.n ? `共 ${A.n} ${A.bf ? '回合' : '步'}` : `分析中 ${A.done} / ${A.n + 1}…`;
+    // 汇总：每方各档几步、准确率（最佳 + 好棋占多少）
+    const sum = { r: [0, 0, 0, 0, 0], b: [0, 0, 0, 0, 0] };
+    for (const s of A.steps) if (s.grade != null) sum[s.side][s.grade]++;
+    const acc = s => { const t = sum[s].reduce((a, b) => a + b, 0); return t ? Math.round((sum[s][0] + sum[s][1]) / t * 100) : null; };
+    const no = i => A.bf ? `${i + 1}` : `${Math.floor(i / 2) + 1}${A.steps[i].side === 'r' ? '' : '′'}`;
+    if (ANAV === 1) $('anaSum').innerHTML = ['r', 'b'].map(s => `<div class="lp ${s}"><b>${SEAL[s]}</b><span>${acc(s) == null ? '—' : acc(s) + '<small>%</small>'}</span><em>准确率</em><i>${ANA1.map((x, g) => sum[s][g] ? `${x}${sum[s][g]}` : '').filter(Boolean).join(' ')}</i></div>`).join('');
+    else if (ANAV === 2) $('anaSum').innerHTML = ['r', 'b'].map(s => `<div class="sl ${s}"><b>${SN[s]}</b><span>${acc(s) == null ? '—' : acc(s)}</span></div>`).join('') + `<div class="lgd">${ANA2.map((x, g) => `<i class="m${g}">${x}</i>${ANA.tags[g]}`).join(' ')}</div>`;
+    else if (ANAV === 3) $('anaSum').innerHTML = ['r', 'b'].map(s => `<div class="bd ${s}"><b>${SN[s]}</b>${acc(s) == null ? '—' : acc(s) + '%'}</div>`).join('');
+    else $('anaSum').innerHTML = ['r', 'b'].map(s => { const t = sum[s].reduce((a, b) => a + b, 0);
+      return `<div class="as ${s}"><b>${SN[s]}方</b><span class="acc">${t ? acc(s) + '%' : '—'}</span><small>准确率</small>` + ANA.tags.map((x, g) => sum[s][g] ? `<i class="g${g}">${x} ${sum[s][g]}</i>` : '').join('') + '</div>'; }).join('');
+    // 局势
+    let svg = '', W = 360, H = 112;
+    if (ANAV === 1) {
+      // 水墨长卷：汉优的一侧朱色晕染、楚优的一侧墨色晕染，曲线是一笔飞白；错棋盖一方小朱印
+      W = 900; H = 96; const { pts, X } = anaCurve(A, W, H, 10);
+      svg = `<defs><filter id="anaBr"><feTurbulence type="fractalNoise" baseFrequency="0.9" numOctaves="1" seed="3"/><feDisplacementMap in="SourceGraphic" scale="2.2"/></filter>
+        <linearGradient id="anaGR" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#b8321f" stop-opacity=".9"/><stop offset="1" stop-color="#b8321f" stop-opacity=".25"/></linearGradient>
+        <linearGradient id="anaGB" x1="0" y1="1" x2="0" y2="0"><stop offset="0" stop-color="#1c1a17" stop-opacity=".9"/><stop offset="1" stop-color="#1c1a17" stop-opacity=".25"/></linearGradient></defs>
+        <line x1="0" x2="${W}" y1="${H / 2}" y2="${H / 2}" class="rv"/><text x="${W - 8}" y="${H / 2 - 4}" class="rt" text-anchor="end">漢　界</text><text x="${W - 8}" y="${H / 2 + 13}" class="rt" text-anchor="end">楚　河</text>`;
+      if (pts.length > 1) {
+        const line = pts.map((p, i) => (i ? 'L' : 'M') + p[0].toFixed(1) + ' ' + p[1].toFixed(1)).join(' ');
+        const area = line + ` L${pts[pts.length - 1][0].toFixed(1)} ${H / 2} L${pts[0][0].toFixed(1)} ${H / 2} Z`;
+        svg += `<clipPath id="anaTop"><rect x="0" y="0" width="${W}" height="${H / 2}"/></clipPath><clipPath id="anaBot"><rect x="0" y="${H / 2}" width="${W}" height="${H / 2}"/></clipPath>`;
+        svg += `<path d="${area}" fill="url(#anaGR)" clip-path="url(#anaTop)" filter="url(#anaBr)"/><path d="${area}" fill="url(#anaGB)" clip-path="url(#anaBot)" filter="url(#anaBr)"/><path d="${line}" class="ln" filter="url(#anaBr)"/>`;
+      }
+      A.steps.forEach((s, i) => { if (s.grade >= 3 && pts[i + 1]) { const [x, y] = pts[i + 1]; svg += `<g class="st${s.grade}" transform="translate(${x.toFixed(1)} ${(y - 15).toFixed(1)})"><rect x="-7" y="-7" width="14" height="14" rx="1.5"/><text y="4.2" text-anchor="middle">${ANA1[s.grade]}</text></g>`; } });
+      if (A.sel >= 0 && A.sel <= A.n) svg += `<line x1="${X(A.sel).toFixed(1)}" x2="${X(A.sel).toFixed(1)}" y1="2" y2="${H - 2}" class="cur"/>`;
+    } else if (ANAV === 2) {
+      // 天头：一条细带，每一步一格，朱（汉优）—— 米色 —— 墨（楚优）；错棋、失误在格子下面点一个朱点
+      W = 360; H = 22; const n = Math.max(1, A.n), w = (W - 4) / n;
+      for (let i = 0; i < A.n; i++) { const a = anaAdv(A, i + 1); if (a == null) break; const c = a >= 0 ? `rgba(176,48,31,${(0.12 + 0.85 * a).toFixed(2)})` : `rgba(28,26,23,${(0.12 - 0.85 * a).toFixed(2)})`; svg += `<rect x="${(2 + i * w).toFixed(1)}" y="2" width="${(w + 0.3).toFixed(1)}" height="12" fill="${c}"/>`; const s = A.steps[i]; if (s.grade >= 3) svg += `<circle cx="${(2 + (i + 0.5) * w).toFixed(1)}" cy="18.5" r="${s.grade === 4 ? 2.6 : 2}" class="dot"/>`; }
+      svg += `<rect x="2" y="2" width="${W - 4}" height="12" class="frame"/>`;
+      if (A.sel >= 0) svg += `<rect x="${(2 + A.sel * w).toFixed(1)}" y="1" width="${Math.max(2, w).toFixed(1)}" height="14" class="cur"/>`;
+    } else if (ANAV === 3) {
+      // 兵势河：细细一条，红在上、绿在下；错棋处立一面小旗
+      W = 900; H = 40; const { pts, X } = anaCurve(A, W, H, 4);
+      svg = `<rect x="0" y="${H / 2 - 1}" width="${W}" height="2" class="rv"/>`;
+      if (pts.length > 1) {
+        const line = pts.map((p, i) => (i ? 'L' : 'M') + p[0].toFixed(1) + ' ' + p[1].toFixed(1)).join(' ');
+        const area = line + ` L${pts[pts.length - 1][0].toFixed(1)} ${H / 2} L${pts[0][0].toFixed(1)} ${H / 2} Z`;
+        svg += `<clipPath id="anaTop"><rect x="0" y="0" width="${W}" height="${H / 2}"/></clipPath><clipPath id="anaBot"><rect x="0" y="${H / 2}" width="${W}" height="${H / 2}"/></clipPath>`;
+        svg += `<path d="${area}" class="aR" clip-path="url(#anaTop)"/><path d="${area}" class="aB" clip-path="url(#anaBot)"/><path d="${line}" class="ln"/>`;
+      }
+      if (A.sel >= 0 && A.sel <= A.n) svg += `<line x1="${X(A.sel).toFixed(1)}" x2="${X(A.sel).toFixed(1)}" y1="0" y2="${H}" class="cur"/>`;
+    } else {
+      const { pts, X } = anaCurve(A, W, H, 6);
+      svg = `<rect x="0" y="0" width="${W}" height="${H / 2}" class="bgR"/><rect x="0" y="${H / 2}" width="${W}" height="${H / 2}" class="bgB"/><line x1="0" x2="${W}" y1="${H / 2}" y2="${H / 2}" class="mid"/>`;
+      if (pts.length > 1) {
+        const line = pts.map((p, i) => (i ? 'L' : 'M') + p[0].toFixed(1) + ' ' + p[1].toFixed(1)).join(' ');
+        const area = line + ` L${pts[pts.length - 1][0].toFixed(1)} ${H / 2} L${pts[0][0].toFixed(1)} ${H / 2} Z`;
+        svg += `<clipPath id="anaTop"><rect x="0" y="0" width="${W}" height="${H / 2}"/></clipPath><clipPath id="anaBot"><rect x="0" y="${H / 2}" width="${W}" height="${H / 2}"/></clipPath>`;
+        svg += `<path d="${area}" class="aR" clip-path="url(#anaTop)"/><path d="${area}" class="aB" clip-path="url(#anaBot)"/><path d="${line}" class="ln"/>`;
+      }
+      A.steps.forEach((s, i) => { if (s.grade >= 3 && pts[i + 1]) svg += `<circle cx="${pts[i + 1][0].toFixed(1)}" cy="${pts[i + 1][1].toFixed(1)}" r="${s.grade === 4 ? 4.2 : 3.4}" class="d${s.grade}"/>`; });
+      if (A.sel >= 0 && A.sel <= A.n) svg += `<line x1="${X(A.sel).toFixed(1)}" x2="${X(A.sel).toFixed(1)}" y1="2" y2="${H - 2}" class="cur"/>`;
+      svg += `<text x="6" y="14" class="lbR">${SN.r}优</text><text x="6" y="${H - 6}" class="lbB">${SN.b}优</text>`;
+    }
+    $('anaChart').innerHTML = svg; $('anaChart').setAttribute('viewBox', `0 0 ${W} ${H}`);
+    // 每一步
+    const xbtn = (i, g, txt = '详解') => g != null && (A.sel === i || g >= 3) ? `<button class="xb" data-xi="${i}" title="结合前后几步，讲清楚这步好在哪 / 错在哪、应该怎么走">${txt}</button>` : '';
+    if (ANAV === 1) $('anaList').innerHTML = A.steps.map((s, i) => { const g = s.grade;   // 一根竹简：竖排记谱，底下一方小印
+      return `<div class="ar sl ${s.side}${A.sel === i ? ' on' : ''}${g >= 3 ? ' bad' : ''}" data-i="${i}"><span class="no">${no(i)}</span><span class="mv">${s.note || ''}</span>${g == null ? '<i class="tg wait">·</i>' : `<i class="tg g${g}">${ANA1[g]}</i>`}${xbtn(i, g, '详')}</div>`; }).join('');
+    else if (ANAV === 2) $('anaList').innerHTML = A.steps.map((s, i) => { const g = s.grade;   // 一行竖排：第几着、记谱，右边朱笔圈点，缓着以下夹注「宜 ……」
+      const bm = g != null && g >= 2 && s.bestNote ? `<span class="bm">宜 ${s.bestNote}</span>` : '';
+      return `<div class="ar ${s.side}${A.sel === i ? ' on' : ''}" data-i="${i}"><span class="no">${A.bf ? '第' + (i + 1) + '回' : (s.side === 'r' ? '第' + (Math.floor(i / 2) + 1) + '着' : '')}</span><span class="mv">${s.note || ''}</span>${g == null ? '' : `<i class="mk m${g}">${ANA2[g]}</i>`}${bm}${xbtn(i, g, '评')}</div>`; }).join('');
+    else if (ANAV === 3) $('anaList').innerHTML = A.steps.map((s, i) => { const g = s.grade;   // 一枚兵符：颜色是评价，红 / 绿边是哪一方
+      return `<div class="ar tk ${s.side}${A.sel === i ? ' on' : ''}" data-i="${i}" title="${no(i)} ${SN[s.side]} ${s.note}${g == null ? '' : ' · ' + ANA.tags[g]}">${g == null ? '' : `<i class="g${g}" data-c="${ANA1[g]}">${g >= 3 ? ANA1[g] : ''}</i>`}</div>`; }).join('');   // data-c：手机上选中的那枚放大后显示的字
+    else $('anaList').innerHTML = A.steps.map((s, i) => {
+      const g = s.grade, tag = g == null ? '<i class="tg wait">…</i>' : `<i class="tg g${g}">${ANA.tags[g]}</i>`;
+      const bm = g != null && g >= 2 && s.bestNote ? `<span class="bm">应走 ${s.bestNote}</span>` : '';
+      return `<div class="ar${A.sel === i ? ' on' : ''}" data-i="${i}"><span class="no">${A.bf ? i + 1 : Math.floor(i / 2) + 1}${A.bf ? '' : s.side === 'r' ? '.' : '…'}</span><span class="sd ${s.side}">${SN[s.side]}</span><span class="mv">${s.note || ''}</span>${tag}${xbtn(i, g)}${bm}</div>`;
+    }).join('');
+    // 沙盘兵势：选中的那一步单独一张军情签
+    const cur = $('anaCur');
+    if (ANAV === 3 && A.sel >= 0 && A.steps[A.sel] && !anaDet) {
+      const s = A.steps[A.sel], g = s.grade;
+      cur.innerHTML = `<div class="ch"><span class="sd ${s.side}">${SN[s.side]}</span><b>${no(A.sel)}</b> ${s.note}${g == null ? '' : `<i class="tg g${g}">${ANA.tags[g]}</i>`}</div>` + (g != null && g >= 2 && s.bestNote ? `<div class="cb">应走 <b>${s.bestNote}</b>（棋盘上墨绿的路）</div>` : g != null && g <= 1 ? '<div class="cb">和电脑想的一样或差不多。</div>' : '') + (g != null ? `<button class="xb" data-xi="${A.sel}">详解 ›</button>` : '');
+      cur.classList.remove('hidden');
+    } else cur.classList.add('hidden');
+    if (ANAV === 3) { const vis = !cur.classList.contains('hidden') || !!anaDet; if (vis !== anaPaint.card) { anaPaint.card = vis; setTimeout(() => anaFit(), 30); } }
+    const on = $('anaList').querySelector('.ar.on'); if (on && !anaPaint.noScroll) on.scrollIntoView({ block: 'nearest', inline: 'nearest' });
+  }
+  $('anaCur').addEventListener('click', e => { const xb = e.target.closest('[data-xi]'); if (xb) anaExplain(+xb.dataset.xi); });
+  // 复盘走到哪一步，分析面板跟着亮哪一行，棋盘上画出这一步电脑认为最好的走法
+  function anaFollow() {
+    Board.showStep(null);
+    if (!RP || $('ana').classList.contains('hidden')) return;
+    const A = RP.real.__ana; if (!A) return;
+    const i = A.steps.findIndex(s => s.k0 === RP.k);
+    A.sel = i; const s = A.steps[i];
+    if (s && s.best) Board.showStep({ from: s.best.from, to: s.best.to, seal: '佳' });
+    anaPaint();
+  }
+  // 点某一步：棋盘回到这一步走之前，标出实际走的（落点框）和电脑认为最好的（墨绿的路 + 「佳」）
+  function anaPick(i) {
+    const real = RP ? RP.real : game, A = real && real.__ana; if (!A || !RP || RP.busy) return;
+    const s = A.steps[i]; if (!s) return;
+    if (anaDet && anaDet.i !== i) { anaTok2++; anaDet = null; anaDetPaint(); }
+    anaPaint.noScroll = true; rpShow(s.k0); anaPaint.noScroll = false;
+    if (s.mv) Board.showLast(s.mv.from, s.mv.to);
+  }
+  // ---------- 对局分析 · 详解（Ham 10-09 审批台 td-011：结合前后几步，讲清楚这步为什么错、最优解该怎么走） ----------
+  //   标准象棋：引擎把这一局面细算一遍（explainPos）——最好一步往下的主变、实际走完后对方最狠的应法往下几步、
+  //   “停一手”时对方想走什么（= 对方已经在威胁什么）。技能模式：技能电脑一回合一回合往下推三回合。
+  //   然后顺着这几条线把每步走一遍，看谁吃了谁、将军、成杀，按模板写成话；棋盘上可以分别演示两条线。
+  const XNM = { r: { k: '帅', a: '仕', e: '相', n: '马', r: '车', c: '炮', p: '兵' }, b: { k: '将', a: '士', e: '象', n: '马', r: '车', c: '炮', p: '卒' } };
+  const XV = { r: 9, n: 4, c: 4.5, e: 2, a: 2, p: 1, k: 0 }, XCN = ['一', '二', '三', '四', '五', '六', '七', '八', '九', '十'];
+  const xName = p => (p.lv > 1 ? XCN[p.lv - 1] + '级' : '') + XNM[p.s][p.t];
+  const xVal = p => XV[p.t] + (p.lv > 1 ? (p.lv - 1) * 1.5 : 0);
+  const xMat = v => v >= 12 ? '一个车还多' : v >= 8 ? '约一个车' : v >= 5.5 ? '一个马炮还多' : v >= 3.5 ? '约一个马（炮）' : v >= 1.6 ? '约一个相（仕）' : '约一个兵';
+  // 顺着一串着法走（标准象棋），记下每步：谁走、记谱、吃了什么、将军、成杀
+  function xStd(real, k, line) {
+    const g = new XQ.Game(); for (const h of real.history.slice(0, k)) g.play({ from: h.from, to: h.to });
+    const out = [];
+    for (const m of line || []) {
+      if (!m || g.result || !g.isLegal(m)) break;
+      const side = g.turn, note = notation(g.board, m), info = g.play({ from: m.from, to: m.to });
+      out.push({ side, note, mv: { from: m.from, to: m.to }, kills: info.captured ? [{ ...info.captured, lv: 1 }] : [], check: !info.result && g.inCheck(), mate: info.result && info.result.reason === 'checkmate' ? side : null });
+      if (info.result) break;
+    }
+    return out;
+  }
+  // 技能模式：一回合一组行动
+  function xBF(S0, seqs) {
+    const g = new BF.Game(); g.reset(BF.cloneState(S0)); const out = [];
+    for (const seq of seqs) {
+      if (g.result || !seq || !seq.length) break;
+      const side = g.turn, notes = [], kills = []; let mv = null;
+      for (const a of seq) { const n = bfNote(g, a), info = g.apply(a); if (!info) break; notes.push(n); for (const k of info.kills || []) kills.push(k); if (a.k !== 'up') mv = a.from ? { from: a.from, to: a.to } : a.at ? { from: a.at, to: a.to || a.at } : mv; }
+      out.push({ side, note: notes.filter(Boolean).join(' '), mv, seq, kills, check: !g.result && !!(g.status && g.status.check), mate: g.result && g.result.winner === side && g.result.reason !== 'timeout' ? side : null });
+    }
+    return out;
+  }
+  async function xPlanBF(S0, first, n) {   // 先走 first（可以没有），再让电脑双方各自往下走，共 n 回合
+    const g = new BF.Game(); g.reset(BF.cloneState(S0)); const seqs = [];
+    if (first) { for (const a of first) if (!g.apply(a)) break; seqs.push(first); }
+    while (seqs.length < n && !g.result) {
+      const seq = g.mustPass && g.mustPass() ? [{ k: 'pass' }] : await bfThink(BF.cloneState(g.S), 'ana', async () => { });
+      if (!seq || !seq.length) break;
+      let ok = true; for (const a of seq) if (!g.apply(a)) { ok = false; break; }
+      seqs.push(seq); if (!ok) break;
+    }
+    return seqs;
+  }
+  // 一条线上，到第 h 步为止“我”净赚多少子力（吃对方 +，被吃 -）
+  const xNet = (line, me, h = 99) => line.slice(0, h).reduce((a, st) => a + st.kills.reduce((b, k) => b + (k.s === me ? -1 : 1) * xVal(k), 0), 0);
+  const xNotes = (line, a, b) => line.slice(a, b).map(st => st.note).join('，');
+  let anaDet = null;
+  async function anaExplain(i) {
+    const real = RP ? RP.real : game, A = real && real.__ana; if (!A) return;
+    const s = A.steps[i]; if (!s || s.grade == null) return;
+    const tok = ++anaTok2, M = A.bf ? ANA.bf : ANA.std;
+    anaDet = { i, busy: true }; anaDetPaint();
+    let D;
+    try {
+      if (!A.bf) {
+        const moves = real.history.slice(0, s.k0).map(h => ({ from: h.from, to: h.to }));
+        const X = await AI.explainPos(moves, s.mv, 1400);
+        const g0 = new XQ.Game(); for (const h of real.history.slice(0, s.k0)) g0.play({ from: h.from, to: h.to });
+        let threat = null;
+        if (X.threat && X.threat.mv) { const q = g0.at(X.threat.mv.to[0], X.threat.mv.to[1]); threat = { note: notation(g0.board, X.threat.mv), target: q && q.s === s.side ? q : null, mate: X.threat.score > 9000 }; }
+        D = { bestLine: xStd(real, s.k0, X.bestPV), realLine: xStd(real, s.k0, [s.mv, ...(X.refute || [])]), threat,
+          next: xStd(real, s.k0, real.history.slice(s.k0, s.k0 + 4)), lossU: Math.max(0, (X.score - (X.actualScore ?? X.score))) / 22, H: 6 };
+      } else {
+        const realSeq = real.entries.slice(s.k0, s.k1);
+        const bestSeqs = await xPlanBF(s.S, null, 3); if (tok !== anaTok2) return;
+        const realSeqs = await xPlanBF(s.S, realSeq, 3); if (tok !== anaTok2) return;
+        const nextSeqs = A.steps.slice(i, i + 3).map(st => real.entries.slice(st.k0, st.k1));
+        D = { bestLine: xBF(s.S, bestSeqs), realLine: xBF(s.S, realSeqs), next: xBF(s.S, nextSeqs), lossU: Math.max(0, s.loss || 0), H: 3 };
+      }
+    } catch (e) { console.error(e); if (tok === anaTok2) { anaDet = { i, err: true }; anaDetPaint(); } return; }
+    if (tok !== anaTok2) return;
+    D.i = i; D.text = xText(A, s, D); anaDet = D; anaDetPaint();
+  }
+  let anaTok2 = 0;
+  // 按模板写成话
+  function xText(A, s, D) {
+    const me = s.side, opp = me === 'r' ? 'b' : 'r', SN = SIDE_CN, R = D.realLine, Bl = D.bestLine, out = [];
+    const prev = A.steps[A.steps.indexOf(s) - 1];
+    const unit = A.bf ? '回合' : '步';
+    // ① 局面：对方上一步，和它已经在威胁什么
+    if (prev || D.threat) {
+      let t = prev ? `对方上一${unit}走了 <b>${prev.note}</b>。` : '';
+      if (D.threat && D.threat.mate) t += `对方已经有杀棋的威胁（从 <b>${D.threat.note}</b> 起）。`;
+      else if (D.threat && D.threat.target && XV[D.threat.target.t] >= 2) t += `这时对方已经在瞄你的<b>${xName(D.threat.target)}</b>：下一步 ${D.threat.note} 就能吃。`;
+      if (t) out.push(['局面', t]);
+    }
+    // ② 为什么错：先看有没有杀、丢子（两条路的子力差得够多才算丢子，应走也保不住的子不算），再看错过的杀和吃子，都没有就是局面上的亏
+    let why = '';
+    const threatSaid = !!(D.threat && (D.threat.mate || (D.threat.target && XV[D.threat.target.t] >= 2)));
+    const mateK = R.findIndex((st, k) => k > 0 && st.mate === opp);
+    const lostB = new Set(); for (const st of Bl.slice(0, D.H)) for (const x of st.kills) if (x.s === me) lostB.add(x.t);   // 应走也会丢的子（按兵种）不算这步的错
+    const lossOf = st => st.kills.find(x => x.s === me && xVal(x) >= 1 && !lostB.has(x.t));
+    const lossK = R.findIndex((st, k) => k > 0 && k <= 4 && st.side === opp && !!lossOf(st));
+    const netR = xNet(R, me, D.H), netB = xNet(Bl, me, D.H), delta = netB - netR;
+    const myMateB = Bl.findIndex(st => st.mate === me);
+    const bk0 = Bl[0] && Bl[0].kills.find(x => x.s === opp);
+    if (s.grade <= 1) why = `这${unit}走得不错，和电脑认为最好的走法差不多。`;
+    else if (mateK > 0) {
+      const n = R.slice(1, mateK + 1).filter(st => st.side === opp).length;
+      why = `走完之后对方有杀：<b>${xNotes(R, 1, mateK + 1)}</b>，${n} ${unit}就将死你。`;
+    } else if (myMateB >= 0) {
+      const n = Bl.slice(0, myMateB + 1).filter(st => st.side === me).length;
+      why = `这里本来有杀：<b>${xNotes(Bl, 0, myMateB + 1)}</b>，${n} ${unit}就能将死对方，这一${unit}错过了。`;
+    } else if (lossK > 0 && delta >= 0.9) {
+      const st = R[lossK], k = lossOf(st);
+      const pre = lossK > 1 ? `（中间 ${xNotes(R, 1, lossK)}）` : '';
+      why = `走完之后，对方${pre} <b>${st.note}</b> 就能吃掉你的<b>${xName(k)}</b>`;
+      const back = R.slice(lossK + 1, D.H).find(x => x.side === me && x.kills.some(y => y.s === opp)), bv = back && back.kills.find(y => y.s === opp);
+      if (R[0].kills.some(y => y.s === opp)) why += `——你这${unit}虽然吃了对方的${xName(R[0].kills.find(y => y.s === opp))}，可是得不偿失`;
+      else if (!back) why += '，而且吃不回来';
+      else if (xVal(bv) < xVal(k) - 0.5) why += `，你最多只能 ${back.note} 吃回一个${xName(bv)}`;
+      else why += `；你能 ${back.note} 吃回${xName(bv)}，但后面还是吃亏`;
+      why += `。和应走比，这一串走下来你少了${xMat(delta)}。`;
+      if (threatSaid && D.threat.target && st.kills.some(x => x.id === D.threat.target.id)) why += '这个威胁在你走之前就有了，这一步没有理会。';
+    } else if (bk0 && xVal(bk0) >= 2 && delta >= 0.9 && !R[0].kills.some(x => x.s === opp)) {
+      why = `这里能直接 <b>${Bl[0].note}</b> 吃掉对方的<b>${xName(bk0)}</b>，这一${unit}错过了。`;
+    } else {
+      why = `两条路走下去子力差不多，差在局面：这${unit}让局面变差了${xMat(D.lossU)}的分量`;
+      if (R[1]) why += `。对方最好的应法是 <b>${R[1].note}</b>${R[1].check ? '（将军）' : ''}，之后 ${xNotes(R, 2, 5) || '……'}，电脑算下来对方更主动`;
+      why += '。';
+    }
+    out.push([s.grade <= 1 ? '评价' : '为什么' + ANA.tags[s.grade], why]);
+    // ③ 应走
+    if (Bl.length && s.grade >= 1) {
+      let t = `应走 <b>${Bl[0].note}</b>`;
+      if (Bl[0].mate === me) t += '，直接将死';
+      else if (myMateB > 0) t += `，${Bl.slice(0, myMateB + 1).filter(st => st.side === me).length} ${unit}成杀`;
+      else if (bk0) t += `，吃掉对方的${xName(bk0)}`;
+      else if (threatSaid && D.threat.target && !Bl.slice(0, 4).some(st => st.kills.some(x => x.id === D.threat.target.id))) t += `，先护住你的${xName(D.threat.target)}`;
+      else if (Bl[0].check) t += '，将军';
+      t += `。电脑往下算的变化：${xNotes(Bl, 0, D.H + 1)}。`;
+      out.push(['应走', t]);
+      // ④ 两条路比一比
+      const h = Math.min(D.H, Math.max(R.length, Bl.length));
+      const mt = (L, v) => { const mk = L.findIndex(st => st.mate); if (mk >= 0) return L[mk].mate === me ? `${L.slice(0, mk + 1).filter(st => st.side === me).length} ${unit}将死对方` : `被对方 ${L.slice(1, mk + 1).filter(st => st.side === opp).length} ${unit}将死`; return v >= 0.9 ? `净赚${xMat(v)}` : v <= -0.9 ? `净亏${xMat(-v)}` : '子力不吃亏'; };
+      const nb = xNet(Bl, me, h), nr = xNet(R, me, h);
+      if (h > 1) out.push(['对比', `往下 ${h} ${unit}：按应走，你${mt(Bl, nb)}；按实战的走法（对方应得最好时），你${mt(R, nr)}。` + (nb <= -0.9 && nr < nb - 0.5 && !Bl.some(st => st.mate) ? '这时局面已经吃紧，应走也要亏一点，但比实战亏得少。' : '')]);
+    }
+    // ⑤ 实战后续：对方有没有抓住
+    const nx = D.next[1];
+    if (nx) {
+      let t = `实战中对方接着走了 <b>${nx.note}</b>`;
+      const kk = nx.kills.find(x => x.s === me);
+      if (kk) t += `，吃掉了你的${xName(kk)}`;
+      const best1 = R[1], same = best1 && nx.note === best1.note;
+      const ng = A.steps[A.steps.indexOf(s) + 1];
+      if (s.grade >= 2) t += same ? '——正是最狠的一手。' : ng && ng.grade >= 3 && best1 ? `，没抓住机会（最狠的是 ${best1.note}）。` : '。';
+      else t += '。';
+      out.push(['实战', t]);
+    }
+    return out;
+  }
+  function anaDetPaint() {
+    const el = $('anaDet'); if (!el) return;
+    const real = RP ? RP.real : game, A = real && real.__ana;
+    if (!anaDet || !A) { el.classList.add('hidden'); $('ana').classList.remove('det'); return; }
+    const s = A.steps[anaDet.i]; el.classList.remove('hidden'); $('ana').classList.add('det'); $('anaCur').classList.add('hidden');
+    const no = A.bf ? `第 ${anaDet.i + 1} 回合` : `第 ${Math.floor(anaDet.i / 2) + 1} 步`;
+    let h = `<div class="dh"><button class="db" data-x="back">‹ 返回</button><span>${no} · ${SIDE_CN[s.side]} · <b>${s.note}</b></span><i class="tg g${s.grade}">${ANA.tags[s.grade]}</i></div>`;
+    if (anaDet.busy) h += '<div class="dw">详解计算中……（电脑在把前后几步细算一遍）</div>';
+    else if (anaDet.err) h += '<div class="dw">这一步没算出来，稍后再试一次。</div>';
+    else {
+      h += anaDet.text.map(([k, v]) => `<div class="dp"><em>${k}</em><p>${v}</p></div>`).join('');
+      h += `<div class="dd"><button class="db b" data-x="best">▶ 演示应走</button><button class="db r" data-x="real">▶ 演示实战变化</button></div>`;
+    }
+    el.innerHTML = h;
+    if (ANAV === 3) { anaPaint.noScroll = true; anaPaint(); anaPaint.noScroll = false; }
+    setTimeout(() => anaFit(), 30);
+  }
+  // 棋盘上演示一条线：一步一步摆出来，标上一、二、三……；放完回到这一步走之前
+  async function anaDemo(which) {
+    const D = anaDet, real = RP ? RP.real : game, A = real && real.__ana; if (!D || !D.text || !A || D.demo || !RP || RP.busy) return;
+    const s = A.steps[D.i], line = which === 'best' ? D.bestLine : D.realLine; if (!line.length) return;
+    D.demo = which; RP.busy = true; $('anaDet').classList.add('demo'); setTimeout(() => anaFit(), 30);
+    try {
+      let g;
+      if (A.bf) { g = new BF.Game(); g.reset(BF.cloneState(s.S)); } else { g = new XQ.Game(); for (const h of real.history.slice(0, s.k0)) g.play({ from: h.from, to: h.to }); }
+      for (let k = 0; k < Math.min(line.length, D.H + 1); k++) {
+        if (anaDet !== D) break;
+        const st = line[k];
+        if (A.bf) { for (const a of st.seq) if (!g.apply(a)) break; } else g.play({ from: st.mv.from, to: st.mv.to });
+        Fx.clearMarks(); Board.setPosition(g); Board.faceViewer(viewSide); Board.clearMoves();
+        if (st.mv) { Board.showLast(st.mv.from, st.mv.to); Board.showStep({ from: st.mv.from, to: st.mv.to, seal: XCN[k] || '…' }); }
+        Sfx.place(st.mv && Board.pieces.get((g.at(st.mv.to[0], st.mv.to[1]) || {}).id));
+        $('anaDet').dataset.k = `${which === 'best' ? '应走' : '实战'} 第 ${XCN[k] || k + 1} ${A.bf ? '回合' : '步'}：${st.note}`;
+        await Core.sleep(1.25);
+      }
+      await Core.sleep(0.8);
+    } finally {
+      RP.busy = false; $('anaDet').classList.remove('demo'); delete $('anaDet').dataset.k; if (anaDet === D) D.demo = null; setTimeout(() => anaFit(), 30);
+      Board.showStep(null); rpShow(s.k0); if (s.mv) Board.showLast(s.mv.from, s.mv.to);
+    }
+  }
+  $('anaDet').addEventListener('click', e => {
+    const b = e.target.closest('[data-x]'); if (!b) return;
+    const x = b.dataset.x;
+    if (x === 'back') { anaTok2++; anaDet = null; anaDetPaint(); anaPaint(); return; }
+    if (x === 'best' || x === 'real') anaDemo(x);
+  });
+  $('anaList').addEventListener('click', e => {
+    const xb = e.target.closest('[data-xi]'); if (xb) { e.stopPropagation(); anaPick(+xb.dataset.xi); anaExplain(+xb.dataset.xi); return; }
+    const r = e.target.closest('.ar'); if (r) anaPick(+r.dataset.i);
+  });
+  $('anaChart').addEventListener('click', e => {
+    const real = RP ? RP.real : game, A = real && real.__ana; if (!A || !A.n) return;
+    const b = $('anaChart').getBoundingClientRect(), i = Math.round((e.clientX - b.left) / b.width * A.n);
+    anaPick(Math.max(0, Math.min(A.n - 1, i)));
+  });
+  $('anaX').onclick = () => anaClose();
   function toLobby() {
     Net.close(); store.del('host');
     location.href = location.pathname;
@@ -2115,7 +2572,8 @@
         if (a.p.t !== 'k') {
           if (a.cost != null) {
             const m = game.merit[a.p.s], save = a.base - a.cost;
-            B.push(btn('up', 'up', a.canUp, `升${LVCN[a.p.lv + 1]}级`, game.upgraded ? '本回合已升' : `${a.cost} 功` + (halfNow(a.p) ? '·半价' : '') + (save ? `·省${save}` : ''), game.upgraded ? '每次行动最多升级一次，下次行动再升' : `升级需要 ${a.cost} 军功，现在只有 ${m}`, '', upTip(a.p, a.cost, a.base)));
+            const upNoEsc = !game.upgraded && game.upOnly && game.upOnly() && !game.upEscapes(sel[0], sel[1]);
+            B.push(btn('up', 'up', a.canUp, `升${LVCN[a.p.lv + 1]}级`, game.upgraded ? '本回合已升' : upNoEsc ? '解不了将' : `${a.cost} 功` + (halfNow(a.p) ? '·半价' : '') + (save ? `·省${save}` : ''), game.upgraded ? '每次行动最多升级一次，下次行动再升' : upNoEsc ? '被将军时只能给能解将的子升级：升它解不了将，换一枚' : `升级需要 ${a.cost} 军功，现在只有 ${m}`, '', upTip(a.p, a.cost, a.base)));
           }
           for (const k of a.skills) {
             const cn = BF.SKILL_CN[k.sk], skTip = skillTip(a.p, k.sk), C = BF.CFG.skills[k.sk];
@@ -2182,6 +2640,7 @@
     if (a === 'cancel') { if (bfMode && bfMode.bs) return; exitBfMode(false); Board.clearMoves(false); if (sel) bfSelect(sel[0], sel[1]); renderBar(); return; }
     if (a === 'up' && sel) {
       const av = bfAvail();
+      if (av.p && game.upOnly && game.upOnly() && !game.upEscapes(sel[0], sel[1])) { toast('升它解不了将：被将军时只能给能解将的子升级，换一枚', 2600); return; }   // Ham 10-10 td-017 选 B
       if (!av.p || !av.canUp || av.cost == null) { doBF({ k: 'up', at: sel }); return; }   // 升不了：照原来的路子走（会说明原因）
       if (upOpen) return;
       const at = sel.slice(), key = game.entries.length;
@@ -2337,7 +2796,7 @@
       if (!game.bf) return;   // 演出放完时已经换了一局（退出重开）
       { const ph = (info.ev || []).find(x => x.e === 'phase'); if (ph && !info.result) showPhaseTip(ph); }
       if (game.mustPass() && canAct() && (mode === 'local' || game.turn === mySide)) toast(`${SIDE_CN[game.turn]}方无子可走，请点「停着」`, 2600);
-      else if (game.upOnly && game.upOnly() && canAct() && (mode === 'local' || game.turn === mySide)) toast('被将军：直接走解不了将，先给能解将的子升一级', 3200);
+      else if (game.upOnly && game.upOnly() && canAct() && (mode === 'local' || game.turn === mySide)) toast('被将军：直接走解不了将，先给能解将的子升一级（升了也解不了将的子不让升）', 3200);
       else if (game.mayPass() && game.fx.sm > 0 && canAct() && (mode === 'local' || game.turn === mySide)) toast('四面楚歌：楚军只能走将，或点「停着」', 2800);
       if (info.result && !busy) finishGame(info.result);
       else if (!busy && (vsAI() || hostBot()) && isAI(game.turn)) maybeAI();
@@ -3348,7 +3807,7 @@
   const RESUME_TTL = { local: 3 * 864e5, ai: 3 * 864e5, host: 6 * 3600e3, guest: 6 * 3600e3 };
   let resumeKey = '';
   function saveResume(force) {
-    if (!mode || watching() || !started) return;
+    if (!mode || watching() || !started || savedView) return;   // 复盘「我的棋局」时不动「回到对局」
     const G = RP ? RP.real : game;
     const n = G.bf ? G.entries.length : G.history.length, round = G.bf ? G.round : Math.floor(n / 2) + 1;
     const key = [mode, Net.code, n, G.result ? 1 : 0, undoUsed.r, undoUsed.b].join('|');
@@ -3426,9 +3885,13 @@
   };
   $('bNewsClose').onclick = () => $('mNews').classList.add('hidden');
   // ---------- 导出本局：整局行动 + 模式、双方、电脑档位、结果，导成一段文本（贴给别人复盘，或贴给 Claude 分析哪一步走错了） ----------
-  function exportGame() {
+  function exportGame(raw) {
     const G = RP ? RP.real : game;
-    if (!G) return '';
+    if (!G) return raw ? null : '';
+    if (savedView) {   // 正在复盘「我的棋局」里的一局：导出存着的那份（标记按现在的）
+      const o = { ...savedView.data }; if (G.__flags && G.__flags.length) o.flags = G.__flags; else delete o.flags;
+      return raw ? o : mgText({ ...savedView, data: o });
+    }
     const kind = G.bf ? 'bf' : G.jq ? 'jq' : 'xq', KIND = { bf: '技能模式', jq: '揭棋', xq: '象棋' };
     const o = { app: 'chuhan3d', ver: APPV, when: new Date().toISOString(), kind, mode, me: mode === 'local' ? null : mySide };
     if (vsAI()) o.ai = aiBoth() ? { r: aiLevel('r'), b: aiLevel('b') } : { [aiSide()]: opts.level };
@@ -3453,10 +3916,11 @@
     const res = G.result ? (G.result.winner ? `${SIDE_CN[G.result.winner]}胜 · ${REASON[G.result.reason] || G.result.reason}` : `和棋 · ${REASON[G.result.reason] || ''}`) : '未分胜负';
     const lines = [`技能新象棋 · 对局导出（版本 ${APPV}）`, `玩法：${KIND[kind]} · ${who} · 共 ${notes.length} 步 · ${res}`, '棋谱：'];
     for (let i = 0; i < notes.length; i += 2) lines.push(`${i / 2 + 1}. ${noteText(notes[i])}${notes[i + 1] ? '  ' + noteText(notes[i + 1]) : ''}`);
+    if (raw) return o;
     lines.push('---DATA---', JSON.stringify(o));
     return lines.join('\n');
   }
-  const noteText = n => { const d = document.createElement('div'); d.innerHTML = noteHtml(n); return d.textContent.replace(/\s+/g, ' ').trim(); };
+  function noteText(n) { const d = document.createElement('div'); d.innerHTML = noteHtml(n); return d.textContent.replace(/\s+/g, ' ').trim(); }
   async function doExport() {
     const text = exportGame(); if (!text) { toast('还没有对局'); return; }
     $('mSet').classList.add('hidden');
@@ -3474,6 +3938,317 @@
     try { await navigator.clipboard.writeText(t.value); ok = true; } catch (e) { try { ok = document.execCommand('copy'); } catch (e2) { } }
     toast(ok ? '已复制' : '复制失败，请手动全选复制');
   };
+
+  // ---------- 保存棋局 · 我的棋局 · 发给数值部（Ham 10-10：在游戏里直接把对局传给数值部） ----------
+  //   结算卡「保 存」→ 存进这台设备的「我的棋局」；可以顺手发给数值部：在游戏仓库开一条带「对局」标签的工单
+  //   工单格式按数值部 C62 / tools/review/decode_issue.js：正文第一段是 Ham 的话，下面 ```json 是导出数据（note、flags、ver 都在里面）；
+  //   超过 6 万字改成 gzip + base64 放进 ```bfgz；还超就拆成几块，后面的块放评论，每块开头写「第 i/n 块」
+  //   GitHub 令牌只存在这台设备的浏览器里（设置 → 对局与其他），代码和存档里都没有
+  const GH_REPO = 'liukaidipeng-ops/chuhan_v01', GH_API = 'https://api.github.com', GH_MAX = 60000, GH_LABEL = '对局';
+  const MG_KEY = 'xq3d-mygames', MG_MAX = 40;
+  const KIND_CN = { bf: '技能', jq: '揭棋', xq: '象棋' };
+  let savedView = null;   // 正在复盘「我的棋局」里的哪一局（这时不动「回到对局」的存档，退出回大厅）
+  const ghTok = () => String(store.get('ghToken', '') || '').trim();
+  const pad2 = n => String(n).padStart(2, '0');
+  const stampOf = t => { const d = new Date(t); return `${pad2(d.getMonth() + 1)}-${pad2(d.getDate())} ${pad2(d.getHours())}:${pad2(d.getMinutes())}`; };
+  function mgLoad() { try { const v = JSON.parse(localStorage.getItem(MG_KEY) || '[]'); return Array.isArray(v) ? v : []; } catch (e) { return []; } }
+  function mgSave(list) {
+    list = list.slice(0, MG_MAX);
+    for (let pass = 0; pass < 200; pass++) {
+      try { localStorage.setItem(MG_KEY, JSON.stringify(list)); return true; } catch (e) { }
+      // 放不下：从最旧的开始去掉电脑思考记录和悔棋分支（发出去的那份工单里还有），还不行就删最旧的
+      const old = [...list].reverse().find(r => r.data && (r.data.think || r.data.branches));
+      if (old) { delete old.data.think; delete old.data.branches; old.slim = 1; continue; }
+      if (list.length <= 1) return false;
+      list.pop();
+    }
+    return false;
+  }
+  function mgPut(rec) { const list = mgLoad().filter(r => r.id !== rec.id); list.unshift(rec); return mgSave(list); }
+  // 标题里的几项：技能 · 霸王 · 电脑执楚 · 汉胜 · 36 回合
+  function mgHead(o, rounds) {
+    const ai = o.ai || null, ks = ai ? Object.keys(ai) : [];
+    const vs = o.mode === 'ai' && ks.length === 2 ? `电脑对电脑 · 汉${LV[ai.r] || ''} 楚${LV[ai.b] || ''}` : o.mode === 'ai' && ks.length ? `${LV[ai[ks[0]]] || ''} · 电脑执${SIDE_CN[ks[0]]}` : o.mode === 'local' ? '本地' : '联机';
+    const res = o.result ? (o.result.winner ? SIDE_CN[o.result.winner] + '胜' : '和棋') : '未分胜负';
+    return [KIND_CN[o.kind] || o.kind, vs, res, `${rounds} 回合`].join(' · ');
+  }
+  const mgTitle = rec => ['对局', rec.head, rec.data.ver, stampOf(rec.t)].join(' · ');
+  const reasonOf = r => (r ? (r.winner ? `${SIDE_CN[r.winner]}胜 · ${REASON[r.reason] || r.reason}` : `和棋 · ${REASON[r.reason] || r.reason || ''}`) : '未分胜负');
+  // 「复制」用的文字：和「导出本局」同一个样子（---DATA--- 下面一行 JSON），数值部的工具都能读
+  function mgText(rec) {
+    const o = rec.data;
+    return [`技能新象棋 · 对局导出（版本 ${o.ver || '?'}）`, `${rec.head} · ${reasonOf(o.result)} · ${stampOf(rec.t)}`, o.note ? 'Ham 的话：' + o.note : '', '---DATA---', JSON.stringify(o)].filter(Boolean).join('\n');
+  }
+  function flagsHtml(fl) {
+    if (!fl || !fl.length) return '想标出电脑哪步笨：点「复盘」或打开棋谱（譜），点那一步。';
+    return `标了 ${fl.length} 步「这步笨」：` + fl.map(f => `<b>第 ${f.turn} 回合 ${SIDE_CN[f.side] || ''} ${escH(f.move)}</b>${f.note ? '（' + escH(f.note) + '）' : ''}`).join('；');
+  }
+  // —— 结算卡「保 存」 ——
+  let saveCur = null;   // 这一局存成的那一条（同一局再点「保 存」就更新它，不重复存）
+  function openSave() {
+    const G = RP ? RP.real : game; if (!G) return;
+    const o = exportGame(true); if (!o) return;
+    if (savedView) { saveCur = { g: G, id: savedView.id, t: savedView.t, rounds: savedView.rounds, note: savedView.note }; }
+    else if (!saveCur || saveCur.g !== G) saveCur = { g: G, id: 'g' + Date.now().toString(36), t: Date.now(), rounds: Math.ceil((G.bf ? G.ends.filter(Boolean).length : G.history.length) / 2), note: '' };   // 下了几个回合（双方各走一步算一回合）
+    const old = mgLoad().find(r => r.id === saveCur.id);
+    $('saveSum').innerHTML = `${escH(mgHead(o, saveCur.rounds))}<br>${escH(reasonOf(o.result))} · ${stampOf(saveCur.t)} · 版本 ${escH(o.ver)}`;
+    $('saveNote').value = old ? old.note || '' : saveCur.note || '';
+    $('saveFlags').innerHTML = flagsHtml(G.__flags);
+    const sent = old && old.issue && old.issue.n && old.issue.sent >= old.issue.chunks;
+    saveMsg(sent ? `这局已经发给数值部了（工单 #${old.issue.n}）。改了话再存，只改这台设备上的那份。` : ghTok() ? '' : '还没设置 GitHub 令牌：「存并发给数值部」要先在 设置 → 对局与其他 里粘贴令牌（那里有步骤）。', '');
+    $('bSaveSend').disabled = !!sent;
+    $('mSave').classList.remove('hidden');
+    setTimeout(() => { try { $('saveNote').focus({ preventScroll: true }); } catch (e) { } }, 60);
+  }
+  function saveMsg(t, cls) { const m = $('saveMsg'); m.className = 'svmsg' + (cls ? ' ' + cls : ''); m.innerHTML = t || ''; }
+  function saveNow() {
+    const G = saveCur.g, o = exportGame(true); if (!o) return null;
+    o.note = $('saveNote').value.trim().replace(/`{3,}/g, '``');
+    saveCur.note = o.note;
+    const old = mgLoad().find(r => r.id === saveCur.id);
+    const rec = { id: saveCur.id, t: saveCur.t, rounds: saveCur.rounds, head: mgHead(o, saveCur.rounds), note: o.note, data: o, issue: old ? old.issue || null : null };
+    if (savedView && savedView.id === rec.id) savedView = rec;
+    return mgPut(rec) ? rec : null;
+  }
+  $('bSaveCancel').onclick = () => $('mSave').classList.add('hidden');
+  $('bSaveLocal').onclick = () => {
+    const rec = saveNow();
+    if (!rec) { saveMsg('这台设备的浏览器存储满了，存不下。到「我的棋局」删几局再试。', 'err'); return; }
+    $('mSave').classList.add('hidden'); toast('已存到「我的棋局」（大厅右上角）', 2400);
+  };
+  let sending = false;
+  $('bSaveSend').onclick = async () => {
+    if (sending) return;
+    if (!ghTok()) { saveMsg('还没设置 GitHub 令牌：设置 → 对局与其他 → 发给数值部，粘贴令牌（那里有步骤）。这局可以先点「存到我的棋局」，设好令牌后在「我的棋局」里发。', 'err'); return; }
+    const rec = saveNow();
+    if (!rec) { saveMsg('这台设备的浏览器存储满了，存不下。到「我的棋局」删几局再试。', 'err'); return; }
+    sending = true; $('bSaveSend').disabled = true; saveMsg('正在发给数值部…', '');
+    try {
+      const iss = await mgSend(rec);
+      saveMsg(`已发出：工单 #${iss.n}${iss.chunks > 1 ? `（分成 ${iss.chunks} 块）` : ''}。数值部看完会在工单里回复、处理完会关掉，「我的棋局」里能看到。`, 'ok');
+      setTimeout(() => $('mSave').classList.add('hidden'), 2600);
+    } catch (e) {
+      saveMsg('没发出去：' + escH(e.message || e) + '<br>这局已经存在「我的棋局」，可以稍后在那里重发。', 'err');
+      $('bSaveSend').disabled = false;
+    }
+    sending = false;
+  };
+  // —— GitHub 工单 ——
+  function ghErr(st, j) {
+    const m = (j && j.message) || '';
+    if (st === 401) return '令牌无效或已过期，到「设置 → 对局与其他」重新粘贴';
+    if (st === 403) return /rate limit/i.test(m) ? 'GitHub 暂时限流，过一会儿再试' : '令牌没有写工单的权限：令牌设置里 Permissions → Issues 要选 Read and write';
+    if (st === 404) return '令牌访问不到 chuhan_v01：令牌设置里 Repository access 要选上这个仓库';
+    if (st === 410) return '这个仓库关掉了工单功能';
+    if (st === 422) return '内容格式不对' + (m ? '（' + m + '）' : '');
+    return `GitHub 返回 ${st}` + (m ? '：' + m : '');
+  }
+  async function ghReq(path, method, body, noTok) {
+    const tok = noTok ? '' : ghTok(), h = { Accept: 'application/vnd.github+json' };
+    if (tok) h.Authorization = 'Bearer ' + tok;
+    if (body) h['Content-Type'] = 'application/json';
+    let r;
+    try { r = await fetch(GH_API + path, { method: method || 'GET', headers: h, body: body ? JSON.stringify(body) : undefined, cache: 'no-store' }); }
+    catch (e) { throw new Error('连不上 GitHub（网络问题）'); }
+    let j = null; try { j = await r.json(); } catch (e) { }
+    if (!r.ok) { const e = new Error(ghErr(r.status, j)); e.status = r.status; throw e; }
+    return j;
+  }
+  async function gzip64(s) {
+    if (typeof CompressionStream === 'undefined') return null;
+    try {
+      const buf = new Uint8Array(await new Response(new Blob([s]).stream().pipeThrough(new CompressionStream('gzip'))).arrayBuffer());
+      let bin = ''; for (let i = 0; i < buf.length; i += 0x8000) bin += String.fromCharCode.apply(null, buf.subarray(i, i + 0x8000));
+      return btoa(bin);
+    } catch (e) { return null; }
+  }
+  // 不压缩的 JSON 拆块：只在字符串外面的逗号后面断开（数值部拼块时每块末尾的换行落在值和值之间，不会改坏字符串）
+  function cutJson(s, size) {
+    const out = []; let from = 0;
+    while (s.length - from > size) {
+      let inStr = false, esc = false, cut = -1;
+      for (let i = from; i < from + size; i++) {
+        const c = s[i];
+        if (inStr) { if (esc) esc = false; else if (c === '\\') esc = true; else if (c === '"') inStr = false; }
+        else if (c === '"') inStr = true; else if (c === ',') cut = i + 1;
+      }
+      if (cut <= from) cut = from + size;   // 一个值本身就超长（不会发生），硬切
+      out.push(s.slice(from, cut)); from = cut;
+    }
+    out.push(s.slice(from));
+    return out;
+  }
+  // 工单正文和后面几条评论
+  async function issueParts(note, data) {
+    const json = JSON.stringify(data), head = note ? note + '\n\n' : '';
+    if (head.length + json.length + 16 <= GH_MAX) return ['' + head + '```json\n' + json + '\n```'];
+    const gz = await gzip64(json), kind = gz ? 'bfgz' : 'json';
+    const lines = gz ? gz.replace(/.{1,76}/g, '$&\n') : null;
+    if (gz && head.length + lines.length + 16 <= GH_MAX) return [head + '```bfgz\n' + lines + '```'];
+    const size = GH_MAX - 600 - head.length;
+    let chunks;
+    if (gz) { chunks = []; const per = Math.floor(size / 77) * 76; for (let i = 0; i < gz.length; i += per) chunks.push(gz.slice(i, i + per).replace(/.{1,76}/g, '$&\n')); }
+    else chunks = cutJson(json, size).map(c => c + '\n');
+    const n = chunks.length;
+    return chunks.map((c, i) => (i ? '' : head) + '```' + kind + '\n第 ' + (i + 1) + '/' + n + ' 块\n' + c + '```');
+  }
+  const mgParts = new Map();   // 发了一半断掉的：这次打开网页期间记着没发完的块，重发时接着发
+  async function mgSend(rec) {
+    if (!ghTok()) throw new Error('还没设置 GitHub 令牌（设置 → 对局与其他）');
+    let iss = rec.issue;
+    if (iss && iss.n && iss.sent < iss.chunks && !mgParts.has(rec.id)) iss = null;   // 上次发了一半、块已经找不回来：重开一条
+    const parts = mgParts.get(rec.id) || await issueParts(rec.note, rec.data);
+    mgParts.set(rec.id, parts);
+    if (!iss || !iss.n) {
+      const j = await ghReq(`/repos/${GH_REPO}/issues`, 'POST', { title: mgTitle(rec), body: parts[0], labels: [GH_LABEL] });
+      iss = rec.issue = { n: j.number, url: j.html_url, chunks: parts.length, sent: 1, state: 'open', replies: 0, at: Date.now() };
+      mgPut(rec);
+    }
+    for (let i = iss.sent; i < parts.length; i++) {
+      await ghReq(`/repos/${GH_REPO}/issues/${iss.n}/comments`, 'POST', { body: parts[i] });
+      iss.sent = i + 1; mgPut(rec);
+    }
+    mgParts.delete(rec.id);
+    return iss;
+  }
+  // 工单现在的样子：开着 / 数值部回复了几条 / 关了（评论里减掉我们自己拆出去的块）
+  async function mgStatus(rec) {
+    const j = await ghReq(`/repos/${GH_REPO}/issues/${rec.issue.n}`);
+    rec.issue.state = j.state; rec.issue.replies = Math.max(0, (j.comments || 0) - Math.max(0, (rec.issue.sent || 1) - 1)); rec.issue.chk = Date.now();
+    if (j.html_url) rec.issue.url = j.html_url;
+  }
+  function stTag(r) {
+    const i = r.issue;
+    if (!i || !i.n) return '<span class="st">只在本机</span>';
+    if (i.sent < i.chunks) return `<span class="st err">没发完 #${i.n}</span>`;
+    if (i.state === 'closed') return `<span class="st done">数值部已处理 #${i.n}</span>`;
+    if (i.replies > 0) return `<span class="st reply">数值部回复了 ${i.replies} 条 #${i.n}</span>`;
+    return `<span class="st sent">已发 #${i.n} · 等数值部看</span>`;
+  }
+  // —— 我的棋局 ——
+  function paintGames() {
+    const list = mgLoad();
+    $('gamesNote').innerHTML = list.length ? `存在这台设备的浏览器里，最多 ${MG_MAX} 局${ghTok() ? '' : ' · 还没设置 GitHub 令牌，发不了数值部（设置 → 对局与其他）'}` : '';
+    $('gamesList').innerHTML = list.length ? list.map(r => {
+      const sent = r.issue && r.issue.n && r.issue.sent >= r.issue.chunks;
+      const fl = r.data && r.data.flags && r.data.flags.length ? ` · 标了 ${r.data.flags.length} 步笨` : '';
+      return `<div class="gm" data-id="${escH(r.id)}"><div class="t1">${escH(r.head)}${stTag(r)}</div>`
+        + `<div class="t2">${stampOf(r.t)} · ${escH(reasonOf(r.data && r.data.result))} · 版本 ${escH(r.data && r.data.ver)}${fl}${r.slim ? ' · 思考记录已省掉' : ''}</div>`
+        + (r.note ? `<div class="nt">${escH(r.note)}</div>` : '')
+        + `<div class="bt"><button class="btn" data-g="view">复盘</button>${sent ? '<button class="btn" data-g="open">看工单</button>' : '<button class="btn" data-g="send">发给数值部</button>'}<button class="btn" data-g="copy">复制</button><button class="btn" data-g="del">删除</button></div></div>`;
+    }).join('') : '<div class="empty">还没有存过棋局。<br>下完一局，在结算画面点「保 存」。</div>';
+  }
+  async function mgRefresh() {
+    const list = mgLoad().filter(r => r.issue && r.issue.n && r.issue.sent >= r.issue.chunks && r.issue.state !== 'closed').slice(0, 12);
+    let changed = false;
+    for (const r of list) {
+      if (r.issue.chk && Date.now() - r.issue.chk < 60000) continue;
+      try { await mgStatus(r); changed = true; const all = mgLoad(), k = all.findIndex(x => x.id === r.id); if (k >= 0) { all[k].issue = r.issue; mgSave(all); } } catch (e) { break; }
+    }
+    if (changed && !$('mGames').classList.contains('hidden')) paintGames();
+  }
+  $('bMyGames').onclick = () => { paintGames(); $('mGames').classList.remove('hidden'); mgRefresh(); };
+  $('bGamesClose').onclick = () => $('mGames').classList.add('hidden');
+  $('gamesList').addEventListener('click', async e => {
+    const b = e.target.closest('[data-g]'); if (!b) return;
+    const id = b.closest('.gm').dataset.id, rec = mgLoad().find(r => r.id === id); if (!rec) { paintGames(); return; }
+    const a = b.dataset.g;
+    if (a === 'view') openSaved(rec);
+    else if (a === 'open') { if (rec.issue && rec.issue.url) window.open(rec.issue.url, '_blank', 'noopener'); }
+    else if (a === 'copy') {
+      let ok = false; try { await navigator.clipboard.writeText(mgText(rec)); ok = true; } catch (err) { }
+      toast(ok ? '已复制（和「导出本局」一样的格式）' : '没能复制：浏览器不让', 2000);
+    } else if (a === 'del') {
+      if (b.dataset.sure !== '1') { b.dataset.sure = '1'; b.textContent = '再点一次删除'; setTimeout(() => { if (b.isConnected) { b.dataset.sure = ''; b.textContent = '删除'; } }, 3000); return; }
+      mgSave(mgLoad().filter(r => r.id !== id)); paintGames();
+    } else if (a === 'send') {
+      if (!ghTok()) { $('gamesNote').innerHTML = '<b>还没设置 GitHub 令牌</b>：设置 → 对局与其他 → 发给数值部，粘贴令牌（那里有步骤）。'; return; }
+      b.disabled = true; b.textContent = '发送中…';
+      try { const iss = await mgSend(rec); toast(`已发给数值部：工单 #${iss.n}`, 2400); }
+      catch (err) { $('gamesNote').innerHTML = '没发出去：' + escH(err.message || err); }
+      paintGames();
+    }
+  });
+  // 复盘「我的棋局」里的一局：按本地对局摆出来（不计时、没有电脑），直接进复盘；退出回大厅
+  async function openSaved(rec) {
+    const o = rec.data || {}, kind = o.kind;
+    if (kind === 'jq' && !o.layout) { toast('这局揭棋没存布局，复盘不了'); return; }
+    $('mGames').classList.add('hidden');
+    savedView = rec; saveCur = null;
+    const op = { undo: 0, total: 0, step: 0, hints: 1, bf: kind === 'bf' ? 1 : 0, jq: kind === 'jq' ? 1 : 0 };
+    if (kind === 'bf') { op.bs = o.opts && o.opts.bs != null ? o.opts.bs : 1; op.r6 = o.opts && o.opts.r6 != null ? o.opts.r6 : 0; }
+    Sfx.init(); applySettings();
+    await startGame('local', o.me || 'r', op, { state: { bfe: o.entries, bfbase: o.base, moves: o.moves, layout: o.layout, result: o.result }, intro: false });
+    if (o.result && !game.result) game.result = o.result;
+    game.__flags = (o.flags || []).map(f => ({ ...f }));
+    if (o.think) game.__think = o.think;
+    if (o.branches) game.__branches = o.branches;
+    ended = true;
+    startReplay();
+    toast(`复盘：${rec.head} · ${stampOf(rec.t)}`, 2600);
+  }
+  // —— 标“这步笨”：点棋谱上的某一步 ——
+  let flagPly = -1;
+  // 第 i 条棋谱：这一回合第一条行动在 entries（技能模式）/ history 里的序号，和哪一方走的（技能模式一条棋谱可能含升级、拒马几条行动）
+  function noteMeta(i) {
+    const G = RP ? RP.real : game;
+    if (G.bf) { let t = 0, st = 0; for (let k = 0; k < G.entries.length; k++) if (G.ends[k]) { if (t === i) return { at: st, side: G.sides[k] }; t++; st = k + 1; } return { at: st, side: G.turn }; }
+    return { at: i, side: i % 2 ? 'b' : 'r' };
+  }
+  $('logList').addEventListener('click', e => {
+    const sp = e.target.closest('span[data-i]'); if (!sp || watching() || !game) return;
+    flagPly = +sp.dataset.i; if (!(flagPly >= 0 && notes[flagPly] != null)) return;
+    const G = RP ? RP.real : game, f = (G.__flags || []).find(x => x.ply === flagPly);
+    $('flagWhat').innerHTML = `第 ${Math.floor(flagPly / 2) + 1} 回合 · ${SIDE_CN[noteMeta(flagPly).side] || ''}方 · <b>${escH(noteText(notes[flagPly]))}</b>`;
+    $('flagNote').value = f ? f.note || '' : '';
+    $('bFlagOff').classList.toggle('hidden', !f);
+    $('bFlagOn').textContent = f ? '改 好' : '标为这步笨';
+    $('mFlag').classList.remove('hidden');
+  });
+  function flagSet(on) {
+    const G = RP ? RP.real : game; if (!G || flagPly < 0) return;
+    G.__flags = (G.__flags || []).filter(x => x.ply !== flagPly);
+    if (on) {
+      const mt = noteMeta(flagPly);
+      G.__flags.push({ ply: flagPly, at: mt.at, turn: Math.floor(flagPly / 2) + 1, side: mt.side, move: noteText(notes[flagPly]), note: $('flagNote').value.trim().replace(/`{3,}/g, '``') });
+      G.__flags.sort((a, b) => a.ply - b.ply);
+    }
+    if (savedView) {   // 复盘存着的局时改的标记，存回那一条
+      const all = mgLoad(), k = all.findIndex(r => r.id === savedView.id);
+      if (k >= 0) { if (G.__flags.length) all[k].data.flags = G.__flags.map(f => ({ ...f })); else delete all[k].data.flags; mgSave(all); savedView = all[k]; }
+    }
+    $('mFlag').classList.add('hidden'); renderLog();
+    toast(on ? '已标「这步笨」，保存或发给数值部时一起带上' : '已取消标记', 1800);
+  }
+  $('bFlagOn').onclick = () => flagSet(true);
+  $('bFlagOff').onclick = () => flagSet(false);
+  $('bFlagClose').onclick = () => $('mFlag').classList.add('hidden');
+  // —— 设置里的 GitHub 令牌 ——
+  const GH_HOW = '怎么拿令牌：GitHub 网页右上角头像 → Settings → 左边最下面 Developer settings → Personal access tokens → Fine-grained tokens → Generate new token。'
+    + 'Repository access 选 Only select repositories，选上 chuhan_v01；<b>选好仓库之后</b>下面 Permissions 里才会出现 Issues，把它改成 Read and write。生成后复制，粘贴到上面，点「保存并测试」。';
+  function paintGh(msg, cls) {
+    const t = ghTok();
+    $('ghTok').value = '';
+    $('ghTok').placeholder = t ? `已保存（末四位 ${t.slice(-4)}）· 粘贴新的可替换` : 'github_pat_…';
+    $('ghDel').classList.toggle('hidden', !t);
+    $('ghMsg').className = 'ghmsg' + (cls ? ' ' + cls : '');
+    $('ghMsg').innerHTML = msg || (t ? '令牌只存在这台设备的浏览器里，不会上传到别处。' : GH_HOW);
+  }
+  $('ghTest').onclick = async () => {
+    const v = $('ghTok').value.trim();
+    if (v) { if (!/^(github_pat_|ghp_|gho_|ghu_)[A-Za-z0-9_]{20,}$/.test(v)) { paintGh('这不像 GitHub 令牌（应该以 github_pat_ 开头）。<br>' + GH_HOW, 'err'); return; } store.set('ghToken', v); }
+    if (!ghTok()) { paintGh(GH_HOW); return; }
+    paintGh('正在测试…');
+    try {
+      const u = await ghReq('/user');
+      // 写权限：把「对局」标签按它现在的颜色原样存一次（不改任何东西），没有 Issues 写权限会被拒
+      const lb = await ghReq(`/repos/${GH_REPO}/labels/${encodeURIComponent(GH_LABEL)}`);
+      await ghReq(`/repos/${GH_REPO}/labels/${encodeURIComponent(GH_LABEL)}`, 'PATCH', { color: lb.color });
+      paintGh(`令牌可用：账号 ${escH(u.login)}，能在 chuhan_v01 开工单。`, 'ok');
+    } catch (e) { paintGh('测试没通过：' + escH(e.message || e) + '<br>' + GH_HOW, 'err'); }
+  };
+  $('ghDel').onclick = () => { store.del('ghToken'); paintGh('已从这台设备删除令牌。'); };
+  paintGh();
 
   // ---------- 对局按钮 ----------
   $('tUndo').onclick = requestUndo;
@@ -3569,7 +4344,7 @@
   window.__xq = {
     get busy() { return busy; }, get started() { return started; }, get game() { return game; }, get mode() { return mode; }, get aiThinking() { return aiThinking; },
     doMove, startGame, finishGame, Ending, Fx, Board, Core, Camp, Squads, Spect, setView, onData, Net, requestUndo, sendEmote, get clock() { return clock; }, get opts() { return opts; }, joinRoom, notation, get notes() { return notes; }, aiSay,
-    doBF, bfButton, bfClick, get bfMode() { return bfMode; }, BF, BFX, specGo, specFlick, exportGame, hostRoom, roomSit, get room() { return room; }, get specNames() { return specNames; },
+    doBF, bfButton, bfClick, get bfMode() { return bfMode; }, BF, BFX, specGo, specFlick, exportGame, hostRoom, roomSit, get room() { return room; }, get specNames() { return specNames; }, anaOpen, anaPick, anaExplain, anaDemo, get anaDet() { return anaDet; }, get RP() { return RP; },
     get badN() { return badN; }, get JK() { return JK; }, get JC() { return JC; }, get pendingJ() { return pendingJ; }, get jqBad() { return jqBad; }, jqReady, capChip, XQ,
   };
   if (location.hash === '#local') { startGame('local', 'r', { undo: 3, total: 15, step: 60, hints: 1 }, { intro: false }); return; }

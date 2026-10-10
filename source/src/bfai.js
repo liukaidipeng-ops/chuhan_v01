@@ -370,6 +370,7 @@
     easy: { depth: 1, q: 2, noise: 1.3, top: 3, up: 0.5, budget: 500 },
     mid: { depth: 3, q: 3, noise: 0.3, top: 1, up: 1, budget: 2500 },
     hard: { depth: 7, q: 4, noise: 0.05, top: 1, up: 1, budget: 3000, minNodes: 20000 },
+    ana: { depth: 3, q: 3, noise: 0, top: 1, up: 1, budget: 1200 },   // 对局分析用（TD，Ham 10-09）：不加噪声，每个局面限时 1.2 秒
   };
 
   // 压在对方主帅跟前的进攻子数（和估值里的 attR / attB 同一个算法）
@@ -404,7 +405,7 @@
   function upgradeCands(S, L, rec) {
     if (S.upgraded) return [];
     const me = S.turn, U = CFG.ultimates, fin = !!S.final;
-    const base = score(S, me), chk = A.inCheck(S, me), cand = [];
+    const base = score(S, me), chk = A.inCheck(S, me), cand = [], skipped = [];
     // 对方有没有两点血以上的进攻子（它来将军时，一级的士、帅砍不死它）
     let heavy = false; for (let r = 0; r < 10; r++) for (let f = 0; f < 9; f++) { const p = S.board[r][f]; if (p && p.s !== me && heavyAt(p, f, r)) heavy = true; }
     // 军功前期很紧，只能靠杀子挣：先紧着车升。车还能升、军功再攒一点就够时，别的子先不升（保命的除外）
@@ -424,8 +425,8 @@
       // 守子：被捉、被将军才升；对方有两血进攻子逼近时，士可以先升到二级（攻击 2 才砍得死它），再往上只加血、不急
       // 守子升到三级、四级会解锁技能（飞越、护驾、铁甲禁卫、齐射 / 践踏）：值不值看搜索，这里只留一个名额给它（见下）
       const unlock = defender && !must && p.lv >= 2 && !(saving || hoard);
-      if (defender && !must && !unlock && !(p.t === 'a' && heavy && p.lv < 2)) { if (rec) rec.push({ at: [f, r], t: p.t, lv: p.lv, why: '守子没被捉、没被将军' }); continue; }
-      if ((saving || hoard) && p.t !== 'r' && !must) { if (rec) rec.push({ at: [f, r], t: p.t, lv: p.lv, why: saving ? '攒军功先升车' : '攒军功放终极兵法' }); continue; }
+      const keep0 = !(defender && !must && !unlock && !(p.t === 'a' && heavy && p.lv < 2)) && !((saving || hoard) && p.t !== 'r' && !must);
+      if (!keep0) { skipped.push({ at: [f, r], S: T, gain: score(T, me) - base, must, unlock }); continue; }   // 筛掉的先记着（下面补“升了攻击变大”的那一个要从里面挑）
       cand.push({ at: [f, r], S: T, gain: score(T, me) - base, must, unlock });
     }
     cand.sort((x, y) => (y.must ? 1 : 0) - (x.must ? 1 : 0) || y.gain - x.gain);
@@ -433,6 +434,19 @@
     const top = cand.filter(c => !c.unlock).slice(0, 3), ex = cand.find(c => c.unlock);
     if (ex) top.push(ex);
     if (rec) for (const c of cand) if (!top.includes(c)) { const p = S.board[c.at[1]][c.at[0]]; rec.push({ at: c.at, t: p.t, lv: p.lv, gain: +c.gain.toFixed(2), why: '名额满了（只留前三种）' }); }
+    // 根上补一个“升了攻击变大、能打死原来打不死的子”的升级（筛子挡掉的也算）：象 / 士二级、兵三级、车马炮按 r6 表升级都会加攻击。
+    //   Ham 10-09 霸王局第 29 回合最好是“升象 + 象吃炮”，“守子没被捉不升”把它挡了（C64，对线上霸王 595 局 52.2%）
+    { const rest = skipped.concat(cand.filter(c => !top.includes(c))).sort((x, y) => y.gain - x.gain);
+      const F = BF.cloneState(S); F.turn = me === 'r' ? 'b' : 'r'; F.upgraded = false; F.freeUsed = false; F.jmLock = null;
+      const thr = new Map(); try { for (const it of A.gen(F, true)) if (it.q && it.q.s === me && it.p) thr.set(it.q.id, Math.max(thr.get(it.q.id) || 0, A.atk(it.p))); } catch (e) { }
+      let added = 0;
+      for (const c of rest) { if (added >= 1) break;
+        const f = c.at[0], r = c.at[1], p0 = S.board[r][f], p1 = c.S.board[r][f]; if (!p0 || !p1) continue;
+        const m = thr.get(p0.id) || 0; let rel = m > 0 && p0.hp <= m && p1.hp > m;
+        if (!rel) { const a0 = A.atk(p0), a1 = A.atk(p1), before = new Set();
+          for (const mv of A.moveTargets(S, f, r)) { const q = S.board[mv.to[1]][mv.to[0]]; if (q && q.s !== me && (q.hp <= a0 || q.t === 'k')) before.add(q.id); }
+          for (const mv of A.moveTargets(c.S, f, r)) { const q = c.S.board[mv.to[1]][mv.to[0]]; if (q && q.s !== me && (q.hp <= a1 || q.t === 'k') && !before.has(q.id)) { rel = true; break; } } }
+        if (rel && A.atk(p1) > A.atk(p0)) { top.push(c); added++; } } }
     return top;
   }
   // 裁判开关 rootUpAll：根上自己的每一种升法都进搜索，不筛
@@ -541,6 +555,17 @@
       const rest = kids.filter(k => !(k.a.k === 'art' && k.a.id != null) || ok(k));
       if (rest.some(k => k.a.k !== 'art')) { artOff = kids.filter(k => !rest.includes(k)); kids = rest; }   // 平时不救的召回留给下面的一步杀保险兜底
       if (TR) TR.artOff = artOff.map(k => { const t = tOf(k.a.id); return { a: k.a, t, why: 'aep'.includes(t) ? '士象兵不救' : '车还在、楚的破釜没用：只救车' }; });
+    }
+    // 被将军、普通着法和名额里的升级都解不了将，但升了别的子能解（H52：这不算将死）：把所有升法都试一遍。
+    //   根上的升级有筛子（相 / 象、兵被将军时不算保命，最多看三种；新兵根本不在搜索里比升级），唯一能解将的那种可能被筛掉，
+    //   那样电脑一步都给不出来、网页就停在电脑这一回合（2026-10-10 数值部在对打里撞到）
+    if (!kids.length && chk0 && !pofu.length && !S0.upgraded) {
+      if (S !== S0) { S = S0; seq.length = 0; }   // 新兵先随手升了一枚子、升完还是无着：换掉那次升级
+      const all = upgradeAll(S);
+      for (const c of all) for (const k of A.expand(c.S)) { k.up = c; k.base = null; k.own = false; kids.push(k); }
+      // 楚：升完级还得靠背水一战（连走两步）才解得了将
+      if (!kids.length && me === 'b') { for (const c of all) for (const k of A.pofuPairs(c.S)) { k.up = c; k.gain = score(k.S, me); pofu.push(k); } pofu.sort((x, y) => y.gain - x.gain); }
+      if (TR && (kids.length || pofu.length)) TR.upEscape = true;
     }
     if (!kids.length) {
       // 普通着法一步都没有（被将死的样子），但背水一战还能解：就用它

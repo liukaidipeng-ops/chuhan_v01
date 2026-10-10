@@ -473,6 +473,121 @@ body.cine #hud>*{opacity:0!important;pointer-events:none!important}
 #rpBar{position:fixed;left:50%;transform:translateX(-50%);bottom:calc(16px + var(--safe-b));z-index:12;display:flex;align-items:center;gap:6px;padding:8px 10px;background:rgba(27,24,21,.92);border:1px solid rgba(217,184,119,.55);border-radius:6px;box-shadow:0 8px 24px rgba(0,0,0,.35);max-width:calc(100vw - 16px);flex-wrap:wrap;justify-content:center}
 #rpBar button{min-width:44px;height:38px;border:none;border-radius:4px;background:linear-gradient(#3a332c,#25201c);color:#f1e3c2;font-size:calc(15px * var(--fs,1));letter-spacing:.05em;cursor:pointer;box-shadow:inset 0 0 0 1px rgba(217,184,119,.35)}
 #rpBar button.pl{min-width:96px;background:linear-gradient(#b0301f,#7f2015);color:#fff3dc}
+/* 对局分析（Ham 10-09 22:36）：电脑右侧一栏、手机底部一块；墨底金边，和说明框一套 */
+#ana{position:fixed;z-index:13;right:12px;top:calc(64px + var(--safe-t,0px));bottom:calc(84px + var(--safe-b));width:min(372px,calc(100vw - 24px));display:flex;flex-direction:column;background:rgba(24,20,18,.95);color:#f1e3c2;border:1px solid rgba(217,184,119,.7);border-radius:6px;box-shadow:0 10px 30px rgba(0,0,0,.4),inset 0 0 0 3px rgba(24,20,18,.9),inset 0 0 0 4px rgba(217,184,119,.22);padding:10px 12px;font-size:calc(13px * var(--fs,1))}
+#ana .anaH{display:flex;align-items:center;gap:8px;margin-bottom:6px}#ana .anaH b{font-size:calc(16px * var(--fs,1));letter-spacing:.25em;color:#ffd98a}#ana #anaProg{flex:1;color:#bfae8a;font-size:calc(12px * var(--fs,1))}
+#ana #anaX{border:none;background:none;color:#d9c79c;font-size:18px;cursor:pointer;padding:0 4px}
+#anaSum{display:flex;gap:6px;margin-bottom:6px}#anaSum .as{flex:1;padding:4px 7px 5px;border-radius:4px;background:rgba(255,255,255,.04);border:1px solid rgba(217,184,119,.25);line-height:1.45}
+#anaSum .as.r{border-left:3px solid #e2462c}#anaSum .as.b{border-left:3px solid #3f8a5e}#anaSum b{margin-right:6px}#anaSum .acc{font-size:calc(18px * var(--fs,1));font-weight:bold;color:#fff}#anaSum small{color:#bfae8a;margin-left:3px}
+#anaSum i{display:inline-block;font-style:normal;font-size:calc(11px * var(--fs,1));margin:2px 4px 0 0;padding:0 5px;border-radius:8px}
+#anaChart{width:100%;height:auto;display:block;cursor:pointer;margin-bottom:6px;border-radius:4px}
+#anaChart .bgR{fill:rgba(226,70,44,.07)}#anaChart .bgB{fill:rgba(63,138,94,.08)}#anaChart .mid{stroke:rgba(217,184,119,.45);stroke-width:1;stroke-dasharray:3 3}
+#anaChart .aR{fill:rgba(226,70,44,.45)}#anaChart .aB{fill:rgba(63,138,94,.5)}#anaChart .ln{fill:none;stroke:#f1e3c2;stroke-width:1.4}
+#anaChart .d4{fill:#ff4b3a;stroke:#1b1714;stroke-width:1}#anaChart .d3{fill:#ffa640;stroke:#1b1714;stroke-width:1}#anaChart .cur{stroke:#ffd98a;stroke-width:1.5}
+#anaChart text{font-size:10px;fill:#bfae8a}#anaChart .lbR{fill:#ff9c90}#anaChart .lbB{fill:#7fc79a}
+#anaList{flex:1;overflow-y:auto;min-height:0;margin:0 -4px;padding:0 4px}
+#anaList .ar{display:flex;flex-wrap:wrap;align-items:center;gap:0 6px;padding:4px 6px;border-radius:3px;cursor:pointer;line-height:1.5}
+#anaList .ar:hover{background:rgba(255,255,255,.05)}#anaList .ar.on{background:rgba(255,217,138,.14);box-shadow:inset 2px 0 0 #ffd98a}
+#anaList .no{width:2.4em;color:#9d917a;text-align:right;font-variant-numeric:tabular-nums}#anaList .sd{font-size:calc(11px * var(--fs,1));padding:0 4px;border-radius:2px;color:#fff}#anaList .sd.r{background:#a8321f}#anaList .sd.b{background:#2f6a4a}
+#anaList .mv{flex:1;min-width:6em}#anaList .bm{flex-basis:100%;padding-left:3.6em;color:#8fe0bd;font-size:calc(12px * var(--fs,1))}
+#ana .tg,#anaSum i{font-style:normal;font-size:calc(11px * var(--fs,1));padding:0 6px;border-radius:9px;white-space:nowrap}
+#ana .g0{background:rgba(63,199,181,.25);color:#7fe3d5}#ana .g1{background:rgba(110,190,120,.22);color:#a6e0ad}#ana .g2{background:rgba(200,190,150,.18);color:#d9cfa8}#ana .g3{background:rgba(255,166,64,.25);color:#ffc27a}#ana .g4{background:rgba(255,75,58,.28);color:#ff9c90}#ana .tg.wait{color:#7d7360}
+#anaList .xb{border:1px solid rgba(143,224,189,.6);background:rgba(63,138,94,.25);color:#bff0d6;border-radius:3px;font-size:calc(11px * var(--fs,1));padding:0 7px;line-height:1.6;cursor:pointer;margin-left:2px}#anaList .xb:hover{background:rgba(63,138,94,.5)}
+#ana.det #anaSum,#ana.det #anaChart,#ana.det #anaList{display:none}
+#anaDet{flex:1;overflow-y:auto;min-height:0;line-height:1.65}#anaDet .dh{display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin-bottom:8px}#anaDet .dh span{flex:1}
+#anaDet .db{border:1px solid rgba(217,184,119,.55);background:rgba(255,255,255,.05);color:#f1e3c2;border-radius:3px;padding:2px 10px;cursor:pointer;font-size:calc(12px * var(--fs,1))}#anaDet .db:hover{background:rgba(255,255,255,.12)}
+#anaDet .db.b{border-color:#3f8a5e;color:#bff0d6}#anaDet .db.r{border-color:#b0301f;color:#ffc2b8}
+#anaDet .dp{display:flex;gap:8px;margin:0 0 8px}#anaDet .dp em{flex:none;font-style:normal;font-size:calc(11px * var(--fs,1));color:#1b1714;background:#d9b877;border-radius:2px;padding:0 5px;height:1.6em;line-height:1.6em;margin-top:.15em;white-space:nowrap}#anaDet .dp p{margin:0}#anaDet .dp b{color:#ffd98a;font-weight:normal}
+#anaDet .dd{display:flex;gap:8px;margin-top:4px;flex-wrap:wrap}#anaDet .dw{color:#bfae8a;padding:12px 0}
+#anaDet.demo .dd button{opacity:.4;pointer-events:none}#anaDet.demo .dp,#anaDet.demo .dd{display:none}#anaDet.demo::after{content:attr(data-k);display:block;margin-top:8px;padding:6px 8px;border-radius:4px;background:rgba(63,138,94,.25);color:#bff0d6}
+/* —— 分析面板 · 方案一「战报长卷」：底部横卷，米黄纸、两头卷轴；上面水墨局势，下面一根根竹简 —— */
+#ana.v1{left:24px;right:24px;width:auto;top:auto;bottom:calc(82px + var(--safe-b));height:236px;display:grid;grid-template-columns:132px 1fr;grid-template-rows:24px 64px 1fr;column-gap:14px;padding:8px 22px 8px;color:#2a2118;border:none;border-radius:2px;
+  background:linear-gradient(rgba(122,90,51,.12),rgba(122,90,51,0) 8%,rgba(122,90,51,0) 92%,rgba(122,90,51,.14)),linear-gradient(#f4e9cf,#ead9b3);box-shadow:0 12px 30px rgba(0,0,0,.45),inset 0 0 0 1px rgba(122,90,51,.45),inset 0 3px 0 rgba(255,255,255,.4)}
+#ana.v1::before,#ana.v1::after{content:'';position:absolute;top:-6px;bottom:-6px;width:12px;border-radius:6px;background:linear-gradient(90deg,#3b2414,#7a4a26 45%,#3b2414);box-shadow:0 2px 6px rgba(0,0,0,.5)}#ana.v1::before{left:-10px}#ana.v1::after{right:-10px}
+#ana.v1 .anaH{grid-column:1/3;margin:0}#ana.v1 .anaH b{color:#8a2414;letter-spacing:.4em}#ana.v1 #anaProg{color:#7a5a33}#ana.v1 #anaX{color:#7a5a33}
+#ana.v1 #anaSum{grid-column:1;grid-row:2/4;flex-direction:column;gap:8px;margin:2px 0 0}
+#ana.v1 .lp{position:relative;padding:6px 8px 6px 46px;border-radius:3px;background:linear-gradient(#2b211a,#1a1410);color:#f1e3c2;border:1px solid #c9a045;box-shadow:inset 0 0 0 2px #1a1410,inset 0 0 0 3px rgba(201,160,69,.35);line-height:1.2}
+#ana.v1 .lp b{position:absolute;left:7px;top:9px;width:30px;height:30px;display:grid;place-items:center;border-radius:3px;font-size:18px;color:#fff3dc}#ana.v1 .lp.r b{background:#a8321f}#ana.v1 .lp.b b{background:#2f2a24;box-shadow:inset 0 0 0 1px #8c7a5a}
+#ana.v1 .lp span{font-size:22px;font-weight:bold;color:#ffd98a;font-family:var(--num)}#ana.v1 .lp span small{font-size:12px}#ana.v1 .lp em{font-style:normal;font-size:11px;color:#bfae8a;margin-left:4px}#ana.v1 .lp i{display:block;font-style:normal;font-size:11px;color:#d9c79c;margin:2px 0 0;padding:0;border-radius:0;background:none;white-space:normal;letter-spacing:0}
+#ana.v1 #anaChart{grid-column:2;grid-row:2;height:64px;margin:0;border-radius:0}
+#ana.v1 #anaChart .rv{stroke:rgba(122,90,51,.55);stroke-width:1;stroke-dasharray:6 4}#ana.v1 #anaChart .rt{font-size:11px;fill:#8c6a3c;letter-spacing:.2em}#ana.v1 #anaChart .ln{fill:none;stroke:#2a2118;stroke-width:2.4;stroke-linecap:round;stroke-linejoin:round}
+#ana.v1 #anaChart g rect{stroke:#fff3dc;stroke-width:1}#ana.v1 #anaChart .st4 rect{fill:#b0301f}#ana.v1 #anaChart .st3 rect{fill:#c8761f}#ana.v1 #anaChart g text{font-size:10px;fill:#fff3dc;font-weight:bold}#ana.v1 #anaChart .cur{stroke:#8a2414;stroke-width:1.5}
+#ana.v1 #anaList{grid-column:2;grid-row:3;display:flex;gap:5px;overflow-x:auto;overflow-y:hidden;margin:0;padding:6px 2px 4px;align-items:flex-start}
+#ana.v1 #anaList .ar.sl{flex:none;writing-mode:vertical-rl;width:30px;height:104px;padding:16px 0 4px;gap:0;flex-wrap:nowrap;justify-content:flex-start;align-items:center;border-radius:3px;color:#2a2118;line-height:1.1;position:relative;
+  background:linear-gradient(transparent 11px,rgba(90,60,20,.35) 11px 12px,transparent 12px calc(100% - 14px),rgba(90,60,20,.3) calc(100% - 14px) calc(100% - 13px),transparent 0),linear-gradient(90deg,#bf9a5a,#e3c78c 35%,#d6b679 70%,#b58f50);box-shadow:0 1px 2px rgba(60,40,10,.4);transition:transform .15s}
+#ana.v1 #anaList .ar.sl.r{border-top:3px solid #a8321f}#ana.v1 #anaList .ar.sl.b{border-top:3px solid #2a2622}
+#ana.v1 #anaList .ar.sl:hover{background-color:transparent;filter:brightness(1.05)}#ana.v1 #anaList .ar.sl.on{transform:translateY(-5px);box-shadow:0 0 0 2px #8a2414,0 4px 10px rgba(60,20,10,.4)}
+#ana.v1 #anaList .sl .no{position:absolute;top:1px;left:0;right:0;writing-mode:horizontal-tb;text-align:center;width:auto;font-size:10px;color:#5d4526}
+#ana.v1 #anaList .sl .mv{flex:none;min-width:0;font-size:13px;letter-spacing:.06em}
+#ana.v1 #anaList .sl .tg{writing-mode:horizontal-tb;margin-block-start:auto;margin-top:auto;width:18px;height:18px;padding:0;border-radius:2px;display:grid;place-items:center;font-size:11px;font-weight:bold;color:#fff3dc}
+#ana.v1 #anaList .sl .tg.g0{background:#2f7d5f}#ana.v1 #anaList .sl .tg.g1{background:#5f8a3e}#ana.v1 #anaList .sl .tg.g2{background:#9c8a5c}#ana.v1 #anaList .sl .tg.g3{background:#c8761f}#ana.v1 #anaList .sl .tg.g4{background:#b0301f}#ana.v1 #anaList .sl .tg.wait{background:none;color:#7a5a33}
+#ana.v1 #anaList .sl .xb{writing-mode:horizontal-tb;position:absolute;bottom:-20px;left:50%;transform:translateX(-50%);margin:0;padding:0 5px;background:#8a2414;border-color:#8a2414;color:#fff3dc}
+#ana.v1 #anaList .sl.bad{background:linear-gradient(transparent 11px,rgba(90,60,20,.35) 11px 12px,transparent 12px calc(100% - 14px),rgba(90,60,20,.3) calc(100% - 14px) calc(100% - 13px),transparent 0),linear-gradient(90deg,#c29358,#e8c28f 35%,#dcae7a 70%,#b8844e)}
+#ana.v1 #anaList .sl:has(.xb){margin-bottom:22px}
+#ana.v1.det #anaChart,#ana.v1.det #anaList{display:none}#ana.v1.det #anaSum{display:flex}
+#ana.v1 #anaDet{grid-column:2;grid-row:2/4;columns:2 300px;column-gap:26px;column-rule:1px solid rgba(122,90,51,.3);color:#2a2118;overflow-y:auto}
+#ana.v1 #anaDet .dh,#ana.v1 #anaDet .dd,#ana.v1 #anaDet .dw{column-span:all}#ana.v1 #anaDet .dp{break-inside:avoid}#ana.v1 #anaDet .dp b{color:#8a2414;font-weight:bold}#ana.v1 #anaDet .dp em{background:#7a5a33;color:#f4e9cf}
+#ana.v1 #anaDet .db{color:#2a2118;border-color:rgba(122,90,51,.6);background:rgba(255,255,255,.35)}#ana.v1 #anaDet .db.b{color:#1f5f45;border-color:#2f7d5f}#ana.v1 #anaDet .db.r{color:#8a2414;border-color:#b0301f}#ana.v1 #anaDet .dw{color:#7a5a33}
+#ana.v1 .tg.g0{background:#2f7d5f;color:#fff}#ana.v1 .tg.g1{background:#5f8a3e;color:#fff}#ana.v1 .tg.g2{background:#9c8a5c;color:#fff}#ana.v1 .tg.g3{background:#c8761f;color:#fff}#ana.v1 .tg.g4{background:#b0301f;color:#fff}
+/* —— 方案二「古谱朱批」：米黄纸页，竖排记谱从右往左读，朱笔圈点、夹注「宜……」 —— */
+#ana.v2{background:radial-gradient(ellipse at 30% 20%,rgba(255,255,255,.35),transparent 60%),linear-gradient(#f1e5c8,#e8d8b2);color:#1f1a14;border:1px solid #6b4f2c;box-shadow:0 10px 30px rgba(0,0,0,.45),inset 0 0 0 5px #efe2c4,inset 0 0 0 6px #9c2a1a,inset 0 0 0 8px #efe2c4,inset 0 0 0 9px rgba(156,42,26,.5)}
+#ana.v2 .anaH{padding:2px 4px}#ana.v2 .anaH b{color:#9c2a1a;letter-spacing:.35em;font-size:calc(17px * var(--fs,1))}#ana.v2 #anaProg{color:#7a5a33}#ana.v2 #anaX{color:#6b4f2c}
+#ana.v2 #anaSum{align-items:center;gap:10px;padding:0 4px}
+#ana.v2 .sl{width:52px;height:52px;flex:none;display:grid;grid-template-rows:auto auto;place-items:center;align-content:center;border-radius:4px;font-weight:bold;line-height:1.05;transform:rotate(-3deg)}
+#ana.v2 .sl.r{border:2.5px solid #b0301f;color:#b0301f}#ana.v2 .sl.b{background:#b0301f;color:#f8ead0;transform:rotate(2deg)}
+#ana.v2 .sl b{font-size:13px;margin:0}#ana.v2 .sl span{font-size:21px;font-family:var(--num)}
+#ana.v2 .lgd{flex:1;font-size:11px;color:#6b4f2c;line-height:1.7}#ana.v2 .lgd i{font-style:normal;color:#b0301f;font-weight:bold;margin-right:1px}
+#ana.v2 #anaChart{height:22px;margin:2px 0 6px}#ana.v2 #anaChart .frame{fill:none;stroke:#6b4f2c;stroke-width:.8}#ana.v2 #anaChart .dot{fill:#b0301f}#ana.v2 #anaChart .cur{fill:none;stroke:#b0301f;stroke-width:1.5}
+#ana.v2 #anaList{writing-mode:vertical-rl;overflow-x:auto;overflow-y:hidden;margin:0;padding:6px 4px;line-height:34px;border-top:1px solid rgba(107,79,44,.45);border-bottom:1px solid rgba(107,79,44,.45);background:repeating-linear-gradient(to left,transparent 0 33px,rgba(156,42,26,.18) 33px 34px)}
+#ana.v2 #anaList .ar{display:inline;padding:0;border-radius:0;font-size:calc(15px * var(--fs,1));letter-spacing:.08em;cursor:pointer;color:#1f1a14}
+#ana.v2 #anaList .ar.b .mv{color:#3a3128}
+#ana.v2 #anaList .ar .no{display:inline;width:auto;text-align:start;font-size:calc(11px * var(--fs,1));color:#8c6a3c;margin-block-start:.6em}#ana.v2 #anaList .ar .no:empty{display:none}
+#ana.v2 #anaList .ar .mv{display:inline;min-width:0;flex:none}
+#ana.v2 #anaList .mk{font-style:normal;color:#b0301f;font-weight:bold;margin:0 .1em .35em}#ana.v2 #anaList .mk.m0,#ana.v2 #anaList .mk.m1{color:#c0503a}
+#ana.v2 #anaList .bm{display:inline;padding:0;flex:none;font-size:calc(11px * var(--fs,1));color:#b0301f;margin-block-end:.6em}
+#ana.v2 #anaList .ar:hover .mv{background:rgba(156,42,26,.08)}#ana.v2 #anaList .ar.on .mv{background:rgba(156,42,26,.16);box-shadow:inset -2px 0 0 #b0301f}
+#ana.v2 #anaList .xb{writing-mode:horizontal-tb;display:inline-block;margin:.2em 0 .5em;padding:0 4px;line-height:1.5;background:#b0301f;border-color:#b0301f;color:#fff3e0;font-size:11px}
+#ana.v2 #anaDet{color:#1f1a14}#ana.v2 #anaDet .dp em{background:#9c2a1a;color:#fff1d8}#ana.v2 #anaDet .dp b{color:#9c2a1a;font-weight:bold}#ana.v2 #anaDet .db{color:#1f1a14;border-color:rgba(107,79,44,.6);background:rgba(255,255,255,.4)}#ana.v2 #anaDet .db.b{color:#1f5f45}#ana.v2 #anaDet .db.r{color:#9c2a1a}#ana.v2 #anaDet .dw{color:#7a5a33}#ana.v2 #anaDet.demo::after{background:rgba(156,42,26,.1);color:#9c2a1a}
+#ana.v2 .tg.g0,#ana.v2 .tg.g1{background:none;color:#c0503a;border:1px solid #c0503a}#ana.v2 .tg.g2{background:none;color:#8c6a3c;border:1px solid #8c6a3c}#ana.v2 .tg.g3,#ana.v2 .tg.g4{background:#b0301f;color:#fff1d8}
+/* —— 方案三「沙盘兵势」：不挡棋盘——底部一条兵势河 + 一排兵符；选中的那一步弹一张军情签 —— */
+#ana.v3{left:max(12px,calc(50% - 470px));right:max(12px,calc(50% - 470px));width:auto;top:auto;bottom:calc(82px + var(--safe-b));height:auto;display:grid;grid-template-columns:150px 1fr;grid-template-rows:40px auto;column-gap:12px;row-gap:4px;padding:6px 12px 8px;background:rgba(24,20,18,.9)}
+#ana.v3 .anaH{grid-column:1;grid-row:1;margin:0;flex-wrap:wrap;gap:0 6px;line-height:1.2}#ana.v3 .anaH b{font-size:14px;letter-spacing:.2em}#ana.v3 #anaProg{font-size:11px}#ana.v3 #anaX{position:absolute;right:6px;top:2px}
+#ana.v3 #anaSum{grid-column:1;grid-row:2;margin:0;gap:6px}#ana.v3 .bd{flex:1;padding:1px 6px;border-radius:3px;font-size:13px;font-weight:bold;color:#fff;white-space:nowrap;text-align:center}#ana.v3 .bd b{font-weight:normal;font-size:11px;margin-right:4px;opacity:.85}#ana.v3 .bd.r{background:#8a2a1a}#ana.v3 .bd.b{background:#2f5a40}
+#ana.v3 #anaChart{grid-column:2;grid-row:1;height:40px;margin:0 6px 0 0;border-radius:0}#ana.v3 #anaChart .rv{fill:rgba(120,170,200,.35)}#ana.v3 #anaChart .aR{fill:rgba(226,70,44,.6)}#ana.v3 #anaChart .aB{fill:rgba(63,160,100,.6)}#ana.v3 #anaChart .ln{fill:none;stroke:#f1e3c2;stroke-width:1.2}#ana.v3 #anaChart .cur{stroke:#ffd98a;stroke-width:2}
+#ana.v3 #anaList{grid-column:2;grid-row:2;display:flex;gap:2px;overflow-x:auto;overflow-y:hidden;margin:0 6px 0 0;padding:2px 0;align-items:flex-end;min-height:30px}
+#ana.v3 #anaList .ar.tk{flex:1 1 0;min-width:7px;max-width:22px;height:20px;padding:0;border-radius:2px 2px 8px 8px;background:#3a332c;position:relative;display:block;transition:height .12s}
+#ana.v3 #anaList .ar.tk.r{box-shadow:inset 0 2px 0 #e2462c}#ana.v3 #anaList .ar.tk.b{box-shadow:inset 0 2px 0 #4fae78}
+#ana.v3 #anaList .ar.tk i{position:absolute;inset:3px 1px 1px;border-radius:1px 1px 7px 7px;display:grid;place-items:center;font-style:normal;font-size:10px;font-weight:bold;color:#fff;padding:0}
+#ana.v3 #anaList .tk .g0{background:#3fc7b5}#ana.v3 #anaList .tk .g1{background:#6ebe78}#ana.v3 #anaList .tk .g2{background:#b9ab7c}#ana.v3 #anaList .tk .g3{background:#ff9a2e}#ana.v3 #anaList .tk .g4{background:#ff4b3a}
+#ana.v3 #anaList .ar.tk:hover{height:24px;background:#4a4239}#ana.v3 #anaList .ar.tk.on{height:28px;outline:2px solid #ffd98a;outline-offset:1px}
+#ana.v3.det #anaSum{display:flex}#ana.v3.det #anaChart{display:block}#ana.v3.det #anaList{display:flex}
+#anaCur{display:none}
+#ana.v3 #anaCur,#ana.v3 #anaDet{position:fixed;right:16px;top:calc(104px + var(--safe-t,0px));width:min(330px,calc(100vw - 32px));background:rgba(24,20,18,.95);border:1px solid rgba(217,184,119,.75);border-radius:6px;box-shadow:0 10px 30px rgba(0,0,0,.45),inset 0 0 0 3px rgba(24,20,18,.9),inset 0 0 0 4px rgba(217,184,119,.22);padding:10px 12px}
+#ana.v3 #anaCur:not(.hidden){display:block}#ana.v3 #anaCur .ch{display:flex;align-items:center;gap:6px;flex-wrap:wrap;font-size:15px}#ana.v3 #anaCur .ch b{color:#bfae8a;font-weight:normal;font-size:12px}#ana.v3 #anaCur .ch .tg{margin-left:auto}
+#ana.v3 #anaCur .sd{font-size:11px;padding:0 4px;border-radius:2px;color:#fff}#ana.v3 #anaCur .sd.r{background:#a8321f}#ana.v3 #anaCur .sd.b{background:#2f6a4a}
+#ana.v3 #anaCur .cb{margin-top:6px;color:#d9cfa8}#ana.v3 #anaCur .cb b{color:#8fe0bd;font-weight:normal}
+#ana.v3 #anaCur .xb{margin-top:8px;border:1px solid rgba(143,224,189,.6);background:rgba(63,138,94,.25);color:#bff0d6;border-radius:3px;padding:2px 12px;cursor:pointer}
+#ana.v3 #anaDet{width:min(390px,calc(100vw - 32px));max-height:calc(100vh - 330px);overflow-y:auto}
+@media (max-width:760px){
+  #ana.v1{left:14px;right:14px;bottom:calc(158px + var(--safe-b));height:auto;grid-template-columns:1fr;grid-template-rows:22px auto 56px auto;padding:6px 14px}
+  #ana.v1 #anaSum{grid-column:1;grid-row:2;flex-direction:row}#ana.v1 .lp{flex:1;padding-left:40px}#ana.v1 .lp b{width:26px;height:26px;font-size:15px;top:7px}#ana.v1 .lp span{font-size:18px}#ana.v1 .lp i{display:none}
+  #ana.v1 #anaChart{grid-column:1;grid-row:3;height:56px}#ana.v1 #anaList{grid-column:1;grid-row:4}#ana.v1 #anaList .ar.sl{height:104px}
+  #ana.v1 #anaDet{grid-column:1;grid-row:3/5;max-height:34vh}
+  #ana.v3{bottom:calc(158px + var(--safe-b));grid-template-columns:1fr;grid-template-rows:auto 34px auto}#ana.v3 .anaH{grid-row:1}#ana.v3 #anaSum{grid-row:1;justify-self:end;width:150px;margin-right:24px}#ana.v3 #anaChart{grid-column:1;grid-row:2;height:34px}#ana.v3 #anaList{grid-column:1;grid-row:3}
+  #ana.v3 #anaCur,#ana.v3 #anaDet{left:8px;right:8px;width:auto;top:calc(96px + var(--safe-t,0px))}#ana.v3 #anaDet{max-height:calc(100vh - 360px)}
+  /* 手机：兵符都收窄、不写字；选中的那枚放大，写上 佳 / 好 / 缓 / 失 / 错（Ham 10-10 td-012） */
+  #ana.v3 #anaList{gap:1px;min-height:40px;padding:4px 2px 2px;scroll-padding:0 40px}
+  #ana.v3 #anaList .ar.tk{flex:1 1 0;min-width:4px;max-width:12px;height:16px;border-radius:1px 1px 4px 4px;transition:flex-basis .18s ease,max-width .18s ease,height .18s ease}
+  #ana.v3 #anaList .ar.tk i{inset:2px 0 0;border-radius:0 0 3px 3px;font-size:0}
+  #ana.v3 #anaList .ar.tk:hover{height:16px;background:#3a332c}
+  #ana.v3 #anaList .ar.tk.on{flex:0 0 32px;max-width:32px;min-width:32px;height:34px;margin:0 3px;border-radius:3px 3px 10px 10px;outline-width:2px}
+  #ana.v3 #anaList .ar.tk.on i{inset:3px 2px 2px;border-radius:2px 2px 8px 8px}
+  #ana.v3 #anaList .ar.tk.on i::after{content:attr(data-c);font-size:17px;line-height:1;color:#fff;text-shadow:0 1px 2px rgba(0,0,0,.45)}
+}
+body.anaOn.anaWide #cardMe{display:none}
+#ana.v1 #anaDet{padding-left:4px}
+body.anaOn #log{display:none}
+@media (max-width:760px){#ana{left:8px;right:8px;width:auto;top:auto;bottom:calc(158px + var(--safe-b));height:36vh;padding:8px 10px}#anaChart{max-height:72px}#anaSum .as{padding:3px 6px}}
 #rpBar button.x{background:transparent;box-shadow:inset 0 0 0 1px rgba(217,184,119,.55)}
 #rpBar button:disabled{opacity:.35;cursor:default}
 #rpInfo{color:#f1e3c2;font-size:calc(14px * var(--fs,1));letter-spacing:.08em;padding:0 6px;font-family:var(--num);white-space:nowrap}
@@ -1050,6 +1165,36 @@ html:has(#endcard:not(.hidden)),html:has(#endcard:not(.hidden)) body,html:has(#e
 #lobby #pWait #roomSpecs i.open:hover{background:rgba(240,231,210,.12)}
 #lobby #pWait #roomSpecs i.open:focus-visible{outline:3px solid var(--c);outline-offset:3px}
 #lobby #pWait .seat.back{cursor:pointer}#lobby #pWait .seat.back:hover{filter:brightness(1.06)}#lobby #pWait .seat.back:focus-visible{outline:3px solid var(--c);outline-offset:3px}
+/* 保存棋局 / 我的棋局 / 令牌 / 标这步笨（Ham 10-10：在游戏里直接把对局发给数值部）。弹窗是朱底米字（.modal.e-c） */
+#mSave .svsum,#mFlag .svsum{font-size:calc(14px * var(--fs,1));line-height:1.7;margin-bottom:12px;opacity:.92}
+#mSave .svl,#mFlag .svl{display:block;font-size:calc(13px * var(--fs,1));margin-bottom:5px;opacity:.85}
+#mSave textarea,#mFlag textarea{display:block;box-sizing:border-box;width:100%;height:6.5em;font:inherit;font-size:calc(15px * var(--fs,1));line-height:1.55;color:var(--c);background:rgba(20,19,17,.24);border:1px solid rgba(240,231,210,.6);border-radius:0;padding:8px 10px;resize:vertical;user-select:text;-webkit-user-select:text}
+#mFlag textarea{height:4.6em}
+#mSave textarea::placeholder,#mFlag textarea::placeholder{color:rgba(240,231,210,.5)}
+#mSave textarea:focus,#mFlag textarea:focus{outline:2px solid var(--c);outline-offset:1px}
+#mSave .svflags{margin-top:10px;font-size:calc(13px * var(--fs,1));line-height:1.65;opacity:.9}#mSave .svflags b{font-weight:900}
+.svmsg{margin-top:10px;font-size:calc(13px * var(--fs,1));line-height:1.65;min-height:1.2em}
+.svmsg.err{background:var(--k);color:#ffcfb8;padding:6px 9px}.svmsg.ok{background:rgba(20,19,17,.3);padding:6px 9px}.svmsg.ok::before{content:'✓ ';font-weight:900}
+#mGames .wrap{width:min(560px,100%)}
+#mSave .e-bar,#mFlag .e-bar{flex-wrap:wrap}#mSave .e-bar .btn,#mFlag .e-bar .btn{flex:1 1 auto;padding:0 12px}#mSave #bSaveSend{flex-basis:100%}
+@media (min-width:520px){#mSave #bSaveSend{flex-basis:auto}}
+#gamesList{display:flex;flex-direction:column;gap:10px;max-height:58dvh;overflow-y:auto;margin-top:6px;padding-right:2px}
+#gamesList .gm{border:1px solid rgba(240,231,210,.55);padding:9px 11px;background:rgba(20,19,17,.16)}
+#gamesList .gm .t1{font-family:var(--ef);font-weight:900;font-size:calc(15px * var(--fs,1));line-height:1.5}
+#gamesList .gm .t2{font-size:calc(12px * var(--fs,1));opacity:.8;margin-top:2px;line-height:1.5}
+#gamesList .gm .st{display:inline-block;font-family:var(--es);font-size:calc(12px * var(--fs,1));font-weight:normal;line-height:1.5;padding:0 6px;margin-left:8px;border:1px solid currentColor;vertical-align:1px;opacity:.85}
+#gamesList .gm .st.sent{color:#ffe39a;opacity:1}#gamesList .gm .st.reply{color:var(--k);background:#ffe39a;border-color:#ffe39a;opacity:1}#gamesList .gm .st.done{color:#c9f2cf;opacity:1}#gamesList .gm .st.err{color:#ffcfb8;background:var(--k);opacity:1}
+#gamesList .gm .nt{font-size:calc(13px * var(--fs,1));margin-top:5px;line-height:1.55;padding-left:8px;border-left:2px solid rgba(240,231,210,.55);white-space:pre-wrap;word-break:break-word}
+#gamesList .gm .bt{display:flex;gap:6px;flex-wrap:wrap;margin-top:8px}
+.modal.e-c #gamesList .gm .bt .btn{min-height:32px;padding:0 11px;font-size:calc(13px * var(--fs,1));border-width:1px}
+#gamesList .empty{text-align:center;padding:26px 0;line-height:1.8;opacity:.85}
+#optGh .ghrow{display:flex;flex-wrap:wrap;gap:8px;align-items:center;min-width:0}#optGh .ghrow .btn{flex:1 1 auto}
+#optGh input{flex:1 1 100%;min-width:0;height:40px;box-sizing:border-box;font-size:14px;padding:6px;border:1px solid #bba;background:rgba(255,255,255,.5)}
+#optGh .ghmsg{font-family:var(--es);font-weight:400;letter-spacing:.02em;font-size:calc(12px * var(--fs,1));line-height:1.65;opacity:.9}#optGh .ghmsg b{font-weight:900}#optGh .ghmsg.err{color:#ffcfb8}#optGh .ghmsg.ok::before{content:'✓ ';font-weight:900}
+#logList span.flag{text-decoration:underline wavy #e8553f;text-decoration-thickness:1.5px;text-underline-offset:4px}
+#logList span.flag::after{content:'笨';display:inline-block;margin-left:3px;padding:0 3px;font-size:10px;line-height:1.4;color:#fff;background:#b0301f;border-radius:2px;vertical-align:1px;text-decoration:none}
+#logList span[data-i]{cursor:pointer}
+
 #pWait .specs .tip{flex-basis:100%;text-align:center;font-size:calc(13px * var(--fs,1));letter-spacing:.06em;opacity:.75}
 
 /* 房间里选电脑档位的下拉：和旁边的方框按钮一个样子（方角、2px 米色边、粗宋），展开的列表是墨底米字、选中的朱红 */
@@ -1216,7 +1361,7 @@ html:has(#endcard:not(.hidden)),html:has(#endcard:not(.hidden)) body,html:has(#e
   <div class="scroll">
 
     <div id="pMain" class="pane">
-      <div class="e-top"><div class="e-name">技能新象棋 · 逐鹿中原</div><div class="row mini"><button class="link" id="bSetL">设置</button><button class="link" id="bHelpL">玩法</button><button class="link" id="bNewsL">更新</button></div></div>
+      <div class="e-top"><div class="e-name">技能新象棋 · 逐鹿中原</div><div class="row mini"><button class="link" id="bMyGames">我的棋局</button><button class="link" id="bSetL">设置</button><button class="link" id="bHelpL">玩法</button><button class="link" id="bNewsL">更新</button></div></div>
       <div class="e-board">
         <div class="e-grid e-gt"></div>
         <div class="e-river"><span>楚河</span><span>漢界</span></div>
@@ -1327,6 +1472,7 @@ html:has(#endcard:not(.hidden)),html:has(#endcard:not(.hidden)) body,html:has(#e
   </div>
   <div class="tabp hidden" data-t="etc">
   <div class="opt"><div class="lbl">落子确认<small>点了落点要再点一次才走，防误触</small></div><div class="seg" data-s="confirm"><button data-v="1">开</button><button data-v="0">关</button></div></div>
+  <div class="opt" id="optGh"><div class="lbl">发给数值部<small>GitHub 令牌（只存在这台设备的浏览器里）</small></div><div class="ghrow"><input id="ghTok" type="password" placeholder="github_pat_…" autocomplete="off" spellcheck="false"><button class="btn small" id="ghTest">保存并测试</button><button class="btn small hidden" id="ghDel">删除</button></div><div id="ghMsg" class="ghmsg"></div></div>
   <div class="opt" id="optServer"><div class="lbl">自定义线路<small>一般不用填</small></div><input id="oServer" placeholder="wss://…/mqtt" style="flex:1;min-width:0;font-size:14px;padding:6px;border:1px solid #bba;background:rgba(255,255,255,.5)"></div>
   <div class="row hidden" id="setGame"><button class="btn small hidden" id="tDebug">调试摆子</button><button class="btn small" id="tExport">导出本局</button><button class="btn small red" id="tResign">认 输</button></div>
   <div class="row"><button class="btn small" id="bHelp">玩法说明</button><button class="btn small" id="bNews">更新说明</button></div>
@@ -1356,6 +1502,34 @@ html:has(#endcard:not(.hidden)),html:has(#endcard:not(.hidden)) body,html:has(#e
   <div class="row"><button class="btn red solid" id="askYes">同 意</button><button class="btn" id="askNo">拒 绝</button></div>
 </div></div></div>
 
+<!-- 保存棋局 / 发给数值部（Ham 10-10） -->
+<div id="mSave" class="modal e-c hidden"><div class="wrap"><div class="rod t"></div><div class="rod b"></div><div class="scroll">
+  <h3>保存棋局</h3>
+  <div class="e-body">
+  <div id="saveSum" class="svsum"></div>
+  <label class="svl" for="saveNote">哪里不对、想让数值部看什么（可以不填）</label>
+  <textarea id="saveNote" maxlength="500" placeholder="比如：第 17 回合电脑白送一个车"></textarea>
+  <div id="saveFlags" class="svflags"></div>
+  <div id="saveMsg" class="svmsg"></div>
+  </div>
+  <div class="e-bar"><button class="btn small" id="bSaveCancel">取消</button><button class="btn small" id="bSaveLocal">存到我的棋局</button><button class="btn small solid" id="bSaveSend">存并发给数值部</button></div>
+</div></div></div>
+<!-- 我的棋局 -->
+<div id="mGames" class="modal e-c hidden"><div class="wrap"><div class="rod t"></div><div class="rod b"></div><div class="scroll">
+  <h3>我的棋局</h3>
+  <div class="e-body"><div id="gamesNote" class="svmsg"></div><div id="gamesList"></div></div>
+  <div class="e-bar"><button class="btn small" id="bGamesClose">关闭</button></div>
+</div></div></div>
+<!-- 标“这步笨”（点棋谱上的某一步） -->
+<div id="mFlag" class="modal e-c hidden"><div class="wrap"><div class="rod t"></div><div class="rod b"></div><div class="scroll">
+  <h3>这步笨？</h3>
+  <div class="e-body">
+  <div id="flagWhat" class="svsum"></div>
+  <label class="svl" for="flagNote">哪里笨（可以不填）</label>
+  <textarea id="flagNote" maxlength="200" placeholder="比如：白送一个车；该吃炮不吃"></textarea>
+  </div>
+  <div class="e-bar"><button class="btn small hidden" id="bFlagOff">取消标记</button><button class="btn small" id="bFlagClose">关闭</button><button class="btn small solid" id="bFlagOn">标为这步笨</button></div>
+</div></div></div>
 <!-- 更新说明 -->
 <div id="mExport" class="modal e-c hidden"><div class="wrap"><div class="rod t"></div><div class="rod b"></div><div class="scroll">
   <h3>导出本局</h3>
@@ -1482,6 +1656,7 @@ html:has(#endcard:not(.hidden)),html:has(#endcard:not(.hidden)) body,html:has(#e
 <div id="verse"></div>
 <div id="fade"></div>
 <div id="endcard" class="hidden"></div>
+<div id="ana" class="hidden"><div class="anaH"><b>对局分析</b><span id="anaProg"></span><button id="anaX" title="收起">✕</button></div><div id="anaDet" class="hidden"></div><div id="anaCur" class="hidden"></div><div id="anaSum"></div><svg id="anaChart" viewBox="0 0 360 112" preserveAspectRatio="none"></svg><div id="anaList"></div></div>
 <div id="rpBar" class="hidden"><button data-rp="first" title="回到开局">|◀</button><button data-rp="prev" title="后退一步">◀</button><button data-rp="play" class="pl">▶ 播放</button><button data-rp="next" title="前进一步">▶</button><button data-rp="last" title="跳到终局">▶|</button><span id="rpInfo"></span><button data-rp="exit" class="x">退出复盘</button></div>
 <button class="btn small hidden" id="skip">跳过 ▸▸</button>
 <div id="toast"></div>

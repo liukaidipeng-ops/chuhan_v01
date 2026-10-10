@@ -1696,7 +1696,7 @@ const Board = (() => {
   // 背水一战走完的第一步：落点留一个虚影、头顶悬一个「一」，从出发点到落点留一条墨绿的路——提醒玩家第一步是哪枚子、怎么走的。传 null 清掉
   const stepRoot = new THREE.Group(); root.add(stepRoot);
   const STEP_COL = 0x3f8f6e;
-  let stepNumTex = null, stepGhost = null;
+  let stepNumTex = null, stepGhost = null; const stepSealTex = {};
   function showStep(o) {
     stepRoot.traverse(m => { if (m.material && !m.userData.shared) m.material.dispose(); if (m.userData.own && m.geometry) m.geometry.dispose(); }); stepRoot.clear(); stepGhost = null;
     if (!o) return;
@@ -1714,9 +1714,10 @@ const Board = (() => {
     if (src) g.rotation.y = src.rotation.y;
     stepRoot.add(g); stepGhost = g;
     const glow = decal(glowTex, STEP_COL, 1.9, X(tf), Z(tr), TOP + 0.0034, 0.55); glow.userData.k = 'glow'; stepRoot.add(glow);
-    // 头顶的「一」
+    // 头顶的「一」（对局分析里标「佳」：o.seal）
     if (!stepNumTex) stepNumTex = sealTex('一', '#2f7d5f');
-    const sp = new THREE.Sprite(new THREE.SpriteMaterial({ map: stepNumTex, transparent: true, depthWrite: false, depthTest: false }));
+    const sealT = o.seal ? (stepSealTex[o.seal] || (stepSealTex[o.seal] = sealTex(o.seal, '#2f7d5f'))) : stepNumTex;
+    const sp = new THREE.Sprite(new THREE.SpriteMaterial({ map: sealT, transparent: true, depthWrite: false, depthTest: false }));
     sp.material.userData = {}; sp.userData.shared = false; sp.userData.k = 'num'; sp.scale.set(0.5, 0.5, 1); sp.position.set(X(tf), TOP + PH + 0.72, Z(tr)); sp.renderOrder = 21; stepRoot.add(sp);
   }
   Core.onFrame(() => {

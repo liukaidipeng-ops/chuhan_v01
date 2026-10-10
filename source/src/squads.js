@@ -101,6 +101,7 @@ const Squads = (() => {
         const pairs = roots.map(src => {
           const dst = src.clone(true); this.group.add(dst);
           const a = [], b = []; src.traverse(o => a.push(o)); dst.traverse(o => b.push(o));
+          Models.rebindClone(a, b);   // 合成网格改绑到分身自己的骨头上
           return { src, dst, a, b };
         });
         this.echoes.push({ pairs, lat: lat(i), back: back(i) });

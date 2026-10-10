@@ -1,5 +1,5 @@
 """终局小曲出试听样：把 src/endtunes.js 里汉、楚的胜、败各三个方案（再加原来的两首作对照）离线渲染成 mp3。
-用法：python3 tools/tunes.py <站点目录 dist/site> <输出目录>
+用法：python3 tools/tunes.py <站点目录 dist/site> <输出目录>（环境变量 JOBS=b:win:3,b:win:4 只出这几首）
 输出：<输出目录>/{r,b}_{win,lose}_{0,1,2}.mp3、old_{win,lose}.mp3，并打印每首实际有声的时长（尾巴低于 -50dB 的部分不算）"""
 import sys, time, subprocess, base64, os, struct, math
 from playwright.sync_api import sync_playwright
@@ -35,6 +35,7 @@ try:
             last = n; time.sleep(1.5)
         print('samples', last)
         jobs = [('old', k, 0) for k in ('win', 'lose')] + [(s, k, i) for s in ('r', 'b') for k in ('win', 'lose') for i in range(3)]
+        if os.environ.get('JOBS'): jobs = [(a, b, int(c)) for a, b, c in (x.split(':') for x in os.environ['JOBS'].split(','))]   # 只出几首：JOBS=b:win:3,b:win:4
         for s, k, i in jobs:
             b64 = pg.evaluate("([s,k,i]) => EndTunes.renderWav(s,k,i,24)", [s, k, i])
             wav = base64.b64decode(b64); name = f'old_{k}' if s == 'old' else f'{s}_{k}_{i}'
