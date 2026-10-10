@@ -1,0 +1,169 @@
+--- src/squads.js	2026-10-10 01:41:52.081521514 +0000
++++ /tmp/claude-0/-home-claude-chuhan-v01/1d3f8c4c-8951-5403-8453-50756fb3a46d/scratchpad/fb2/src/squads.js	2026-10-10 04:29:38.550246229 +0000
+@@ -212,13 +212,28 @@
+         if (G >= 1) bleed(8, 0.7, away);
+         break;
+       }
+-      case 'ram': case 'trample': {
++      case 'ram': {
+         const v = dir.clone().multiplyScalar(R(1.5, 3) * power).add(away.clone().multiplyScalar(0.8)).add(new V3(0, R(0.8, 2) * power, 0));
+         troop.kill(i, { dir: dirAng + R(-0.5, 0.5), speed: 3.5, fly: { v, g: 9, w: R(-6, 6), floor: 0 } });
+         bleed(12, 0.8);
+         if (G >= 3 && Math.random() < 0.35) dismember(troop, i, Math.random() < 0.5 ? 'armS' : 'legR', dir);
+         break;
+       }
++      case 'trample': {   // 战象踩死（美术 M25，Ham 10-10）：整个人被踩散、顺着象冲的方向冲飞——断肢飞出、一大团血雾
++        const v = dir.clone().multiplyScalar(R(2.4, 4) * power).add(away.clone().multiplyScalar(1.3)).add(new V3(0, R(1.8, 3.4) * power, 0));
++        troop.kill(i, { dir: dirAng + R(-0.8, 0.8), speed: 4, fly: { v, g: 9, w: R(-12, 12), floor: 0 } });
++        bleed(22, 1.1, away);
++        P.smoke(pos, 3, 0.9, Math.random() < 0.5 ? 0x8e1408 : 0x6e0f06);   // 血雾
++        if (G >= 2) { dismember(troop, i, ['head', 'armW', 'armS'][Math.floor(Math.random() * 3)], dir.clone().add(away)); if (Math.random() < 0.6) dismember(troop, i, Math.random() < 0.5 ? 'legL' : 'legR', dir); }
++        break;
++      }
++      case 'crush': {   // 践踏震死（美术 M25，Ham 10-10）：整个人被掀上天，翻着跟头落下来
++        const v = away.clone().multiplyScalar(R(0.4, 1.2)).add(new V3(0, R(5, 7.5) * Math.min(1.6, power / 1.5), 0));
++        troop.kill(i, { dir: awayAng, speed: 3, fly: { v, g: 9, w: R(-16, 16), floor: 0 } });
++        bleed(14, 0.9, away);
++        if (G >= 3 && Math.random() < 0.4) dismember(troop, i, Math.random() < 0.5 ? 'armW' : 'legL', away);
++        break;
++      }
+       case 'bolts': {
+         troop.act(i, 'hit', 0.3);
+         setTimeout(() => {}, 0);
+@@ -244,6 +259,14 @@
+     sleep(0.6).then(() => { const lp = u.p.clone(); lp.y = Fx.groundAt(lp); Fx.Marks.blood(lp, R(0.45, 0.75), dir); });
+     if (G >= 1) Sfx.hurt(hit);
+   }
++  const rockGeo = new THREE.DodecahedronGeometry(0.06); rockGeo.userData.keep = true;
++  function rubble(c, n = 16, r = 1, power = 1) {
++    for (let i = 0; i < (Core.quality === 'low' ? Math.ceil(n / 2) : n); i++) {
++      const a = Math.random() * 6.28, o = new THREE.Mesh(rockGeo, Core.toon(i % 3 ? 0x6b6257 : 0x8a7f70));
++      o.scale.setScalar(R(0.6, 2.2)); o.position.copy(c).add(new V3(Math.cos(a) * r * R(0.2, 0.8), 0.08, Math.sin(a) * r * R(0.2, 0.8)));
++      Fx.throwObj(o, new V3(Math.cos(a) * R(1, 3.2) * power, R(2.2, 5.5) * power, Math.sin(a) * R(1, 3.2) * power), { life: R(1.4, 2.6), ink: false });
++    }
++  }
+   function dismember(troop, i, part, dir, burnt) {
+     const o = troop.detach(i, part);
+     if (!o) return;
+@@ -420,7 +443,7 @@
+       super('e', side, anchor, yaw);
+       this.role = role;
+       const gold = this.gold = n >= 4;
+-      this.m = TigerHD.make(side, { gold }); this.m.group.scale.setScalar(TG);   // 美术的精修模型（tiger.js），各画质档它自己按 Core.quality 选面数
++      this.m = TigerHD.make(side, { lv: Math.max(1, Math.min(4, n || 1)) }); this.m.group.scale.setScalar(TG);   // 四级造型（美术 M23）   // 美术的精修模型（tiger.js），各画质档它自己按 Core.quality 选面数
+       this.group.add(this.m.group);
+       this.guard = n >= 3 ? new TroopSquad('e', side, anchor, yaw, gold ? 'xbowG' : 'xbow', [[0.4, -0.02], [-0.4, -0.02]], SC * (gold ? 1.08 : 1)) : null;
+       // 随护弩手平时不在场（棋盘上清爽）：只在行进和攻击时出列，走完、打完就退下。gk 是出列程度，别处照常调 guard.setVis 也不会把他们叫出来
+@@ -512,14 +535,25 @@
+       // 倒地时文臣和节杖倒向一侧（deadSide = 1 是倒向行进方向的左手边）：挑旁边那格没有子的一侧
+       { const R0 = rightOf(this.yaw), busy = sd => { const q = this.anchor.clone().addScaledVector(R0, -sd); for (const x of Board.pieces.values()) if (x.parent && Math.hypot(x.position.x - q.x, x.position.z - q.z) < 0.6) return true; return false; };
+         const sd = Math.random() < 0.5 ? 1 : -1; m.deadSide = !busy(sd) ? sd : !busy(-sd) ? -sd : sd; }
+-      tween(0.25, k => { m.roarK = k; }); snd('e', this.side).die();
+-      P.blood(c, 20, 1.0, dir, 1.1);
+-      if (hit === 'blast') P.fire(c, 16, 0.7);
+-      if (hit === 'bolts') for (let i = 0; i < 6; i++) { const b = new THREE.Mesh(boltGeo, Models.vcMat); b.position.copy(c).add(rv(0.22, 0.12, 0.22)); b.quaternion.setFromUnitVectors(new V3(0, 1, 0), dir.clone().negate().add(rv(0.3, 0.3, 0.3)).normalize()); this.group.add(b); }
+-      await sleep(0.15);
+-      await tween(0.8, k => { m.dead = k; m.roarK = 1 - k; }, ease.in);
+-      Cam.shake(0.15); P.dust(this.center(0), 10, null, 0.3); Sfx.B.thud(0, 0.7);
+-      Fx.Marks.blood(this.center(0).addScaledVector(dir, 0.1), 1.0, dir);
++      snd('e', this.side).die();
++      if (hit === 'blast') {
++        // 炮击：炸碎，虎身、虎头、四肢、文臣、节杖四散飞出，大片血雾（美术 M24，Ham 审批台 077 / 080）
++        P.fire(c, 16, 0.7); P.blood(c, 24, 1.2, dir, 1.3); Cam.shake(0.25);
++        await m.blast({ dir, power });
++      } else if (hit === 'ram' && power >= 2) {
++        // 车远距离冲锋：整只撞散，顺着冲锋方向飞得特别远（power 由冲锋距离算）
++        P.blood(c, 30, 1.4, dir, 1.6); Cam.shake(0.3);
++        await m.rend({ dir, power });
++      } else {
++        // 近战：被打得往后退飞一段（power 定多远），虎仰头一挫、侧倒，文臣摔下
++        P.blood(c, 20, 1.0, dir, 1.1);
++        if (hit === 'bolts') for (let i = 0; i < 6; i++) { const b = new THREE.Mesh(boltGeo, Models.vcMat); b.position.copy(c).add(rv(0.22, 0.12, 0.22)); b.quaternion.setFromUnitVectors(new V3(0, 1, 0), dir.clone().negate().add(rv(0.3, 0.3, 0.3)).normalize()); this.group.add(b); }
++        const fall = m.fall({ dir, power });
++        await sleep(0.62);
++        Cam.shake(0.15); P.dust(this.center(0), 10, null, 0.3); Sfx.B.thud(0, 0.7);
++        Fx.Marks.blood(this.center(0).addScaledVector(dir, 0.1), 1.0, dir);
++        await fall;
++      }
+       await gd;
+     }
+   }
+@@ -558,6 +592,7 @@
+       await tween(0.14, k => { this.m.rearK = 1 - k; }, ease.in);
+       s.stomp(); Cam.shake(0.35); Fx.slowmo(0.3, 0.14);
+       Fx.ring(B, 2.4, 0.7, 0x5a4a38); P.dust(B, 14, null, 0.35); Fx.Marks.crack(B, 1.4);
++      rubble(B.clone().setY(TOP), 30, 0.9, 1.2);   // 碎石（美术 M25）
+       await target.die('trample', d, 1.3, B);
+       this.m.trumpetK = 0; this.m.fire = 0.4;
+       await sleep(0.4);
+@@ -1436,5 +1471,5 @@
+     };
+   })();
+ 
+-  return { get finalMode() { return finalMode; }, set finalMode(v) { finalMode = !!v; }, Stand, move, capture, pieceBoat, heroDefeat, make, charge, retreat, hurtSquad, yawOf, knightCorner, Shade, Infantry, Guards, Crossbow, TigerRider, Elephant, Chariot, Cavalry, Cannon, General, killUnit, walkPath, turnTo, TroopSquad };
++  return { rubble, get finalMode() { return finalMode; }, set finalMode(v) { finalMode = !!v; }, Stand, move, capture, pieceBoat, heroDefeat, make, charge, retreat, hurtSquad, yawOf, knightCorner, Shade, Infantry, Guards, Crossbow, TigerRider, Elephant, Chariot, Cavalry, Cannon, General, killUnit, walkPath, turnTo, TroopSquad };
+ })();
+--- src/bfx.js	2026-10-09 18:13:41.259783911 +0000
++++ /tmp/claude-0/-home-claude-chuhan-v01/1d3f8c4c-8951-5403-8453-50756fb3a46d/scratchpad/fb2/src/bfx.js	2026-10-10 04:29:38.551397722 +0000
+@@ -130,7 +130,7 @@
+       setTimeout(() => { P.plume(q, out.clone().negate(), R(0.45, 0.7), 2); P.dust(q, 3, out.clone().negate(), R(0.4, 0.6)); if (i % 3 === 0) P.smoke(q.clone().setY(TOP + 0.1), 2, 0.9, 0x8b7e68); }, (rr - 0.7) * 160);
+     }
+     P.dust(c, 24, null, 0.6);
+-    rubble(c.clone().setY(TOP), 22, 1.2, 1.1);
++    Squads.rubble(c.clone().setY(TOP), 44, 1.4, 1.35);   // 碎石加倍（美术 M25）
+     crowdDown(c);
+     const hs = ev.filter(e => (e.e === 'hit' || e.e === 'kill') && e.how === 'jianta');
+     await sleep(0.12);
+@@ -271,7 +271,7 @@
+     const ev = info.ev || [], side = info.side;
+     const before = info.before ? info.before.board : null;
+     try {
+-      if (info.k === 'up') await levelUp(info);
++      if (info.k === 'up') await levelUp(info, game);
+       else if (info.k === 'mv') {
+         if (info.extra && info.extra.via) labelPop(info.from, BF.SKILL_CN[info.extra.via], side);
+         if (info.extra && info.extra.via === 'shensu') {
+@@ -297,10 +297,10 @@
+       for (const e of ev.filter(x => x.e === 'autoup')) {
+         const B = info.after && info.after.board; let at = null;
+         if (B) for (let r = 0; r < 10 && !at; r++) for (let f = 0; f < 9; f++) if (B[r][f] && B[r][f].id === e.id) { at = [f, r]; break; }
+-        if (at) await levelUp({ id: e.id, t: e.t, side: e.s, at, lv: e.lv, nm: e.nm, auto: true });
++        if (at) await levelUp({ id: e.id, t: e.t, side: e.s, at, lv: e.lv, nm: e.nm, auto: true, pre: true }, game);
+       }
+       // 试行规则：召回后当场花军功升了一级——等它落定，再补上晋升的仪式
+-      for (const e of ev.filter(x => x.e === 'reviveUp')) { const rv = ev.find(x => x.e === 'revive' && x.id === e.id); if (rv) await levelUp({ id: e.id, t: e.t, side: 'r', at: rv.at, lv: e.lv, nm: e.nm }); }
++      for (const e of ev.filter(x => x.e === 'reviveUp')) { const rv = ev.find(x => x.e === 'revive' && x.id === e.id); if (rv) await levelUp({ id: e.id, t: e.t, side: 'r', at: rv.at, lv: e.lv, nm: e.nm, pre: true }, game); }
+     } catch (e) { console.error(e); }
+     if (info.k !== 'mv' && info.k !== 'up') {
+       if (Cam.cine) await Cam.home(0.8);
+@@ -309,22 +309,23 @@
+     }
+   }
+ 
+-  async function levelUp(info) {
++  // info.pre：棋子已经换好新装了（自动晋升、召回升级是先对齐棋盘再补仪式），翻之前先换回旧装
++  async function levelUp(info, game) {
+     const m = Board.pieces.get(info.id); if (!m) return;
+     const c = m.position.clone(), max = BF.levelInfo(info.t, info.side, 1).maxLv, top = info.lv >= max;
+     Sfx.B.bell(0, 880, 0.08); Sfx.B.bell(0.12, 1175, 0.06); Sfx.B.gong(0.05, top ? 0.6 : 0.35); Sfx.B.plate(0.1, 0.3);
+     if (top) { Sfx.B.taiko(0.15, 0.7); Sfx.B.taiko(0.38, 0.8); Cam.shake(0.08); }
+-    Fx.ring(c.clone().setY(TOP + 0.02), top ? 2.3 : 1.6, 0.8, 0xc9a045, 0.9);
+-    if (top) Fx.ring(c.clone().setY(TOP + 0.03), 3.2, 1.1, 0xffe2a0, 0.6);
+-    for (let i = 0; i < (top ? 34 : 18); i++) Fx.spawn({ pos: c.clone().add(new V3(R(-0.3, 0.3), 0.1, R(-0.3, 0.3))), vel: new V3(R(-0.2, 0.2), R(1.2, top ? 3 : 2.2), R(-0.2, 0.2)), tex: Core.Tex.spark, add: true, color: 0xffd27a, size: 0.12, size2: 0.03, life: R(0.6, top ? 1.4 : 1), drag: 1.2 });
+     // 称号题签要等棋子换好新装（落回棋盘）再亮出来
+     const hero = BF.heroName({ s: info.side, t: info.t, nm: info.nm }), rk = BF.rankName(info.side, info.t, info.lv);
+-    setTimeout(() => rankPop(info.at, hero || rk, info.side, info.lv, max, hero ? rk : info.auto ? '战功晋升' : ''), 200);
++    setTimeout(() => rankPop(info.at, hero || rk, info.side, info.lv, max, hero ? rk : info.auto ? '战功晋升' : ''), 750);   // 翻面约 0.72 秒落地
+     const said = upLine(info);
+     // 四级：名将登场，题字亮名
+     if (hero && (cine() || Fx.level === 'std')) { title(hero, (info.side === 'r' ? '汉' : '楚') + ' · ' + rk, 1700); Sfx.B.gong(0.1, 0.8); }
+-    await tween(0.3, k => { m.position.y = TOP + Math.sin(k * Math.PI) * 0.35; m.rotation.y = (Board.viewSide === 'b' ? Math.PI : 0) + k * Math.PI * 2; }, ease.inOut);
+-    m.position.y = TOP; m.rotation.y = Board.viewSide === 'b' ? Math.PI : 0;
++    // 升级变身：跳起来翻个身，翻到侧面那一刻换新装（美术 M22，Ham 审批台 076 选「翻面」）
++    const pa = game && game.board[info.at[1]] && game.board[info.at[1]][info.at[0]], ok = !!(pa && pa.id === info.id);
++    if (ok && info.pre) Board.decorate(m, { ...pa, lv: info.lv - 1, hp: Math.min(pa.hp, BF.hpOf(pa.t, info.lv - 1)) }, Board.decoOpts(game, pa));
++    await UpFx.play(m, { lv: info.lv, swap: () => { if (ok) Board.decorate(m, pa, Board.decoOpts(game, pa)); } });
++    m.position.y = TOP; m.rotation.set(0, Board.viewSide === 'b' ? Math.PI : 0, 0);
+     // 升级词说完再往下走（紧接着走子的话，兵种那一路会把它截掉）
+     if (said > 0) await sleep(Math.min(said + 0.3, 3.2) - 0.3);
+   }
