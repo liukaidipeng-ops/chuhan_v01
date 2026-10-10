@@ -1523,13 +1523,16 @@ const Board = (() => {
       const df = m.to[0] - sf, dr = m.to[1] - sr, af = Math.abs(df), ar = Math.abs(dr), B = [X(m.to[0]), Z(m.to[1])];
       const endGap = occ(m.to[0], m.to[1]) ? 0.5 : 0.17;
       // 跳过去的走法画成一道抛物线（Ham 审批台 td-021）：飞越、炮隔子打（普通攻击和霹雳）、踏营、冲阵、齐射——调用方标 arc，或者这里认出来
-      if (m.arc || m.via === 'feiyue' || (selT === 'c' && occ(m.to[0], m.to[1]) && !m.bad)) {
-        const D = Math.hypot(B[0] - A[0], B[1] - A[1]), H = Math.min(1.25, 0.5 + 0.15 * D), n = Math.max(12, Math.ceil(D / 0.12)), pts = [];
+      if (m.arc || m.via === 'feiyue' || m.via === 'taying' || (selT === 'c' && occ(m.to[0], m.to[1]) && !m.bad)) {
+        // Ham 审批台 td-024：从这枚子的顶上起、落到目标子的顶上（空格就落到地上），弧要有实打实的高度
+        const D = Math.hypot(B[0] - A[0], B[1] - A[1]), H = Math.min(2.1, 0.8 + 0.28 * D), n = Math.max(16, Math.ceil(D / 0.08)), pts = [];
+        const y0 = PH + 0.02, y1 = occ(m.to[0], m.to[1]) ? PH + 0.02 : 0.02;
         for (let i = 0; i <= n; i++) { const t = i / n; pts.push([A[0] + (B[0] - A[0]) * t, A[1] + (B[1] - A[1]) * t]); }
-        // 抛物线往屏幕右侧斜一点（约 35°）：顺着镜头方向（往前、往后）跳的时候，竖直的弧和直线叠在一起看不出来
         const ux = (B[0] - A[0]) / (D || 1), uz = (B[1] - A[1]) / (D || 1), cr = new THREE.Vector3().setFromMatrixColumn(Core.camera.matrixWorld, 0);
-        const sd = (-uz * cr.x + ux * cr.z) >= 0 ? 1 : -1, lx = -uz * sd, lz = ux * sd, LEAN = Math.sin(0.62), UP = Math.cos(0.62);
-        const tp = trimPath(pts, 0.42, endGap).map(p => { const t = Math.hypot(p[0] - A[0], p[1] - A[1]) / (D || 1), h = H * 4 * t * (1 - t); return [p[0] + lx * h * LEAN, p[1] + lz * h * LEAN, h * UP]; });
+        // 斜多少看方向：横着跳 20°；顺着镜头方向（正对屏幕往里 / 往外）跳的，竖直的弧在屏幕上和直线叠在一起，斜到 50° 才看得出
+        const al = Math.abs(ux * cr.z - uz * cr.x), ang = 0.35 + 0.52 * al;
+        const sd = (-uz * cr.x + ux * cr.z) >= 0 ? 1 : -1, lx = -uz * sd, lz = ux * sd, LEAN = Math.sin(ang), UP = Math.cos(ang);
+        const tp = trimPath(pts, 0.2, occ(m.to[0], m.to[1]) ? 0.22 : 0.12).map(p => { const t = Math.hypot(p[0] - A[0], p[1] - A[1]) / (D || 1), h = H * 4 * t * (1 - t); return [p[0] + lx * h * LEAN, p[1] + lz * h * LEAN, y0 * (1 - t) + y1 * t + h * UP]; });
         out.push({ pts: tp, via: m.via || (m.skill ? 'skill' : ''), arc: true });
         continue;
       }

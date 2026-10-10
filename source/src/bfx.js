@@ -254,7 +254,7 @@ const BFX = (() => {
     }
   }
   // 技能台词（被动技能没有）：用的时候说一句；技能杀了对方的子，再补一句。四级名将用自己的声音，三级用兵的声音
-  const PASSIVE = new Set(['jianta', 'shensu', 'huifang', 'jinwei', 'feiyue']);
+  const PASSIVE = new Set(['jianta', 'shensu', 'huifang', 'jinwei', 'feiyue', 'taying']);
   function skillLine(P0, sk, side, kill) {
     if (!P0 || PASSIVE.has(sk)) return 0;
     const hk = Fx.heroKey(P0);
@@ -280,9 +280,10 @@ const BFX = (() => {
           await dash(before[info.from[1]][info.from[0]], info.from, info.to, side);
           if (info.result) await Fx.checkStamp(XQ.other(side), info.result.reason === 'checkmate' ? '殺' : info.result.reason === 'kingdead' ? '斬' : info.result.reason === 'occupy' ? '奪' : '困', info.mateName);
           else if (info.check) Fx.checkStamp(XQ.other(side));
-        } else if (info.extra && info.extra.via === 'feiyue') {
-          // 被动「飞越」：腾身一跃越过塞象眼的子（照原来主动技能的演法）
-          await feiyueLeap(before[info.from[1]][info.from[0]], info.from, info.to, before, ev, side, info);
+        } else if (info.extra && (info.extra.via === 'feiyue' || info.extra.via === 'taying')) {
+          // 被动「飞越」「踏营」：腾身一跃越过塞象眼 / 蹩马腿的子（照原来主动技能的演法）
+          if (info.extra.via === 'feiyue') await feiyueLeap(before[info.from[1]][info.from[0]], info.from, info.to, before, ev, side, info);
+          else await tayingLeap(before[info.from[1]][info.from[0]], info.from, info.to, before, ev, side, info);
           if (info.result) await Fx.checkStamp(XQ.other(side), info.result.reason === 'checkmate' ? '殺' : info.result.reason === 'kingdead' ? '斬' : info.result.reason === 'occupy' ? '奪' : '困', info.mateName);
           else if (info.check) Fx.checkStamp(XQ.other(side));
         } else {
@@ -406,6 +407,12 @@ const BFX = (() => {
     P.dust(A, 10, null, 0.3);
     await leap(m, at, to, before, ev.filter(notTrample), side, 'e', info, null, 1.25, () => trampleFx(ev, side, { m }));
   }
+  // 踏营：马无视马腿腾跃过去（老棋谱里的主动踏营、现在的被动踏营都走这里）
+  async function tayingLeap(P0, at, to, before, ev, side, info) {
+    const m = Board.pieces.get(P0.id);
+    Sfx.B.neigh(0, 0.14, 'a'); Sfx.B.whoosh(0.1, 0.3, 0.4);
+    await leap(m, at, to, before, ev, side, 'n', info, () => { Sfx.B.hooves(0, 0.5, 3, 0.4); });
+  }
   async function skillFx(info, before) {
     const ev = info.ev, sk = info.extra.sk, side = info.side, at = info.from, to = info.to;
     const P0 = before[at[1]][at[0]];
@@ -461,9 +468,7 @@ const BFX = (() => {
       if (ev.some(e => e.e === 'kill' && !e.friendly && e.s !== side) && typeof Camp !== 'undefined') Camp.onCapture(side, info.streak || 1);
       await sleep(0.25);
     } else if (sk === 'taying') {
-      const m = Board.pieces.get(P0.id);
-      Sfx.B.neigh(0, 0.14, 'a'); Sfx.B.whoosh(0.1, 0.3, 0.4);
-      await leap(m, at, to, before, ev, side, 'n', info, () => { Sfx.B.hooves(0, 0.5, 3, 0.4); });
+      await tayingLeap(P0, at, to, before, ev, side, info);
     } else if (sk === 'feiyue') {
       await feiyueLeap(P0, at, to, before, ev, side, info);
     } else if (sk === 'pili') {
