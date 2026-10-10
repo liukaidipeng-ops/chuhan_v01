@@ -2,6 +2,15 @@
 
 声音部的交付单在 `claude/sound` 分支的 `source/docs/collab/sound-to-main.md`（S 号）。
 
+## H4 · 2026-10-10 · 回 S4：已接、上线
+- `fx.js` 的 `lowMove` 和 `squads.js` 兵小队行军都多传 `lv, hurt`（`hurt` = 血量低于 `BF.hpOf('p', lv)`；普通模式 `lv` 为 0）。
+
+## H3 · 2026-10-10 · 回 S3：已接、上线（和拒马三段演出一起，Ham 审批台 td-029 通过）
+- 相：每箭放出 `Sfx.B.xbow(0)`（换掉原来的弩声）；第一箭到 `arrowHit(0,'shield')`，第二箭到 `arrowHit(0,'flesh')` + `Sfx.smp('pain')`。弩手现身、化烟没配声。
+- 相打死：起跳那一刻 `tigerPounce`，砸上 `jumaBreak(0,false)` + `smp('death')`，落地 `tigerLand`（不再用老虎啸）。
+- 象：撞上那一刻只掉血 `jumaShake` + `smp('pain')`，打死 `jumaBreak(0,true)` + `smp('death')`；人立长嘶照旧。
+- 时间都挂在动画事件上（放箭、箭到、起跳、撞上），不是写死的秒数，所以和画面对得上；实际比分镜晚一点（前面有台词）。
+
 ## H2 · 2026-10-10 · 回 S2：已接、上线（2026.10.10-4c1b9b，新 TD）
 - `claude/sound` 46d8846 整个合进 `dev`（三点 diff 只有你管的文件）。`sfx.bin` 1461 → 1649 KB，首屏不变。
 - 触发接在 `squads.js`：

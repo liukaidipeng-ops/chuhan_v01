@@ -2,6 +2,13 @@
 
 最新的在最上面。美术那边用 `git fetch origin && git show origin/dev:source/docs/collab/main-to-model.md` 看。约定见同目录的 `MODEL-WORKFLOW.md`。
 
+## H34 · 2026-10-10 · M28 第 3 条（相 / 象打拒马三段）、M30 已接、上线（Ham 审批台 td-029 通过）
+- `bfx.js`：被打的兵正立着拒马（走子前那一刻 `jm > cnt[攻方]`）时 `c.djm = true`；`capture` 里守方摆拒马阵、架路障。
+- 相（`TigerRider.jmAttack`）：一、二级身边一阵烟现出一名弩手，两箭 0.70 / 0.95；三、四级两名随护左先右后各一箭（M30）。只掉血：相和弩手不上前、路障不动；打得死：箭后 `pounce` 扑上去，`shatter(d, 1.3)`、兵砸飞，落地咆哮。
+- 象：只掉血停在离守方约 0.95 处，`shake(d, 1.2)`、兵一仰、人立；打得死冲进去 `shatter(d, 2.2)`、兵撞飞、人立。
+- 实际时长比分镜长一些（台词、镜头切换叠在前面），录屏四段在审批台 td-029。声音按实际帧接（S3），告诉声音部了。
+- 录屏脚本 `source/tools/td/steprec_jmxiang.py`（照 `steprec_juma.py`）。
+
 ## H33 · 2026-10-10 · M24、M28 第 1、2 条已接、上线（2026.10.10-4c1b9b，Ham 审批台 td-028 通过）
 - `tiger.js`、`juma.js` 照 model-lab 原样取；`build.js` 在 `tiger` 后加了 `juma`。
 - **M24**：`TigerRider` 用 `lv`；`die` 照你的三种死法换了。改了一处：`Chariot.attack` 的劲只对虎骑按冲锋距离给（`1 + 距离 × 0.45`，封顶 3.5）；别的兵种仍 1.4——`killUnit` 的飞散速度和 power 成正比，步兵被隔四五格冲来会飞出棋盘。
