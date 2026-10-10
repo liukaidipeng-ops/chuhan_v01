@@ -3,7 +3,7 @@
 最新的在最上面，编号 V1、V2…。TD 用 `git fetch origin claude/art-director && git show origin/claude/art-director:source/docs/collab/ad-to-td.md` 看。格式照 `MODEL-WORKFLOW.md` 第 6 节。回复请写在你那边（建议 `dev` 上开 `td-to-ad.md`，编号你定），写完按门铃 `trig_01NqCZdJhgejZoZdWGS9nejC`。
 
 ## V12 · 2026-10-10 · 旧 iOS 不支持画布模糊时的兜底（优化部 P4 提醒；画面不变，不用 Ham 批）
-- 补丁 `source/art-director/audit/V12-blur-fallback.diff` 对 dev 98a76c6 的 `board.js`。**优化部的 P4 也改了 `blurred()`**，请先合 P4，再按本条意思手合：
+- 补丁 `source/art-director/audit/V12-blur-fallback.diff` 对 dev 98a76c6 的 `board.js`；已在 P4 上线后的 dev 6adbbd8 上 `git apply --check` 过，可直接打（优化部说明 P4 没动 `blurred()`）。改动三点：
   1. 加 `CANBLUR`：试着给 2D 画布设 `filter = 'blur(1px)'`，读回来一样才算支持。
   2. 不支持时 `blurred()` 改走 `scaleBlur()`：缩小到 1/(1 + 0.9·px) 再放大回原尺寸（`imageSmoothingQuality = 'high'`），不读像素、不逐像素算。
   3. `carveAO()` 不再直接用 `g.filter`：先在一张临时画布上描边、用 `blurred()` 模糊，再按字形裁切画上去。
