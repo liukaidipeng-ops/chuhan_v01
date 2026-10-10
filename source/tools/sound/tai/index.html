@@ -1,0 +1,337 @@
+<!doctype html><html><head><meta charset=utf8><meta name=viewport content="width=device-width,initial-scale=1,viewport-fit=cover"><style>:root{color-scheme:light;box-sizing:border-box;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}html{scroll-padding-top:env(safe-area-inset-top,0px)}body{margin:0;padding:0;font:14px -apple-system,BlinkMacSystemFont,sans-serif;background:#fff;color:#000}img{max-width:100%}[hidden]:not([hidden=until-found i]){display:none!important}</style></head><body>
+<title>声音部试听台</title>
+<style>
+/* 布局：单列试听单——每条一行：播放键 | 台词 | 三个判词；备注在行下。颜色沿用游戏的纸、墨、朱，选中用墨绿 */
+:root{
+  --paper:#f3ecdc; --card:#fbf6ea; --ink:#1d1b19; --mut:#6d6457; --line:#d8cbb0;
+  --red:#a8281b; --jade:#2f6b55; --amber:#8a6a1e; --dim:#b9ad96; --on:#fdf8ee;
+  --serif:"Songti SC","Noto Serif CJK SC","Source Han Serif SC","SimSun",serif;
+  --sans:system-ui,-apple-system,"PingFang SC","Microsoft YaHei","Noto Sans CJK SC",sans-serif;
+}
+@media (prefers-color-scheme: dark){ :root:not([data-theme="light"]){
+  --paper:#181614; --card:#221f1b; --ink:#efe6d3; --mut:#a59a86; --line:#3a352c;
+  --red:#e2705e; --jade:#6fbf9f; --amber:#d9b45a; --dim:#5a5346; --on:#16130f; color-scheme:dark } }
+:root[data-theme="dark"]{
+  --paper:#181614; --card:#221f1b; --ink:#efe6d3; --mut:#a59a86; --line:#3a352c;
+  --red:#e2705e; --jade:#6fbf9f; --amber:#d9b45a; --dim:#5a5346; --on:#16130f; color-scheme:dark }
+body{background:var(--paper);color:var(--ink);font:16px/1.6 var(--sans);padding-inline:16px;padding-block:20px 56px}
+main{max-width:760px;margin:0 auto;display:flex;flex-direction:column;gap:18px}
+h1{font:600 26px/1.25 var(--serif);margin:0;letter-spacing:.06em;text-wrap:balance}
+.lead{color:var(--mut);font-size:14.5px;margin:4px 0 0}
+.bar{position:sticky;top:env(safe-area-inset-top,0px);z-index:5;background:var(--paper);border-bottom:1px solid var(--line);padding-block:8px;display:flex;gap:10px 16px;flex-wrap:wrap;align-items:baseline;font-size:14px}
+.bar b{font-variant-numeric:tabular-nums}
+.jump{font:14px var(--sans);padding:4px 12px;border-radius:4px;border:1px solid var(--ink);background:var(--ink);color:var(--paper);cursor:pointer;letter-spacing:.06em}
+.jump:focus-visible{outline:2px solid var(--jade);outline-offset:2px}
+.jump[disabled]{opacity:.45;cursor:default}
+.clip.here{box-shadow:0 0 0 3px var(--jade)}
+.bar .st{color:var(--mut)} .bar .st.bad{color:var(--red)} .bar .st.ok{color:var(--jade)}
+.batch>summary{font:600 15px/1.4 var(--sans);letter-spacing:.14em;color:var(--mut);margin:6px 0 2px;cursor:pointer;padding-block:6px;border-top:1px solid var(--line)}
+.batch[open]>summary{color:var(--ink)}
+.batch>p{margin:0 0 4px;font-size:14.5px}
+.group{display:flex;flex-direction:column;gap:8px;margin-top:14px}
+.group h3{font:600 19px/1.3 var(--serif);margin:0;display:flex;gap:10px;align-items:baseline;flex-wrap:wrap}
+.group h3 i{font:normal 13px var(--sans);color:var(--on);background:var(--red);padding:1px 9px;border-radius:3px;letter-spacing:.1em}
+.group .hint{color:var(--mut);font-size:13.5px;margin:0}
+.clip{background:var(--card);border:1px solid var(--line);border-radius:6px;padding:10px 12px;display:grid;grid-template-columns:auto minmax(0,1fr);gap:8px 12px;align-items:center}
+.clip.v-yes{border-color:var(--jade)} .clip.v-no{opacity:.72}
+.play{width:46px;height:46px;border-radius:50%;border:1.5px solid var(--ink);background:transparent;color:var(--ink);font-size:17px;cursor:pointer;display:grid;place-items:center;padding:0;position:relative}
+.play:hover{background:var(--ink);color:var(--paper)}
+.play.on{background:var(--red);border-color:var(--red);color:var(--on)}
+.play.err{border-color:var(--red);color:var(--red)}
+.play:focus-visible,.v button:focus-visible,.note:focus-visible{outline:2px solid var(--jade);outline-offset:2px}
+.what{min-width:0}
+.what .lab{font-size:12.5px;color:var(--mut);letter-spacing:.08em}
+.what .txt{font:17px/1.45 var(--serif)}
+.what .dur{font-size:12px;color:var(--dim);font-variant-numeric:tabular-nums;margin-left:6px}
+.row2{grid-column:1 / -1;display:flex;gap:8px;flex-wrap:wrap;align-items:center}
+.v{display:flex;gap:6px}
+.v button{font:14px var(--sans);padding:5px 13px;border-radius:4px;border:1px solid var(--line);background:transparent;color:var(--mut);cursor:pointer;letter-spacing:.06em}
+.v button:hover{border-color:var(--ink);color:var(--ink)}
+.v button[aria-pressed="true"][data-v="yes"]{background:var(--jade);border-color:var(--jade);color:var(--on)}
+.v button[aria-pressed="true"][data-v="ok"]{background:var(--amber);border-color:var(--amber);color:var(--on)}
+.v button[aria-pressed="true"][data-v="no"]{background:var(--red);border-color:var(--red);color:var(--on)}
+.note{flex:1 1 200px;min-width:0;font:14px var(--sans);padding:6px 9px;border:1px solid var(--line);border-radius:4px;background:var(--paper);color:var(--ink)}
+.note::placeholder{color:var(--dim)}
+.gnote{width:100%;box-sizing:border-box;min-height:44px;resize:vertical}
+.all textarea{width:100%;box-sizing:border-box;min-height:84px;resize:vertical}
+.all h3{font:600 17px var(--serif);margin:0 0 4px}
+.empty{color:var(--mut);border:1px dashed var(--line);border-radius:6px;padding:18px;font-size:14.5px}
+.jump.go{background:var(--red);border-color:var(--red);color:var(--on)}
+.send{display:flex;flex-direction:column;gap:8px;align-items:flex-start;border-top:1px solid var(--line);padding-top:16px}
+.send h3{font:600 17px var(--serif);margin:0}
+.send button{font:600 16px var(--sans);padding:10px 30px;border-radius:5px;border:1.5px solid var(--red);background:var(--red);color:var(--on);cursor:pointer;letter-spacing:.16em}
+.send button.again{background:transparent;color:var(--red)}
+.send button[disabled]{opacity:.5;cursor:default}
+.send button:focus-visible{outline:2px solid var(--jade);outline-offset:2px}
+.ack{border:1.5px solid var(--jade);color:var(--jade);background:var(--card);border-radius:6px;padding:10px 14px;font:600 15px/1.5 var(--sans)}
+.ack.wait{border-color:var(--amber);color:var(--amber)}
+.ack.bad{border-color:var(--red);color:var(--red)}
+.send p{margin:0;font-size:14px;color:var(--mut)} .send p.bad{color:var(--red)} .send p.ok{color:var(--jade)}
+@media (prefers-reduced-motion:no-preference){ .play.on::after{content:"";position:absolute;inset:-5px;border-radius:50%;border:1.5px solid var(--red);animation:pulse 1.1s ease-out infinite} @keyframes pulse{from{opacity:.8;transform:scale(.92)}to{opacity:0;transform:scale(1.18)}} }
+</style>
+<main>
+  <header>
+    <h1>声音部试听台</h1>
+    <p class="lead">点圆键听，听完点一个判词，想说的写在旁边。全部自动保存。评完点「提交」，声音部当场收到，收到后这里会亮出<b>回执</b>。</p>
+  </header>
+  <div class="bar"><span>候选已评 <b id="done">0</b> / <b id="total">0</b></span><button type="button" id="next" class="jump">跳到没评的 ↓</button><button type="button" id="send2" class="jump go">提交</button><span class="st" id="st">正在连接保存功能…</span></div>
+  <div class="ack" id="ack" hidden></div>
+  <div id="list"><p class="empty">正在读取试音清单…</p></div>
+  <section class="all">
+    <h3>整体想说的</h3>
+    <textarea class="note" id="note-all" placeholder="比如：刘邦都太年轻了，想要四十多岁、带点痞气的声音"></textarea>
+  </section>
+  <section class="send">
+    <h3>评完了？</h3>
+    <button type="button" id="send">提 交</button>
+    <p id="sendSt">点一下，声音部当场收到。收到后上面会亮出绿色回执，写着几点几分收到。第一次点时浏览器会问是否允许这个页面发评论、用「Claude Code Remote」，都选允许。</p>
+  </section>
+</main>
+<script>
+(() => {
+  const $ = id => document.getElementById(id);
+  const esc = s => String(s).replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
+  const V = [['yes', '就它'], ['ok', '还行'], ['no', '不行']];
+  let clips = [], state = {}, db = null, canSave = false; const bulk = new Set();   // bulk：走量的台词，只标不满意的，不计入“已评”
+
+  // ---------- 播放：先用系统的播放器放（手机开着静音键也有声）；这个页面不让用时，改成取回来解码后播 ----------
+  let ctx = null, cur = null, way = null, seq = 0; const bufs = new Map();
+  function unlock() {   // 必须在“点一下”的当场做，手机才放行出声
+    try { if (navigator.audioSession) navigator.audioSession.type = 'playback'; } catch (e) { }
+    try { ctx = ctx || new (window.AudioContext || window.webkitAudioContext)(); if (ctx.state !== 'running') ctx.resume(); } catch (e) { }
+  }
+  const decode = ab => new Promise((res, rej) => { const p = ctx.decodeAudioData(ab, res, rej); if (p && p.then) p.then(res, rej); });
+  async function load(src) {
+    if (bufs.has(src)) return bufs.get(src);
+    const r = await fetch(src); if (!r.ok) throw new Error('http ' + r.status);
+    const b = await decode(await r.arrayBuffer());
+    bufs.set(src, b); return b;
+  }
+  function stop() {
+    if (!cur) return; const c = cur; cur = null;
+    try { if (c.node) { c.node.onended = null; c.node.stop(); } if (c.el) { c.el.onended = null; c.el.pause(); } } catch (e) { }
+    c.btn.classList.remove('on'); c.btn.textContent = '▶';
+  }
+  function showOn(btn, x, dur) {
+    cur = Object.assign({ btn }, x); btn.classList.add('on'); btn.textContent = '■';
+    const d = btn.closest('.clip').querySelector('.dur'); if (d && dur && isFinite(dur)) d.textContent = dur.toFixed(1) + ' 秒';
+  }
+  function playEl(src) {
+    const el = new Audio(); el.preload = 'auto'; el.src = src;
+    const p = el.play();
+    return new Promise((res, rej) => { el.onerror = () => rej(new Error('播放器打不开这个文件')); (p && p.then ? p : Promise.resolve()).then(() => res(el), rej); });
+  }
+  async function play(btn, src) {
+    const same = cur && cur.btn === btn; stop(); if (same) return;
+    unlock(); const my = ++seq;
+    btn.classList.remove('err'); btn.textContent = '…';
+    try {
+      if (way !== 'wa') {
+        try {
+          const el = await playEl(src);
+          if (my !== seq) { el.pause(); return; }
+          way = 'el'; showOn(btn, { el }, el.duration);
+          el.onloadedmetadata = () => { if (cur && cur.el === el) showOn(btn, { el }, el.duration); };
+          el.onended = () => { if (cur && cur.el === el) stop(); };
+          return;
+        } catch (e) { if (way === 'el') throw e; }   // 头一次就不行：这个页面不让用播放器，换下面的办法
+      }
+      const buf = await load(src);
+      if (my !== seq) return;
+      if (ctx.state !== 'running') { try { await Promise.race([ctx.resume(), new Promise(r => setTimeout(r, 800))]); } catch (e) { } }
+      const node = ctx.createBufferSource(); node.buffer = buf; node.connect(ctx.destination);
+      way = 'wa'; showOn(btn, { node }, buf.duration);
+      node.onended = () => { if (cur && cur.node === node) stop(); };
+      node.start();
+      if (ctx.state !== 'running') status('声音被系统拦住了：再点一次播放；还没声就看看手机的静音键和媒体音量', 'bad');
+    } catch (e) {
+      if (my !== seq) return;
+      btn.classList.add('err'); btn.textContent = '!'; btn.title = '这条没播出来：' + (e && e.message || e);
+      status('这条没播出来（' + (e && e.message || e) + '）。把这行字发给我', 'bad');
+    }
+  }
+
+  // ---------- 画 ----------
+  function render(data) {
+    clips = []; bulk.clear();
+    const html = (data.batches || []).map((b, bi) => `<details class="batch"${bi ? '' : ' open'}><summary>${esc(b.title)} · ${esc(b.date || '')}</summary><p>${esc(b.note || '')}</p>` +
+      b.groups.map(g => `<div class="group"><h3><i>${esc(g.who)}</i>${esc(g.title)}</h3><p class="hint">${esc(g.hint || '')}</p>` +
+        g.clips.map(c => { clips.push(c.id); if (g.bulk) bulk.add(c.id); return `<div class="clip" id="c-${c.id}" data-id="${c.id}">
+          <button class="play" type="button" data-src="${esc(c.src)}" aria-label="播放：${esc(c.text)}">▶</button>
+          <div class="what"><div class="lab">${esc(c.label)}<span class="dur"></span></div><div class="txt">${esc(c.text)}</div></div>
+          <div class="row2"><div class="v" role="group" aria-label="判词">${V.map(([k, n]) => `<button type="button" data-v="${k}" aria-pressed="false">${n}</button>`).join('')}</div>
+          <input class="note" id="n-${c.id}" data-id="${c.id}" placeholder="哪里不对？（太年轻 / 太平 / 停顿怪…）"></div></div>`; }).join('') +
+        `<textarea class="note gnote" id="n-${g.id}" data-id="${g.id}" placeholder="对「${esc(g.who)} ${esc(g.title)}」这个声音整体的看法"></textarea></div>`).join('') + '</details>').join('');
+    $('list').innerHTML = html || '<p class="empty">还没有试音。</p>';
+    $('total').textContent = clips.filter(id => !bulk.has(id)).length;
+    paint();
+  }
+  function paint() {
+    let n = 0;
+    for (const id of clips) {
+      const el = $('c-' + id), s = state[id] || {}; if (!el) continue;
+      if (s.v && !bulk.has(id)) n++;
+      el.classList.remove('v-yes', 'v-ok', 'v-no'); if (s.v) el.classList.add('v-' + s.v);
+      el.querySelectorAll('.v button').forEach(b => b.setAttribute('aria-pressed', String(b.dataset.v === s.v)));
+    }
+    document.querySelectorAll('.note').forEach(inp => { const id = inp.dataset.id || 'all'; if (document.activeElement !== inp && !dirty.has(id)) inp.value = (state[id] || {}).note || ''; });
+    $('done').textContent = n;
+  }
+
+  // ---------- 存：每条一份记录，同一条排队写，打字停一下再写 ----------
+  const queue = new Map(), dirty = new Set(), timers = new Map();
+  function status(t, cls) { const s = $('st'); s.textContent = t; s.className = 'st' + (cls ? ' ' + cls : ''); }
+  function save(id) {
+    if (!db || !canSave) return;
+    const body = { v: (state[id] || {}).v || '', note: (state[id] || {}).note || '', at: new Date().toISOString() };
+    const prev = queue.get(id) || Promise.resolve();
+    status('保存中…');
+    const p = prev.then(() => db.doc('fb/' + id).set(body)).then(() => { dirty.delete(id); if (queue.get(id) === p) status('已保存', 'ok'); })
+      .catch(e => { status(e && e.code === 'invalid_argument' ? '这次打开没有保存权限，评语请直接发在聊天里' : '没存上，稍后会再试；也可以直接在聊天里说', 'bad'); if (e && e.code === 'invalid_argument') canSave = false; });
+    queue.set(id, p);
+  }
+  document.addEventListener('click', e => {
+    const pb = e.target.closest('.play'); if (pb) { play(pb, pb.dataset.src); return; }
+    const vb = e.target.closest('.v button'); if (!vb) return;
+    const id = vb.closest('.clip').dataset.id, s = state[id] = Object.assign({}, state[id]);
+    s.v = s.v === vb.dataset.v ? '' : vb.dataset.v; paint(); save(id);
+  });
+  document.addEventListener('input', e => {
+    const inp = e.target.closest('.note'); if (!inp) return;
+    const id = inp.dataset.id || 'all'; state[id] = Object.assign({}, state[id], { note: inp.value }); dirty.add(id);
+    clearTimeout(timers.get(id)); timers.set(id, setTimeout(() => save(id), 900));
+  });
+
+  // ---------- 一键跳到还没评的那条：先找最新一批里要挑的（不算“只标不满意”的成品），都评过了再找更早的批次 ----------
+  let lastJump = null;
+  function unrated() {   // 只看最新一批里要挑的
+    const top = document.querySelector('details.batch'); if (!top) return [];
+    return [...top.querySelectorAll('.clip')].map(el => el.dataset.id).filter(id => !bulk.has(id) && !(state[id] || {}).v && !(state[id] || {}).note);
+  }
+  $('next').addEventListener('click', () => {
+    const list = unrated();
+    if (!list.length) { status('这一批要挑的都评过了。成品那几组只需要标不满意的', 'ok'); return; }
+    // 上次跳到的那条还没评：这次去它后面那条（到底了回到第一条）；否则去当前屏幕往下的第一条
+    let id = null; const k = list.indexOf(lastJump);
+    if (k >= 0) id = list[(k + 1) % list.length];
+    else id = list.find(x => { const el = $('c-' + x); return el && el.getBoundingClientRect().top > innerHeight * 0.25; }) || list[0];
+    const el = $('c-' + id); if (!el) return;
+    const d = el.closest('details'); if (d && !d.open) d.open = true;
+    lastJump = id;
+    el.scrollIntoView({ behavior: 'smooth', block: 'center' });
+    document.querySelectorAll('.clip.here').forEach(x => x.classList.remove('here'));
+    el.classList.add('here'); clearTimeout(el._h); el._h = setTimeout(() => el.classList.remove('here'), 2200);
+    status('这一批还有 ' + list.length + ' 条没评', '');
+  });
+
+  // ---------- 提交：页面替你“按响”一个提前设好的提醒，提醒直接送进和 Claude 的那段对话 ----------
+  const NOTIFY = 'trig_01FiP6dgMSFYgkevQ4srqoZK', SRV = 'Claude Code Remote';
+  const mcpP = window.claude && window.claude.use ? window.claude.use('mcp') : Promise.resolve(null);
+  let top = null, sending = false, armed = false;
+  function sendSt(t, cls) { const p = $('sendSt'); p.textContent = t; p.className = cls || ''; }
+  function setBtns(label, dis, again) {
+    const b = $('send'); b.textContent = label; b.disabled = !!dis; b.classList.toggle('again', !!again);
+    $('send2').disabled = !!dis;
+  }
+  function topStats() {   // 最新一批：就它 / 还行 / 不行 / 没评，写了几处备注
+    const el = document.querySelector('details.batch'), c = { yes: 0, ok: 0, no: 0, left: 0, notes: 0 };
+    if (!el) return c;
+    for (const x of el.querySelectorAll('.clip')) { const id = x.dataset.id; if (bulk.has(id)) continue; const s = state[id] || {}; if (s.v) c[s.v]++; else c.left++; if (s.note) c.notes++; }
+    el.querySelectorAll('.gnote').forEach(t => { if ((state[t.dataset.id] || {}).note) c.notes++; });
+    if ((state.all || {}).note) c.notes++;
+    return c;
+  }
+  async function flush() {   // 还在等着写的评语，先写完再通知
+    for (const t of timers.values()) clearTimeout(t); timers.clear();
+    for (const id of [...dirty]) save(id);
+    await Promise.allSettled([...queue.values()]);
+  }
+  function why(e) {
+    switch (e && e.code) {
+      case 'not_in_manifest': return '你没允许这个页面用「Claude Code Remote」，所以没通知到我。评分已经存好了；在聊天里说一声“提交了”就行。想以后能用，到这个页面右上角的权限里把它打开。';
+      case 'server_not_connected': case 'selection_required': return '这个页面没连上「Claude Code Remote」，所以没通知到我。评分已经存好了，在聊天里说一声“提交了”就行。';
+      case 'needs_reauth': return '「Claude Code Remote」的登录过期了：到 claude.ai 设置 → 连接器 里重新连一下。这次评分已经存好了，在聊天里说一声就行。';
+      case 'server_unavailable': case 'upstream_error': return '通知可能没送到（那边一时没回话）。过一会儿再点一次；重复送到也没关系，我会照最新的评分处理。';
+      case 'not_granted': case 'capability_disabled': case 'capability_removed': return '这次打开的页面不能替你通知我。评分已经存好了，在聊天里说一声“提交了”就行。';
+      default: return '两路都没送到（' + ((e && (e.code || e.message)) || e) + '）。评分已经存好了；再点一次提交，还不行就截图发我。';
+    }
+  }
+  const comP = window.claude && window.claude.use ? window.claude.use('comments') : Promise.resolve(null);
+  // 两路同时送：①在页面上发一条“发给 Claude”的评论（直接叫醒声音部）；②按声音部门铃。任一路通了就算送到
+  async function notify(msg) {
+    const tries = [];
+    tries.push((async () => {
+      const com = await comP; if (!com) throw { code: 'not_granted' };
+      if (com.canSendToClaude) { const ok = await com.canSendToClaude(); if (ok !== 'available') throw { code: 'claude_' + ok }; }
+      const anchor = await com.anchorFor($('send'));
+      await com.sendToClaude({ anchor, text: msg }); return 'com';
+    })());
+    tries.push((async () => {
+      const mcp = await mcpP; if (!mcp) throw { code: 'not_granted' };
+      let id = NOTIFY;
+      if (db) try { const d = await db.doc('cfg/notify').get(); const x = d.exists && d.data(); if (x && x.trigger) id = String(x.trigger); } catch (e) { }
+      await mcp.callTool(SRV, 'fire_trigger', { trigger_id: id, text: msg }, { cache: false }); return 'bell';
+    })());
+    const r = await Promise.allSettled(tries);
+    const ok = r.filter(x => x.status === 'fulfilled').map(x => x.value);
+    if (!ok.length) throw r[0].reason || r[1].reason;
+    return ok;
+  }
+  // 回执：声音部读到后写 ack/<批次>，这里马上亮
+  let sentAt = 0, waitT = null, ackUnsub = null;
+  function showAck(x) {
+    const el = $('ack'); el.hidden = false;
+    if (x && x.at && (!sentAt || new Date(x.at).getTime() >= sentAt - 5000)) {
+      clearInterval(waitT); waitT = null;
+      const t = new Date(x.at).toLocaleTimeString('zh-CN', { hour: '2-digit', minute: '2-digit', second: '2-digit' });
+      el.className = 'ack'; el.textContent = `✓ 声音部 ${t} 已收到` + (x.note ? `：${x.note}` : '');
+      return;
+    }
+    el.className = 'ack wait';
+    const tick = () => { const s = Math.round((Date.now() - sentAt) / 1000); el.textContent = `已送出，等声音部回执… ${s} 秒` + (s > 90 ? '（超过一分半还没回执，说明没送到，请在聊天里叫我）' : ''); if (s > 90) el.className = 'ack bad'; };
+    tick(); clearInterval(waitT); waitT = setInterval(tick, 1000);
+  }
+  function watchAck() {
+    if (!db || !top || ackUnsub) return;
+    try { ackUnsub = db.doc('ack/' + top.id).onSnapshot(d => { const x = d.exists ? d.data() : null; if (x) showAck(x); else if (sentAt) showAck(null); }, () => { }); } catch (e) { }
+  }
+  async function submit() {
+    if (sending || !top) return;
+    const c = topStats();
+    if (c.left && !armed) { armed = true; setBtns('仍然提交'); sendSt(`这一批还有 ${c.left} 条没评。没评的我先不动它们。确定要提交就再点一次。`, 'bad'); return; }
+    armed = false; sending = true; setBtns('提交中…', true); sendSt('正在送出…');
+    const msg = `【声音部试听台提交】${top.title}（${top.id}）——就它 ${c.yes}、还行 ${c.ok}、不行 ${c.no}${c.left ? `、没评 ${c.left}` : ''}；备注 ${c.notes} 处。`;
+    sentAt = Date.now();
+    const sendP = notify(msg);   // 趁着这一下点击马上送，不等保存
+    const saveP = (async () => { try { await flush(); } catch (e) { } if (db && canSave) try { await db.doc('submit/' + top.id).set({ at: new Date().toISOString(), yes: c.yes, ok: c.ok, no: c.no, left: c.left, notes: c.notes }); } catch (e) { } })();
+    try {
+      const how = await sendP;
+      showAck(null); watchAck();
+      sendSt(`已送出（${how.map(x => x === 'com' ? '评论' : '门铃').join(' + ')}）。声音部收到后上面会亮绿色回执。之后改了评分，可以再点一次。`, 'ok');
+      setBtns('再提交一次', false, true);
+    } catch (e) { sentAt = 0; sendSt(why(e), 'bad'); setBtns('提 交'); }
+    await saveP;
+    sending = false;
+  }
+  $('send').addEventListener('click', submit);
+  $('send2').addEventListener('click', () => { $('send').scrollIntoView({ behavior: 'smooth', block: 'center' }); submit(); });
+  async function paintSent() {   // 这一批以前提交过：按钮上写明
+    if (!db || !top) return;
+    try { const d = await db.doc('submit/' + top.id).get(); if (d.exists) { const x = d.data() || {}; const t = x.at ? new Date(x.at).toLocaleString('zh-CN', { month: 'numeric', day: 'numeric', hour: '2-digit', minute: '2-digit' }) : ''; setBtns('再提交一次', false, true); sendSt(`这一批 ${t} 提交过。改了评分可以再点一次。`, ''); } } catch (e) { }
+  }
+
+  // ---------- 起 ----------
+  fetch('clips.json').then(r => r.json()).then(d => { top = (d.batches || [])[0] || null; render(d); paintSent(); watchAck(); }).catch(() => { $('list').innerHTML = '<p class="empty">试音清单没读出来，刷新一下试试。</p>'; });
+  (async () => {
+    db = window.claude && window.claude.use ? await window.claude.use('db') : null;
+    if (!db) { status('这次打开没法保存，评语请直接发在聊天里', 'bad'); return; }
+    canSave = true; status('可以开始了，自动保存', 'ok'); paintSent(); watchAck();
+    db.collection('fb').onSnapshot(snap => {
+      for (const d of snap.docs) { if (dirty.has(d.id)) continue; const x = d.data() || {}; state[d.id] = { v: x.v || '', note: x.note || '' }; }
+      paint();
+    }, () => status('保存功能断了，评语请直接发在聊天里', 'bad'));
+  })();
+})();
+</script>
+
+</body></html>
