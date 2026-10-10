@@ -213,6 +213,16 @@ const Sfx = (() => {
       run(id, { t, dur: dur + 0.35, vol: v * MARCH_GAIN * (men >= 5 ? 1 : [1.5, 1.5, 1.25, 1.1][Math.max(1, Math.min(3, Math.round(men)))]), rate: quick ? 1.18 : 1, rj: 0.02 });
     },
     clang(t = 0, v = 0.4, pan) { smp(Math.random() < 0.5 ? 'metal' : 'blade', { t, vol: v, pan, rate: R(0.85, 1.15) }); },
+    // 盾挡：矛扎在蒙皮木盾上被铜钉顶住（Ham 10-10 试听台 b37：五种全选，“随机出现，所有盾牌格挡都会有音效”）。
+    //   五分之一放带出矛“嗖”的那种（blockw），它的“挡住”在 0.23 秒，提前放，让“挡住”对准 t
+    block(t = 0, v = 0.6, pan) {
+      if (has('blockw') && Math.random() < 0.2) { const lead = 0.23; smp('blockw', { t: Math.max(0, t - lead), off: Math.max(0, lead - t), vol: v, pan, rj: 0.04 }); return; }
+      smp('block', { t, vol: v, pan, rj: 0.05 });
+    },
+    // 兵卒对打的人声（Ham 10-10 试听台）：出手时的气声（b40）、嘲讽的群吼（b40）、打倒对方后的得胜齐吼（b42）
+    sgrunt(t = 0, v = 0.5, pan) { smp('sgrunt', { t, vol: v, pan, rj: 0.05 }); },
+    taunt(t = 0, v = 0.5, pan) { smp('taunt', { t, vol: v, pan, rj: 0.03 }); },
+    victory(t = 0, v = 0.55, pan) { smp('victory', { t, vol: v, pan, rj: 0.03 }); },
     plate(t = 0, v = 0.4) { smp('plate', { t, vol: v }); },
     ring(t = 0, v = 0.3) { smp('unsheathe', { t, vol: v }); },
     whoosh(t = 0, dur = 0.35, v = 0.35, pan) { smp('swing', { t, vol: v, pan, rate: R(0.8, 1.1) / Math.max(0.5, dur / 0.4) }); },
