@@ -1,0 +1,3 @@
+{ "args": "--games 300 --seed 9000 --level hard --nodes hard=100000 --ai-r tools/variants/bfai_next.js --ai-b src/bfai.js",
+  "env": { "BFAI_UPESC": "1", "BFAI_ROOTREL": "1", "BFAI_ROOTATK": "1", "BFAI_TUNE_W": "tools/tune/w_t3p.json" }, "chunks": 48,
+  "note": "（和 r35 同批）线上电脑（C63 电脑半 + C64）换上自动调的权重 w_t3p（r31 对同底版 85.6%）执汉 对 线上，霸王" }

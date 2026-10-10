@@ -12,6 +12,7 @@
 //     预算放宽到 X 倍（按节点数收手时节点上限 ×X；按时间时 3 秒 → 3X 秒）。只在霸王（最多层数 > 3）
 //   BFAI_UP3K=N：对方第二手（第 3 层）也能先升级，但只看“升了以后能走到我帅身边一格内、升之前走不到”的，最多 N 种（g5 第 22 回合：兵升四级神速营跳将，原来只在对方第一手看升级）
 //   BFAI_FASTFP=1：局面指纹提速（剖析：线上霸王 7.4% 的时间花在 fp 上，大半是逐字散列子的字段名）
+//   BFAI_TUNE_W=文件（相对 source/）：换上自动调出来的估值权重（fit.js --out 写的）；r30：对同底版霸王 83%、校尉 84%（f998d98 底版，bfai_tuned.js）
 //   BFAI_CHKMUST=1：被将军时，相 / 象 / 兵升一级攻击变大的（象二级起攻击 2，H50；兵三级起攻击 2，r6）也算“保命的升级”（TD 在 H52 问的）
 'use strict';
 const fs = require('fs'), path = require('path'), os = require('os');
@@ -21,7 +22,7 @@ const src0 = execFileSync('git', ['show', rev + ':source/src/bfai.js'], { cwd: p
 function build(E, tag) {
   let s = src0;
   const rep = (a, b) => { const n = s.split(a).length - 1; if (n !== 1) throw new Error(`bfai_next：锚点出现 ${n} 次：${a.slice(0, 80)}`); s = s.replace(a, () => b); };
-  const LMR2 = +(E.BFAI_LMR2 || 0), NMP = +(E.BFAI_NMP || 0), CHKMUST = +(E.BFAI_CHKMUST || 0), ROOTREL = +(E.BFAI_ROOTREL || 0), ROOTATK = +(E.BFAI_ROOTATK || 0), RLMR = +(E.BFAI_RLMR || 0), UPESC = +(E.BFAI_UPESC || 0), DYN = +(E.BFAI_DYN || 0), UP3K = +(E.BFAI_UP3K || 0), FASTFP = +(E.BFAI_FASTFP || 0), PSPLIT = +(E.BFAI_PSPLIT || 0);
+  const LMR2 = +(E.BFAI_LMR2 || 0), NMP = +(E.BFAI_NMP || 0), CHKMUST = +(E.BFAI_CHKMUST || 0), ROOTREL = +(E.BFAI_ROOTREL || 0), ROOTATK = +(E.BFAI_ROOTATK || 0), RLMR = +(E.BFAI_RLMR || 0), UPESC = +(E.BFAI_UPESC || 0), DYN = +(E.BFAI_DYN || 0), UP3K = +(E.BFAI_UP3K || 0), FASTFP = +(E.BFAI_FASTFP || 0), PSPLIT = +(E.BFAI_PSPLIT || 0), TUNEW = E.BFAI_TUNE_W || '';
   if (LMR2) rep('{ v = -ab(r.S, depth - 2, -alpha - 0.01, -alpha, ply + 1, ext); if (v > alpha)', '{ v = -ab(r.S, depth - 2 - (mi > ' + LMR2 + ' && depth >= 4 ? 1 : 0), -alpha - 0.01, -alpha, ply + 1, ext); if (v > alpha)');
   if (NMP) {
     rep('    let best = -INF, legal = 0, bm = null;',
@@ -131,6 +132,15 @@ function build(E, tag) {
       "      for (const k of kids) { if (BFAI.part && d > 2 && k.ow !== BFAI.part.i) { k.nv = -INF; } k.v = k.nv; k.nv = null; k.vg = !!k.gn; }");
     rep("      depthDone = d;\n", "      depthDone = d;\n      if (BFAI.part && d === 2) kids.forEach((k, i) => { k.ow = i % BFAI.part.k; });\n      if (BFAI.part && BFAI.part.onIter) BFAI.part.onIter({ d, best: actOf(kids[0]), v: kids[0].v, nodes: nodes - n0 });\n");
     rep("      let alpha = -INF, n = 0, cut = false;", "      let alpha = BFAI.part && BFAI.part.alpha && d > 2 ? BFAI.part.alpha(d) : -INF, n = 0, cut = false;");
+  }
+  if (TUNEW) {   // 换估值权重（tools/tune/）：score 变成“特征 × 权重”；带 P（分项，只给 scoreParts）时仍用原公式
+    const feats = JSON.stringify(path.join(__dirname, '..', 'tune', 'feats.js'));
+    const wtxt = JSON.stringify(JSON.parse(fs.readFileSync(path.resolve(__dirname, '..', '..', TUNEW), 'utf8')).w);
+    rep('  function score(S, me, P) {',
+      '  // 变体 next：自动调出来的权重（' + path.basename(TUNEW) + '）\n' +
+      '  const TUNE = require(' + feats + '), TW = TUNE.vec(' + wtxt + ');\n' +
+      "  function score(S, me, P) { if (P) return scoreOrig(S, me, P); const v = TUNE.dot(TW, TUNE.feats(S, A, CFG)); return me === 'r' ? v : -v; }\n" +
+      '  function scoreOrig(S, me, P) {');
   }
   if (tag === null) return s;
   const out = path.join(os.tmpdir(), `bfai_next_${rev}_${tag || 'env'}_${process.pid}.js`);
