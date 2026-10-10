@@ -1,0 +1,50 @@
+diff --git a/source/src/bfai.js b/source/src/bfai.js
+index f3eb9f4..21eaae5 100644
+--- a/source/src/bfai.js
++++ b/source/src/bfai.js
+@@ -369,7 +369,7 @@
+   const LEVELS = {
+     easy: { depth: 1, q: 2, noise: 1.3, top: 3, up: 0.5, budget: 500 },
+     mid: { depth: 3, q: 3, noise: 0.3, top: 1, up: 1, budget: 2500 },
+-    hard: { depth: 7, q: 4, noise: 0.05, top: 1, up: 1, budget: 3000, minNodes: 20000 },
++    hard: { depth: 7, q: 4, noise: 0.05, top: 1, up: 1, budget: 3000, minNodes: 20000, dyn: 2.7 },   // dyn：难走的局面最多放宽到几倍预算（C66，Ham 拍板单 ai_time1 = a：平时不变、关键时刻多想）
+     ana: { depth: 3, q: 3, noise: 0, top: 1, up: 1, budget: 1200 },   // 对局分析用（TD，Ham 10-09）：不加噪声，每个局面限时 1.2 秒
+   };
+ 
+@@ -578,18 +578,24 @@
+     kids.sort((x, y) => y.q - x.q);
+     let depthDone = 0, why = 'depth';
+     const n0 = nodes;
++    // 难走的局面多想（LEVELS.<档>.dyn，只有霸王设了）：基础预算用完一大半时还没算过 3 层，或者最后一层最好的那步换了 / 分数掉了 1 分以上，
++    //   预算放宽到 dyn 倍（只放宽一次）。按时间：霸王平时 3 秒，难走时最多约 8 秒（兜底 9 秒）；按节点数（对打、考卷）：节点上限 ×dyn
++    let dynB = L.budget, dynN = L.nodes, dynOn = false, crit = false, prevBK = null, prevV = null;
++    const dynX = L.depth > 3 && L.dyn > 1 ? L.dyn : 0;
+     // 逐层加深：每一层都把上一层最好的着法排在最前面先算
+     for (let d = 1; d <= L.depth; d++) {
+-      const soft = t0 + L.budget;
++      let soft = t0 + dynB;
+       if (L.fixedDepth) { deadline = Infinity; nodeCap = Infinity; }
+       else if (byNodes) {
+         // 前两层一定算完（保证有着可走）；再往下每一层开始前看剩下的搜索量够不够，算到上限就停
+-        if (d > 2 && nodes - n0 > L.nodes * 0.5) { why = 'nodes'; break; }
+-        nodeCap = d <= 2 ? Infinity : n0 + L.nodes;
++        if (dynX && !dynOn && d > 2 && nodes - n0 > L.nodes * 0.5 && (crit || depthDone <= 3)) { dynOn = true; dynN = Math.round(L.nodes * dynX); if (TR) TR.dyn = d; }
++        if (d > 2 && nodes - n0 > dynN * 0.5) { why = 'nodes'; break; }
++        nodeCap = d <= 2 ? Infinity : n0 + dynN;
+       } else {
+         // 慢的设备上按时间收手会算得太浅：没搜够 minNodes 之前不因为时间到了就停（最多拖到 1.5 倍时间）
+         const thin = L.minNodes > 0 && nodes - n0 < L.minNodes;
+-        if (d > 3 && !thin && now() - t0 > L.budget * 0.3) { why = 'time'; break; }       // 剩下的时间不够再深一层了
++        if (dynX && !dynOn && d > 3 && now() - t0 > L.budget * 0.3 && (crit || depthDone <= 3)) { dynOn = true; dynB = L.budget * dynX; soft = t0 + dynB; if (TR) TR.dyn = d; }   // 难走：放宽预算
++        if (d > 3 && !thin && now() - t0 > dynB * 0.3) { why = 'time'; break; }       // 剩下的时间不够再深一层了
+         deadline = d < 3 ? Infinity : d === 3 ? t0 + L.budget * 2 : thin ? t0 + L.budget * 1.5 : soft + L.budget * 0.3;   // 第 3 层也设个兜底（两倍预算）：个别局面枚举破釜组合特别慢，慢手机上别让一步拖到十秒
+       }
+       let alpha = -INF, n = 0, cut = false;
+@@ -639,6 +645,7 @@
+         kids.sort((x, y) => y.v - x.v);
+       }
+       depthDone = d;
++      { const bk = JSON.stringify(actOf(kids[0])); if (d >= 3 && ((prevBK && bk !== prevBK) || (prevV != null && kids[0].v < prevV - 1))) crit = true; prevBK = bk; prevV = kids[0].v; }   // 最好的那步换了、分数掉了 1 分以上 → 难走
+       if (TR) TR.iter.push({ d, best: actOf(kids[0]), v: +kids[0].v.toFixed(3), nodes: nodes - n0, ms: Math.round(now() - t0) });
+       if (kids[0].v > WIN / 2 || kids[0].v < -WIN / 2) { why = 'mate'; break; } // 已经看到杀棋 / 必败，不用再深
+     }
