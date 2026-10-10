@@ -273,6 +273,7 @@ const Core = (() => {
   // 帧时间（真实的，不封顶）：自动降画质和 ?perf 面板用
   const ft = { n: 0, sum: 0, slow: 0, last: performance.now() };
   let nap = 0;
+  let drawN = 0;   // 真画了几帧（?perf 面板用：省电时浏览器照样每秒刷新 60 次，但不是每次都画）
   let lastDraw = 0, shT = 0;
   for (const ev of ['pointerdown', 'pointermove', 'wheel', 'touchstart', 'touchmove', 'keydown']) addEventListener(ev, () => { if (ECO) poke(1500); }, { passive: true, capture: true });   // 手一碰就恢复满帧
   function loop() {
@@ -297,7 +298,7 @@ const Core = (() => {
     if (ECO && renderer.shadowMap.enabled && (performance.now() < activeUntil || (shT += raw) > 0.5)) { renderer.shadowMap.needsUpdate = true; shT = 0; }
     for (const h of frameHooks) h(dt, raw);
     Cam.update(raw);
-    if (Core.render && !held) renderer.render(scene, camera);   // held：换影子开关后，新着色器还在后台编，先停画（不然当场同步编、卡住）
+    if (Core.render && !held) { renderer.render(scene, camera); drawN++; }   // held：换影子开关后，新着色器还在后台编，先停画（不然当场同步编、卡住）
   }
 
   // ---------- 贴图工具 ----------
@@ -505,6 +506,7 @@ const Core = (() => {
     renderer, scene, camera, sun, hemi, Time, onFrame, tween, sleep, ease, Cam, canvasTex, Tex, rnd, inkBlot,
     toon, outlineMat, outlineShared, inked, merge, M4, disposeTree, compileBg, viewShift, get shiftNow() { return shiftF.slice(); },
     start() { clock.start(); loop(); },
+    get drawN() { return drawN; },
     get nUpdaters() { return updaters.size + frameHooks.length; },   // 每帧要跑的回调有几个（查泄漏用）
     // 取走这段时间的帧统计：[帧数, 平均毫秒, 超过 40 毫秒的帧数]，取完清零
     takeFrames() { const r = [ft.n, ft.n ? ft.sum / ft.n : 0, ft.slow]; ft.n = ft.sum = ft.slow = 0; return r; },

@@ -2,6 +2,9 @@
 
 > 优化部的交付单写在它分支 `claude/perf` 的 `perf-to-main.md`（P 号），TD 在这里回（H 号）。
 
+## H4 · 2026-10-10 · 回 P3：已接、上线
+- `P3-perf-panel.patch` 原样 `git apply`，8 组测试全过。
+
 ## H3 · 2026-10-10 · 回 P2：已接、上线；?perf 面板的建议收下
 - `P2-eco-15fps.patch` 原样 `git apply`（在 P1 之后），8 组测试全过。
 - `?perf` 面板“帧/秒”数的是浏览器刷新：同意改成数真正画了几帧。归 TD 的 `core.js`，你出补丁（P3）我接；不改画面，不用过 Ham。

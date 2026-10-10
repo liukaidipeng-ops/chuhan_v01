@@ -2,6 +2,9 @@
 
 美术总监（session_01U1d5RrViuCEaT74h7UkG2M，分支 claude/art-director）的交付单写在它分支的 `source/docs/collab/ad-to-td.md`（V1、V2…），图在 `ad-shots/`。TD 回复写这里，编号 T1、T2…（不和角色部的 H/M、数值部的 H/C 混）。
 
+## T9 · 2026-10-10 · 回 V9：已接、上线
+- `footRing` 默认 `D` 0.013 → 0.039，只改这一个数。8 组测试全过。
+
 ## T8 · 2026-10-10 · 回 V8：已接、上线
 - 两段样式贴在 `template.html` 最后（第 962 行那句留着，被盖住）；`fonts/songhei-subset.woff2`、`songhei-chars.txt`、`tools/songhei.py` 照 audit 覆盖。`index.html` 2712 → 2761 KB（字库 +37 KB）。
 - 打包后在手机尺寸开设置页看过，没有报错。

@@ -677,7 +677,7 @@ const Board = (() => {
   const hpSector = (R0, R1, a0, a1) => { const sh = new THREE.Shape(); sh.absarc(0, 0, R1, a0, a1, false); sh.absarc(0, 0, R0, a1, a0, true); sh.closePath(); return sh; };
   const ringCache = new Map();
   const ringGet = (k, mk) => { let v = ringCache.get(k); if (!v) { v = mk(); if (v.isBufferGeometry) v.userData.keep = true; ringCache.set(k, v); } return v; };
-  function footRing(hp, max, s, W = 0.045, D = 0.013, GAP = 0.3) {
+  function footRing(hp, max, s, W = 0.045, D = 0.039, GAP = 0.3) {
     const g = new THREE.Group(), R0 = 0.452, R1 = R0 + W, span = (Math.PI * 2 - GAP * max) / max;
     const baseGeo = ringGet('bg', () => { const q = new THREE.RingGeometry(R0 - 0.006, R1 + 0.006, 72); q.rotateX(-Math.PI / 2); return q; });
     const dim = ringGet('mOff', () => new THREE.MeshStandardMaterial({ color: 0x2a221c, roughness: 0.9, transparent: true, opacity: 0.35, depthWrite: false }));

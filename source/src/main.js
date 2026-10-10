@@ -8,6 +8,7 @@
   // 更新说明（设置里、大厅底部点「更新」查看；最新的放最前）
   const NEWS = [
     ['第六版', '2026 年 10 月', [
+      '技能模式：脚下的血条加厚到原来的三倍，远看也看得清（美术总监）',
       '对局停着不动、开着省电时，每秒少画一半的帧，手机更凉；一碰屏立刻恢复（优化部）',
       '设置页底下的版本号收进格子里；结算页竖排古文改用粗宋体；补全了粗宋字库，新加的「喜怒悲秦阳」等字不再变成系统字体（美术总监）',
       '四级玉棋子改成羊脂白玉（原来偏绿，和朱红字配起来不好看）（美术总监）',
@@ -351,12 +352,14 @@
     const d = document.createElement('div');
     d.style.cssText = 'position:fixed;left:6px;top:6px;z-index:99999;background:rgba(0,0,0,.75);color:#9f9;font:12px/1.45 monospace;padding:6px 9px;border-radius:6px;pointer-events:none;white-space:pre';
     document.body.appendChild(d);
-    let n = 0, t0 = performance.now(), lt = t0, worst = 0;
+    let n = 0, t0 = performance.now(), lt = t0, worst = 0, d0 = Core.drawN;
     const tick = () => {
       const t = performance.now(); worst = Math.max(worst, t - lt); lt = t; n++;
       if (t - t0 >= 1000) {
         const R = Core.renderer, i = R.info.render, c = R.domElement;
-        d.textContent = `${Math.round(n * 1000 / (t - t0))} 帧/秒  最慢一帧 ${worst.toFixed(0)} ms\n画质 ${Core.quality}  像素比 ${R.getPixelRatio()}  画布 ${c.width}×${c.height}\n每帧 ${i.calls} 次绘制  ${(i.triangles / 1000).toFixed(0)}K 三角形  影子 ${Core.sun.castShadow ? '开' : '关'}\n${Core.gpu || '显卡未知'}${Core.softGL ? '  ← 软件渲染，没用显卡！' : ''}\n后台编着色器：${Core.parallelGL ? '支持' : '不支持（换场景时可能整个浏览器顿一下）'}${[...Core.DIAG.keys()].filter(k => k !== 'perf').length ? '\n排查开关：' + [...Core.DIAG.keys()].filter(k => k !== 'perf').join(' ') : ''}\n${navigator.userAgent.replace(/^Mozilla\/5\.0 /, '').slice(0, 90)}`;
+        // 优化部 P3：上面一行是真画了几帧（原来数的是浏览器刷新次数，省电时也显示 60）
+        const dn = Core.drawN - d0; d0 = Core.drawN;
+        d.textContent = `画 ${Math.round(dn * 1000 / (t - t0))} 帧/秒（屏幕刷新 ${Math.round(n * 1000 / (t - t0))}）  省电${Core.ECO ? '开' : '关'}\n最慢一帧 ${worst.toFixed(0)} ms\n画质 ${Core.quality}  像素比 ${R.getPixelRatio()}  画布 ${c.width}×${c.height}\n每帧 ${i.calls} 次绘制  ${(i.triangles / 1000).toFixed(0)}K 三角形  影子 ${Core.sun.castShadow ? '开' : '关'}\n${Core.gpu || '显卡未知'}${Core.softGL ? '  ← 软件渲染，没用显卡！' : ''}\n后台编着色器：${Core.parallelGL ? '支持' : '不支持（换场景时可能整个浏览器顿一下）'}${[...Core.DIAG.keys()].filter(k => k !== 'perf').length ? '\n排查开关：' + [...Core.DIAG.keys()].filter(k => k !== 'perf').join(' ') : ''}\n${navigator.userAgent.replace(/^Mozilla\/5\.0 /, '').slice(0, 90)}`;
         n = 0; t0 = t; worst = 0;
       }
       requestAnimationFrame(tick);
