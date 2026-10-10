@@ -17,17 +17,19 @@ canvas{width:100%;max-width:100%;aspect-ratio:16/9;display:block;background:#2b2
 .beat{font:600 15px/1.6 var(--ef);letter-spacing:.08em;min-height:1.6em}
 ol{margin:0;padding-left:1.4em;color:var(--dim);font-size:14px;line-height:1.85;max-width:80ch}
 ol b{color:var(--fg);font-weight:500}
-.cols{display:grid;grid-template-columns:1fr;gap:18px}
+.cols{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,420px),1fr));gap:18px}
 h2{margin:0 0 6px;font:900 18px/1.3 var(--ef);letter-spacing:.1em}
 </style>
 <div class="wrap">
-  <h1>兵卒对打 · 第三版（扣血）改过穿模</h1>
-  <p class="lead">照审批台 085 的备注改了：两人拉开了一点（矛长两米七，原来站得太近，一刺就穿过盾、穿过人）；矛尖碰到盾面就停住、胳膊收回来，不再穿过去；矛尖也不会再扎进对方身子（只有扎中肩头那一下进去）；手握的位置往矛杆中间挪了，矛杆往回要碰到自己肚子时手会顺着杆往矛根滑。盾挡住那一下：火星一大蓬、一下亮光、画面顿一顿；火星出在矛尖真碰到盾的那个点。</p>
+  <h1>兵卒对打 · 第三版（扣血 + 击杀）</h1>
+  <p class="lead">扣血版是 087 那一版（改过穿模、握矛位置、盾挡火星）。新加击杀版，照 082 你写的：冲刺突刺被盾挡住 → 楚卒反刺 → 汉兵往盾那边侧身闪开 → 拧腰把矛抡到身后蓄力 → 正手一记横扫，矛刃平着扫过腰，把他拦腰斩成两截，上半身横着飞出去 → 汉兵跳起来举矛举盾庆祝。上面切换结局，可慢放、暂停。</p>
+  <div class="ctl" role="group" aria-label="结局"><span>结局</span><button data-s="hurt" class="on">扣血</button><button data-s="kill">击杀</button></div>
   <div class="ctl" role="group" aria-label="速度"><span>速度</span><button data-r="1" class="on">正常</button><button data-r="0.3">慢放</button><button data-r="0">暂停</button></div>
   <canvas id="cv"></canvas>
   <div class="beat" id="beat" aria-live="polite"></div>
   <div class="cols one">
     <div><h2>扣血</h2><ol><li><b>汉兵冲刺</b>，三步上前，最后一步弓步突刺，手滑到矛根，够得最远</li><li><b>楚卒举盾迎上去挡</b>，盾面正对矛尖，把矛磕偏</li><li><b>楚卒从盾后反刺</b>，汉兵收肘把矛杆往外一拨，架开</li><li><b>顺势一刺</b>，扎中楚卒持矛那边的肩头，飙血</li><li><b>楚卒往后踉跄三步</b>，盾和矛都甩开了</li><li><b>站稳</b>，压低重心、盾正对来人、矛架在盾上</li><li><b>汉兵嘲讽</b>：立矛往地上顿两下，矛尖指着他一挑一挑（来呀），盾举过头晃一晃，仰头一笑</li></ol></div>
+    <div><h2>击杀</h2><ol><li><b>汉兵冲刺突刺</b>，矛尖顶在楚卒盾上，火星一蓬</li><li><b>楚卒从盾后反刺</b>，扑得太猛，盾也甩开了</li><li><b>汉兵往盾那边侧身一闪</b>，矛尖甩到外侧</li><li><b>拧腰把矛抡到持矛那边身后</b>，蓄力</li><li><b>正手横扫</b>，矛刃平着扫过腰，拦腰斩断，上半身横着飞出去，血柱冲起来</li><li><b>收势</b>，跳起来矛举过头、盾往外一扬，再跳两下吼</li></ol></div>
   </div>
 </div>
 <script src="https://cdn.jsdelivr.net/npm/three@0.158.0/build/three.min.js"></script>
@@ -209,13 +211,13 @@ h2{margin:0 0 6px;font:900 18px/1.3 var(--ef);letter-spacing:.1em}
     kill: {
       T: 5.6,
       A: [...opening,
-        [1.56, { side: -0.12, twist: 0.5, sway: -0.15, wp: [-0.1, 1.1, 0.0], wd: [-1.4, 0], g: 1.15, lean: 0.2, crouch: 0.24, fL: 1.7 }],   // 往盾那边侧身一闪，矛顺势带到盾那边
-        [1.68, { side: -0.38, sway: -0.25, twist: 1.25, wp: [-0.3, 1.08, -0.2], wd: [-2.05, -0.02], fL: 1.55, sp: [-0.5, 1.05, -0.05], sd: [-0.9, 0] }],   // 拧腰把矛抡到身后，盾让开
-        [1.78, { side: -0.25, twist: 0.5, wp: [-0.12, 1.02, 0.32], wd: [-1.0, -0.03], fR: 1.35, liftR: 0.1, crouch: 0.26 }],
-        [1.88, { side: -0.05, twist: -0.45, wp: [0.18, 1.0, 0.62], wd: [0.05, -0.03], fR: 1.9, liftR: 0, lean: 0.35 }],   // 反手横扫过腰
-        [1.98, { twist: -1.25, wp: [0.5, 1.04, 0.4], wd: [1.25, -0.02], side: 0.05 }],
-        [2.15, { twist: -1.55, wp: [0.58, 1.1, 0.05], wd: [1.9, 0.05], lean: 0.2, sp: [-0.4, 1.1, 0.3], sd: [-0.3, 0] }],
-        [2.5, { twist: 0.1, side: 0, wp: [0.3, 1.05, 0.25], wd: [0, 0], g: 0.9, lean: 0.1, crouch: 0.12, fL: 1.55, fR: 1.15, sp: [-0.32, 1.15, 0.36], sd: [0, 0] }],
+        [1.56, { px: 1.2, side: -0.3, sway: -0.12, twist: 0.1, wp: [0.45, 1.1, 0.12], wd: [1.1, 0.05], g: 0.5, lean: 0.2, crouch: 0.24, fL: 1.35, fR: 0.95 }],   // 往盾那边侧身一闪，矛尖甩到外侧
+        [1.68, { px: 1.08, side: -0.38, sway: -0.2, twist: -0.85, wp: [0.5, 1.04, -0.18], wd: [2.0, 0.05], g: 0.3, fL: 1.15, sp: [-0.45, 1.1, 0.25], sd: [-0.5, 0] }],   // 拧腰把矛抡到持矛那边的身后，蓄力
+        [1.78, { px: 1.05, side: -0.25, twist: -0.3, wp: [0.46, 0.95, 0.3], wd: [1.0, -0.08], g: 0.35, fR: 0.95, liftR: 0.1, crouch: 0.26 }],
+        [1.88, { px: 1.05, side: -0.05, twist: 0.5, wp: [0.16, 0.86, 0.56], wd: [-0.08, -0.14], g: 0.35, fR: 1.45, liftR: 0, lean: 0.35 }],   // 正手横扫，矛刃平着扫过他的腰
+        [1.98, { twist: 1.0, wp: [-0.12, 0.92, 0.48], wd: [-1.2, -0.04], side: 0.02 }],
+        [2.15, { twist: 1.2, wp: [-0.22, 1.02, 0.3], wd: [-1.8, 0.04], lean: 0.2, sp: [-0.4, 1.1, 0.3], sd: [-0.3, 0] }],   // 扫过去收住
+        [2.5, { px: 1.05, twist: 0.1, side: 0, wp: [0.3, 1.05, 0.25], wd: [0, 0], g: 0.9, lean: 0.1, crouch: 0.12, fL: 1.15, fR: 0.75, sp: [-0.32, 1.15, 0.36], sd: [0, 0] }],
         [2.8, { crouch: 0.2, wp: [0.3, 1.5, 0.2], wd: [0, 0.9], sp: [-0.45, 1.35, 0.25], sd: [-0.5, 0.3] }],   // 蓄一下
         [3.0, { py: 0.2, crouch: 0, wp: [0.25, 2.0, 0.1], wd: [0, 1.5], g: 0.8, sp: [-0.62, 1.72, 0.05], sd: [-1.0, 0.4], hx: 0.45, lean: -0.15, liftL: 0.05, liftR: 0.05 }],   // 跳起来，矛举过头，盾往外高高一扬
         [3.2, { py: 0, crouch: 0.18, liftL: 0, liftR: 0 }], [3.4, { py: 0.18, crouch: 0 }], [3.6, { py: 0, crouch: 0.15 }],
@@ -223,11 +225,11 @@ h2{margin:0 0 6px;font:900 18px/1.3 var(--ef);letter-spacing:.1em}
         [5.6, {}],
       ],
       D: [...D_open,
-        [1.7, { px: 0.28, wp: [0.22, 1.18, 0.95] }],   // 反刺落空
+        [1.7, { px: 0.28, wp: [0.22, 1.18, 0.95], sp: [-0.5, 1.02, -0.02], sd: [-0.9, 0] }],   // 反刺落空，扑空了盾也甩开了
         [1.88, { crouch: 0.27 }], [2.2, { crouch: 0.36 }], [2.4, { crouch: 0.55, fall: 0 }], [2.75, { fall: 1 }], [5.6, {}],
       ],
-      ev: [[1.34, 'clank', 'D'], [1.88, 'cut']],
-      cam: [[0, { az: 0.05, r: 6.4, h: 1.7 }], [0.9, { az: 0.0, r: 6.2, h: 1.7 }], [1.25, { az: -0.5, r: 5.6, h: 1.9 }], [1.62, { az: -0.55, r: 5.4, h: 2.9 }], [2.5, { az: -0.6, r: 5.8, h: 2.9 }], [3.2, { az: 0.85, r: 5.4, h: 2.1 }], [5.6, { az: 0.95, r: 5.1, h: 2.0 }]],   // 庆祝时转到汉兵正面   // 横扫时转到汉兵身后看：扫过去的弧、楚卒上半身横着飞出去
+      ev: [[1.88, 'cut']],
+      cam: [[0, { az: 0.05, r: 6.4, h: 1.7 }], [0.9, { az: 0.0, r: 6.2, h: 1.7 }], [1.25, { az: -0.5, r: 5.6, h: 1.9 }], [1.6, { az: -0.9, r: 5.4, h: 2.8 }], [2.5, { az: -0.98, r: 5.6, h: 2.7 }], [3.4, { az: 0.85, r: 5.4, h: 2.1 }], [5.6, { az: 0.95, r: 5.1, h: 2.0 }]],   // 横扫时转到汉兵身后斜上方：看矛刃平着扫过去、楚卒上半身横着飞出去；庆祝时转到汉兵正面
       beats: [[0, '对峙'], [0.55, '汉兵冲刺'], [1.2, '弓步突刺'], [1.32, '楚卒举盾挡'], [1.48, '楚卒反刺'], [1.56, '汉兵侧身躲过'], [1.72, '拧腰横扫'], [1.88, '拦腰斩断'], [2.5, '收势'], [2.8, '举矛举盾，跳起来吼']],
     },
   };
@@ -289,7 +291,7 @@ h2{margin:0 0 6px;font:900 18px/1.3 var(--ef);letter-spacing:.1em}
     for (let s = 0.2; s <= reach; s += 0.03) { const q = att.hW.clone().addScaledVector(att.wdir, s).applyMatrix4(Mw), u = Math.max(0, Math.min(1, q.clone().sub(ta).dot(ab) / L2)); if (q.distanceTo(ta.clone().addScaledVector(ab, u)) < 0.24) return { len: reach - s + 0.03, X: q }; }
     return null;
   }
-  const penAny = (att, def) => penOf(att, def) || penBody(att, def);
+  const penAny = (att, def) => att.free ? null : penOf(att, def) || penBody(att, def);
   // 先让胳膊收回来（矛被盾顶住，手往前送不动）；收不完的那一点再让矛杆在手里往后滑
   function solve(so, j, other) {
     so.contact = null; { const h0 = penOf(so, other); if (h0) so.contact = h0.X; }
@@ -316,8 +318,8 @@ h2{margin:0 0 6px;font:900 18px/1.3 var(--ef);letter-spacing:.1em}
     if (kind === 'hit') { puff(W(D, V(0.24, 0.38, 0).applyMatrix4(D.M.upper)), 4, 0.45, 0x9e180c, V(0.6, 0, 0)); spray(W(D, V(0.24, 1.36 - 0.98, 0).applyMatrix4(D.M.upper)), 26, 1.1, V(1, 0, 0)); shake = Math.max(shake, 0.12); slow = 0.45; slowUntil = t + 0.12; }
     if (kind === 'cut') {
       const waist = W(D, V(0, 0.02, 0).applyMatrix4(D.M.upper));
-      sever(D, ['upper', 'head', 'uarmW', 'farmW', 'uarmS', 'farmS', 'weapon', 'shield'], V(1.6, 3.4, -2.4), V(-7, 3, 4));
-      spray(waist, 70, 1.6, V(0.3, 0.6, -1)); puff(waist, 10, 0.9, 0x9e180c, V(0.2, 0.2, -0.6)); shake = Math.max(shake, 0.3); slow = 0.35; slowUntil = t + 0.3; sc.fountain = { p: waist, until: t + 0.9 };
+      sever(D, ['upper', 'head', 'uarmW', 'farmW', 'uarmS', 'farmS', 'weapon', 'shield'], V(1.4, 3.4, 2.4), V(7, 3, -4));
+      spray(waist, 70, 1.6, V(0.3, 0.6, 1)); puff(waist, 10, 0.9, 0x9e180c, V(0.2, 0.2, 0.6)); shake = Math.max(shake, 0.3); slow = 0.35; slowUntil = t + 0.3; sc.fountain = { p: waist, until: t + 0.9 };
     }
   }
   // ---------- 主循环 ----------
@@ -336,10 +338,10 @@ h2{margin:0 0 6px;font:900 18px/1.3 var(--ef);letter-spacing:.1em}
     if (t >= sc.T) reset();
     const ja = at(sc.tA, RA, t), jd = at(sc.tD, RD, t);
     if (scen === 'hurt' && t > 3.0) jd.crouch += Math.sin(t * 3.4) * 0.012;   // 防守时喘气
-    A.stab = scen === 'hurt' && t > 1.78 && t < 2.08; A.pose(ja); D.pose(jd); A.root.updateMatrixWorld(true); D.root.updateMatrixWorld(true); solve(A, ja, D); solve(D, jd, A);
-    if (scen === 'hurt') {   // 盾挡的火星在真碰上的那一帧出，出在矛尖碰到盾的那个点
+    A.stab = scen === 'hurt' ? t > 1.78 && t < 2.08 : t > 1.8 && t < 2.2; A.free = scen === 'kill' && t > 1.8 && t < 2.0; A.pose(ja); D.pose(jd); A.root.updateMatrixWorld(true); D.root.updateMatrixWorld(true); solve(A, ja, D); solve(D, jd, A);
+    {   // 盾挡的火星在真碰上的那一帧出，出在矛尖碰到盾的那个点
       if (A.contact && !fired.has('blockA')) { fired.add('blockA'); fire([t, 'block', 'D', A.contact.clone()], sc, t); }
-      if (D.contact && !fired.has('blockD')) { fired.add('blockD'); fire([t, 'tap', 'A', D.contact.clone()], sc, t); }
+      if (D.contact && !D.gone.size && !fired.has('blockD')) { fired.add('blockD'); fire([t, 'tap', 'A', D.contact.clone()], sc, t); }
     }
     for (const ev of sc.ev) { const key = ev[0] + ev[1]; if (t >= ev[0] && !fired.has(key)) { fired.add(key); fire(ev, sc, t); } }
     if (sc.fountain && t < sc.fountain.until) spray(sc.fountain.p, 3, 1.1, V(0, 1, 0), 0.9);
@@ -376,9 +378,10 @@ h2{margin:0 0 6px;font:900 18px/1.3 var(--ef);letter-spacing:.1em}
     const cross = (so, sh) => { const [b, tp] = seg(so), Dw = sh.root.matrixWorld, n = sh.shN.clone().transformDirection(Dw), up = sh.upS.clone().transformDirection(Dw), xs = new THREE.Vector3().crossVectors(up, n), c = sh.shC.clone().applyMatrix4(Dw); const db = b.clone().sub(c).dot(n), dt = tp.clone().sub(c).dot(n); if (db * dt > 0) return 0; const X = b.clone().lerp(tp, db / (db - dt)), r = X.sub(c); return (Math.abs(r.dot(xs)) < 0.23 && Math.abs(r.dot(up)) < 0.36) ? 1 : 0; };
     const [ab, at] = seg(A), [db, dt] = seg(D), [ta0, ta1] = torso(A), [td0, td1] = torso(D);
     return { t: +t.toFixed(2), penA: +(A.pen || 0).toFixed(3), penD: +(D.pen || 0).toFixed(3), AspD: +segd(ab, at, td0, td1).toFixed(2), DspA: +segd(db, dt, ta0, ta1).toFixed(2), AspAsh: cross(A, A), DspDsh: cross(D, D), AspDsh: cross(A, D), DspAsh: cross(D, A),
-      AspAbody: +segd(ab, at, ta0, ta1).toFixed(2), Dsh: D.shC.clone().applyMatrix4(D.root.matrixWorld).toArray().map(x => +x.toFixed(2)), Ash: A.shC.clone().applyMatrix4(A.root.matrixWorld).toArray().map(x => +x.toFixed(2)), Dtip: dt.toArray().map(x => +x.toFixed(2)), AhW: A.hW.clone().applyMatrix4(A.root.matrixWorld).toArray().map(x => +x.toFixed(2)), DspDbody: +segd(db, dt, td0, td1).toFixed(2), Atip: at.toArray().map(x => +x.toFixed(2)), ownU: (() => { let best = 9, bu = 0; for (let i = 0; i <= 40; i++) { const d = segd(ab.clone().lerp(at, i / 40), ab.clone().lerp(at, i / 40), ta0, ta1); if (d < best) { best = d; bu = i / 40; } } return +(bu * SPEAR).toFixed(2); })(), gg: +A.gg.toFixed(2), Dcon: D.contact ? 1 : 0, Acon: A.contact ? 1 : 0, DtipAsh: +dt.distanceTo(A.shC.clone().applyMatrix4(A.root.matrixWorld)).toFixed(2), AhWl: A.hW.toArray().map(x => +x.toFixed(2)), wdl: A.wdir.toArray().map(x => +x.toFixed(2)) };
+      AspAbody: +segd(ab, at, ta0, ta1).toFixed(2), Dsh: D.shC.clone().applyMatrix4(D.root.matrixWorld).toArray().map(x => +x.toFixed(2)), Ash: A.shC.clone().applyMatrix4(A.root.matrixWorld).toArray().map(x => +x.toFixed(2)), Dtip: dt.toArray().map(x => +x.toFixed(2)), AhW: A.hW.clone().applyMatrix4(A.root.matrixWorld).toArray().map(x => +x.toFixed(2)), DspDbody: +segd(db, dt, td0, td1).toFixed(2), Atip: at.toArray().map(x => +x.toFixed(2)), ownU: (() => { let best = 9, bu = 0; for (let i = 0; i <= 40; i++) { const d = segd(ab.clone().lerp(at, i / 40), ab.clone().lerp(at, i / 40), ta0, ta1); if (d < best) { best = d; bu = i / 40; } } return +(bu * SPEAR).toFixed(2); })(), gg: +A.gg.toFixed(2), blade: (() => { const Mw = A.root.matrixWorld, w = V(0, 0.02, 0).applyMatrix4(D.M.upper).applyMatrix4(D.root.matrixWorld); let best = 9; for (let k = 0; k <= 10; k++) { const q = A.hW.clone().addScaledVector(A.wdir, SPEAR - A.gg - 0.35 + 0.035 * k).applyMatrix4(Mw); best = Math.min(best, q.distanceTo(w)); } return +best.toFixed(2); })(), Dcon: D.contact ? 1 : 0, Acon: A.contact ? 1 : 0, DtipAsh: +dt.distanceTo(A.shC.clone().applyMatrix4(A.root.matrixWorld)).toFixed(2), AhWl: A.hW.toArray().map(x => +x.toFixed(2)), wdl: A.wdir.toArray().map(x => +x.toFixed(2)) };
   };
   window.__reset = () => { reset(); };
+  window.__scen = k => { reset(); scen = k; reset(); };
   window.__step = (d, n = 1) => { for (let i = 0; i < n; i++) step(d); return t; };   // 自查用
   size(); requestAnimationFrame(loop);
 })();
