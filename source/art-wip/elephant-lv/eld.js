@@ -100,7 +100,7 @@ window.ElephantLV = (() => {
     tex.wrapS = tex.wrapT = THREE.RepeatWrapping;
     // char-017：鳞甲有点太密 → repeat 乘 0.6，鳞片放大、排稀
     const cache = new Map();   // 同一种排法共用一张贴图、一个材质（原来每块甲各克隆一张，四级 15 张）
-    scaleMat = (rep) => { const key = rep.join(','); if (!cache.has(key)) { const t = tex.clone(); t.needsUpdate = true; t.repeat.set(rep[0] * 0.6, rep[1] * 0.6); cache.set(key, Core.toon(0xffffff, { map: t, unique: true })); } return cache.get(key); };
+    scaleMat = (rep) => { const key = rep.join(','); if (!cache.has(key)) { const t = tex.clone(); t.needsUpdate = true; t.repeat.set(rep[0] * 0.6, rep[1] * 0.6); const m = Core.toon(0xffffff, { map: t, unique: true }); m.userData.scale = true; cache.set(key, m); } return cache.get(key); };
     return scaleMat;
   }
   function scales(el) {
@@ -198,6 +198,77 @@ window.ElephantLV = (() => {
       add(el.body, [-1.3, -1.45].map((x, i) => P(G.box(0.04, 0.9, 0.06), i ? RED : GOLD2, x, 3.0, 0, 0, 0, 0.9 + i * 0.2)));   // 尾羽
     }
   }
+  // ---------- 合网格（优化部 R2：一只象 ≤15 个网格、≤30 次绘制；样子不变）----------
+  // 象身上零零碎碎的件（甲片、金箍、火、描边…）按材质合成几块蒙皮网格；每块零件跟着它原来的父节点动，腿、鼻子、耳朵、塔照样摆。
+  // 描边：把 outlineMat 在着色器里沿法线推出去的那一圈直接烤进顶点；鳞甲贴图：把 repeat 烤进 uv，几种排法共用一个材质。
+  function bake(el) {
+    const root = el.group; root.updateMatrixWorld(true);
+    const rootInv = root.matrixWorld.clone().invert(), skip = new Set();
+    if (el.banner) el.banner.group.traverse(o => skip.add(o));   // 旗子自己会飘，不动它
+    if (el.flame && el.flame.isMesh) skip.add(el.flame);
+    const groups = new Map(), bones = [], boneIx = new Map();
+    const boneOf = o => { const p = o.parent; if (!boneIx.has(p)) { boneIx.set(p, bones.length); bones.push(p); } return boneIx.get(p); };
+    root.traverseVisible(o => {
+      if (!o.isMesh || o.isSkinnedMesh || skip.has(o) || o.layers.mask !== 1 || !o.geometry.attributes.position) return;
+      const mt = o.material; if (Array.isArray(mt)) return;
+      let key, kind;
+      if (mt.side === THREE.BackSide && mt.isMeshBasicMaterial) { key = 'ink' + mt.color.getHex(); kind = 'ink'; }
+      else if (mt.customProgramCacheKey && mt.customProgramCacheKey() === 'vcGold' && o.geometry.attributes.color) { key = 'vcg' + mt.uuid; kind = 'vcg'; }   // 合好的零件（顶点色 + 金属）：材质照用原来那个
+      else if (mt.isMeshBasicMaterial && mt.blending === THREE.AdditiveBlending) { key = 'glow'; kind = 'glow'; }
+      else if (mt.isMeshToonMaterial && mt.map && mt.userData.scale) { key = 'scale' + mt.side; kind = 'scale'; }
+      else if (mt.isMeshToonMaterial && !mt.map && !mt.transparent && mt.onBeforeCompile === THREE.Material.prototype.onBeforeCompile && (!mt.emissive || mt.emissive.getHex() === 0)) { key = 'vc' + mt.side + (mt.gradientMap ? mt.gradientMap.uuid : ''); kind = 'vc'; }
+      else return;
+      if (kind !== 'ink' && kind !== 'glow') key += o.castShadow ? ':s' : ':n';   // 原来不投影的小件合完也不投影
+      if (!groups.has(key)) groups.set(key, { kind, list: [], mat: mt, shadow: false });
+      const gr = groups.get(key); gr.list.push(o); if (o.castShadow && kind !== 'glow' && kind !== 'ink') gr.shadow = true;
+    });
+    const M = new THREE.Matrix4(), N = new THREE.Matrix3(), v = new THREE.Vector3(), n = new THREE.Vector3();
+    const made = [];
+    for (const [, gr] of groups) {
+      if (gr.list.length < 2) continue;
+      let cnt = 0; const geos = gr.list.map(o => { const g = o.geometry.index ? o.geometry.toNonIndexed() : o.geometry; cnt += g.attributes.position.count; return g; });
+      const pos = new Float32Array(cnt * 3), nor = new Float32Array(cnt * 3), col = gr.kind === 'vc' || gr.kind === 'glow' || gr.kind === 'vcg' ? new Float32Array(cnt * 3) : null, uv = gr.kind === 'scale' ? new Float32Array(cnt * 2) : null;
+      const si = new Uint16Array(cnt * 4), sw = new Float32Array(cnt * 4); let k = 0;
+      gr.list.forEach((o, gi) => {
+        const g = geos[gi], P = g.attributes.position, Nn = g.attributes.normal, U = g.attributes.uv, mt = o.material, bi = boneOf(o);
+        M.multiplyMatrices(rootInv, o.matrixWorld); N.getNormalMatrix(M);
+        const th = gr.kind === 'ink' ? (mt.userData.thick ? mt.userData.thick.value : 0.022) : 0, rep = uv ? mt.map.repeat : null;
+        for (let i = 0; i < P.count; i++, k++) {
+          v.fromBufferAttribute(P, i);
+          if (Nn) n.fromBufferAttribute(Nn, i); else n.set(0, 1, 0);
+          if (th) v.addScaledVector(n.clone().normalize(), th);   // 描边那一圈（原来在着色器里按零件自己的坐标推）
+          v.applyMatrix4(M); n.applyMatrix3(N).normalize();
+          pos.set([v.x, v.y, v.z], k * 3); nor.set([n.x, n.y, n.z], k * 3);
+          if (col) { const C = g.attributes.color; col.set(gr.kind === 'vcg' ? [C.getX(i), C.getY(i), C.getZ(i)] : [mt.color.r, mt.color.g, mt.color.b], k * 3); }
+          if (uv) uv.set(U ? [U.getX(i) * rep.x, U.getY(i) * rep.y] : [0, 0], k * 2);
+          si[k * 4] = bi; sw[k * 4] = 1;
+        }
+        if (g !== o.geometry) g.dispose();
+      });
+      const geo = new THREE.BufferGeometry();
+      geo.setAttribute('position', new THREE.BufferAttribute(pos, 3)); geo.setAttribute('normal', new THREE.BufferAttribute(nor, 3));
+      if (col) geo.setAttribute('color', new THREE.BufferAttribute(col, 3)); if (uv) geo.setAttribute('uv', new THREE.BufferAttribute(uv, 2));
+      geo.setAttribute('skinIndex', new THREE.Uint16BufferAttribute(si, 4)); geo.setAttribute('skinWeight', new THREE.BufferAttribute(sw, 4));
+      let mat;
+      if (gr.kind === 'ink') mat = new THREE.MeshBasicMaterial({ color: gr.mat.color, side: THREE.BackSide });
+      else if (gr.kind === 'glow') mat = new THREE.MeshBasicMaterial({ color: 0xffffff, vertexColors: true, transparent: true, opacity: gr.mat.opacity, blending: THREE.AdditiveBlending, depthWrite: false, toneMapped: false });
+      else if (gr.kind === 'scale') { const t = gr.mat.map.clone(); t.repeat.set(1, 1); t.needsUpdate = true; mat = Core.toon(0xffffff, { map: t, unique: true, side: gr.mat.side }); }
+      else if (gr.kind === 'vcg') mat = gr.mat;
+      else mat = Core.toon(0xffffff, { vertexColors: true, unique: true, side: gr.mat.side });
+      made.push({ geo, mat, shadow: gr.shadow, list: gr.list });
+    }
+    const skel = new THREE.Skeleton(bones), up = THREE.Skeleton.prototype.update, Z = new THREE.Matrix4().makeScale(0, 0, 0);
+    skel.update = function () {   // 父节点藏起来（visible = false）的那一块也不画
+      up.call(this);
+      for (let i = 0; i < bones.length; i++) { let o = bones[i]; while (o && o !== root) { if (!o.visible) { Z.toArray(this.boneMatrices, i * 16); break; } o = o.parent; } }
+    };
+    for (const m of made) {
+      const s = new THREE.SkinnedMesh(m.geo, m.mat); s.castShadow = m.shadow; s.frustumCulled = false; s.userData.baked = true;
+      root.add(s); s.updateMatrixWorld(true); s.bind(skel, s.matrixWorld.clone());
+      for (const o of m.list) o.visible = false;
+    }
+    return el;
+  }
   const PLANS = { a: planA, b: planB, c: planC };
   function make(side = 'b', o = {}) {
     const lv = o.lv || 1, plan = o.plan || 'a';
@@ -205,6 +276,7 @@ window.ElephantLV = (() => {
     PLANS[plan](el, lv);
     el.lvScale = SCALE[lv - 1];
     if (plan === 'b') { const k = (lv >= 4 ? 1.12 : 1) / el.lvScale; el.tower.scale.setScalar(k); el.mahout.scale.multiplyScalar(k); }   // 人不跟着象放大；四级的人稍大一点（char-010）   // Ham char-005：象变大，人不要变大
+    if (o.bake !== false) bake(el);
     el.group.updateMatrixWorld(true); el.topY = new THREE.Box3().setFromObject(el.group).max.y;   // 整只象最高点（group 自己的坐标，没乘缩放）：棋子标牌放在它上面，别穿进塔里（char-020）
     return el;
   }
