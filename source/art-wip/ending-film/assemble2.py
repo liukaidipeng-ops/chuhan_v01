@@ -14,7 +14,7 @@ def SFX(n, k=0):
 def dur(p): return float(subprocess.check_output(['ffprobe', '-v', 'error', '-show_entries', 'format=duration', '-of', 'csv=p=0', p]).decode())
 # 时间线：(类型, 内容, 秒数, 配音[(编号, 相对开始)], 音效[(文件, 相对开始, 音量)])
 TL = [   # 乌江 v2（cg-008 分镜表，SHOTLIST-v2.md）。配乐、音效仍是临时的，正式的归声音部
-    ('black', None, 3.0, [], [(SFX('hoofr', 2), 0.3, 0.12), (SFX('hoofr', 2), 1.6, 0.2)]),                      # W0 黑场听马蹄
+    ('title', ('乌江', '汉五年 · 冬'), 3.0, [], [(SFX('hoofr', 2), 0.3, 0.12), (SFX('hoofr', 2), 1.6, 0.2)]),       # W0 黑场片名，听马蹄由远及近
     ('shot', 'W1', 2.5, [], [(SFX('hoofr', 2), 0.0, 0.28)]),
     ('shot', 'W2', 3.5, [], [(SFX('hoofr'), 0.4, 0.32), (SFX('neighm'), 2.4, 0.3)]),
     ('shot', 'W3', 7.0, [('w5', 0.3)], [(SFX('hoofr'), 2.0, 0.25)]),

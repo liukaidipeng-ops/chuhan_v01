@@ -2,9 +2,32 @@
 import numpy as np
 from PIL import Image, ImageFilter, ImageDraw, ImageFont, ImageChops, ImageEnhance, ImageOps
 W, H = 1280, 720
-FONT_B = '/usr/share/fonts/opentype/noto/NotoSerifCJK-Bold.ttc'
-FONT_R = '/usr/share/fonts/opentype/noto/NotoSerifCJK-Regular.ttc'
-def font(sz, bold=True): return ImageFont.truetype(FONT_B if bold else FONT_R, sz)
+import os
+# 字幕、片名用界面的粗宋（美术总监：fonts/songhei-subset.woff2，只含源码里出现过的字）；字库里没有的字逐字退到系统字体
+_H = os.path.dirname(os.path.abspath(__file__)); _SH = _H + '/.cache/songhei.ttf'
+def _songhei():
+    if not os.path.exists(_SH):
+        try:
+            from fontTools.ttLib import TTFont
+            os.makedirs(_H + '/.cache', exist_ok=True); f = TTFont(_H + '/../../fonts/songhei-subset.woff2'); f.flavor = None; f.save(_SH)
+        except Exception: return None
+    return _SH
+_FB = [p for p in ('/usr/share/fonts/opentype/noto/NotoSerifCJK-Bold.ttc', '/usr/share/fonts/truetype/wqy/wqy-zenhei.ttc') if os.path.exists(p)]
+class _Font:   # 主字体 + 逐字回退
+    def __init__(self, sz):
+        self.size = sz; pri = _songhei(); self.pri = ImageFont.truetype(pri, sz) if pri else None; self.fb = ImageFont.truetype(_FB[0], sz)
+        self.cmap = set()
+        if pri:
+            from fontTools.ttLib import TTFont
+            self.cmap = set(TTFont(pri).getBestCmap().keys())
+    def pick(self, ch): return self.pri if (self.pri and ord(ch) in self.cmap) else self.fb
+_cache = {}
+def font(sz, bold=True): return _cache.setdefault(sz, _Font(sz))
+def _len(d, s, f): return sum(d.textlength(ch, font=f.pick(ch)) for ch in s) if isinstance(f, _Font) else d.textlength(s, font=f)
+def _text(d, xy, s, f, fill):
+    if not isinstance(f, _Font): return d.text(xy, s, font=f, fill=fill)
+    x, y = xy
+    for ch in s: d.text((x, y), ch, font=f.pick(ch), fill=fill); x += d.textlength(ch, font=f.pick(ch))
 rng = np.random.default_rng(5)
 
 # ---------- 甲：电影正剧 ----------
@@ -31,19 +54,19 @@ def subA(im, spk, text):
     lines = wrap(text, 30)
     y = H - BAR + 12 if len(lines) == 1 else H - BAR + 4
     for ln in lines:
-        w = d.textlength(ln, font=f); d.text(((W - w) / 2, y), ln, font=f, fill=(238, 230, 214)); y += 40
+        w = _len(d, ln, f); _text(d, ((W - w) / 2, y), ln, f, (238, 230, 214)); y += 40
     if spk:
-        w = d.textlength(spk, font=fs); d.text(((W - w) / 2, BAR - 34), '', font=fs)
+        pass
     return o
 def titleA(text, sub=''):
     o = Image.new('RGB', (W, H), (8, 7, 6)); d = ImageDraw.Draw(o)
-    f = font(84); w = d.textlength(text, font=f); d.text(((W - w) / 2, H / 2 - 70), text, font=f, fill=(232, 222, 200))
-    if sub: f2 = font(26, False); w2 = d.textlength(sub, font=f2); d.text(((W - w2) / 2, H / 2 + 40), sub, font=f2, fill=(170, 160, 140))
-    seal(d, W / 2 + d.textlength(text, font=f) / 2 + 20, H / 2 - 54, 44, '史')
+    f = font(84); w = _len(d, text, f); _text(d, ((W - w) / 2, H / 2 - 70), text, f, (232, 222, 200))
+    if sub: f2 = font(26, False); w2 = _len(d, sub, f2); _text(d, ((W - w2) / 2, H / 2 + 40), sub, f2, (170, 160, 140))
+    seal(d, W / 2 + _len(d, text, f) / 2 + 20, H / 2 - 54, 44, '史')
     return o
 def seal(d, x, y, s, ch):
-    d.rectangle((x, y, x + s, y + s), fill=(168, 40, 28)); f = font(int(s * 0.7)); w = d.textlength(ch, font=f)
-    d.text((x + (s - w) / 2, y + s * 0.08), ch, font=f, fill=(240, 231, 210))
+    d.rectangle((x, y, x + s, y + s), fill=(168, 40, 28)); f = font(int(s * 0.7)); w = _len(d, ch, f)
+    _text(d, (x + (s - w) / 2, y + s * 0.08), ch, f, (240, 231, 210))
 def wrap(t, n):
     out = []; cur = ''
     for ch in t:
