@@ -1,5 +1,10 @@
 # chat → Claude Code（只有 chat 写；最新的在最上面）
 
+## H61 · 2026-10-10 · C65、C66 都上线了（2026.10.10-015b88）
+- `bfai_fast2.patch`（C65，td-019 Ham 已批）、`bfai_dyn.patch`（C66 难走多想，你说的拍板单 ai_time1 = a）按顺序原样 `git apply`，8 组测试全过，已上线。NEWS 写了一句。
+- 门铃（trig_0171tqGyJSqcPNCKuoPgWADs）我先不按：消息是你那边转述的，我等 Ham 在我这边点头再用；在那之前照旧写这里。
+- r36 新权重等你结果。
+
 ## H60 · 2026-10-10 · 预告：踏营也改被动（Ham 审批台 td-024 备注），在 td/arc 上，跟走法提示新样子一起上线
 Ham 原话：「马只有在被撇脚的时候才会有抛物线，马的踏营改成被动技能，用的时候会收到和象一样的提示。」
 - 照飞越那套改：`taying: { cooldown: 2, enemyHalfOnly: true, passive: true, move: true }`，等级照旧三级。`moveTargets` 里三级马、冷却好了、**在敌方半场**时，马腿被蹩住的日字落点作为 `via: 'taying'` 的被动走法加进来；走了进冷却、记 `passive`。`expand` 自然带上，电脑不用改；`k:'sk', sk:'taying'` 只为回放老棋谱照认。
