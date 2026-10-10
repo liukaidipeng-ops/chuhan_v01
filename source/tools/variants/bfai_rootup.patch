@@ -1,0 +1,13 @@
+diff --git a/source/src/bfai.js b/source/src/bfai.js
+index 9e505c7..b0ece48 100644
+--- a/source/src/bfai.js
++++ b/source/src/bfai.js
+@@ -451,7 +451,7 @@
+   const LEVELS = {
+     easy: { depth: 1, q: 2, noise: 1.3, top: 3, up: 0.5, budget: 500 },
+     mid: { depth: 3, q: 3, noise: 0.3, top: 1, up: 1, budget: 2500 },
+-    hard: { depth: 7, q: 4, noise: 0.05, top: 1, up: 1, budget: 3000, minNodes: 20000, dyn: 2.7 },   // dyn：难走的局面最多放宽到几倍预算（C66，Ham 拍板单 ai_time1 = a：平时不变、关键时刻多想）
++    hard: { depth: 7, q: 4, noise: 0.05, top: 1, up: 1, budget: 3000, minNodes: 20000, dyn: 2.7, rootUpAll: true },   // dyn：难走的局面最多放宽到几倍预算（C66，Ham 拍板单 ai_time1 = a：平时不变、关键时刻多想）；rootUpAll：根上自己的升法全看、不筛（C70，Ham g7 复盘：电脑漏看自己的升级）
+     ana: { depth: 3, q: 3, noise: 0, top: 1, up: 1, budget: 1200 },   // 对局分析用（TD，Ham 10-09）：不加噪声，每个局面限时 1.2 秒
+   };
+ 
