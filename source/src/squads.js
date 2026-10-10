@@ -373,9 +373,9 @@ const Squads = (() => {
     }
   }
   // 一轮弩箭齐射：sq 是放箭的那队弩手（TroopSquad），n 支箭飞向 target
-  async function boltVolley(sq, target, n, dist, only) {
+  async function boltVolley(sq, target, n, dist, only, quiet) {
     const X = Sfx.unit('xbow');
-    X.release();
+    if (quiet) Sfx.B.xbow(0); else X.release();   // quiet：放箭用声音部 S3 的新箭声，中箭声由调用的地方按插盾 / 入肉放
     if (only != null) sq.troop.act(only, 'shoot', 0.25); else sq.troop.actAll('shoot', 0.25, 0.1);   // only：只让这一名弩手放（一箭一声，角色部 M30）
     const us = sq.units.filter(u => !u.dead && (only == null || u.i === only)), bolts = [];
     for (let i = 0; i < n && us.length; i++) {
@@ -393,7 +393,7 @@ const Squads = (() => {
       }
     }, ease.linear);
     for (const x of bolts) { if (Math.random() < 0.5) Fx.Marks.hole(x.p1); Fx.throwObj(x.b, new V3(), { life: 10, g: 0, w: new V3() }); Fx.bits[Fx.bits.length - 1].rest = true; }
-    X.impact();
+    if (!quiet) X.impact();
   }
   // 汉军弩手（相）
   // 汉相：谋士车驾——羽扇谋士立在华盖轺车上，弩手随护两侧（放箭的是弩手）
@@ -525,18 +525,19 @@ const Squads = (() => {
       await sleep(0.3);
     }
     // 窜出 → 腾身扑下，一爪一口；返回落地后打完的 Promise（landed：扑完收势）
-    pounce(target, c, hit, power) {
+    pounce(target, c, hit, power, jm) {   // jm：扑的是拒马，用声音部 S3 的虎扑、砸碎、落地声
       const { B, d } = c, m = this.m, S = snd('e', this.side);
       let dead;
       const landed = (async () => {
         tween(0.2, k => { m.roarK = 1 - k * 0.6; });
-        m.speed = 1.4; S.charge();
+        m.speed = 1.4; if (!jm) S.charge();
         const start = this.anchor.clone(), end = B.clone().addScaledVector(d, -0.34), run = start.distanceTo(end), mid = start.clone().lerp(end, run > 0.9 ? 1 - 0.75 / run : 0.15);
         await tween(Math.max(0.12, start.distanceTo(mid) / 3.4), k => { this.anchor.lerpVectors(start, mid, k); if (Math.random() < 0.4) P.dust(this.center(0), 1, d, 0.2); }, ease.in);
-        m.speed = 0; this.air = true;
+        m.speed = 0; this.air = true; if (jm) Sfx.B.tigerPounce(0);
         await tween(0.3, k => { this.anchor.lerpVectors(mid, end, k); m.pounceK = Math.sin(Math.min(1, k * 1.25) * Math.PI * 0.5); m.roarK = 0.4 + 0.6 * k; m.group.position.y = gy(this.anchor) + Math.sin(k * Math.PI) * 0.2; });
         this.air = false;
-        S.impact(); Cam.shake(0.3); Fx.slowmo(0.3, 0.14);
+        if (jm) { Sfx.B.jumaBreak(0, false); Sfx.smp('death', { vol: 0.5 }); } else S.impact();
+        Cam.shake(0.3); Fx.slowmo(0.3, 0.14);
         const hp = B.clone(); hp.y = TOP + 0.25;
         for (let i = 0; i < 3; i++) sleep(i * 0.05).then(() => Fx.slash(hp.clone().addScaledVector(rightOf(this.yaw), (i - 1) * 0.1), 0.9, 0.75, i === 1 ? 0x9e2418 : undefined));
         P.dust(B, 10, null, 0.3); Fx.Marks.cut(B, d);
@@ -563,10 +564,11 @@ const Squads = (() => {
       await sleep(0.3);
       const us = xb.units.filter(u => !u.dead).map(u => u.i);
       const struck = () => { if (target.troop) { const u = target.alive()[0]; if (u) target.troop.act(u.i, 'jmHit', 0.3); } P.blood(target.center(0.25), 6, 0.5, d, 0.6); };
-      const s1 = boltVolley(xb, target, 1, dist, us[0]);
+      const s1 = boltVolley(xb, target, 1, dist, us[0], true);
       await sleep(0.25);
-      const s2 = boltVolley(xb, target, 1, dist, us[us.length > 1 ? 1 : 0]);
-      await s1; struck(); await s2; struck();
+      const s2 = boltVolley(xb, target, 1, dist, us[us.length > 1 ? 1 : 0], true);
+      await s1; struck(); Sfx.B.arrowHit(0, 'shield');   // 第一箭插盾、第二箭入肉（声音部 S3）
+      await s2; struck(); Sfx.B.arrowHit(0, 'flesh'); Sfx.smp('pain', { vol: 0.5 });
       const leave = () => temp ? temp.dissolve() : (xb.setPose('idle'), this.escort(false, 0.35));
       if (c.survive) {
         target.noWallShake = true;
@@ -579,10 +581,10 @@ const Squads = (() => {
         return;
       }
       target.wallPow = 1.3;
-      const dead = this.pounce(target, c, 'ram', 1.3);
+      const dead = this.pounce(target, c, 'ram', 1.3, true);
       const off = sleep(0.25).then(leave);
       await dead.landed;
-      tween(0.25, k => { m.roarK = k; }); S.roar();
+      tween(0.25, k => { m.roarK = k; }); Sfx.B.tigerLand(0);
       await sleep(0.8);
       tween(0.3, k => { m.roarK = 1 - k; });
       await dead; await off;
@@ -653,6 +655,7 @@ const Squads = (() => {
         // 撞上路障：只掉血时路障一挫晃两晃、兵一仰（hurtSquad 里 shake）；打死时路障彻底碎掉、兵连人带路障撞飞
         Cam.shake(jmHurt ? 0.25 : 0.4); Fx.slowmo(0.3, 0.14); P.dust(B, 12, null, 0.35);
         if (!jmHurt) target.wallPow = 2.2;
+        if (jmHurt) { Sfx.B.jumaShake(0); Sfx.smp('pain', { vol: 0.5 }); } else { Sfx.B.jumaBreak(0, true); Sfx.smp('death', { vol: 0.5 }); }   // 声音部 S3
         const hit = target.die(jmHurt ? 'stab' : 'ram', d, jmHurt ? 1 : 1.6, B);
         s.cry();
         await sleep(0.2);
@@ -1211,7 +1214,8 @@ const Squads = (() => {
     if (sq.march && t === 'n') await sq.march(L ? [A, knightCorner(info), B] : [A, A.clone().lerp(B, 0.35), B]);
     else if (sq.march) await sq.march(L ? [A, knightCorner(info), B] : [A, B], dur);
     else {
-      sq.setPose('march'); snd(t, s).move(real(dur), sq.sndN);
+      const pc = info.piece, plv = t === 'p' ? pc.lv || 0 : undefined, hurt = !!(plv && typeof BF !== 'undefined' && pc.hp < BF.hpOf('p', plv));   // 兵按等级、残血换行军声（声音部 S4）
+      sq.setPose('march'); snd(t, s).move(real(dur), sq.sndN, plv, hurt);
       await walkPath(sq, L ? [A, knightCorner(info), B] : [A, B], dur, k => { if (sq.units && Math.random() < 0.2) Fx.Marks.foot(sq.units[Math.floor(Math.random() * sq.units.length)].p); });
       sq.setPose('idle');
     }
