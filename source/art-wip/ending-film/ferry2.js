@@ -170,7 +170,7 @@ const Ferry = (() => {
   // 关节：hips → spine → chest → neck → head；chest → sh[L/R] → el[L/R] → hand；hips → th[L/R] → kn[L/R]
   const SKIN = 0xc9a27a, ROBE = 0x857760, ROBE2 = 0x6f644f, PANTS = 0x5d5547, STRAW = 0xa48c5a, STRAW2 = 0x7a6640, HAIR = 0xe8e2d6;
   function limb(len, r0, r1, color, seg = 7) { const g = new THREE.CylinderGeometry(r1, r0, len, seg); g.translate(0, -len / 2, 0); return inked(g, toon(color), 0.012); }
-  function makeElder() {
+  function makeElder(cg = false) {
     const root = new THREE.Group();
     const J = {};
     const joint = (name, parent, x, y, z) => { const j = new THREE.Group(); j.position.set(x, y, z); parent.add(j); J[name] = j; return j; };
@@ -207,6 +207,7 @@ const Ferry = (() => {
     }
     const neck = joint('neck', chest, 0, 0.2, 0);
     const head = joint('head', neck, 0, 0.1, 0);
+    if (cg) cgElderHead(head); else {
     const skull = inked(new THREE.SphereGeometry(0.115, 32, 22), toon(0xffffff, { map: faceTex(), unique: true }), 0.012); skull.scale.set(1, 1.08, 0.95); skull.position.y = 0.06; head.add(skull);
     for (const s of [-1, 1]) {   // 耳朵
       const ear = inked(new THREE.SphereGeometry(0.03, 8, 6), toon(0xc0946c), 0.006); ear.scale.set(0.45, 1, 0.8); ear.position.set(-0.005, 0.055, s * 0.108); head.add(ear);
@@ -224,6 +225,7 @@ const Ferry = (() => {
     const bg = new THREE.ConeGeometry(0.06, 0.32, 7); bg.translate(0, -0.16, 0); bg.rotateZ(-0.12);
     const beard = inked(bg, toon(HAIR), 0.008); beard.position.set(0.09, 0.0, 0); head.add(beard);
     const mus = new THREE.Mesh(new THREE.TorusGeometry(0.04, 0.012, 4, 10, PI), toon(HAIR)); mus.rotation.set(0, PI / 2, PI); mus.position.set(0.112, 0.02, 0); head.add(mus);
+    }
     // 斗笠：宽檐浅锥 + 系带
     const hatG = new THREE.ConeGeometry(0.42, 0.2, 20, 1, true); hatG.translate(0, 0.1, 0);
     const hat = inked(hatG, toon(0xffffff, { map: hatTex(), side: THREE.DoubleSide, unique: true }), 0.01); hat.position.y = 0.13; head.add(hat);
@@ -242,6 +244,52 @@ const Ferry = (() => {
     return { group: root, J };
   }
 
+  // ---------- 过场版亭长的头（CG组 cg-005 之后：卡通圆球脸换成雕出来的老人脸） ----------
+  // 先按「脸朝 +z」做，最后整个转到朝 +x（亭长的身子朝 +x）
+  function cgElderHead(head) {
+    const { taper } = LB2, G = new THREE.Group(); G.rotation.y = PI / 2; G.position.y = 0.06; head.add(G);
+    const ss = (a, b, x) => { const t = Math.max(0, Math.min(1, (x - a) / (b - a))); return t * t * (3 - 2 * t); }, G2 = (a, b) => Math.exp(-(a * a + b * b));
+    const SX = 0.1, SY = 0.125, SZ = 0.108;
+    const deform = (x, y, z) => { const ax = Math.abs(x), f = ss(0.15, 0.9, z);
+      x *= 1 - 0.12 * ss(-0.2, -0.9, y);                                     // 下巴收窄
+      z -= 0.13 * G2((ax - 0.32) / 0.15, (y - 0.1) / 0.1) * f;               // 眼窝深（老人）
+      z += 0.07 * G2((ax - 0.3) / 0.24, (y - 0.26) / 0.05) * f;              // 眉弓
+      z += 0.05 * G2((ax - 0.55) / 0.1, (y + 0.02) / 0.09) * f;              // 颧骨突出
+      x *= 1 - 0.07 * G2((ax - 0.6) / 0.2, (y + 0.3) / 0.15) * f;            // 两腮塌下去
+      z -= 0.04 * G2((ax - 0.2) / 0.05, (y + 0.28) / 0.14) * f;              // 法令纹
+      z += 0.26 * G2(ax / 0.13, (y + 0.1) / 0.17) * f + 0.14 * G2(ax / 0.17, (y + 0.27) / 0.07) * f;   // 鼻梁（略带鹰钩）+ 鼻头
+      if (z < 0) z *= 1.04;
+      return [x * SX, y * SY, z * SZ]; };
+    const skin = canvasTex(1024, 512, (g, w, h) => { g.fillStyle = '#b8906a'; g.fillRect(0, 0, w, h); let sd = 5; const r = () => (sd = (sd * 16807) % 2147483647) / 2147483647;
+      for (let i = 0; i < 3500; i++) { g.fillStyle = `rgba(${r() < 0.5 ? '80,45,30' : '240,210,180'},${0.04 + r() * 0.05})`; g.fillRect(r() * w, r() * h, 2 + r() * 4, 2 + r() * 3); }
+      g.strokeStyle = 'rgba(80,48,30,.22)'; g.lineWidth = 2; for (let i = 0; i < 4; i++) { g.beginPath(); const y = h * (0.24 + i * 0.025); g.moveTo(w * 0.36, y + 4); g.quadraticCurveTo(w * 0.5, y - 6, w * 0.64, y + 4); g.stroke(); }   // 抬头纹（淡）
+      g.fillStyle = 'rgba(225,220,208,.9)'; g.fillRect(0, 0, w, h * 0.12); });
+    const geo = new THREE.SphereGeometry(1, 192, 128), P = geo.attributes.position; for (let i = 0; i < P.count; i++) P.setXYZ(i, ...deform(P.getX(i), P.getY(i), P.getZ(i))); geo.computeVertexNormals();
+    // 球面贴图只有皮肤斑点、淡抬头纹和头顶白发，朝向不要紧；网格不能转（五官是按 +z 雕的）
+    const sk = new THREE.Mesh(geo, toon(0xffffff, { map: skin, unique: true })); sk.castShadow = true; G.add(sk);
+    const onFace = (x, y) => { const z = Math.sqrt(Math.max(0.02, 1 - x * x - y * y)); const q = deform(x, y, z), q2 = deform(x * 1.01, y * 1.01, z * 1.01); const p = V(q[0], q[1], q[2]).applyAxisAngle(V(0, 1, 0), 0), n = V(q2[0] - q[0], q2[1] - q[1], q2[2] - q[2]).normalize(); return { p, n }; };
+    const SKINC = 0xb8906a, WHITE = 0xe6e0d2, WHITE2 = 0xcfc8b8;
+    // 眼：深陷，上眼皮耷拉盖住大半，眯着
+    for (const s of [-1, 1]) {
+      const { p, n } = onFace(s * 0.32, 0.1), eye = new THREE.Group(); eye.position.copy(p).addScaledVector(n, 0.001); G.add(eye);
+      const iris = canvasTex(128, 128, (g, w) => { g.fillStyle = '#e4dccb'; g.fillRect(0, 0, w, w); g.save(); g.translate(64, 64); g.scale(0.5, 1); g.fillStyle = '#3a2618'; g.beginPath(); g.arc(0, 0, 22, 0, 7); g.fill(); g.fillStyle = '#0a0705'; g.beginPath(); g.arc(0, 0, 8, 0, 7); g.fill(); g.restore(); });
+      const ball = new THREE.Mesh(new THREE.SphereGeometry(0.0125, 20, 14).rotateY(-PI / 2), toon(0xffffff, { map: iris, unique: true })); eye.add(ball);
+      const gl = new THREE.Mesh(new THREE.SphereGeometry(0.002, 6, 4), new THREE.MeshBasicMaterial({ color: 0xfff6e8 })); gl.position.set(-s * 0.003, 0.004, 0.0123); eye.add(gl);
+      const lid = new THREE.Group(); eye.add(lid); lid.add(new THREE.Mesh(new THREE.SphereGeometry(0.0138, 20, 8, 0, PI * 2, 0, PI * 0.5), toon(SKINC, { side: THREE.DoubleSide })));
+      lid.rotation.x = -0.4; head.userData.lids = (head.userData.lids || []).concat(lid);   // 耷拉：盖住上半个多
+      const bag = new THREE.Mesh(new THREE.TorusGeometry(0.0135, 0.0032, 4, 16, PI * 0.9), toon(0xa88060)); bag.rotation.set(PI / 2 + 0.3, 0, PI * 0.05); bag.position.y = -0.005; eye.add(bag);   // 眼袋
+    }
+    // 毛发：长寿眉往两边垂、八字白须、下巴白长须到胸口、鬓角
+    const B = []; let sd = 17; const r = () => (sd = (sd * 16807) % 2147483647) / 2147483647;
+    const hair = (p0, dir, l, w0, col) => B.push({ geo: taper([p0, p0.clone().addScaledVector(dir, l * 0.5).add(V(0, -l * 0.08, 0)), p0.clone().addScaledVector(dir, l).add(V(0, -l * 0.25, 0))], w0, w0 * 0.2, 3, 4), color: col, m: new THREE.Matrix4() });
+    for (const s of [-1, 1]) for (let k = 0; k < 90; k++) { const t = r(), { p, n } = onFace(s * (0.12 + t * 0.42), 0.27 - 0.05 * t + (r() - 0.5) * 0.04); hair(p.clone().addScaledVector(n, 0.002), V(s * 0.8, -0.35 - 0.4 * t, 0.25).normalize(), 0.014 + 0.03 * t * r(), 0.0014, r() < 0.3 ? WHITE2 : WHITE); }
+    for (const s of [-1, 1]) for (let k = 0; k < 60; k++) { const t = r(), { p, n } = onFace(s * (0.04 + t * 0.2), -0.4 + (r() - 0.5) * 0.04); hair(p.clone().addScaledVector(n, 0.002), V(s * (0.5 + 0.4 * t), -0.85, 0.15).normalize(), 0.03 + 0.05 * t, 0.002, r() < 0.3 ? WHITE2 : WHITE); }
+    for (let k = 0; k < 650; k++) { const a = (r() - 0.5) * 2.2, yy = -0.5 - r() * 0.45; if (Math.abs(a) < 0.25 && yy > -0.62) continue; const { p, n } = onFace(Math.sin(a) * 0.85, yy); const l = 0.06 + 0.2 * (1 - Math.abs(a) / 1.1) * r() + (yy < -0.8 ? 0.06 : 0);
+      hair(p.clone().addScaledVector(n, 0.002), V(n.x * 0.3 + (r() - 0.5) * 0.25, -1, Math.max(0.1, n.z) * 0.8 + 0.55).normalize(), l * 0.8 + 0.02, 0.0012 + 0.0022 * r(), r() < 0.3 ? WHITE2 : WHITE); }
+    for (const s of [-1, 1]) for (let k = 0; k < 40; k++) { const y = 0.25 - r() * 0.45, p = V(...deform(s * 0.97, y, 0.15)); hair(p, V(s * 0.2, -1, -0.1).normalize(), 0.03 + r() * 0.04, 0.002, WHITE2); }   // 鬓角
+    G.add(Models.inkedMerged(B, 0.001));
+    for (const s of [-1, 1]) { const ear = new THREE.Mesh(new THREE.SphereGeometry(0.032, 10, 8), toon(0xa8805c)); ear.scale.set(0.4, 1.1, 0.75); ear.position.set(s * SX * 0.98, 0.0, -0.01); G.add(ear); }
+  }
   // 姿势：每个关节 [x, y, z] 欧拉角（弧度）+ hips 的高度偏移 hy、整体前倾。
   // 关节角：躯干绕 Z 负是前倾；手臂绕 Z 正是往前抬、肘绕 Z 正是往前弯；肩绕 Y 把手臂往身前收（左负右正）。
   const POSES = {
@@ -261,7 +309,7 @@ const Ferry = (() => {
     seed = 7;
     const SC = opt.scale || 1;
     const boat = makeBoatBody(); boat.group.scale.setScalar(SC);
-    const man = makeElder();
+    const man = makeElder(!!opt.cg);
     const g = new THREE.Group(); g.add(boat.group);
     const manHome = V(-1.95 * SC, (keel(-1.95) + 0.095) * SC, -0.05);   // 站在船尾的铺板上
     man.group.position.copy(manHome); man.group.rotation.y = 0; g.add(man.group);
