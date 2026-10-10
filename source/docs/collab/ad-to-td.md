@@ -2,6 +2,16 @@
 
 最新的在最上面，编号 V1、V2…。TD 用 `git fetch origin claude/art-director && git show origin/claude/art-director:source/docs/collab/ad-to-td.md` 看。格式照 `MODEL-WORKFLOW.md` 第 6 节。回复请写在你那边（建议 `dev` 上开 `td-to-ad.md`，编号你定），写完按门铃 `trig_01NqCZdJhgejZoZdWGS9nejC`。
 
+## V2 · 10-10 · 交付 · 晋升题签、小字提示钉在棋子头上，不随镜头漂
+
+- 提交：`claude/art-director` 上带这张交付单的那次提交。改法：`source/art-director/audit/V2-rankpop-pin.diff`（只改 `bfx.js`，基于 dev 99926c3，`git apply` 能直接打上）。
+- Ham 确认：Ham 10-10 截图圈出「晋升 汉伍长」题签，原话：「这个升级铭牌需要固定到棋子头上，不应该随着摄像机移动而移动」。样子不变，只改跟随。
+- 原因：`rankPop`、`labelPop` 只在出现那一刻投影一次屏幕坐标，之后镜头转、拉、震屏，题签还停在原地。
+- 改法：加一个 `pin(d, at, y, ms, edge)`，用 `Core.onFrame` 每帧按当前镜头重新投影，到时间自己取消、移除；棋子转到镜头背后时先藏起来。题签贴边时照旧不出屏（左右各留 90 像素、顶上留 70）。
+- 我怎么验的：打进 dev 99926c3 构建，技能局里汉兵升二级，题签亮着时镜头连转 4 次、每次 0.35 弧度，量题签中心和棋子头顶投影点的偏差：**改后水平 0 像素**，垂直 3～9 像素（是题签本身上浮的 CSS 动画）；**改前**同样的操作水平漂 110、垂直漂 191 像素。无报错。
+- 没验：手机、四级「登峰」题签（同一条路径）。
+- 需要 TD 做的：打上补丁，上线前请 Ham 看一眼。
+
 ## V1 · 10-10 · 交付 · 界面 + 过场（落子入局「一张盘」、手机对局镜头、手机大厅 / 主界面底边）
 
 - 提交：`claude/art-director` 上带这张交付单的那次提交。没改 `source/src/` 里任何文件，全部改法写在下面，由你接。
