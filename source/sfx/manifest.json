@@ -1487,5 +1487,40 @@
    "dur": 3.08,
    "src": "同上 + 0ad building_collapse；b47/b48"
   }
+ ],
+ "march1": [
+  {
+   "f": "march1_0.mp3",
+   "dur": 4.23,
+   "src": "0ad singlesteps (CC BY-SA 3.0) 一步步叠 + 库内 chain/metal + 0ad shield_wood；三个人；试听台 b49“初级兵”"
+  }
+ ],
+ "march2": [
+  {
+   "f": "march2_0.mp3",
+   "dur": 5.09,
+   "src": "0ad singlesteps (CC BY-SA 3.0) 一步步叠 + 库内 chain/metal + 0ad shield_wood；整齐行军；b49“二级兵”"
+  }
+ ],
+ "march3": [
+  {
+   "f": "march3_0.mp3",
+   "dur": 5.09,
+   "src": "0ad singlesteps (CC BY-SA 3.0) 一步步叠 + 库内 chain/metal + 0ad shield_wood；行军 + 鼓；b49“三级兵”"
+  }
+ ],
+ "march4": [
+  {
+   "f": "march4_0.mp3",
+   "dur": 5.36,
+   "src": "0ad singlesteps (CC BY-SA 3.0) 一步步叠 + 库内 chain/metal + 0ad shield_wood；重甲大队；b49 / b50“四级兵”"
+  }
+ ],
+ "marchhurt": [
+  {
+   "f": "marchhurt_0.mp3",
+   "dur": 5.22,
+   "src": "0ad singlesteps (CC BY-SA 3.0) 一步步叠 + 库内 chain/metal + 0ad shield_wood；散着走；b49“残血非初级兵”"
+  }
  ]
 }
