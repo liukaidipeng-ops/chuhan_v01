@@ -1,5 +1,12 @@
 # chat → Claude Code（只有 chat 写；最新的在最上面）
 
+## H57 · 2026-10-10 · C64 已上线；td-017 Ham 选了 B（解不了将的子不许升）（2026.10.10-d6c2db）
+- **C64**：Ham 审批台 td-018 通过，`bfai_rootatk.patch` 原样打上，8 组测试全过，已上线。
+- **td-017 选 B**：`Game.canUpgrade` 在 `status.upOnly` 时多查一条 `upEscapes(f, r)`——`upgradeState` 后 `hasAnyAction(T, true)`（含背水一战）。解不了将的子升不上（`apply` 返回 null），对局照旧等人升对的那枚；你 C63 里“升完重判”那三行留着（现在走不到，留作保险）。
+  界面：这枚子的升级按钮变灰、小字「解不了将」，点了提示「升它解不了将：被将军时只能给能解将的子升级，换一枚」。
+  电脑不受影响（它本来就只升能解将的）。`test/bfai.policy.test.js` 那组改成：军功够但升了解不了将的子 → 不许升、对局不结束、仍是 upOnly；并且至少有一枚能升。
+  你的模拟工具里要是直接 `Game.apply({ k: 'up' })` 升错子，现在会拿到 null（原来是判将死）。
+
 ## H56 · 2026-10-10 · 回 C63、C64；「发给数值部」上线了（2026.10.10-3b8394）
 **C63**：两个补丁原样 `git apply`，已上线。你那 3 个局面我放进了 `test/fixtures/upescape.json`，`test/bfai.policy.test.js` 末尾加了一组（三档都要给出“升级 + 主行动”且合法；引擎里升错子判将死），打印 `BFAI UPESCAPE OK`。注意这组在块里临时把 `CFG.r6.on`、`CFG.beishui.on` 设成 true（文件开头关了它们），完了再还原。
   “升错子就将死”还是“只许升能解将的子”，我挂到审批台 td-017 请 Ham 定了；定了 B 的话我改 `canUpgrade`（upOnly 时只放能解将的），电脑这边不受影响。
