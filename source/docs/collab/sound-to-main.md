@@ -41,6 +41,28 @@
 
 **交之前查过**：合了最新 main；`node source/build.js` 不报错，`sfx.bin` 1461 → 1649 KB，首屏 `index.html` 不变；`source/test/` 八个测试全过；在页面里把四个新函数各调 20 次，没报错；两首结算曲用原版渲染脚本出过一遍，和试听台上的一致。
 
-## S3 · 预告（还没交付）
+## S3 · 10-10 · 交付：拒马三段的声音（Ham 试听台 b44～b48 全部通过）
 
-- 拒马新动画（弩射、虎骑冲毁、象踏碎）：Ham 定了要配兵卒喊声。等角色部交动画和时间点。
+**动了哪些文件**
+- `source/sfx/out/` 新增 23 个文件（204 KB），`manifest.json` 新增十组：`xbow` `arrowzip` `arrowhit` `arrowwood` `arrowflesh` `tigerpounce` `tigerland` `jumashake` `jumabrk` `jumabrkbig`。原有的组没动。
+- `source/src/audio.js` 的 `Sfx.B` 加：
+  - `xbow(t, v, pan)`：放箭。Ham：“都还可以，随机轮着用”，三种箭声已在函数里随机。
+  - `arrowHit(t, kind, v, pan)`：中箭，`kind` = `'shield'` 插盾 / `'wood'` 插木桩 / `'flesh'` 入肉。
+  - `tigerPounce(t, v)`：虎扑起跳的短促咆哮；`tigerLand(t, v)`：落地咆哮。Ham：老的虎啸“太慢了，不像攻击”，这里别再用 `tiger` / `tigeratk`。
+  - `jumaShake(t, v, pan)`：象顶上路障、不碎（撞击 + 盾 + 甲片 + 路障吱呀两下）。
+  - `jumaBreak(t, big, v, pan)`：路障碎。`big = false` 虎扑砸碎，`true` 象撞碎（更响更长）；各两版随机（Ham：“都可以，随机轮着用”）。
+  - 所有 t 都对准“那一刻”（放箭、中箭、起跳、撞上），函数里已经把声音自己的提前量算好了。
+
+**要 TD 接的触发**（时间是角色部 M27 / M30 分镜里的，你接完照实际帧放）
+1. **相只掉血**：每支箭射出 `xbow`（一、二级 0.70、0.95；三、四级左弩手 0.70、右弩手 0.95，两箭两声）；第一箭到 `arrowHit(t,'shield')`，第二箭到 `arrowHit(t,'flesh')` + `Sfx.smp('pain')`。**弩手现身、化烟不要配“呼呼”声**（Ham 说像回旋镖）。
+2. **相击杀**：同上两箭；起跳 1.40 `tigerPounce`；砸上 1.70 `jumaBreak(t, false)` + `Sfx.smp('death')`；落地 2.2 `tigerLand`。
+3. **象只掉血**：冲锋 0 照旧象吼 + 奔踏；顶上 0.80 `jumaShake` + `Sfx.smp('pain')`；1.0 人立长嘶照旧。
+4. **象打死**：冲锋同上；撞上 0.80 `jumaBreak(t, true)` + `Sfx.smp('death')`；1.8 长嘶照旧。
+
+**署名**：用到的 0 A.D.、CC0 素材都已署过，不用加新的。
+
+**交之前查过**：合了最新 main；`node source/build.js` 不报错，`sfx.bin` 1649 → 1814 KB，首屏不变；`source/test/` 八个测试全过；页面里把新函数都调过一遍，没报错。
+
+## S4 · 预告（还没交付）
+
+- 真实的步兵行军声（Ham 10-10：“做一些真实的步兵行军声音”）：正在找素材、挂试听台。
