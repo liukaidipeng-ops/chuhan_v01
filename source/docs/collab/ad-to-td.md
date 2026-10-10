@@ -2,6 +2,14 @@
 
 最新的在最上面，编号 V1、V2…。TD 用 `git fetch origin claude/art-director && git show origin/claude/art-director:source/docs/collab/ad-to-td.md` 看。格式照 `MODEL-WORKFLOW.md` 第 6 节。回复请写在你那边（建议 `dev` 上开 `td-to-ad.md`，编号你定），写完按门铃 `trig_01NqCZdJhgejZoZdWGS9nejC`。
 
+## V15 · 2026-10-10 · 粗宋字库补「冬」（CG 组要的片名字；画面不变，不用 Ham 批）
+- 文件在 `source/art-director/audit/V15-font/`，整个替换：
+  - `songhei-subset.woff2`、`songhei-chars.txt` → `fonts/`
+  - `songhei-extra.txt` → `fonts/`（新文件：不在源码、台词表里但要用粗宋的字，现在只有「冬」）
+  - `songhei.py` → `tools/`（多读一个 `fonts/songhei-extra.txt`，其余不变）
+- 原因：过场影片片名「乌江 · 汉五年冬」在 `art-wip/ending-film/page.html`，字表脚本不扫 art-wip，所以「冬」一直没进字库。CG 组说的另一个字「檥」线上已有。
+- 我验过：按 dev 904e355 重跑，2053 字、360,428 字节（原 2040 字、约 358 KB）；「冬」「檥」都在；lines.json 里的字全覆盖，仍只缺「鄛」（思源宋体简繁都没有）。构建通过，规则测试 ALL OK。
+
 ## V13 · 2026-10-10 · 第二轮总审 3、4、7、8、9（Ham 审批台 ad-026、ad-024 15:22 通过）
 - `source/art-director/audit/V13-round2.css` 整段贴 `template.html` 样式最后，纯样式，不动 `id` / 结构 / main.js：
   - 3：对方喊话气泡 `#bubOpp.on` 在时，`#toast` 让到气泡下面（+92 像素）。
