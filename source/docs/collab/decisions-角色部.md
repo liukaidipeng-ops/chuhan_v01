@@ -2,6 +2,8 @@
 
 角色部（局内动画：角色设计、建模、绑定、动画、局内特效），会话 session_01GuBe9baix3jAfoLh1pmiRY，分支 `model-lab`。10-10 从美术（session_01NcqhjTJxdTrUxQtViN2iri）接手；美术时期的批复见 `decisions-美术.md`。这里照 Ham 原话记，最新的在最上面。
 
+审核页面：看的东西挂「角色部审批台」https://claude.ai/artifact/K53z6a8Gpk8JYooX7zTesz （char-NNN）；文字决策挂「角色部拍板单」https://claude.ai/artifact/AVpc9tARg3Do9azQYcAxft 。Ham 10-10：「需要我拍板的内容你要放到拍板单里，不然我会漏啊」。
+
 | 时间 | 事 | Ham 原话 | 怎么办 |
 |---|---|---|---|
 | 10-10 | 过场 CG 和局内角色的精度、绑定（数值部转达） | 「我觉得过场CG的模型绑定可以和局内的不一样，过场cg的精度需要高一些」 | 局内角色按局内的精度和骨架做，不迁就 CG；CG 另做高精度版本，归 CG 部门 |
