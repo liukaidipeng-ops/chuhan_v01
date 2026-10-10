@@ -2,6 +2,7 @@
 //   XY3.make({ stage: 1 | 2 | 3 }) → { group, J, setPose, update }
 //   一 垓下：整套甲完好；二 初到江边：尘土、披风下摆扯破、肩上断箭、雉尾折了一根；三 最后一战：盔掉了、发髻散开、披风撕成条、甲上缺口和血
 //   需要先加载 lb2.js（借它的几何工具）
+//   o.cg（CG组 cg-004 返工，过场用）：虎头吞肩缩小、去掉红眼；雉尾收直往上；胡须加密变细。不传就是原来的样子
 const XY3 = (() => {
   const V = (x, y, z) => new THREE.Vector3(x, y, z);
   const PI = Math.PI, TAU = PI * 2;
@@ -104,7 +105,8 @@ const XY3 = (() => {
         return [Math.sin(a) * rx * k, y, cz + Math.cos(a) * rz * k, a];
       };
       const cape = gridGeo(96, 40, (u, v) => { const [x, y, z, a] = capeP(u, v); const yy = Math.max(0.04 + notch(a - PI), y); return [x, yy, z]; }, false);
-      put(root, cape, M(C.cape, { side: THREE.DoubleSide }), 0.007);
+      const capeMat = M(C.cape, { side: THREE.DoubleSide }); capeMat.userData.cape = true;   // CG 拍片时按这个标记给披风加风（cg-lab/cgify.js）
+      put(root, cape, capeMat, 0.007);
       if (st === 1) { const pts = [], ns = []; for (let i = 0; i <= 60; i++) { const [x, y, z] = capeP(i / 60, 0.995); pts.push(V(x, 0.055, z)); ns.push(V(x, 0, z - 0.0).normalize()); } put(root, strip(pts, ns, 0.012, 0.004), M(C.gold), 0); }
       // 两肩上的系扣
       for (const s of [-1, 1]) put(root, new THREE.SphereGeometry(0.03, 16, 12), M(C.gold), 0.004).position.set(s * 0.25, 1.53, 0.04);
@@ -132,6 +134,7 @@ const XY3 = (() => {
     // 虎头吞肩：一圈虎毛 + 金虎头（张嘴、獠牙、红眼），胳膊从虎嘴里伸出来
     for (const s of [-1, 1]) {
       const T = new THREE.Group(); T.position.set(s * 0.355, 1.505, 0.005); T.rotation.set(0.12, s * 0.7, s * -0.2); root.add(T); J['tiger' + s] = T;
+      if (o.cg) { T.scale.setScalar(0.66); T.position.set(s * 0.33, 1.49, 0.0); }   // 特写里虎头比脸还大，抢戏
       // 虎毛：一圈锯齿的扁环，背在虎头后面
       const furS = new THREE.Shape(); const NF = 40; for (let i = 0; i <= NF; i++) { const a = i / NF * TAU, r = 0.17 + (i % 2 ? 0.035 : 0) + 0.01 * Math.sin(i * 1.7); const x = Math.cos(a) * r * 1.05, y = Math.sin(a) * r * 0.92; i ? furS.lineTo(x, y) : furS.moveTo(x, y); }
       const furG = new THREE.ExtrudeGeometry(furS, { depth: 0.05, bevelEnabled: true, bevelSize: 0.012, bevelThickness: 0.012, bevelSegments: 2, curveSegments: 4 }); furG.translate(0, 0, -0.08);
@@ -141,7 +144,7 @@ const XY3 = (() => {
       for (const e of [-1, 1]) P.push({ geo: new THREE.ConeGeometry(0.032, 0.05, 10), color: C.gold, m: Core.M4(e * 0.07, 0.085, -0.01, 0, 0, -e * 0.4) });
       P.push({ geo: new THREE.BoxGeometry(0.16, 0.022, 0.04), color: C.gold, m: Core.M4(0, 0.035, 0.075, -0.3) });       // 眉骨
       P.push({ geo: roundBox(0.045, 0.035, 0.05, 0.012, 3), color: 0xd8b860, m: Core.M4(0, -0.005, 0.098) });                 // 鼻
-      for (const e of [-1, 1]) { P.push({ geo: new THREE.SphereGeometry(0.017, 12, 8), color: 0x8a1a10, m: Core.M4(e * 0.042, 0.02, 0.086) }); P.push({ geo: new THREE.SphereGeometry(0.006, 8, 6), color: 0xf3d27a, m: Core.M4(e * 0.042, 0.02, 0.102) }); }
+      for (const e of [-1, 1]) { P.push({ geo: new THREE.SphereGeometry(0.017, 12, 8), color: o.cg ? 0x3a2a14 : 0x8a1a10, m: Core.M4(e * 0.042, 0.02, 0.086) }); if (!o.cg) P.push({ geo: new THREE.SphereGeometry(0.006, 8, 6), color: 0xf3d27a, m: Core.M4(e * 0.042, 0.02, 0.102) }); }
       P.push({ geo: new THREE.CylinderGeometry(0.075, 0.075, 0.03, 24, 1, false, -PI / 2, PI), color: 0x3a0c08, m: Core.M4(0, -0.05, 0.07, PI / 2, 0, 0, 1, 1, 0.55) });   // 张开的嘴
       for (let k = 0; k < 4; k++) { const x = -0.045 + k * 0.03; P.push({ geo: new THREE.ConeGeometry(0.009, 0.03, 6), color: 0xefe6d2, m: Core.M4(x, -0.045, 0.1, PI) }); P.push({ geo: new THREE.ConeGeometry(0.008, 0.025, 6), color: 0xefe6d2, m: Core.M4(x + 0.015, -0.088, 0.088) }); }
       T.add(VG(P, 0.005));
@@ -149,8 +152,8 @@ const XY3 = (() => {
 
     // —— 头 ——
     put(neck, gridGeo(32, 6, (u, v) => { const a = u * TAU, r = 0.072 + 0.008 * v; return [Math.sin(a) * r, 0.08 - v * 0.12, 0.004 + Math.cos(a) * r * 0.9]; }), M(C.skin), 0.005);
-    xyHead({ head, M, put, VG, st, C });
-    if (st < 3) helmet({ head, M, put, VG, st, C, lamMat });
+    xyHead({ head, M, put, VG, st, C, cg: !!o.cg });
+    if (st < 3) helmet({ head, M, put, VG, st, C, lamMat, cg: !!o.cg });
 
     // —— 兵器：右手卜字戟（竖着、杆从拳里穿过）；左胯长剑，左手按在剑柄上 ——
     const ji = new THREE.Group(); root.add(ji); J.ji = ji;
@@ -249,7 +252,7 @@ const XY3 = (() => {
     return H;
   }
   // —— 头：比刘邦年轻、方下巴、浓眉怒目、络腮短须 ——
-  function xyHead({ head, M, put, VG, st, C }) {
+  function xyHead({ head, M, put, VG, st, C, cg }) {
     const SX = 0.086, SY = 0.12, SZ = 0.1, HY = 0.1;
     const ZF = [[1.0, 0.0], [0.8, 0.6], [0.6, 0.85], [0.42, 0.96], [0.3, 1.04], [0.17, 0.95], [0.02, 0.96], [-0.28, 0.99], [-0.41, 1.02], [-0.54, 0.99], [-0.64, 0.92], [-0.78, 0.99], [-0.9, 0.78], [-1.0, 0.3]];
     const WF = [[1.0, 0.9], [0.5, 1.0], [0.25, 0.98], [0.0, 1.0], [-0.2, 0.98], [-0.45, 0.93], [-0.65, 0.82], [-0.85, 0.62], [-1.0, 0.4]];   // 方下巴：下半张脸比刘邦宽
@@ -273,12 +276,12 @@ const XY3 = (() => {
     for (const s of [-1, 1]) { const e = gridGeo(24, 8, (u, v) => { const a = u * TAU, r = 0.02 * (1 - 0.45 * v); return [s * (0.002 + v * 0.01), Math.cos(a) * r * 1.5, Math.sin(a) * r]; }); const em = put(head, e, M(C.skin), 0.004); em.position.set(s * SX * 0.97, HY - 0.004, -0.012); }
     // 络腮短须：贴着下巴、两腮一层短胡子（一绺绺短锥），八字须
     const B = []; seed = 41;
-    for (let k = 0; k < 170; k++) {
+    for (let k = 0; k < (cg ? 520 : 170); k++) {
       const a = (rnd() - 0.5) * 2.5, yy = -0.4 - rnd() * 0.52, cy = Math.cos(a), sa = Math.sin(a);
       const r0 = V(sa * SX * tab(WF, yy) * 0.98, HY + yy * SY, Math.max(0.01, cy * faceZ(yy) * 0.98));
       if (Math.abs(sa) < 0.18 && yy > -0.6) continue;   // 嘴下面留空
-      const n = r0.clone().sub(V(0, HY + yy * SY * 0.6, -0.01)).normalize(), l = 0.012 + rnd() * 0.012 + (yy < -0.78 ? 0.012 : 0);
-      B.push({ geo: taper([r0.clone().addScaledVector(n, -0.002), r0.clone().addScaledVector(n, l * 0.35).add(V(0, -l * 0.45, 0)), r0.clone().addScaledVector(n, l * 0.3).add(V(0, -l, 0))], 0.009, 0.002, 5, 6), color: C.hair, m: new THREE.Matrix4() });
+      const n = r0.clone().sub(V(0, HY + yy * SY * 0.6, -0.01)).normalize(), l = (0.012 + rnd() * 0.012 + (yy < -0.78 ? 0.012 : 0)) * (cg ? 0.72 : 1);   // cg：短须，别像一挂门帘
+      B.push({ geo: taper([r0.clone().addScaledVector(n, -0.002), r0.clone().addScaledVector(n, l * 0.35).add(V(0, -l * 0.45, 0)), r0.clone().addScaledVector(n, l * 0.3).add(V(0, -l, 0))], cg ? 0.0045 : 0.009, cg ? 0.0008 : 0.002, cg ? 4 : 5, 6), color: cg && rnd() < 0.25 ? 0x2a2018 : C.hair, m: new THREE.Matrix4() });
     }
     for (const s of [-1, 1]) for (let k = 0; k < 3; k++) { const z = faceZ(-0.35) + 0.008; B.push({ geo: taper([V(s * 0.005, HY - SY * 0.33 - k * 0.002, z), V(s * 0.026, HY - SY * 0.37, z - 0.006), V(s * 0.04, HY - SY * 0.45, z - 0.016)], 0.0065, 0.0015, 6, 8), color: C.hair, m: new THREE.Matrix4() }); }
     // 第三阶段：没盔，发髻 + 散下来的几绺
@@ -334,7 +337,7 @@ const XY3 = (() => {
     });
   }
   // —— 盔：盔钵（黑铁、竖棱）、金盔沿、顶上金尖和红缨、两根长雉尾；盔后面一圈护颈甲片绕到腮边 ——
-  function helmet({ head, M, put, VG, st, C, lamMat }) {
+  function helmet({ head, M, put, VG, st, C, lamMat, cg }) {
     const H = new THREE.Group(); H.position.set(0, 0.1, -0.006); head.add(H);
     const prof = []; for (let i = 0; i <= 16; i++) { const t = i / 16, a = t * PI / 2; prof.push(new THREE.Vector2(Math.max(0.004, Math.cos(a) * 0.112), 0.075 + Math.sin(a) * 0.105 + (t > 0.85 ? (t - 0.85) * 0.06 : 0))); }
     const domeT = cv(512, 128, (g, w, h) => { g.fillStyle = '#34302c'; g.fillRect(0, 0, w, h); g.strokeStyle = '#1d1a18'; g.lineWidth = 5; for (let i = 0; i < 12; i++) { g.beginPath(); g.moveTo(i * w / 12, 0); g.lineTo(i * w / 12, h); g.stroke(); } });
@@ -349,7 +352,8 @@ const XY3 = (() => {
     const FT = featherTex();
     for (const s of [-1, 1]) {
       const broken = st === 2 && s === 1, L = broken ? 0.38 : 0.85;
-      const curve = new THREE.QuadraticBezierCurve3(V(s * 0.02, 0.2, -0.01), V(s * 0.1, 0.2 + L * 0.55, -0.04), broken ? V(s * 0.2, 0.2 + L * 0.7, -0.02) : V(s * 0.42, 0.2 + L * 0.85, -0.02));
+      const curve = cg ? new THREE.QuadraticBezierCurve3(V(s * 0.02, 0.2, -0.01), V(s * 0.05, 0.2 + L * 0.5, -0.05), broken ? V(s * 0.1, 0.2 + L * 0.75, -0.06) : V(s * 0.17, 0.2 + L * 0.97, -0.09))
+        : new THREE.QuadraticBezierCurve3(V(s * 0.02, 0.2, -0.01), V(s * 0.1, 0.2 + L * 0.55, -0.04), broken ? V(s * 0.2, 0.2 + L * 0.7, -0.02) : V(s * 0.42, 0.2 + L * 0.85, -0.02));
       const geo = gridGeo(2, 30, (u, v) => { const p = curve.getPoint(v), tg = curve.getTangent(v), side = V(0, 0, 1).cross(tg).normalize(), wd = 0.028 * (1 - 0.75 * Math.pow(v, 1.5)) * (u * 2 - 1); return [p.x + side.x * wd, p.y + side.y * wd, p.z + side.z * wd]; }, false);
       put(H, geo, M(0xffffff, { map: FT, side: THREE.DoubleSide }), 0.003);
       if (broken) { const tip = curve.getPoint(1); const g2 = taper([tip, tip.clone().add(V(s * 0.1, -0.12, 0.02)), tip.clone().add(V(s * 0.14, -0.3, 0.03))], 0.012, 0.002, 4, 10); put(H, g2, M(C.feather), 0.003); }
