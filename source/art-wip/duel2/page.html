@@ -1,4 +1,4 @@
-<title>兵卒对打 · 第二版</title>
+<title>兵卒对打 · 第三版</title>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Noto+Serif+SC:wght@600;900&family=Noto+Sans+SC:wght@400;500&display=swap">
 <style>
 /* 审批台 082 之后的第二版：照 Ham 写的回合重新编排。一个画面，两种结局可切，可慢放、暂停 */
@@ -17,19 +17,17 @@ canvas{width:100%;max-width:100%;aspect-ratio:16/9;display:block;background:#2b2
 .beat{font:600 15px/1.6 var(--ef);letter-spacing:.08em;min-height:1.6em}
 ol{margin:0;padding-left:1.4em;color:var(--dim);font-size:14px;line-height:1.85;max-width:80ch}
 ol b{color:var(--fg);font-weight:500}
-.cols{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,420px),1fr));gap:18px}
+.cols{display:grid;grid-template-columns:1fr;gap:18px}
 h2{margin:0 0 6px;font:900 18px/1.3 var(--ef);letter-spacing:.1em}
 </style>
 <div class="wrap">
-  <h1>兵卒对打 · 第二版</h1>
-  <p class="lead">照审批台 082 的回合重新编排。手是去够矛的：先定好矛和盾在空中的位置和朝向，胳膊按膝、肘反解跟过去；握矛的位置沿着杆前后滑。脚一步一步踩实。造型还是游戏里现在的兵，楚汉造型等这一关过了再出。</p>
-  <div class="ctl" role="group" aria-label="结局"><span>结局</span><button data-s="hurt" class="on">扣血 · 汉兵嘲讽</button><button data-s="kill">击杀 · 拦腰斩断</button></div>
+  <h1>兵卒对打 · 第三版（扣血）</h1>
+  <p class="lead">审批台 083 退回：上一版汉兵的手一冲出去就落到身后、胳膊反着拧——手的目标是按"身子前面多远"写的，算的时候却按站位原点算，人一往前冲目标就落到身后了。已改成跟着身子走。这次先只做"扣血"这一版，方向对了再做击杀。</p>
   <div class="ctl" role="group" aria-label="速度"><span>速度</span><button data-r="1" class="on">正常</button><button data-r="0.3">慢放</button><button data-r="0">暂停</button></div>
   <canvas id="cv"></canvas>
   <div class="beat" id="beat" aria-live="polite"></div>
-  <div class="cols">
+  <div class="cols one">
     <div><h2>扣血</h2><ol><li><b>汉兵冲刺</b>，三步上前，最后一步弓步突刺，手滑到矛根，够得最远</li><li><b>楚卒举盾迎上去挡</b>，盾面正对矛尖，把矛磕偏</li><li><b>楚卒从盾后反刺</b>，汉兵收肘把矛杆往外一拨，架开</li><li><b>顺势一刺</b>，扎中楚卒持矛那边的肩头，飙血</li><li><b>楚卒往后踉跄三步</b>，盾和矛都甩开了</li><li><b>站稳</b>，压低重心、盾正对来人、矛架在盾上</li><li><b>汉兵嘲讽</b>：立矛往地上顿两下，矛尖指着他一挑一挑（来呀），盾举过头晃一晃，仰头一笑</li></ol></div>
-    <div><h2>击杀</h2><ol><li>前三拍同上：冲刺、突刺、盾挡、楚卒反刺</li><li><b>汉兵侧身躲过</b>，往盾那边一闪，同时拧腰把矛抡到身后</li><li><b>拧回来反手横扫</b>，握在矛杆中段，矛头平着扫过楚卒腰间</li><li><b>拦腰斩断</b>：上半身连盾带矛飞出去、血喷一路，下半身晃两下跪倒</li><li><b>汉兵收势</b>，举矛举盾跳起来吼两嗓子</li></ol></div>
   </div>
 </div>
 <script src="https://cdn.jsdelivr.net/npm/three@0.158.0/build/three.min.js"></script>
@@ -115,11 +113,12 @@ h2{margin:0 0 6px;font:900 18px/1.3 var(--ef);letter-spacing:.1em}
       // 胳膊：肩 → 肘 → 手；握矛的手去够 wp，持盾的手去够盾心后面
       const fwdU = V(0, 0, 1).transformDirection(up);
       const sh = { W: V(0.27, 0.44, 0).applyMatrix4(up), S: V(-0.27, 0.44, 0).applyMatrix4(up) };
-      const [elW, hW] = ik2(sh.W, V(...S.wp), L_UA, L_FA, V(0.6, -1, -0.5));
+      const body = V(S.side, S.py, S.px);   // 手、盾的目标是相对身子写的：跟着人一起往前走、往旁边闪、往上跳
+      const [elW, hW] = ik2(sh.W, V(...S.wp).add(body), L_UA, L_FA, V(0.6, -1, -0.5));
       M.uarmW = frame(sh.W, sh.W.clone().sub(elW), fwdU); M.farmW = frame(elW, elW.clone().sub(hW), fwdU);
       const wdir = dirOf(S.wd[0], S.wd[1]);
       M.weapon = frame(hW, wdir, Math.abs(wdir.y) < 0.95 ? V(0, 1, 0) : V(0, 0, 1)).multiply(new THREE.Matrix4().makeTranslation(0, 0.7 - S.g, 0));
-      const n = dirOf(S.sd[0], S.sd[1]), sc = V(...S.sp), want = sc.clone().addScaledVector(n, -0.07);
+      const n = dirOf(S.sd[0], S.sd[1]), sc = V(...S.sp).add(body), want = sc.clone().addScaledVector(n, -0.07);
       const [elS, hS] = ik2(sh.S, want, L_UA, L_FA, V(-0.6, -1, -0.4));
       M.uarmS = frame(sh.S, sh.S.clone().sub(elS), fwdU); M.farmS = frame(elS, elS.clone().sub(hS), fwdU);
       const shC = hS.clone().addScaledVector(n, 0.07), upS = V(0, 1, 0).addScaledVector(n, -n.y).normalize();
@@ -320,6 +319,7 @@ h2{margin:0 0 6px;font:900 18px/1.3 var(--ef);letter-spacing:.1em}
   document.querySelectorAll('[data-s]').forEach(b => b.onclick = () => { document.querySelectorAll('[data-s]').forEach(x => x.classList.toggle('on', x === b)); reset(); scen = b.dataset.s; reset(); });
   document.querySelectorAll('[data-r]').forEach(b => b.onclick = () => { document.querySelectorAll('[data-r]').forEach(x => x.classList.toggle('on', x === b)); rate = +b.dataset.r; });
   window.__dbg = () => ({ t, n: flying.length, f: flying.map(f => ({ pos: new THREE.Vector3().setFromMatrixPosition(f.g.matrix).toArray().map(x => +x.toFixed(2)), kids: f.g.children.length, inScene: !!f.g.parent, t: f.t })), gone: [...D.gone] });
+  window.__reset = () => { reset(); };
   window.__step = (d, n = 1) => { for (let i = 0; i < n; i++) step(d); return t; };   // 自查用
   size(); requestAnimationFrame(loop);
 })();

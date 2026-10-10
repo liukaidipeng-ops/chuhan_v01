@@ -15,8 +15,7 @@ with sync_playwright() as p:
     pg.route('**/three.min.js', lambda r: r.fulfill(path=THREE, content_type='application/javascript'))
     pg.route('https://fonts.googleapis.com/**', lambda r: r.fulfill(body='', content_type='text/css'))
     pg.goto(pathlib.Path(H + '/_t.html').as_uri()); time.sleep(2.5)
-    pg.click(f'[data-s={scen}]')
-    pg.click('[data-r="0"]'); time.sleep(0.3)
+    pg.click('[data-r="0"]'); time.sleep(0.3); pg.evaluate("()=>window.__reset()")
     n = int(T * 30)
     for i in range(n):
         pg.evaluate("()=>window.__step(1/30)")
