@@ -1,0 +1,50 @@
+diff --git a/source/src/core.js b/source/src/core.js
+index 4d734b0..96db246 100644
+--- a/source/src/core.js
++++ b/source/src/core.js
+@@ -273,6 +273,7 @@ const Core = (() => {
+   // 帧时间（真实的，不封顶）：自动降画质和 ?perf 面板用
+   const ft = { n: 0, sum: 0, slow: 0, last: performance.now() };
+   let nap = 0;
++  let drawN = 0;   // 真画了几帧（?perf 面板用：省电时浏览器照样每秒刷新 60 次，但不是每次都画）
+   let lastDraw = 0, shT = 0;
+   for (const ev of ['pointerdown', 'pointermove', 'wheel', 'touchstart', 'touchmove', 'keydown']) addEventListener(ev, () => { if (ECO) poke(1500); }, { passive: true, capture: true });   // 手一碰就恢复满帧
+   function loop() {
+@@ -297,7 +298,7 @@ const Core = (() => {
+     if (ECO && renderer.shadowMap.enabled && (performance.now() < activeUntil || (shT += raw) > 0.5)) { renderer.shadowMap.needsUpdate = true; shT = 0; }
+     for (const h of frameHooks) h(dt, raw);
+     Cam.update(raw);
+-    if (Core.render && !held) renderer.render(scene, camera);   // held：换影子开关后，新着色器还在后台编，先停画（不然当场同步编、卡住）
++    if (Core.render && !held) { renderer.render(scene, camera); drawN++; }   // held：换影子开关后，新着色器还在后台编，先停画（不然当场同步编、卡住）
+   }
+ 
+   // ---------- 贴图工具 ----------
+@@ -505,6 +506,7 @@ const Core = (() => {
+     renderer, scene, camera, sun, hemi, Time, onFrame, tween, sleep, ease, Cam, canvasTex, Tex, rnd, inkBlot,
+     toon, outlineMat, outlineShared, inked, merge, M4, disposeTree, compileBg, viewShift, get shiftNow() { return shiftF.slice(); },
+     start() { clock.start(); loop(); },
++    get drawN() { return drawN; },
+     get nUpdaters() { return updaters.size + frameHooks.length; },   // 每帧要跑的回调有几个（查泄漏用）
+     // 取走这段时间的帧统计：[帧数, 平均毫秒, 超过 40 毫秒的帧数]，取完清零
+     takeFrames() { const r = [ft.n, ft.n ? ft.sum / ft.n : 0, ft.slow]; ft.n = ft.sum = ft.slow = 0; return r; },
+diff --git a/source/src/main.js b/source/src/main.js
+index a2de0fd..ca72e28 100644
+--- a/source/src/main.js
++++ b/source/src/main.js
+@@ -351,12 +351,14 @@
+     const d = document.createElement('div');
+     d.style.cssText = 'position:fixed;left:6px;top:6px;z-index:99999;background:rgba(0,0,0,.75);color:#9f9;font:12px/1.45 monospace;padding:6px 9px;border-radius:6px;pointer-events:none;white-space:pre';
+     document.body.appendChild(d);
+-    let n = 0, t0 = performance.now(), lt = t0, worst = 0;
++    let n = 0, t0 = performance.now(), lt = t0, worst = 0, d0 = Core.drawN;
+     const tick = () => {
+       const t = performance.now(); worst = Math.max(worst, t - lt); lt = t; n++;
+       if (t - t0 >= 1000) {
+         const R = Core.renderer, i = R.info.render, c = R.domElement;
+-        d.textContent = `${Math.round(n * 1000 / (t - t0))} 帧/秒  最慢一帧 ${worst.toFixed(0)} ms\n画质 ${Core.quality}  像素比 ${R.getPixelRatio()}  画布 ${c.width}×${c.height}\n每帧 ${i.calls} 次绘制  ${(i.triangles / 1000).toFixed(0)}K 三角形  影子 ${Core.sun.castShadow ? '开' : '关'}\n${Core.gpu || '显卡未知'}${Core.softGL ? '  ← 软件渲染，没用显卡！' : ''}\n后台编着色器：${Core.parallelGL ? '支持' : '不支持（换场景时可能整个浏览器顿一下）'}${[...Core.DIAG.keys()].filter(k => k !== 'perf').length ? '\n排查开关：' + [...Core.DIAG.keys()].filter(k => k !== 'perf').join(' ') : ''}\n${navigator.userAgent.replace(/^Mozilla\/5\.0 /, '').slice(0, 90)}`;
++        // 优化部 P3：上面一行是真画了几帧（原来数的是浏览器刷新次数，省电时也显示 60）
++        const dn = Core.drawN - d0; d0 = Core.drawN;
++        d.textContent = `画 ${Math.round(dn * 1000 / (t - t0))} 帧/秒（屏幕刷新 ${Math.round(n * 1000 / (t - t0))}）  省电${Core.ECO ? '开' : '关'}\n最慢一帧 ${worst.toFixed(0)} ms\n画质 ${Core.quality}  像素比 ${R.getPixelRatio()}  画布 ${c.width}×${c.height}\n每帧 ${i.calls} 次绘制  ${(i.triangles / 1000).toFixed(0)}K 三角形  影子 ${Core.sun.castShadow ? '开' : '关'}\n${Core.gpu || '显卡未知'}${Core.softGL ? '  ← 软件渲染，没用显卡！' : ''}\n后台编着色器：${Core.parallelGL ? '支持' : '不支持（换场景时可能整个浏览器顿一下）'}${[...Core.DIAG.keys()].filter(k => k !== 'perf').length ? '\n排查开关：' + [...Core.DIAG.keys()].filter(k => k !== 'perf').join(' ') : ''}\n${navigator.userAgent.replace(/^Mozilla\/5\.0 /, '').slice(0, 90)}`;
+         n = 0; t0 = t; worst = 0;
+       }
+       requestAnimationFrame(tick);
