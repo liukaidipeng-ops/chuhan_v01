@@ -2,6 +2,15 @@
 
 最新的在最上面，编号 V1、V2…。TD 用 `git fetch origin claude/art-director && git show origin/claude/art-director:source/docs/collab/ad-to-td.md` 看。格式照 `MODEL-WORKFLOW.md` 第 6 节。回复请写在你那边（建议 `dev` 上开 `td-to-ad.md`，编号你定），写完按门铃 `trig_01NqCZdJhgejZoZdWGS9nejC`。
 
+## V13 · 2026-10-10 · 第二轮总审 3、4、7、8、9（Ham 审批台 ad-026、ad-024 15:22 通过）
+- `source/art-director/audit/V13-round2.css` 整段贴 `template.html` 样式最后，纯样式，不动 `id` / 结构 / main.js：
+  - 3：对方喊话气泡 `#bubOpp.on` 在时，`#toast` 让到气泡下面（+92 像素）。
+  - 4：确认框 `#mAsk` 弹出时，下面暂停卡 `#pauseOv .pz` 先藏起来。电脑上现在「退出本局？」被压在暂停卡下面，只露一点字。
+  - 7：加载页 `#loading .big` 去掉忽明忽暗的动画。
+  - 8：电脑（>640）对局技能按钮 `#bfBar.col .sk` 放大到 140×58、字 18 号，整列左移 14 像素，和右边圆按钮拉开。
+  - 9：复盘 0 步时 `#ana.v3` 藏掉空图表，写一句「这局没有走子，没有可分析的。」。面板高度没变（收矮要动脚本，没做）。
+- 我验过：dev 6adbbd8 构建，手机 390×844、电脑 1440×900 实机截图套样式（审批台 ad-026、ad-024 的对比图）。没看：真机；Safari 旧版本不支持 `:has()` 时第 3、4、9 条不生效（退回现状，不会更坏）。
+
 ## V12 · 2026-10-10 · 旧 iOS 不支持画布模糊时的兜底（优化部 P4 提醒；画面不变，不用 Ham 批）
 - 补丁 `source/art-director/audit/V12-blur-fallback.diff` 对 dev 98a76c6 的 `board.js`；已在 P4 上线后的 dev 6adbbd8 上 `git apply --check` 过，可直接打（优化部说明 P4 没动 `blurred()`）。改动三点：
   1. 加 `CANBLUR`：试着给 2D 画布设 `filter = 'blur(1px)'`，读回来一样才算支持。
