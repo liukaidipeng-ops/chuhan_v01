@@ -1200,6 +1200,10 @@ const Squads = (() => {
       if (def.troop) def.troop.units.forEach(u => def.troop.act(u.i, 'jmHit', 0.3));
       Fx.P.blood(att.center(0.25), 14, 0.7, d.clone().negate()); Fx.P.wood(B.clone().addScaledVector(d, -0.5).setY(TOP + 0.2), 8, d.clone().negate(), 0.6);
       jmRecoil(att);
+      // 地上也溅血（Ham 审批台 td-020）：撞上的地方一大一小两摊，血雾落地时再补一摊
+      { const g0 = att.center(0).addScaledVector(d, 0.18), nd = d.clone().negate(); g0.y = Fx.groundAt(g0);
+        Fx.Marks.blood(g0, 0.8, nd); sleep(0.12).then(() => Fx.Marks.blood(g0.clone().addScaledVector(rightOf(att.yaw), 0.12).addScaledVector(nd, 0.1), 0.45, nd));
+        sleep(0.35).then(() => { const g1 = att.center(0); g1.y = Fx.groundAt(g1); Fx.Marks.blood(g1, 0.55, nd); }); }
       // 掉一滴血：头顶飘「−1」，脚下血圈少一段
       const popH = att.troop ? 0.48 : att instanceof Elephant ? 0.85 : 0.6;
       popAt(() => att.center(popH), '−1'); if (ring) ring.hit();
@@ -1217,7 +1221,9 @@ const Squads = (() => {
       const a0 = att.anchor.clone();
       await tween(0.3, k => { att.anchor.copy(a0).addScaledVector(d, -0.2 * k); }, ease.out);
       await sleep(0.2);
+      const drip = onFrame(() => { if (Math.random() < 0.06) { const g = att.center(0).add(rv(0.12, 0, 0.12)); g.y = Fx.groundAt(g); Fx.Marks.blood(g, R(0.15, 0.28), d.clone().negate()); } });   // 退的时候一路滴血
       await backOff(att, B.clone().addScaledVector(d, -Math.min(1.7, Math.max(1.25, A.distanceTo(B)))));
+      drip();
       if (ring) ring.done();
       jmForm(def, false);
       await sleep(0.15);
