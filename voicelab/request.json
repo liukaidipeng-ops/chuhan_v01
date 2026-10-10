@@ -1,5 +1,5 @@
 {
- "batch": "b31m",
+ "batch": "b38",
  "list_voices": false,
  "hosts": [
   "https://api.minimax.cn",
@@ -11,43 +11,199 @@
   "https://api.minimaxi.com",
   "https://api.minimax.io"
  ],
- "jobs": [],
- "music": [
+ "jobs": [
   {
-   "id": "r_win_m1",
-   "prompt": "中国古代宫廷礼乐风格的纯器乐短曲，汉军大胜凯旋：编钟、建鼓、笛子与古筝齐奏，明亮庄严，宫调五声音阶，节奏稳健，全曲约15秒，结尾一声大锣收住。"
+   "id": "sol_r_t1",
+   "voice": "Spanish_PowerfulSoldier",
+   "text": "楚狗，过来送死！",
+   "emotion": "angry",
+   "speed": 0.9,
+   "pitch": 0,
+   "vol": 1,
+   "modify": {
+    "intensity": -90
+   }
   },
   {
-   "id": "r_win_m2",
-   "prompt": "中国古风史诗纯器乐短曲，汉高祖《大风歌》的气魄：低沉号角开场，战鼓渐强，弦乐与唢呐奏出开阔昂扬的五声旋律，胜利豪迈，全曲约15秒，结尾大鼓与锣齐鸣。"
+   "id": "sol_r_t2",
+   "voice": "Spanish_PowerfulSoldier",
+   "text": "就这点力气？再来啊！",
+   "emotion": "angry",
+   "speed": 0.9,
+   "pitch": 0,
+   "vol": 1,
+   "modify": {
+    "intensity": -90
+   }
   },
   {
-   "id": "r_lose_m1",
-   "prompt": "中国古风悲伤纯器乐短曲，汉军战败：二胡低声如泣，古琴拨弦，远处闷鼓，缓慢，五声音阶，落寞苍凉，全曲约20秒，结尾一声轻锣渐弱。"
+   "id": "sol_r_t3",
+   "voice": "Spanish_PowerfulSoldier",
+   "text": "这盾，你破不了！",
+   "emotion": "angry",
+   "speed": 0.9,
+   "pitch": 0,
+   "vol": 1,
+   "modify": {
+    "intensity": -90
+   }
   },
   {
-   "id": "r_lose_m2",
-   "prompt": "中国古风哀婉纯器乐短曲，残阳下的败军：洞箫独奏，琵琶轻拨，风声，节奏很慢，惆怅克制，全曲约20秒，渐弱结束。"
+   "id": "sol_r_f1",
+   "voice": "Spanish_PowerfulSoldier",
+   "text": "杀——！！",
+   "emotion": "angry",
+   "speed": 0.9,
+   "pitch": 0,
+   "vol": 1,
+   "modify": {
+    "intensity": -90
+   }
   },
   {
-   "id": "b_win_m1",
-   "prompt": "中国古风霸气纯器乐短曲，西楚霸王项羽大胜：重型战鼓密集擂动，低沉号角，琵琶急促轮指，羽调式五声音阶，粗犷雄浑，全曲约15秒，结尾三声齐鼓和一声大锣。"
+   "id": "sol_r_f2",
+   "voice": "Spanish_PowerfulSoldier",
+   "text": "给我刺！！",
+   "emotion": "angry",
+   "speed": 0.9,
+   "pitch": 0,
+   "vol": 1,
+   "modify": {
+    "intensity": -90
+   }
   },
   {
-   "id": "b_win_m2",
-   "prompt": "中国古风战争纯器乐短曲，楚军破釜沉舟后的大胜：鼓点由慢到快，唢呐高亢，铜锣与钹，羽调式，激昂狂放，全曲约15秒，结尾干脆收住。"
+   "id": "sol_r_f3",
+   "voice": "Spanish_PowerfulSoldier",
+   "text": "顶住！谁也别退！！",
+   "emotion": "angry",
+   "speed": 0.9,
+   "pitch": 0,
+   "vol": 1,
+   "modify": {
+    "intensity": -90
+   }
   },
   {
-   "id": "b_win_m3",
-   "prompt": "中国古风史诗纯器乐短曲，江东子弟凯旋：厚重的弦乐群、大鼓、号角与古筝，羽调式，宽广豪迈，全曲约15秒，结尾锣声。"
+   "id": "sol_r_c1",
+   "voice": "Spanish_PowerfulSoldier",
+   "text": "倒了！哈哈哈！",
+   "emotion": "happy",
+   "speed": 0.95,
+   "pitch": 0,
+   "vol": 1,
+   "modify": {
+    "intensity": -90
+   }
   },
   {
-   "id": "b_lose_m1",
-   "prompt": "中国古风悲壮纯器乐短曲，垓下之围、四面楚歌：远处笛声与埙，二胡呜咽，羽调式，悲凉，节奏缓慢，全曲约20秒，结尾低沉钟声渐弱。"
+   "id": "sol_r_c2",
+   "voice": "Spanish_PowerfulSoldier",
+   "text": "汉军威武！！",
+   "emotion": "happy",
+   "speed": 0.95,
+   "pitch": 0,
+   "vol": 1,
+   "modify": {
+    "intensity": -90
+   }
   },
   {
-   "id": "b_lose_m2",
-   "prompt": "中国古风悲怆纯器乐短曲，霸王别姬、乌江自刎：古琴与箫，江水声，缓慢沉重，羽调式，英雄末路，全曲约20秒，结尾渐弱。"
+   "id": "sol_b_t1",
+   "voice": "Spanish_PowerfulVeteran",
+   "text": "汉家小儿，也敢挡我？",
+   "emotion": "angry",
+   "speed": 0.9,
+   "pitch": 0,
+   "vol": 1,
+   "modify": {
+    "intensity": -90
+   }
+  },
+  {
+   "id": "sol_b_t2",
+   "voice": "Spanish_PowerfulVeteran",
+   "text": "软绵绵的，没吃饭吗！",
+   "emotion": "angry",
+   "speed": 0.9,
+   "pitch": 0,
+   "vol": 1,
+   "modify": {
+    "intensity": -90
+   }
+  },
+  {
+   "id": "sol_b_t3",
+   "voice": "Spanish_PowerfulVeteran",
+   "text": "躲在盾后面算什么本事！",
+   "emotion": "angry",
+   "speed": 0.9,
+   "pitch": 0,
+   "vol": 1,
+   "modify": {
+    "intensity": -90
+   }
+  },
+  {
+   "id": "sol_b_f1",
+   "voice": "Spanish_PowerfulVeteran",
+   "text": "杀——！！",
+   "emotion": "angry",
+   "speed": 0.9,
+   "pitch": 0,
+   "vol": 1,
+   "modify": {
+    "intensity": -90
+   }
+  },
+  {
+   "id": "sol_b_f2",
+   "voice": "Spanish_PowerfulVeteran",
+   "text": "破他的盾！！",
+   "emotion": "angry",
+   "speed": 0.9,
+   "pitch": 0,
+   "vol": 1,
+   "modify": {
+    "intensity": -90
+   }
+  },
+  {
+   "id": "sol_b_f3",
+   "voice": "Spanish_PowerfulVeteran",
+   "text": "霸王在上，冲！！",
+   "emotion": "angry",
+   "speed": 0.9,
+   "pitch": 0,
+   "vol": 1,
+   "modify": {
+    "intensity": -90
+   }
+  },
+  {
+   "id": "sol_b_c1",
+   "voice": "Spanish_PowerfulVeteran",
+   "text": "哈哈哈，又倒一个！",
+   "emotion": "happy",
+   "speed": 0.95,
+   "pitch": 0,
+   "vol": 1,
+   "modify": {
+    "intensity": -90
+   }
+  },
+  {
+   "id": "sol_b_c2",
+   "voice": "Spanish_PowerfulVeteran",
+   "text": "大楚威武！！",
+   "emotion": "happy",
+   "speed": 0.95,
+   "pitch": 0,
+   "vol": 1,
+   "modify": {
+    "intensity": -90
+   }
   }
- ]
+ ],
+ "music": []
 }
