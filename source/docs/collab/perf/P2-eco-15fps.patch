@@ -1,0 +1,26 @@
+diff --git a/source/src/core.js b/source/src/core.js
+index 48446a1..4d734b0 100644
+--- a/source/src/core.js
++++ b/source/src/core.js
+@@ -277,13 +277,17 @@ const Core = (() => {
+   for (const ev of ['pointerdown', 'pointermove', 'wheel', 'touchstart', 'touchmove', 'keydown']) addEventListener(ev, () => { if (ECO) poke(1500); }, { passive: true, capture: true });   // 手一碰就恢复满帧
+   function loop() {
+     requestAnimationFrame(loop);
+-    if (ECO) {   // 省电：没在动就 30 帧（跳过的这一帧什么都不做，时间留到下一帧一起推）
++    let calm = false;   // 省电故意少画的帧：不算进帧时间统计（不然自动降画质会把它当成卡）
++    if (ECO) {   // 省电：没在动就 15 帧（跳过的这一帧什么都不做，时间留到下一帧一起推）
++      //   优化部 P2（Ham 优化部审批台 perf-001 选 15 帧）：原来 30 帧，对局静止时手机照样一直在画
+       const t = performance.now();
+-      if (t > activeUntil && t - lastDraw < 31) return;
++      calm = t > activeUntil;
++      if (calm && t - lastDraw < 64) return;
+       lastDraw = t;
+     }
+-    { const t = performance.now(), d = t - ft.last; ft.last = t; if (Core.render && d < 1000) { ft.n++; ft.sum += d; if (d > 40) ft.slow++; } }
+-    let raw = Math.min(clock.getDelta(), 0.05);
++    { const t = performance.now(), d = t - ft.last; ft.last = t; if (Core.render && !calm && d < 1000) { ft.n++; ft.sum += d; if (d > 40) ft.slow++; } }
++    // 一帧最多推 0.05 秒（切后台回来别一下跳太远）；省电降帧时一帧本来就有 0.067 秒，放宽到 0.1，不然背景动画会变慢
++    let raw = Math.min(clock.getDelta(), ECO ? 0.1 : 0.05);
+     // 大厅整屏盖着、场景不画的时候（main.js 设 sleepy）：动画每 0.1 秒才推一次——兵营里的小兵、旗子照样在动，
+     // 补间照样走完，只是省下九成的脚本时间（手机待在大厅时省电、不发热）
+     if (Core.sleepy) { nap += raw; if (nap < 0.1) return; raw = Math.min(nap, 0.15); nap = 0; } else nap = 0;
