@@ -1,0 +1,238 @@
+{
+ "batch": "b41",
+ "key_present": true,
+ "key_len": 126,
+ "host": "https://api.minimax.cn",
+ "probe": [
+  {
+   "host": "https://api.minimax.cn",
+   "http": 200,
+   "code": 0,
+   "msg": "success"
+  }
+ ],
+ "jobs": [
+  {
+   "id": "cheer_0_a",
+   "voice": "Spanish_PowerfulSoldier",
+   "voice_id": "Spanish_PowerfulSoldier",
+   "voice_name": null,
+   "ok": true,
+   "ms": 828,
+   "chars": 6
+  },
+  {
+   "id": "cheer_0_o",
+   "voice": "Spanish_PowerfulSoldier",
+   "voice_id": "Spanish_PowerfulSoldier",
+   "voice_name": null,
+   "ok": true,
+   "ms": 1476,
+   "chars": 8
+  },
+  {
+   "id": "cheer_0_h",
+   "voice": "Spanish_PowerfulSoldier",
+   "voice_id": "Spanish_PowerfulSoldier",
+   "voice_name": null,
+   "ok": true,
+   "ms": 2484,
+   "chars": 9
+  },
+  {
+   "id": "cheer_0_y",
+   "voice": "Spanish_PowerfulSoldier",
+   "voice_id": "Spanish_PowerfulSoldier",
+   "voice_name": null,
+   "ok": true,
+   "ms": 1476,
+   "chars": 6
+  },
+  {
+   "id": "cheer_1_a",
+   "voice": "Spanish_PowerfulVeteran",
+   "voice_id": "Spanish_PowerfulVeteran",
+   "voice_name": null,
+   "ok": true,
+   "ms": 1620,
+   "chars": 6
+  },
+  {
+   "id": "cheer_1_o",
+   "voice": "Spanish_PowerfulVeteran",
+   "voice_id": "Spanish_PowerfulVeteran",
+   "voice_name": null,
+   "ok": true,
+   "ms": 1620,
+   "chars": 8
+  },
+  {
+   "id": "cheer_1_h",
+   "voice": "Spanish_PowerfulVeteran",
+   "voice_id": "Spanish_PowerfulVeteran",
+   "voice_name": null,
+   "ok": true,
+   "ms": 1584,
+   "chars": 9
+  },
+  {
+   "id": "cheer_1_y",
+   "voice": "Spanish_PowerfulVeteran",
+   "voice_id": "Spanish_PowerfulVeteran",
+   "voice_name": null,
+   "ok": true,
+   "ms": 1584,
+   "chars": 6
+  },
+  {
+   "id": "cheer_2_a",
+   "voice": "Spanish_PassionateWarrior",
+   "voice_id": "Spanish_PassionateWarrior",
+   "voice_name": null,
+   "ok": true,
+   "ms": 1656,
+   "chars": 6
+  },
+  {
+   "id": "cheer_2_o",
+   "voice": "Spanish_PassionateWarrior",
+   "voice_id": "Spanish_PassionateWarrior",
+   "voice_name": null,
+   "ok": true,
+   "ms": 1764,
+   "chars": 8
+  },
+  {
+   "id": "cheer_2_h",
+   "voice": "Spanish_PassionateWarrior",
+   "voice_id": "Spanish_PassionateWarrior",
+   "voice_name": null,
+   "ok": true,
+   "ms": 2268,
+   "chars": 9
+  },
+  {
+   "id": "cheer_2_y",
+   "voice": "Spanish_PassionateWarrior",
+   "voice_id": "Spanish_PassionateWarrior",
+   "voice_name": null,
+   "ok": true,
+   "ms": 1044,
+   "chars": 6
+  },
+  {
+   "id": "cheer_3_a",
+   "voice": "Spanish_AngryMan",
+   "voice_id": "Spanish_AngryMan",
+   "voice_name": null,
+   "ok": true,
+   "ms": 1332,
+   "chars": 6
+  },
+  {
+   "id": "cheer_3_o",
+   "voice": "Spanish_AngryMan",
+   "voice_id": "Spanish_AngryMan",
+   "voice_name": null,
+   "ok": true,
+   "ms": 1224,
+   "chars": 8
+  },
+  {
+   "id": "cheer_3_h",
+   "voice": "Spanish_AngryMan",
+   "voice_id": "Spanish_AngryMan",
+   "voice_name": null,
+   "ok": true,
+   "ms": 1908,
+   "chars": 9
+  },
+  {
+   "id": "cheer_3_y",
+   "voice": "Spanish_AngryMan",
+   "voice_id": "Spanish_AngryMan",
+   "voice_name": null,
+   "ok": true,
+   "ms": 900,
+   "chars": 6
+  },
+  {
+   "id": "cheer_4_a",
+   "voice": "Portuguese_AngryMan",
+   "voice_id": "Portuguese_AngryMan",
+   "voice_name": null,
+   "ok": true,
+   "ms": 1044,
+   "chars": 6
+  },
+  {
+   "id": "cheer_4_o",
+   "voice": "Portuguese_AngryMan",
+   "voice_id": "Portuguese_AngryMan",
+   "voice_name": null,
+   "ok": true,
+   "ms": 1368,
+   "chars": 8
+  },
+  {
+   "id": "cheer_4_h",
+   "voice": "Portuguese_AngryMan",
+   "voice_id": "Portuguese_AngryMan",
+   "voice_name": null,
+   "ok": true,
+   "ms": 1836,
+   "chars": 9
+  },
+  {
+   "id": "cheer_4_y",
+   "voice": "Portuguese_AngryMan",
+   "voice_id": "Portuguese_AngryMan",
+   "voice_name": null,
+   "ok": true,
+   "ms": 1476,
+   "chars": 6
+  },
+  {
+   "id": "cheer_5_a",
+   "voice": "Japanese_GenerousIzakayaOwner",
+   "voice_id": "Japanese_GenerousIzakayaOwner",
+   "voice_name": null,
+   "ok": true,
+   "ms": 1332,
+   "chars": 6
+  },
+  {
+   "id": "cheer_5_o",
+   "voice": "Japanese_GenerousIzakayaOwner",
+   "voice_id": "Japanese_GenerousIzakayaOwner",
+   "voice_name": null,
+   "ok": true,
+   "http": 200,
+   "code": 1002,
+   "msg": "rate limit exceeded(RPM)",
+   "ms": 1044,
+   "chars": 8
+  },
+  {
+   "id": "cheer_5_h",
+   "voice": "Japanese_GenerousIzakayaOwner",
+   "voice_id": "Japanese_GenerousIzakayaOwner",
+   "voice_name": null,
+   "ok": true,
+   "ms": 1728,
+   "chars": 9
+  },
+  {
+   "id": "cheer_5_y",
+   "voice": "Japanese_GenerousIzakayaOwner",
+   "voice_id": "Japanese_GenerousIzakayaOwner",
+   "voice_name": null,
+   "ok": true,
+   "http": 200,
+   "code": 1002,
+   "msg": "rate limit exceeded(RPM)",
+   "ms": 1224,
+   "chars": 6
+  }
+ ]
+}
