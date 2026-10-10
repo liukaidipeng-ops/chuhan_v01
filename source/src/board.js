@@ -1504,7 +1504,7 @@ const Board = (() => {
     for (let i = 0; i < n; i++) {
       const a = pts[Math.max(0, i - 1)], b = pts[Math.min(n - 1, i + 1)];
       let tx = b[0] - a[0], tz = b[1] - a[1]; const tl = Math.hypot(tx, tz) || 1; tx /= tl; tz /= tl;
-      const nx = -tz * width / 2, nz = tx * width / 2, al = sm(L[i] / 0.32) * sm((tot - L[i]) / 0.3);
+      const w = typeof width === 'function' ? width(L[i] / tot) : width, nx = -tz * w / 2, nz = tx * w / 2, al = sm(L[i] / 0.32) * sm((tot - L[i]) / 0.3);
       const yy = y + (pts[i][2] || 0);   // 第三个数：抬高多少（跳过去的走法画成抛物线）
       pos.set([pts[i][0] + nx, yy, pts[i][1] + nz, pts[i][0] - nx, yy, pts[i][1] - nz], i * 6);
       uv.set([L[i] / tile, 0, L[i] / tile, 1], i * 4);
@@ -1567,6 +1567,52 @@ const Board = (() => {
     };
     const p1 = cut(pts, a); if (p1.length < 2) return [];
     return cut(p1.slice().reverse(), b).reverse();
+  }
+  // ---- 抛物线的五种动态样子（Ham 10-10 15:12：原来那条「有点丑」，出五个选；美术忙，TD 来做）。网址 ?arcv=1～5 预览，0 = 原来那条 ----
+  const ARCV = Math.max(0, Math.min(5, +(Core.DIAG.get('arcv') || 0)));
+  let arcs = [];
+  const arcEnv = u => Math.max(0, Math.min(1, u / 0.12, (1 - u) / 0.12));   // 两头淡入淡出
+  function arcFx(pts, col, style) {
+    const curve = new THREE.CatmullRomCurve3(pts.map(p => new THREE.Vector3(p[0], TOP + 0.0042 + (p[2] || 0), p[1]))), L = curve.getLength();
+    const g = new THREE.Group(), C = new THREE.Color(col), hi = C.clone().lerp(new THREE.Color(0xfff6d8), 0.55), upd = [];
+    const own = o => { o.userData.own = true; o.renderOrder = 7; g.add(o); return o; };
+    const tube = (r, op, c = col) => own(new THREE.Mesh(new THREE.TubeGeometry(curve, 64, r, 6, false), new THREE.MeshBasicMaterial({ color: c, transparent: true, opacity: op, depthWrite: false })));
+    const spr = (size, c, op = 1) => { const sp = own(new THREE.Sprite(new THREE.SpriteMaterial({ map: glowTex, color: c, transparent: true, opacity: op, depthWrite: false, blending: THREE.AdditiveBlending }))); sp.scale.setScalar(size); return sp; };
+    if (style === 1) {
+      // 一、流光：一笔细线，三颗带尾巴的流星顺着弧往目标跑
+      tube(0.013, 0.5);
+      const st = [0, 1, 2].map(i => ({ o: i / 3, head: spr(0.26, hi), tail: [0.2, 0.15, 0.11, 0.08].map(z => spr(z, col, 0.5)) }));
+      upd.push(t => { for (const q of st) { const u = (t * 0.5 + q.o) % 1, e = arcEnv(u); q.head.position.copy(curve.getPointAt(u)); q.head.material.opacity = e; q.tail.forEach((x, k) => { x.position.copy(curve.getPointAt(Math.max(0, u - 0.03 * (k + 1)))); x.material.opacity = e * (0.55 - k * 0.12); }); } });
+    } else if (style === 2) {
+      // 二、箭簇：一串小箭头沿着弧往前走，像一排箭射过去
+      const n = Math.max(6, Math.round(L / 0.26)), up = new THREE.Vector3(0, 1, 0), q = new THREE.Quaternion();
+      const hs = []; for (let i = 0; i < n; i++) { const cone = new THREE.ConeGeometry(0.055, 0.17, 4); hs.push(own(new THREE.Mesh(cone, new THREE.MeshBasicMaterial({ color: i % 2 ? col : hi, transparent: true, depthWrite: false })))); }
+      upd.push(t => hs.forEach((m, i) => { const u = (i / n + t * 0.32) % 1; m.position.copy(curve.getPointAt(u)); m.quaternion.copy(q.setFromUnitVectors(up, curve.getTangentAt(u))); m.material.opacity = 0.95 * arcEnv(u); }));
+    } else if (style === 3) {
+      // 三、跳影：一枚半透明的小棋子沿弧跳过去，落下荡开一圈涟漪，反复
+      tube(0.008, 0.3);
+      const disc = own(new THREE.Mesh(new THREE.CylinderGeometry(0.17, 0.17, 0.06, 28), new THREE.MeshBasicMaterial({ color: hi, transparent: true, opacity: 0.6, depthWrite: false })));
+      const end = curve.getPointAt(1), ring = own(new THREE.Mesh(new THREE.RingGeometry(0.17, 0.22, 40), new THREE.MeshBasicMaterial({ color: hi, transparent: true, opacity: 0, depthWrite: false, side: THREE.DoubleSide })));
+      ring.rotation.x = -Math.PI / 2; ring.position.copy(end); ring.position.y += 0.006;
+      upd.push(t => {
+        const P = 1.5, k = (t % P) / P, u = Math.min(1, k / 0.68), e = u * u * (3 - 2 * u);
+        disc.position.copy(curve.getPointAt(e)); disc.rotation.z = e * Math.PI * 2;
+        disc.material.opacity = 0.65 * Math.min(1, k / 0.08) * (k > 0.72 ? Math.max(0, 1 - (k - 0.72) / 0.2) : 1);
+        const r = k > 0.68 ? (k - 0.68) / 0.32 : 0; ring.scale.setScalar(1 + r * 1.8); ring.material.opacity = r ? 0.85 * (1 - r) : 0;
+      });
+    } else if (style === 4) {
+      // 四、珠迹：一颗颗光珠从起点到终点依次亮起、再依次熄灭，像一路跳过去的足迹
+      const n = Math.max(9, Math.round(L / 0.15)), bs = [];
+      for (let i = 0; i <= n; i++) { const sp = spr(0.14, i === n ? hi : col); sp.position.copy(curve.getPointAt(i / n)); bs.push(sp); }
+      upd.push(t => { const k = (t % 1.6) / 1.6; bs.forEach((sp, i) => { const on = k * 1.45 - i / n, v = on < 0 ? 0 : on < 0.12 ? on / 0.12 : Math.max(0, 1 - (on - 0.12) / 0.45); sp.material.opacity = v; sp.scale.setScalar(0.09 + 0.1 * v); }); });
+    } else {
+      // 五、飘带：中间宽、两头尖的半透明绸带，流水纹往前淌，前头一颗亮点
+      const m = own(new THREE.Mesh(ribbonGeo(pts, u => 0.05 + 0.3 * Math.sin(Math.PI * Math.min(1, Math.max(0, u))), TOP + 0.0042, 1.0), new THREE.MeshBasicMaterial({ map: flowTex, color: col, transparent: true, opacity: 0.75, depthWrite: false, vertexColors: true, side: THREE.DoubleSide })));
+      const head = spr(0.3, hi);
+      upd.push(t => { const u = (t * 0.45) % 1; head.position.copy(curve.getPointAt(u)); head.material.opacity = arcEnv(u); m.material.opacity = 0.62 + 0.18 * Math.sin(t * 2.6); });
+    }
+    g.userData.upd = t => upd.forEach(f => f(t));
+    return g;
   }
   let moveDots = [], belts = [];
   const DOT_E = 0.92, DOT_C = 0.56;
@@ -1647,6 +1693,12 @@ const Board = (() => {
       const occ = (f, r) => !!meshAt(f, r), good = moves.filter(m => !m.bad), bad = moves.filter(m => m.bad);
       // 送将的方向也画出来，只是标红（画在下面，能走的那一段照常盖在上面）
       for (const [list, isBad] of [[bad, true], [good, false]]) for (const b of beltPaths(sel, list, occ)) {
+        if (b.arc && ARCV && !isBad) {
+          const fx = arcFx(b.pts, b.via ? HINT.beltV : HINT.belt, ARCV); markRoot.add(fx); arcs.push(fx);
+          const sh = new THREE.Mesh(ribbonGeo(b.pts.map(p => [p[0], p[1]]), 0.22, TOP + 0.0039), new THREE.MeshBasicMaterial({ color: 0x1b1a19, transparent: true, opacity: 0.14, depthWrite: false, vertexColors: true }));
+          sh.userData.own = true; sh.renderOrder = 2; markRoot.add(sh);
+          continue;
+        }
         const mesh = new THREE.Mesh(ribbonGeo(b.pts, b.arc ? 0.3 : 0.4, TOP + (isBad ? 0.0040 : 0.0042)), new THREE.MeshBasicMaterial({ map: flowTex, color: isBad ? HINT.beltB : b.via ? HINT.beltV : HINT.belt, transparent: true, opacity: 0.5, depthWrite: false, vertexColors: true, side: THREE.DoubleSide }));
         mesh.userData.own = true; mesh.userData.k = b.arc ? 1.35 : 1; mesh.renderOrder = b.arc ? 6 : 3; markRoot.add(mesh); belts.push(mesh);
         if (b.arc) {   // 抛物线在棋盘上投一道淡影，看得出是从上面跳过去的
@@ -1857,11 +1909,12 @@ const Board = (() => {
     }
     if (immediate) { for (const m of dropping) { m.position.y = TOP; m.rotation.x = m.rotation.z = 0; } dropping.clear(); }
     markRoot.traverse(o => { if (o.material && o.material !== goldM) o.material.dispose(); if (o.userData.own && o.geometry) o.geometry.dispose(); });
-    markRoot.clear(); selRing = selGlow = selShade = selCol = selHalo = selDrop = null; kills = []; killRings = []; moveDots = []; belts = []; brackets = []; aimMark = aimGlow = null;
+    markRoot.clear(); selRing = selGlow = selShade = selCol = selHalo = selDrop = null; kills = []; killRings = []; moveDots = []; belts = []; arcs = []; brackets = []; aimMark = aimGlow = null;
   }
   Core.onFrame(dt => {
     hoverT += dt;
     // 落点墨点呼吸；墨带顺着走向流动、明暗起伏
+    if (arcs.length) { const t = performance.now() / 1000; for (const a of arcs) a.userData.upd(t); }
     if (moveDots.length || belts.length) {
       const t = performance.now() / 1000;
       flowTex.offset.x = -(t * 0.55) % 1;
