@@ -645,7 +645,8 @@ const Fx = (() => {
     const t = info.piece.t;
     const A0 = m.position.clone();
     const lv = info.piece.lv || 0;   // 技能模式的等级：兵、士按人数出脚步，马按等级叠马蹄
-    const su = Sfx.unit(unitKey(t, c.s)); su.move && su.move(0.6, t === 'p' ? Math.min(3, lv) : t === 'a' ? Math.min(3, lv) || 2 : t === 'n' ? Math.min(3, lv) || 3 : undefined);
+    const hurt = !!(t === 'p' && lv && typeof BF !== 'undefined' && info.piece.hp < BF.hpOf('p', lv));   // 兵按等级、残血换行军声（声音部 S4）
+    const su = Sfx.unit(unitKey(t, c.s)); su.move && su.move(0.6, t === 'p' ? Math.min(3, lv) : t === 'a' ? Math.min(3, lv) || 2 : t === 'n' ? Math.min(3, lv) || 3 : undefined, t === 'p' ? lv : undefined, hurt);
     if (c.mt === 'n') {
       // 马：一跃沿对角线直接到位（不再分“直一步、斜一步”两段）
       await tween(0.42, k => { m.position.lerpVectors(A0, B, k); m.position.y = TOP + Math.sin(k * Math.PI) * 0.34; }, ease.inOut);

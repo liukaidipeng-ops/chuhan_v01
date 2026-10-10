@@ -233,6 +233,7 @@ const BFX = (() => {
   }
 
   // 一次“走到敌子格”的演出：普通走子 / 吃子 / 攻击未下 / 拒马反伤
+  let curBefore = null;
   async function strike(board, from, to, evs, mover, opts = {}) {
     const P0 = board[from[1]][from[0]], T0 = board[to[1]][to[0]];
     if (!P0) return;
@@ -245,6 +246,8 @@ const BFX = (() => {
     const c = { lv: P0.lv, dlv: T0 ? T0.lv : 1 };
     if (opts.onImpact) c.onImpact = opts.onImpact;
     if (T0) { c.survive = !!tHit && !tKill; c.killed = !!tKill; c.counter = died ? 'die' : counter ? 'hurt' : null; c.ranged = !!opts.ranged; }
+    // 被打的兵正立着拒马（相、象不吃反伤，照样要演“打拒马”，角色部 M28）：走子前那一刻的状态
+    if (T0 && T0.t === 'p' && T0.s !== mover && curBefore && curBefore.cnt && T0.jm > curBefore.cnt[mover]) c.djm = true;
     if (counter && (P0.lv >= 2 || (P0.t === 'k' && P0.w))) c.hp = [P0.hp, P0.t === 'k' && P0.w ? BF.CFG.finalKingHp : BF.hpOf(P0.t, P0.lv)];   // 攻方脚下临时血圈（拒马撞上那一下少一段）
     await Fx.playMove(info, { c, noCamp: opts.noCamp });
     if (tHit) shatter(to, 1);
@@ -276,6 +279,7 @@ const BFX = (() => {
 
   async function play(info, game) {
     const ev = info.ev || [], side = info.side;
+    curBefore = info.before || null;
     const before = info.before ? info.before.board : null;
     try {
       if (info.k === 'up') await levelUp(info, game);
