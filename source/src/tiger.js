@@ -753,10 +753,12 @@ const TigerHD = (() => {
     o.update(0);
     if (staff) staff0 = relQ(staff, new THREE.Quaternion()).clone();
     // 两种死法（美术 M24，Ham 审批台 077）：TD 在 TigerRider.die 里按挨打的方式调，都返回 Promise
-    //   o.blast()：炮击——一团火光，虎骑被掀翻，虎身、虎头、四条腿、尾巴、文臣、节杖四散飞出（都熏黑），碎屑落一地；不流血
-    //   o.fall()：中刀——虎仰头一挫，踉跄着往 deadSide 那边倒下；文臣被颠离鞍座，摔向另一边侧躺，节杖脱手另落一处
-    //   拆下来的件挂到小队的 group 上（g.parent），之后化墨、释放跟着小队走
+    //   o.blast({ dir, power })：炮击——一团火光，虎骑被掀翻，虎身、虎头、四条腿、尾巴、文臣、节杖四散飞出（都熏黑），碎屑落一地，大片血雾
+    //   o.rend({ dir, power })：车远距离冲锋撞死——不起火不熏黑，整只被撞散，各件顺着 dir 飞出去，power 越大飞得越远，血雾
+    //   o.fall({ dir, power })：近战打死——整只被打得往 dir 方向退飞一段（power 定多远），虎仰头一挫、侧倒；文臣被甩出去侧躺，节杖另落一处
+    //   dir = 来犯方向（世界里，水平），power = 多大的劲（1 是一般近战；TD 按实时结算给）。拆下来的件挂到小队的 group 上（g.parent），之后化墨、释放跟着小队走
     o.blast = (opt = {}) => blastDeath(o, g, wrap, opt);
+    o.rend = (opt = {}) => blastDeath(o, g, wrap, { fire: false, ...opt });
     o.fall = (opt = {}) => fallDeath(o, g, wrap, opt);
     return o;
   }
@@ -793,11 +795,20 @@ const TigerHD = (() => {
     return t > tl;
   }
   const puff = (p, o) => { try { Fx.spawn({ pos: p, tex: Core.Tex.puff, drag: 1.5, ...o }); } catch (e) {} };
+  // 一大团血雾 + 溅出去的血点 + 地上一摊血（dir：往哪边溅得多）
+  function bloodMist(p, dir, k = 1) {
+    const V3 = THREE.Vector3, rr = Math.random;
+    for (let i = 0; i < Math.round(14 * k); i++) { const a = rr() * 6.28, u = new V3(Math.cos(a) * 0.6, 0.35 + rr() * 0.6, Math.sin(a) * 0.6); if (dir) u.addScaledVector(dir, 0.7); puff(p.clone().add(new V3(Math.cos(a) * 0.12, 0.25 + rr() * 0.25, Math.sin(a) * 0.12)), { vel: u, color: rr() < 0.5 ? 0x9e180c : 0x6e0f06, size: 0.35, size2: 1.25 + rr() * 0.5, life: 0.8 + rr() * 0.6, op: 0.6, drag: 2.4 }); }
+    for (let i = 0; i < Math.round(24 * k); i++) { const a = rr() * 6.28, sp = 0.8 + rr() * 1.8, u = new V3(Math.cos(a) * sp, 0.6 + rr() * 1.6, Math.sin(a) * sp); if (dir) u.addScaledVector(dir, 1.2); puff(p.clone().setY(p.y + 0.3), { vel: u, color: 0x8e1408, size: 0.06, size2: 0.03, life: 0.4 + rr() * 0.3, op: 1, drag: 0.6 }); }
+    try { Fx.Marks.blood(p.clone(), 1.1 * k, dir || new V3(1, 0, 0)); } catch (e) {}
+  }
   function blastDeath(o, g, wrap, opt) {
-    const { host, F, Rt, c, yg } = frameOf(g), A = debAssets(), V3 = THREE.Vector3, rr = () => Math.random();
-    const v = (fw, up, sd) => F.clone().multiplyScalar(fw).add(new V3(0, up, 0)).addScaledVector(Rt, sd);
-    // 熏黑：这一只的材质换成副本再压暗，别的虎骑不受影响
-    g.traverse(x => { if (!x.material) return; x.material = Array.isArray(x.material) ? x.material.map(m => m.clone()) : x.material.clone(); for (const m of [].concat(x.material)) if (m.color) m.color.multiplyScalar(0.3).lerp(SOOT, 0.12); });
+    const { host, F, Rt, c, yg } = frameOf(g), A = debAssets(), V3 = THREE.Vector3, rr = () => Math.random(), fire = opt.fire !== false;
+    const pw = Math.max(0.3, opt.power ?? 1), D = opt.dir ? opt.dir.clone().setY(0).normalize() : null;
+    // 各件的初速度：炮击四散；有来犯方向时整体顺着它飞（劲越大越远、越平）
+    const push = fire ? 0.5 : 1.6, v = (fw, up, sd) => { const u = F.clone().multiplyScalar(fw).add(new V3(0, up, 0)).addScaledVector(Rt, sd); if (D) { u.multiplyScalar(fire ? 1 : 0.55); u.addScaledVector(D, push * pw * (0.8 + rr() * 0.5)); u.y *= fire ? 1 : Math.min(1.3, 0.75 + 0.15 * pw); } return u; };
+    // 熏黑（只有炮击）：这一只的材质换成副本再压暗，别的虎骑不受影响
+    if (fire) g.traverse(x => { if (!x.material) return; x.material = Array.isArray(x.material) ? x.material.map(m => m.clone()) : x.material.clone(); for (const m of [].concat(x.material)) if (m.color) m.color.multiplyScalar(0.3).lerp(SOOT, 0.12); });
     o.frozen = o.figOff = o.staffOff = true;
     const N = n => g.getObjectByName(n), fl = [], staff = N('staff'), fig = N('fig'), neck = N('neck'), tail = N('tail');
     if (staff) fl.push(detach(host, staff, v(-0.4, 3.2, 1.4), new V3(5, 2, 7), 0.02));
@@ -809,19 +820,24 @@ const TigerHD = (() => {
     const body = new THREE.Group(); host.add(body); g.updateWorldMatrix(true, false);
     new THREE.Matrix4().copy(host.matrixWorld).invert().multiply(g.matrixWorld).decompose(body.position, body.quaternion, body.scale);
     body.attach(wrap); fl.push(detach(host, body, v(0.1, 1.3, 0.9), F.clone().multiplyScalar(4).add(new V3(0, 0.5, 0)), 0));
-    // 火光、碎屑、烟
-    const flash = new THREE.Mesh(A.ball, new THREE.MeshBasicMaterial({ color: 0xfff1c0, transparent: true, opacity: 0.85, blending: THREE.AdditiveBlending, depthWrite: false, toneMapped: false }));
+    // 火光、碎屑、烟（炮击）；血雾、血迹（两种都有）
+    const flash = new THREE.Mesh(A.ball, new THREE.MeshBasicMaterial({ color: 0xfff1c0, transparent: true, opacity: fire ? 0.85 : 0, blending: THREE.AdditiveBlending, depthWrite: false, toneMapped: false }));
     flash.position.set(c.x, yg + 0.4, c.z); host.add(flash);
-    const deb = [...Array(26)].map(() => { const m = new THREE.Mesh(A.box, A.mat); host.add(m); const a = rr() * Math.PI * 2; return { m, a, sp: 1.2 + rr() * 2.2, up: 1.5 + rr() * 2.5, r: [rr() * 9, 7, 5] }; });
+    const deb = fire ? [...Array(26)].map(() => { const m = new THREE.Mesh(A.box, A.mat); host.add(m); const a = rr() * Math.PI * 2; return { m, a, sp: 1.2 + rr() * 2.2, up: 1.5 + rr() * 2.5, r: [rr() * 9, 7, 5] }; }) : [];
     const wp = host.localToWorld(c.clone());
-    for (let i = 0; i < 7; i++) { const a = rr() * 6.28; puff(wp.clone().add(new V3(Math.cos(a) * 0.12, 0.25 + rr() * 0.2, Math.sin(a) * 0.12)), { vel: new V3(Math.cos(a) * 0.8, 0.9 + rr() * 0.6, Math.sin(a) * 0.8), add: true, color: 0xff9a3a, size: 0.25, size2: 0.6, life: 0.25 + rr() * 0.15, op: 0.95 }); }
-    for (let i = 0; i < 16; i++) { const a = rr() * 6.28; puff(wp.clone().add(new V3(Math.cos(a) * 0.2, 0.2 + rr() * 0.25, Math.sin(a) * 0.2)), { vel: new V3(Math.cos(a) * 0.7, 0.5 + rr() * 0.5, Math.sin(a) * 0.7), color: 0x5e5248, size: 0.45, size2: 1.4, life: 0.9 + rr() * 0.5, op: 0.7, drag: 2.2 }); }   // 烟尘
-    if (opt.scorch !== false) { try { Fx.Marks.scorch(wp.clone().setY(wp.y + 0.004), 1.1); } catch (e) {} }
+    if (fire) {
+      for (let i = 0; i < 7; i++) { const a = rr() * 6.28; puff(wp.clone().add(new V3(Math.cos(a) * 0.12, 0.25 + rr() * 0.2, Math.sin(a) * 0.12)), { vel: new V3(Math.cos(a) * 0.8, 0.9 + rr() * 0.6, Math.sin(a) * 0.8), add: true, color: 0xff9a3a, size: 0.25, size2: 0.6, life: 0.25 + rr() * 0.15, op: 0.95 }); }
+      for (let i = 0; i < 16; i++) { const a = rr() * 6.28; puff(wp.clone().add(new V3(Math.cos(a) * 0.2, 0.2 + rr() * 0.25, Math.sin(a) * 0.2)), { vel: new V3(Math.cos(a) * 0.7, 0.5 + rr() * 0.5, Math.sin(a) * 0.7), color: 0x5e5248, size: 0.45, size2: 1.4, life: 0.9 + rr() * 0.5, op: 0.7, drag: 2.2 }); }   // 烟尘
+      if (opt.scorch !== false) { try { Fx.Marks.scorch(wp.clone().setY(wp.y + 0.004), 1.1); } catch (e) {} }
+    }
+    bloodMist(wp, D, 1 + 0.25 * pw);
+    let bleed = 0;
     let t = 0;
     return new Promise(res => {
       const off = Core.onFrame(dt => {
         t += dt; const tt = t * 1.7;
         for (const f of fl) fly(f, tt, yg);
+        bleed += dt; if (bleed > 0.05 && t < 0.7) { bleed = 0; for (const f of fl) if (rr() < 0.5) puff(host.localToWorld(f.obj.position.clone()), { vel: new V3(0, -0.2, 0), color: 0x8e1408, size: 0.07, size2: 0.16, life: 0.35, op: 0.8 }); }   // 飞出去的件一路洒血
         flash.material.opacity = 0.85 * Math.exp(-t * 28); flash.scale.setScalar(0.4 + 1.3 * clamp01(t, 0, 0.08));
         for (const d of deb) {
           const y0 = yg + 0.01, tl = (d.up + Math.sqrt(d.up * d.up + 2 * DG * 0.3)) / DG, ta = Math.min(tt, tl);
@@ -834,16 +850,19 @@ const TigerHD = (() => {
   function fallDeath(o, g, wrap, opt) {
     const { host, F, Rt, yg } = frameOf(g), ds = o.deadSide || 1, V3 = THREE.Vector3, N = n => g.getObjectByName(n);
     const fig = N('fig'), staff = N('staff'), k = 1 / (g.scale.x || 1);
+    // 被打飞：顺着来犯方向退飞一段（劲越大越远），先腾一下再落地
+    const pw = Math.max(0, opt.power ?? 1), D = opt.dir ? opt.dir.clone().setY(0).normalize() : new V3(), far = 0.35 * pw, kx = D.dot(F), kz = -D.dot(Rt);
     let t = 0, ff = null, fs = null, dust1 = false, dust2 = false;
     return new Promise(res => {
       const off = Core.onFrame(dt => {
         t += dt;
         o.roarK = 1 - (1 - Math.min(1, t / 0.08)) ** 2; o.roarK *= 1 - sm(clamp01(t, 0.2, 0.35));   // 仰头一挫
         o.dead = sm(clamp01(t, 0.18, 0.62));                                                        // 先腿软伏下，再侧翻
-        const st = sm(clamp01(t, 0, 0.3)); wrap.position.set(0.12 * st * k, 0, 0.1 * st * k * ds);  // 往前踉跄、往倒的那边歪（虎骑自己的坐标：+x 前，+z 左）
+        const st = sm(clamp01(t, 0, 0.3)), kb = 1 - (1 - clamp01(t, 0, 0.4)) ** 2, hop = Math.sin(clamp01(t, 0, 0.4) * Math.PI) * 0.1 * Math.min(2, pw);
+        wrap.position.set((0.12 * st + far * kb * kx) * k, hop * k, (0.1 * st * ds + far * kb * kz) * k);  // 往前踉跄、往倒的那边歪，再加上被打退的那一段（虎骑自己的坐标：+x 前，+z 左）
         if (t >= 0.1 && !ff) {   // 文臣被颠出去，摔向虎倒下的另一边；节杖脱手
-          if (fig) { ff = detach(host, fig, F.clone().multiplyScalar(0.15).add(new V3(0, 0.9, 0)).addScaledVector(Rt, ds * 0.5), F.clone().multiplyScalar(-2 * ds), 0.05); ff.qLand = ff.q0.clone().premultiply(new THREE.Quaternion().setFromAxisAngle(F, -Math.PI / 2 * ds)); o.figOff = true; }
-          if (staff) { fs = detach(host, staff, F.clone().multiplyScalar(0.6).add(new V3(0, 1.2, 0)).addScaledVector(Rt, ds * 0.7), F.clone().multiplyScalar(-1.8 * ds).add(new V3(0, 1.2, 0)), 0.015); o.staffOff = true; }
+          if (fig) { ff = detach(host, fig, F.clone().multiplyScalar(0.15).add(new V3(0, 0.9 + 0.2 * pw, 0)).addScaledVector(Rt, ds * 0.5).addScaledVector(D, 1.1 * pw), F.clone().multiplyScalar(-2 * ds), 0.05); ff.qLand = ff.q0.clone().premultiply(new THREE.Quaternion().setFromAxisAngle(F, -Math.PI / 2 * ds)); o.figOff = true; }
+          if (staff) { fs = detach(host, staff, F.clone().multiplyScalar(0.6).add(new V3(0, 1.2, 0)).addScaledVector(Rt, ds * 0.7).addScaledVector(D, 1.3 * pw), F.clone().multiplyScalar(-1.8 * ds).add(new V3(0, 1.2, 0)), 0.015); o.staffOff = true; }
           if (!ff) ff = {};
         }
         if (ff && ff.obj && fly(ff, (t - 0.1) * 1.5, yg) && !dust1) { dust1 = true; puff(host.localToWorld(ff.obj.position.clone()), { vel: new V3(0, 0.25, 0), color: 0xc9b896, size: 0.3, size2: 0.8, life: 0.5, op: 0.6 }); }
