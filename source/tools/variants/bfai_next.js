@@ -21,7 +21,7 @@ const src0 = execFileSync('git', ['show', rev + ':source/src/bfai.js'], { cwd: p
 function build(E, tag) {
   let s = src0;
   const rep = (a, b) => { const n = s.split(a).length - 1; if (n !== 1) throw new Error(`bfai_next：锚点出现 ${n} 次：${a.slice(0, 80)}`); s = s.replace(a, () => b); };
-  const LMR2 = +(E.BFAI_LMR2 || 0), NMP = +(E.BFAI_NMP || 0), CHKMUST = +(E.BFAI_CHKMUST || 0), ROOTREL = +(E.BFAI_ROOTREL || 0), ROOTATK = +(E.BFAI_ROOTATK || 0), RLMR = +(E.BFAI_RLMR || 0), UPESC = +(E.BFAI_UPESC || 0), DYN = +(E.BFAI_DYN || 0), UP3K = +(E.BFAI_UP3K || 0), FASTFP = +(E.BFAI_FASTFP || 0);
+  const LMR2 = +(E.BFAI_LMR2 || 0), NMP = +(E.BFAI_NMP || 0), CHKMUST = +(E.BFAI_CHKMUST || 0), ROOTREL = +(E.BFAI_ROOTREL || 0), ROOTATK = +(E.BFAI_ROOTATK || 0), RLMR = +(E.BFAI_RLMR || 0), UPESC = +(E.BFAI_UPESC || 0), DYN = +(E.BFAI_DYN || 0), UP3K = +(E.BFAI_UP3K || 0), FASTFP = +(E.BFAI_FASTFP || 0), PSPLIT = +(E.BFAI_PSPLIT || 0);
   if (LMR2) rep('{ v = -ab(r.S, depth - 2, -alpha - 0.01, -alpha, ply + 1, ext); if (v > alpha)', '{ v = -ab(r.S, depth - 2 - (mi > ' + LMR2 + ' && depth >= 4 ? 1 : 0), -alpha - 0.01, -alpha, ply + 1, ext); if (v > alpha)');
   if (NMP) {
     rep('    let best = -INF, legal = 0, bm = null;',
@@ -123,6 +123,14 @@ function build(E, tag) {
     rep("    for (let r = 0; r < 10; r++) for (let f = 0; f < 9; f++) {\n      const p = S.board[r][f]; if (!p) continue;\n      mix(1000 + r * 9 + f);\n      for (const k in p) { mixS(k); const v = p[k]; if (typeof v === 'number') { mix(v | 0); mix(Math.round(v * 4096) | 0); } else if (typeof v === 'string') { mix(7); mixS(v); }",
       "    for (let r = 0; r < 10; r++) for (let f = 0; f < 9; f++) {\n      const p = S.board[r][f]; if (!p) continue;\n      mix(1000 + r * 9 + f);\n      for (const k in p) { mix(fpId(k)); const v = p[k]; if (typeof v === 'number') { mix(v | 0); if (v !== (v | 0)) mix(Math.round(v * 4096) | 0); } else if (typeof v === 'string') { mix(7); mix(fpId(v)); }");
     rep("  function fp(S) {", "  // 变体 next：字段名 / 字符串值 → 编号（同一个字符串永远同一个号）\n  const FPID = new Map();\n  const fpId = k => { let i = FPID.get(k); if (i === undefined) { i = 0x9e3779b1 ^ Math.imul(FPID.size + 1, 2654435761); FPID.set(k, i); } return i; };\n  function fp(S) {");
+  }
+  if (PSPLIT) {   // 多核分头算（原型，只供量）：BFAI.part = { i, k, alpha(d) }——第 3 层起根上只算“第 2 层排名 % k === i”的那些步；alpha(d) 可给一个别的核已算出的下限
+    rep("          if (k.off) { k.nv = -INF; n++; continue; }",
+      "          if (k.off) { k.nv = -INF; n++; continue; }\n          if (BFAI.part && d > 2 && k.ow !== BFAI.part.i) { k.nv = -INF; n++; continue; }   // 变体 next：多核分头算，这步归别的核");
+    rep("      for (const k of kids) { k.v = k.nv; k.nv = null; k.vg = !!k.gn; }",
+      "      for (const k of kids) { if (BFAI.part && d > 2 && k.ow !== BFAI.part.i) { k.nv = -INF; } k.v = k.nv; k.nv = null; k.vg = !!k.gn; }");
+    rep("      depthDone = d;\n", "      depthDone = d;\n      if (BFAI.part && d === 2) kids.forEach((k, i) => { k.ow = i % BFAI.part.k; });\n      if (BFAI.part && BFAI.part.onIter) BFAI.part.onIter({ d, best: actOf(kids[0]), v: kids[0].v, nodes: nodes - n0 });\n");
+    rep("      let alpha = -INF, n = 0, cut = false;", "      let alpha = BFAI.part && BFAI.part.alpha && d > 2 ? BFAI.part.alpha(d) : -INF, n = 0, cut = false;");
   }
   if (tag === null) return s;
   const out = path.join(os.tmpdir(), `bfai_next_${rev}_${tag || 'env'}_${process.pid}.js`);
