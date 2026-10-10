@@ -22,8 +22,13 @@ with sync_playwright() as p:
     for f in LIBS + [H + '/' + scene]:
         nm = os.path.basename(f).split('.')[0]
         pg.add_script_tag(content=open(f, encoding='utf-8').read() + '\n' + EXP.get(nm, ''))
-    t0 = time.time()
-    url = pg.evaluate("([id,W,H])=>{ const S = STILL[id](); if (S.update) S.update(); return SB.shoot(S.ctx, S.cam, Object.assign({ W, H, ss: 1, gseed: 1 }, S.post)); }", [shot, W, HH])
-    Image.open(io.BytesIO(base64.b64decode(url.split(',')[1]))).convert('RGB').save(f'{H}/out/{out}.jpg', quality=92)
-    print('ok', out, round(time.time() - t0, 1), 's', flush=True)
+    for one in shot.split(','):
+        nm, _, tt = one.partition('@')
+        t0 = time.time()
+        try:
+            url = pg.evaluate("([id,W,H,tt])=>{ const S = tt ? (()=>{ const F = FILM[id](), dt = 1/24; for (let x = 0; x <= +tt; x += dt) F.update(x, dt); return F; })() : STILL[id](); if (!tt && S.update) S.update(); return SB.shoot(S.ctx, S.cam, Object.assign({ W, H, ss: 1, gseed: 1 }, S.post)); }", [nm, W, HH, tt])
+            Image.open(io.BytesIO(base64.b64decode(url.split(',')[1]))).convert('RGB').save(f'{H}/out/{out if "," not in shot else "c_" + nm}.jpg', quality=90)
+            print('ok', nm, round(time.time() - t0, 1), 's', flush=True)
+        except Exception as e:
+            print('FAIL', nm, str(e)[:400], flush=True)
     b.close()

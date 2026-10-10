@@ -342,7 +342,7 @@ const XY3 = (() => {
       const glint = new THREE.Mesh(new THREE.SphereGeometry(0.0022, 8, 6), new THREE.MeshBasicMaterial({ color: 0xfff8ee })); glint.position.set(s * -0.003, 0.004, 0.0126); eye.add(glint);
       // 上眼皮：一片皮壳，睁眼时卷在眼珠上沿（只盖上面三分之一），眨眼时往下合
       const lid = new THREE.Group(); eye.add(lid);
-      const shell = new THREE.Mesh(new THREE.SphereGeometry(0.0138, 24, 10, 0, TAU, 0, PI * 0.5), M(C.skin, { side: THREE.DoubleSide })); shell.rotation.x = 0.0; lid.add(shell);
+      const shell = new THREE.Mesh(new THREE.SphereGeometry(0.0138, 24, 10, 0, TAU, 0, PI * 0.5), M(0xa87a58, { side: THREE.DoubleSide })); shell.rotation.x = 0.0; lid.add(shell);
       const lash = new THREE.Mesh(new THREE.TorusGeometry(0.0134, 0.0011, 4, 24, PI), M(0x120c08)); lash.rotation.set(PI / 2, 0, PI); lash.position.y = 0.0; lid.add(lash);
       lid.rotation.x = -(angry ? 0.32 : 0.45); lid.userData.open = lid.rotation.x; J.lids.push(lid);   // 怒目：眼皮抬得高一点
       const lower = new THREE.Mesh(new THREE.TorusGeometry(0.0132, 0.0018, 4, 20, PI * 0.9), M(C.skin)); lower.rotation.set(PI / 2 + 0.25, 0, PI * 0.05); lower.position.y = -0.003; eye.add(lower);
