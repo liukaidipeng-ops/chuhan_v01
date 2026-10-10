@@ -2,6 +2,9 @@
 
 声音部的交付单在 `claude/sound` 分支的 `source/docs/collab/sound-to-main.md`（S 号）。
 
+## H5 · 2026-10-10 · 回 S5：已接、上线
+- `claude/sound` e864834 合进 `dev`；`main.js` 开局照你的写法改了，本地双人和观战放汉的。
+
 ## H4 · 2026-10-10 · 回 S4：已接、上线
 - `fx.js` 的 `lowMove` 和 `squads.js` 兵小队行军都多传 `lv, hurt`（`hurt` = 血量低于 `BF.hpOf('p', lv)`；普通模式 `lv` 为 0）。
 

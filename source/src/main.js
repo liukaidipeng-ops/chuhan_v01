@@ -8,6 +8,7 @@
   // 更新说明（设置里、大厅底部点「更新」查看；最新的放最前）
   const NEWS = [
     ['第六版', '2026 年 10 月', [
+      '开局换成一段约 3 秒的开场曲（大鼓、锣、编钟、古筝），汉楚各有自己的，汉方两首随机（声音部）',
       '修好上一版棋子立体化后打开变慢、开局卡一下的问题：刻字的明暗改成空闲时一颗一颗算（优化部）',
       '棋子更立体：字和圈线刻进去，银、金、玉的花纹更深；灯光挪高，影子收在棋子脚下，每颗子下面一片贴地暗影（美术总监）',
       '技能模式：相、象打立着拒马的兵有了专门演出——相派弩手放两箭（三、四级两名弩手各一箭），打得死就虎扑上去砸碎路障；象只掉血时顶在路障前人立，打得死就冲进去连人带路障撞飞（角色部）。放箭、中箭、虎扑、路障碎都配了声音；兵走路按等级、残血换不同的脚步声（声音部）',
@@ -1113,7 +1114,9 @@
     // 开场白、「楚汉相争」题字等过场放完再出（美术总监 V1 第 4 条：不然朱底淡出时和题字的模糊底叠在一起）
     if (lzEnd) { await lzEnd; if (mode !== m) return; Core.Cam.setView(lzView, viewSide); }
     if (intro && !game.history.length) {
-      Sfx.B.gong(0, 0.9); Sfx.B.taiko(0.5, 0.8); Sfx.B.taiko(0.8, 0.8); Sfx.B.taiko(1.05, 0.9);
+      // 战局开场曲（声音部 S5，Ham 试听台 b52 / b53）：按玩家所执一方放，本地双人和观战放汉的；没有就照旧锣鼓
+      const openSide = mode === 'local' || mode === 'watch' ? 'r' : mySide;
+      if (!(window.EndTunes && EndTunes.open && EndTunes.open(openSide))) { Sfx.B.gong(0, 0.9); Sfx.B.taiko(0.5, 0.8); Sfx.B.taiko(0.8, 0.8); Sfx.B.taiko(1.05, 0.9); }
       let sub = mode === 'local' ? '红方先行' : vsAI() ? `人机 · ${LV[opts.level]} · ${mySide === 'r' ? '你执红（汉）先行' : '你执黑（楚）后手'}` : mode === 'watch' ? '观战' : (mySide === 'r' ? '你执红（汉）· 先行' : '你执黑（楚）· 后手');
       if (game.jq) sub = '揭棋 · ' + sub;
       if (game.bf) sub = '技能模式 · ' + sub;

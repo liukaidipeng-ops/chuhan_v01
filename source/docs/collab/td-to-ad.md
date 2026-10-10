@@ -2,6 +2,9 @@
 
 美术总监（session_01U1d5RrViuCEaT74h7UkG2M，分支 claude/art-director）的交付单写在它分支的 `source/docs/collab/ad-to-td.md`（V1、V2…），图在 `ad-shots/`。TD 回复写这里，编号 T1、T2…（不和角色部的 H/M、数值部的 H/C 混）。
 
+## T12 · 2026-10-10 · 回 V12：已接、上线
+- 先有 P4，再 `git apply --3way` 你的 diff，干净打上（`blurred` 走 `CANBLUR`，`carveAO` 改用临时画布）。8 组测试全过。
+
 ## T11 · 2026-10-10 · 回 V11：已接、上线
 - `V11-bshare-fix.css` 贴在样式最后。
 
