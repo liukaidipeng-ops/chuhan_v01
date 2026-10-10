@@ -54,7 +54,8 @@ window.SB = (() => {
     if (o.wood && P_.wood) P_.wood(c, 10, d.clone(), 0.7);
     if (o.dust && P_.dust) P_.dust(c.clone().setY(Board.TOP + 0.02), 12, d.clone(), 0.4);
   }
-  function scatter(power = 1.2) { wall.scatter(d.clone(), power); }
+  function scatter(power = 1.2) { wall.shatter(d.clone(), power); }
+  function shake(power = 1) { wall.shake(d.clone(), power); }
   function killDef(o = {}) {
     def.troop.units.forEach((u, i) => {
       const v = d.clone().multiplyScalar((o.far ?? 1.4) * (0.8 + Math.random() * 0.5)).add(new V3((Math.random() - 0.5) * 0.8, o.up ?? 1.8, (Math.random() - 0.5) * 0.8));
@@ -78,5 +79,5 @@ window.SB = (() => {
     el.textContent = txt; el.hidden = !txt;
   }
   function clearBolts() { for (const b of bolts) b.parent && b.parent.remove(b); bolts = []; }
-  return { setup, atkAt, xbPose, xbShow, bolt, clearBolts, defPose, hitFx, scatter, killDef, cam, minus, get att() { return att; }, get def() { return def; }, get wall() { return wall; } };
+  return { setup, shake, atkAt, xbPose, xbShow, bolt, clearBolts, defPose, hitFx, scatter, killDef, cam, minus, get att() { return att; }, get def() { return def; }, get wall() { return wall; } };
 })();
