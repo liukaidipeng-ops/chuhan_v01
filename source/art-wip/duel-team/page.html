@@ -166,149 +166,166 @@ h2{margin:0 0 6px;font:900 18px/1.3 var(--ef);letter-spacing:.1em}
     const f = (A, B, P0, P3) => { const m1 = (B - P0) / Math.max(1e-4, t2 - t0) * dt * (i === 0 ? 0 : 1), m2 = (P3 - A) / Math.max(1e-4, t3 - t1) * dt * (i + 2 >= n ? 0 : 1); return h00 * A + h10 * m1 + h01 * B + h11 * m2; };
     return Array.isArray(a) ? a.map((x, j) => f(x, b[j], p0[j], p3[j])) : f(a, b, p0, p3);
   }
-  // ---------- 二级 2v2、三级 3v3（Ham 10-10：「可以开始做二级兵卒对打和三级兵卒对打了，2V2 和 3V3 需要做出区别」）----------
-  // 2v2 拼配合：一人举盾掩护、一人从他盾边刺出，对面一人正面硬冲、一人抢侧翼。
-  // 3v3 拼阵型：前两面盾并成一堵墙整排推进，后一人长矛从肩上越过去刺；两堵盾墙对撞，撞开口子再齐刺。
-  // 每个人：team（A 汉 / D 楚）、z（横向站位，世界坐标）、x0（前后）、keys（关键帧，各自的坐标：+z 朝对面、+x 握矛那边）、tgt（这一刻矛对着谁：[[时刻, 编号], …]）
-  const RA = { px: 0, side: 0, py: 0, crouch: 0.12, lean: 0.12, twist: 0.15, sway: 0, fL: 0.25, fR: -0.15, liftL: 0, liftR: 0, wp: [0.3, 1.02, 0.22], wd: [0, -0.08], g: 0.95, sp: [-0.25, 1.15, 0.4], sd: [0, 0], hx: -0.05, hy: 0, fall: 0 };
-  const RD = { px: 0, side: 0, py: 0, crouch: 0.22, lean: 0.1, twist: 0.25, sway: 0, fL: 0.28, fR: -0.22, liftL: 0, liftR: 0, wp: [0.28, 1.42, 0.02], wd: [0, -0.12], g: 0.85, sp: [-0.22, 1.2, 0.46], sd: [0, 0], hx: 0.05, hy: 0, fall: 0 };
-  const charge = (t0, px1, o = {}) => [[t0, { px: 0, crouch: 0.24, lean: 0.05 }], [t0 + 0.12, { px: px1 * 0.25, lean: 0.3, liftR: 0.14, fR: 0.25 }], [t0 + 0.24, { px: px1 * 0.55, fR: px1 * 0.6, liftR: 0, liftL: 0.14 }], [t0 + 0.36, { px: px1 * 0.85, fL: px1 * 1.05, liftL: 0 }], [t0 + 0.46, { px: px1, crouch: 0.26, lean: 0.4, ...o }]];
-  const stagger = (t0, px0, dx = 0.55) => [[t0 + 0.12, { px: px0 - dx * 0.3, fR: px0 - 0.6, liftR: 0.12 }], [t0 + 0.22, { liftR: 0 }], [t0 + 0.34, { px: px0 - dx * 0.65, fL: px0 - dx * 0.45, liftL: 0.12, lean: -0.15 }], [t0 + 0.44, { liftL: 0 }], [t0 + 0.6, { px: px0 - dx, fR: px0 - dx - 0.45, liftR: 0.08 }], [t0 + 0.7, { liftR: 0 }]];
-  const hitPose = { lean: -0.35, twist: -0.45, hx: -0.4, sway: 0.12, wp: [0.48, 1.05, 0.15], wd: [0.7, 0.45], g: 0.9, sp: [-0.48, 1.0, 0.18], sd: [-0.6, 0.35] };
-  const guardD = { crouch: 0.27, lean: 0.14, twist: 0.25, sway: 0, hx: 0.05, sp: [-0.2, 1.24, 0.48], sd: [0, 0], wp: [0.28, 1.42, 0], wd: [0, -0.1], g: 0.8 };
+  const RA1 = { px: 0, side: 0, py: 0, crouch: 0.1, lean: 0.12, twist: 0.15, sway: 0, fL: 0.25, fR: -0.15, liftL: 0, liftR: 0, wp: [0.3, 1.02, 0.22], wd: [0, -0.08], g: 0.95, sp: [-0.32, 1.15, 0.36], sd: [0, 0], hx: -0.05, hy: 0, fall: 0 };
+  const RD1 = { px: 0, side: 0, py: 0, crouch: 0.22, lean: 0.1, twist: 0.25, sway: 0, fL: 0.28, fR: -0.22, liftL: 0, liftR: 0, wp: [0.28, 1.42, 0.02], wd: [0, -0.12], g: 0.85, sp: [-0.22, 1.2, 0.46], sd: [0, 0], hx: 0.05, hy: 0, fall: 0 };
+  const opening1 = [   // 冲刺、突刺、被盾磕偏
+    [0, RA1], [0.45, {}],
+    [0.6, { px: -0.06, crouch: 0.16, lean: 0.04, fR: -0.22, wp: [0.3, 1.0, 0.1] }],
+    [0.72, { px: 0.3, lean: 0.32, crouch: 0.1, liftR: 0.16, fR: 0.3 }],
+    [0.84, { px: 0.62, fR: 0.85, liftR: 0, fL: 0.25, liftL: 0 }],
+    [0.95, { px: 0.95, liftL: 0.16, fL: 0.9 }],
+    [1.06, { px: 1.22, fL: 1.45, liftL: 0, crouch: 0.16, lean: 0.3, wp: [0.32, 1.12, -0.12], wd: [0, 0.02], g: 0.8, twist: 0.35 }],
+    [1.2, { px: 1.42, fL: 1.85, liftL: 0.08 }],
+    [1.3, { px: 1.55, fL: 1.95, liftL: 0, crouch: 0.26, lean: 0.42, twist: -0.15, wp: [0.26, 1.14, 0.88], wd: [0, -0.02], g: 0.32 }],
+    [1.4, { wp: [0.27, 1.18, 0.72], wd: [0.22, 0.14], lean: 0.34, px: 1.5 }],
+    [1.52, { wp: [0.18, 1.12, 0.45], wd: [-0.15, 0.08], g: 0.75, twist: 0.05, crouch: 0.22 }],
+  ];
+  const D_open1 = [   // 举盾迎挡、从盾后反刺
+    [0, RD1], [1.2, { crouch: 0.25 }],
+    [1.34, { sp: [-0.12, 1.22, 0.62], sd: [0.1, 0.05], lean: 0.2, px: 0.04 }],
+    [1.42, { sp: [-0.28, 1.24, 0.55], sd: [0.35, 0.1], px: -0.02 }],
+    [1.5, { wp: [0.28, 1.3, -0.1], wd: [0, -0.05], g: 0.8, twist: 0.35 }],
+    [1.62, { px: -0.08, fL: 0.3, liftL: 0.05, wp: [0.24, 1.2, 0.55], wd: [0, -0.05], g: 0.38, lean: 0.36, crouch: 0.27, twist: -0.1, sp: [-0.42, 1.15, 0.32], sd: [0.3, 0] }],
+  ];
+  const H1A = [...opening1,
+        [1.66, { wp: [0.34, 1.12, 0.62], wd: [0.9, 0.15], g: 0.4, twist: -0.35 }],   // 矛杆往外一拨，把对方的矛拨到他盾那边
+        [1.75, { px: 1.3, wp: [0.26, 1.12, 0.3], wd: [-0.1, 0], g: 0.5, twist: 0.1 }],   // 收矛蓄一下（矛尖绕回到他身前，别从他身子里横扫过去）
+        [1.82, { px: 1.45, fL: 1.85, liftL: 0.06, wp: [0.22, 1.15, 0.98], wd: [-0.22, -0.02], g: 0.35, lean: 0.48, twist: -0.2, crouch: 0.24 }],   // 顺势一刺，矛尖拐回来扎他持矛那边的肩头
+        [1.9, { liftL: 0 }],
+        [2.1, { px: 1.45, wp: [0.28, 1.1, 0.5], wd: [0, 0], g: 0.75, lean: 0.25, twist: 0.1 }],
+        [2.45, { px: 1.4, fL: 1.75, fR: 0.75, crouch: 0.06, lean: -0.08, twist: 0.25, wp: [0.34, 1.12, 0.28], wd: [0.1, 1.45], g: 1.12, sp: [-0.45, 1.12, 0.3], sd: [-0.4, 0], hx: 0.12 }],   // 立矛
+        [2.68, { wp: [0.34, 1.4, 0.28] }],                                   // 提矛
+        [2.82, { wp: [0.34, 1.04, 0.28], crouch: 0.1 }],                     // 顿矛一
+        [2.98, { wp: [0.34, 1.4, 0.28], crouch: 0.05 }],
+        [3.12, { wp: [0.34, 1.04, 0.28], crouch: 0.1 }],                     // 顿矛二
+        [3.4, { wp: [0.3, 1.28, 0.62], wd: [-0.05, 0.08], g: 0.6, crouch: 0.08, lean: 0.05, hx: 0.2, hy: 0.15, twist: 0 }],   // 矛尖指着他
+        [3.55, { wd: [-0.05, 0.2] }], [3.68, { wd: [-0.05, -0.02] }], [3.81, { wd: [-0.05, 0.2] }], [3.94, { wd: [-0.05, -0.02] }],   // 矛尖一挑一挑：来呀
+        [4.15, { wp: [0.34, 1.12, 0.28], wd: [0.1, 1.45], g: 1.12, sp: [-0.42, 1.85, 0.2], sd: [-0.4, 0.7], lean: -0.1 }],   // 立矛，盾举过头晃一晃
+        [4.3, { sp: [-0.62, 1.7, 0.05], sd: [-0.9, 0.5] }], [4.45, { sp: [-0.42, 1.85, 0.2], sd: [-0.4, 0.7] }],
+        [4.75, { lean: -0.22, hx: 0.35, hy: -0.1, sp: [-0.55, 1.15, 0.25], sd: [-1.0, 0.1] }],   // 仰头一笑
+        [5.6, {}],
+      ];
+  const H1D = [...D_open1,
+        [1.68, { wp: [0.18, 1.22, 0.62], wd: [-0.6, 0.05] }],   // 被拨开
+        [1.76, { liftL: 0 }],
+        [1.84, { px: 0.2 }],
+        [1.92, { px: 0.08, lean: -0.35, twist: -0.45, hx: -0.4, sway: 0.12, wp: [0.48, 1.05, 0.15], wd: [0.7, 0.45], g: 0.9, sp: [-0.48, 1.0, 0.18], sd: [-0.6, 0.35] }],   // 肩头中矛
+        [2.05, { px: -0.12, fR: -0.6, liftR: 0.12 }], [2.15, { liftR: 0 }],     // 踉跄一
+        [2.25, { px: -0.42, fL: -0.15, liftL: 0.12, lean: -0.2 }], [2.35, { liftL: 0 }],   // 踉跄二
+        [2.48, { px: -0.7, fR: -0.95, liftR: 0.1, lean: -0.05 }], [2.58, { liftR: 0 }],   // 踉跄三
+        [2.72, { px: -0.78, fL: -0.45, liftL: 0.06, crouch: 0.32, lean: 0.08, twist: 0.2, hx: 0, sway: 0 }], [2.8, { liftL: 0 }],   // 站稳
+        [3.0, { crouch: 0.27, lean: 0.14, twist: 0.25, sp: [-0.2, 1.24, 0.48], sd: [0, 0], wp: [0.28, 1.42, 0], wd: [0, -0.1], g: 0.8, hx: 0.05 }],   // 防守架势
+        [5.6, {}],
+      ];
+  const H1EV = [[1.66, 'parry'], [1.84, 'hit'], [2.82, 'thud'], [3.12, 'thud']];
+  // ---------- 二级 2v2、三级 3v3 第二版（Ham char-013：「你自己看看你做的啥玩意儿」「六秒太长了，压缩到5~5.5秒」）----------
+  // 改法：主线直接用 Ham 批过的一对一保底动作；其余人只做配合和反应，一拍只有一个主角；站位拉开；
+  //       矛要扎谁、盾要挡谁，运行时按两人实际位置算（aim / cover），保证真碰上。
+  const K12 = 5.2 / 5.6, sc = (keys, k = K12) => keys.map(([t, o]) => [t * k, o]);
+  const RA = { px: 0, side: 0, py: 0, crouch: 0.12, lean: 0.12, twist: 0.15, sway: 0, fL: 0.25, fR: -0.15, liftL: 0, liftR: 0, wp: [0.3, 1.02, 0.22], wd: [0, -0.08], g: 0.95, sp: [-0.25, 1.15, 0.4], sd: [0, 0], hx: -0.05, hy: 0, fall: 0, aimW: 0, coverW: 0 };
+  const RD = { px: 0, side: 0, py: 0, crouch: 0.22, lean: 0.1, twist: 0.25, sway: 0, fL: 0.28, fR: -0.22, liftL: 0, liftR: 0, wp: [0.28, 1.42, 0.02], wd: [0, -0.12], g: 0.85, sp: [-0.22, 1.2, 0.46], sd: [0, 0], hx: 0.05, hy: 0, fall: 0, aimW: 0, coverW: 0 };
+  const stagger = (t0, px0, dx = 0.5) => [[t0 + 0.1, { px: px0 - dx * 0.3, fR: px0 - 0.6, liftR: 0.12 }], [t0 + 0.2, { liftR: 0 }], [t0 + 0.3, { px: px0 - dx * 0.65, fL: px0 - dx * 0.45, liftL: 0.12, lean: -0.15 }], [t0 + 0.4, { liftL: 0 }], [t0 + 0.55, { px: px0 - dx, fR: px0 - dx - 0.45, liftR: 0.08 }], [t0 + 0.65, { liftR: 0 }]];
+  const hitPose = { lean: -0.35, twist: -0.45, hx: -0.4, sway: 0.12, wp: [0.48, 1.05, 0.15], wd: [0.7, 0.45], g: 0.9, sp: [-0.48, 1.0, 0.18], sd: [-0.6, 0.35], aimW: 0 };
+  const guardD = { crouch: 0.27, lean: 0.14, twist: 0.25, sway: 0, hx: 0.05, sp: [-0.2, 1.24, 0.48], sd: [0, 0], wp: [0.28, 1.42, 0], wd: [0, -0.1], g: 0.8, aimW: 0 };
+  const run = (t0, t1, p0, p1, n = 3) => Array.from({ length: n }, (_, i) => { const u = (i + 1) / n, t = t0 + (t1 - t0) * u, k = i % 2 ? 'L' : 'R'; return [t, { px: p0 + (p1 - p0) * u, ['f' + k]: p0 + (p1 - p0) * u + 0.35, ['lift' + k]: 0 }]; }).flatMap(([t, o], i, a) => [[t - (a.length > 1 ? (a[1][0] - a[0][0]) * 0.5 : 0.1), { ['lift' + (i % 2 ? 'L' : 'R')]: 0.13 }], [t, o]]);
   const TEAMS = {
     '2v2': {
-      T: 6.0,
+      T: 5.2,
       figs: [
-        { team: 'A', z: -0.55, tgt: [[0, 2], [2.0, 3]], keys: [   // 汉 甲：举盾掩护
-          [0, RA], [0.35, { side: 0.04, hy: 0.06 }], [0.7, { side: 0, hy: 0 }],
-          [1.0, { crouch: 0.3, lean: 0.25, sp: [-0.12, 1.2, 0.55], sd: [0.05, 0.05], fL: 0.4, fR: -0.3 }],   // 架盾硬接 C1 的冲刺
-          [1.2, { px: -0.1, crouch: 0.32 }],
-          [1.65, { px: 0, side: -0.35, sp: [-0.55, 1.22, 0.55], sd: [-0.55, 0.05], twist: 0.5, lean: 0.3 }],   // 横跨一步，把盾伸到同伴身前
-          [1.95, { side: -0.42, sp: [-0.62, 1.24, 0.58], sd: [-0.7, 0.05] }],
-          [2.25, { px: 0.45, side: -0.3, lean: 0.5, sp: [-0.45, 1.2, 0.8], sd: [-0.35, 0], fL: 0.85 }],   // 举盾一撞 C2
-          [2.6, { px: 0.35, side: -0.1, lean: 0.25, sp: [-0.22, 1.18, 0.5], sd: [0, 0], twist: 0.2 }],
-          [3.4, { px: 0.3, side: 0, crouch: 0.18, wp: [0.3, 1.05, 0.5], wd: [0, -0.12], g: 0.55, sp: [-0.18, 1.2, 0.48] }],   // 两人并盾，矛尖压低
-          [3.8, { px: 0.55, fL: 0.85, liftL: 0.08 }], [3.9, { liftL: 0 }], [4.5, { px: 0.8, fR: 0.45, liftR: 0.08 }], [4.6, { liftR: 0 }],
-          [6.0, {}],
+        // 0 汉甲（主角）：一对一保底版原样（扣血），时间压到 5.2 秒
+        { team: 'A', z: -0.45, base: RA1, tgt: [[0, 1]], keys: sc(H1A) },
+        // 1 楚甲（主角）：一对一保底版原样
+        { team: 'D', z: -0.45, base: RD1, tgt: [[0, 0]], keys: sc(H1D) },
+        // 2 汉乙：先守着；楚乙从侧面扑汉甲时，他横跨一步伸盾替同伴挡，再举盾把楚乙撞开
+        { team: 'A', z: 0.8, tgt: [[0, 3]], cover: [[0, 0, 3]], keys: [
+          [0, RA], [0.45, { px: 0.15, fL: 0.45, liftL: 0.1 }], [0.55, { liftL: 0 }], [1.2, { px: 0.25, crouch: 0.16, hy: -0.25 }],   // 看着同伴那边
+          [1.7, { px: 0.45, side: 0.25, crouch: 0.24, lean: 0.25, twist: 0.4, hy: 0.15 }],
+          [1.95, { px: 0.7, side: 0.7, fL: 1.05, fR: 0.2, crouch: 0.3, lean: 0.35, coverW: 1, twist: 0.5 }],   // 横跨一步，盾伸到同伴身前
+          [2.15, { coverW: 1 }],
+          [2.28, { px: 0.65, coverW: 0.4, sp: [-0.2, 1.18, 0.5], sd: [0, 0] }],
+          [2.42, { px: 1.05, fL: 1.4, lean: 0.55, coverW: 0, sp: [-0.18, 1.18, 0.85], sd: [0, 0] }],   // 举盾一撞
+          [2.7, { px: 0.95, lean: 0.25, sp: [-0.22, 1.15, 0.45], twist: 0.2, hy: 0 }],
+          [3.3, { px: 0.85, side: 0.3, crouch: 0.18, wp: [0.3, 1.05, 0.45], wd: [0, -0.12], g: 0.55 }],   // 站到同伴身边护着，矛尖压低
+          [5.2, {}],
         ] },
-        { team: 'A', z: 0.55, tgt: [[0, 2], [2.15, 3]], keys: [   // 汉 乙：从同伴盾边刺出
-          [0, RA], [0.4, { side: -0.04, hy: -0.05 }], [0.8, { side: 0, hy: 0 }],
-          [1.05, { px: 0.15, crouch: 0.22, wp: [0.32, 1.02, -0.15], wd: [0.42, 0.02], g: 1.0, twist: 0.45 }],   // 收矛、斜对着 C1
-          [1.28, { px: 0.85, fL: 1.2, liftL: 0.1, lean: 0.45 }],
-          [1.4, { px: 1.0, fL: 1.35, liftL: 0, crouch: 0.28, lean: 0.5, twist: -0.3, wp: [0.24, 1.2, 0.95], wd: [0.44, 0.04], g: 0.32 }],   // 掩护刺：扎 C1 肩头
-          [1.6, { px: 0.85, lean: 0.3, wp: [0.3, 1.1, 0.5], wd: [0.3, 0], g: 0.6, twist: 0.1 }],
-          [1.9, { px: 0.6, crouch: 0.26, sp: [-0.28, 1.2, 0.45], twist: 0.25 }],   // C2 从侧面刺来，他刚收矛来不及挡
-          [2.3, { px: 0.65, wp: [0.3, 1.0, -0.1], wd: [-0.15, 0.02], g: 0.95, twist: 0.45 }],
-          [2.45, { px: 0.95, fL: 1.25, lean: 0.5, twist: -0.3, wp: [0.24, 1.18, 0.95], wd: [-0.16, 0.05], g: 0.32 }],   // 同伴把 C2 撞开，他补一矛
-          [2.7, { px: 0.7, lean: 0.25, wp: [0.3, 1.05, 0.45], wd: [0, -0.05], g: 0.6, twist: 0.15 }],
-          [3.4, { px: 0.3, fL: 0.6, crouch: 0.18, wp: [0.3, 1.05, 0.5], wd: [0, -0.12], g: 0.55, sp: [-0.18, 1.2, 0.48] }],
-          [3.8, { px: 0.55, fL: 0.85, liftL: 0.08 }], [3.9, { liftL: 0 }], [4.5, { px: 0.8, fR: 0.45, liftR: 0.08 }], [4.6, { liftR: 0 }],
-          [6.0, {}],
-        ] },
-        { team: 'D', z: -0.55, tgt: [[0, 0]], keys: [   // 楚 甲：正面硬冲
-          [0, RD], [0.3, { side: 0.05 }], [0.55, { side: 0 }],
-          ...charge(0.6, 1.2, { wp: [0.26, 1.22, 0.88], wd: [0, 0.0], g: 0.36, twist: -0.2 }),   // 冲上去一刺，扎在汉甲盾上
-          [1.25, { px: 1.1, lean: 0.25, wp: [0.3, 1.3, 0.4], g: 0.7 }],
-          [1.42, { px: 1.05, ...hitPose }],   // 被汉乙从侧面扎中
-          ...stagger(1.42, 1.05, 0.7),
-          [2.3, { px: 0.3, ...guardD }],
-          [3.6, { px: 0.15, crouch: 0.3 }], [4.6, { px: -0.05 }],
-          [6.0, {}],
-        ] },
-        { team: 'D', z: 0.55, tgt: [[0, 1], [1.6, 0]], keys: [   // 楚 乙：抢侧翼
-          [0, RD], [0.35, { side: -0.05 }], [0.6, { side: 0 }],
-          [0.95, { px: 0.3, side: 0.2, fL: 0.5, liftL: 0.1 }], [1.15, { px: 0.6, side: 0.38, liftL: 0, fR: 0.25 }], [1.4, { px: 0.85, side: 0.45, fL: 0.95, crouch: 0.28, wp: [0.32, 1.32, -0.2], wd: [-0.18, 0.04], g: 0.85, twist: 0.45 }],   // 绕到侧翼，收戟
-          [1.72, { px: 1.15, fL: 1.3, lean: 0.45, twist: -0.25, wp: [0.26, 1.3, 0.85], wd: [-0.2, 0.0], g: 0.38 }],   // 从侧面刺汉乙——被汉甲伸过来的盾挡住
-          [1.95, { px: 1.05, lean: 0.25, wp: [0.3, 1.32, 0.4], g: 0.7, twist: 0.1 }],
-          [2.25, { px: 1.0 }], [2.33, { px: 0.7, lean: -0.25, sp: [-0.3, 1.32, 0.3], sd: [0.3, 0.2], fR: 0.25 }],   // 被盾撞开
-          [2.5, { px: 0.65, ...hitPose }],   // 汉乙补的一矛
-          ...stagger(2.5, 0.65, 0.5),
-          [3.4, { px: 0.1, side: 0.1, ...guardD }],
-          [4.6, { px: -0.05, side: 0 }],
-          [6.0, {}],
+        // 3 楚乙：同伴挨了一下，他从侧面扑汉甲——被汉乙的盾挡住、撞开
+        { team: 'D', z: 0.8, tgt: [[0, 2]], aim: [[0, 0]], keys: [
+          [0, RD], [0.5, { side: 0.04 }], [1.0, { side: 0 }],
+          [1.62, { crouch: 0.3, wp: [0.32, 1.3, -0.2], wd: [0, 0.04], g: 0.85, twist: 0.45, hy: 0.3 }],   // 看见同伴中矛
+          ...run(1.65, 1.95, 0, 1.25, 3).map(([t, o]) => [t, { ...o, side: -0.5 * Math.min(1, (t - 1.65) / 0.3) }]),
+          [2.05, { px: 1.4, lean: 0.45, twist: -0.25, wp: [0.26, 1.3, 0.85], g: 0.38, aimW: 1 }],   // 扑上去刺汉甲
+          [2.25, { px: 1.35, lean: 0.25, wp: [0.3, 1.32, 0.45], g: 0.65, aimW: 0.6 }],
+          [2.42, { px: 1.3 }], [2.5, { px: 0.95, lean: -0.3, sp: [-0.3, 1.32, 0.3], sd: [0.3, 0.2], aimW: 0 }],   // 被盾撞开
+          ...stagger(2.5, 0.95, 0.55),
+          [3.5, { px: 0.4, side: -0.15, ...guardD }],
+          [5.2, {}],
         ] },
       ],
-      stab: { 1: [[1.32, 1.5], [2.38, 2.55]] },
-      ev: [[1.15, 'clank', 2, 0], [1.42, 'hit', 1, 2], [2.28, 'clank', 0, 3], [2.5, 'hit', 1, 3], [3.85, 'thud', 0], [3.85, 'thud', 1], [4.55, 'thud', 0], [4.55, 'thud', 1]],
-      cam: [[0, { az: 0.6, r: 7.6, h: 3.8 }], [1.0, { az: 0.45, r: 7.0, h: 3.5 }], [1.6, { az: 0.75, r: 6.8, h: 3.4 }], [2.5, { az: 0.85, r: 7.0, h: 3.5 }], [3.6, { az: -0.6, r: 7.4, h: 3.6 }], [6.0, { az: -0.75, r: 7.2, h: 3.5 }]],   // 斜上方看，两组人前后错开都看得到
-      beats: [[0, '二级 2v2：对峙'], [0.6, '楚甲正面冲上来，汉甲举盾硬接'], [1.3, '汉乙从同伴盾边刺出，扎中楚甲'], [1.5, '楚乙绕到侧翼刺汉乙'], [1.75, '汉甲横跨一步，伸盾替同伴挡住'], [2.25, '汉甲举盾一撞，汉乙补一矛'], [3.3, '两人并盾，踏步逼上去']],
+      stab: { 0: [[1.78 * K12, 2.08 * K12]] },
+      ev: [[1.66 * K12, 'parry', 0, 1], [1.84 * K12, 'hit', 0, 1], [2.82 * K12, 'thud', 0], [3.12 * K12, 'thud', 0], [2.44, 'clank', 2, 3], [2.5, 'dust', 3]],
+      cam: [[0, { az: 0.2, r: 6.8, h: 4.6 }], [1.5, { az: 0.15, r: 6.4, h: 4.4 }], [1.85, { az: 0.4, r: 6.4, h: 4.8 }], [2.6, { az: 0.45, r: 6.6, h: 4.8 }], [3.2, { az: -0.3, r: 6.8, h: 4.6 }], [5.2, { az: -0.38, r: 6.8, h: 4.5 }]],
+      beats: [[0, '二级 2v2'], [0.55, '汉甲冲刺突刺，楚甲举盾挡住'], [1.35, '楚甲反刺，汉甲拨开顺势扎中'], [1.7, '楚乙从侧面扑上来刺汉甲'], [1.95, '汉乙横跨一步，伸盾替同伴挡住'], [2.4, '举盾一撞，把楚乙撞开'], [2.7, '汉甲嘲讽，汉乙在旁护着']],
     },
     '3v3': {
-      T: 6.0,
+      T: 5.4,
       figs: [
-        { team: 'A', z: -0.3, x0: 0, tgt: [[0, 3]], keys: [   // 汉 前左：盾墙
-          [0, { ...RA, sp: [-0.06, 1.2, 0.5], sd: [0, 0], wp: [0.32, 1.0, 0.0], g: 0.8 }],
-          [0.3, { px: 0.18, fL: 0.45, liftL: 0.1 }], [0.4, { liftL: 0, crouch: 0.2 }], [0.7, { px: 0.38, fR: 0.1, liftR: 0.1 }], [0.8, { liftR: 0, crouch: 0.22 }],   // 整排踏步推进
-          [1.2, { crouch: 0.3, lean: 0.35, sp: [-0.06, 1.2, 0.55] }], [1.32, { px: 0.26, lean: 0.25 }], [1.5, { px: 0.3, lean: 0.35 }],   // 楚卒撞上来，盾墙往后一挫
-          [2.3, { px: 0.32, crouch: 0.3, lean: 0.3 }], [2.48, { px: 0.7, fL: 0.95, lean: 0.55, sp: [-0.06, 1.2, 0.8] }],   // 整排一撞
-          [2.75, { px: 0.65, wp: [0.3, 1.0, -0.1], g: 0.95 }], [2.9, { px: 0.85, wp: [0.26, 1.18, 0.9], wd: [0.05, 0.03], g: 0.35, twist: -0.3, lean: 0.5 }],   // 齐刺
-          [3.2, { px: 0.75, wp: [0.3, 1.05, 0.4], g: 0.6, twist: 0.15, lean: 0.3 }],
-          [3.6, { px: 0.8, wp: [0.32, 1.0, 0.0], wd: [0, -0.08], g: 0.8, sp: [-0.06, 1.2, 0.5], crouch: 0.2 }],
-          [4.2, { crouch: 0.3 }], [4.35, { crouch: 0.16, fR: 0.55, liftR: 0.06 }], [4.45, { liftR: 0 }], [4.9, { crouch: 0.3 }], [5.05, { crouch: 0.16, fR: 0.55, liftR: 0.06 }], [5.15, { liftR: 0 }],   // 顿足两下：嗬！
-          [6.0, {}],
-        ] },
-        { team: 'A', z: 0.3, x0: 0, tgt: [[0, 4], [1.8, 5]], keys: [   // 汉 前右：盾墙
-          [0, { ...RA, sp: [-0.06, 1.2, 0.5], sd: [0, 0], wp: [0.32, 1.0, 0.0], g: 0.8 }],
-          [0.3, { px: 0.18, fL: 0.45, liftL: 0.1 }], [0.4, { liftL: 0, crouch: 0.2 }], [0.7, { px: 0.38, fR: 0.1, liftR: 0.1 }], [0.8, { liftR: 0, crouch: 0.22 }],
-          [1.2, { crouch: 0.3, lean: 0.35, sp: [-0.06, 1.2, 0.55] }], [1.32, { px: 0.26, lean: 0.25 }], [1.5, { px: 0.3, lean: 0.35 }],
-          [1.9, { sp: [-0.04, 1.55, 0.42], sd: [0, 0.6], crouch: 0.34, lean: 0.2 }],   // 楚后排跳起来劈，他把盾举过头顶接住
-          [2.2, { sp: [-0.04, 1.5, 0.45], sd: [0, 0.55], crouch: 0.4 }],
-          [2.35, { sp: [-0.06, 1.2, 0.55], sd: [0, 0], crouch: 0.3, lean: 0.3, px: 0.32 }], [2.48, { px: 0.7, fL: 0.95, lean: 0.55, sp: [-0.06, 1.2, 0.8] }],
-          [2.75, { px: 0.65, wp: [0.3, 1.0, -0.1], g: 0.95 }], [2.9, { px: 0.85, wp: [0.26, 1.18, 0.9], wd: [-0.05, 0.03], g: 0.35, twist: -0.3, lean: 0.5 }],
-          [3.2, { px: 0.75, wp: [0.3, 1.05, 0.4], g: 0.6, twist: 0.15, lean: 0.3 }],
-          [3.6, { px: 0.8, wp: [0.32, 1.0, 0.0], wd: [0, -0.08], g: 0.8, sp: [-0.06, 1.2, 0.5], crouch: 0.2 }],
-          [4.2, { crouch: 0.3 }], [4.35, { crouch: 0.16, fR: 0.55, liftR: 0.06 }], [4.45, { liftR: 0 }], [4.9, { crouch: 0.3 }], [5.05, { crouch: 0.16, fR: 0.55, liftR: 0.06 }], [5.15, { liftR: 0 }],
-          [6.0, {}],
-        ] },
-        { team: 'A', z: 0, x0: -0.75, tgt: [[0, 3], [2.6, 5]], keys: [   // 汉 后排：长矛从两人肩上越过去
+        // 0 汉前左、1 汉前右：盾墙。两面盾并成一堵
+        ...[-0.5, 0.5].map((z, i) => ({ team: 'A', z, tgt: [[0, 3 + i]], aim: [[0, 3 + i]], keys: [
+          [0, { ...RA, sp: [-0.05, 1.2, 0.5], sd: [0, 0], wp: [0.32, 1.0, 0.0], g: 0.8, crouch: 0.2 }],
+          ...run(0.15, 0.85, 0, 0.6, 2),   // 整排两步推进
+          [1.0, { crouch: 0.3, lean: 0.35, sp: [-0.05, 1.2, 0.55] }],
+          [1.18, { px: 0.48, lean: 0.25 }], [1.35, { px: 0.55, lean: 0.35 }],   // 楚卒撞上来，盾墙往后一挫
+          ...(i === 1 ? [[1.75, { sp: [-0.02, 1.55, 0.42], sd: [0, 0.6], crouch: 0.36 }], [2.05, { crouch: 0.42 }], [2.25, { sp: [-0.05, 1.2, 0.55], sd: [0, 0], crouch: 0.3 }]] : []),   // 前右：举盾过顶接劈
+          [2.35, { px: 0.55, crouch: 0.32, lean: 0.3 }], [2.5, { px: 0.95, fL: 1.3, lean: 0.55, sp: [-0.05, 1.2, 0.8] }],   // 整排一撞
+          [2.7, { px: 0.9, sp: [-0.05, 1.2, 0.55], wp: [0.3, 1.0, -0.1], g: 0.95 }], [2.86, { px: 1.05, wp: [0.26, 1.15, 0.9], g: 0.35, twist: -0.3, lean: 0.5, aimW: 1 }],   // 齐刺
+          [3.1, { px: 0.95, wp: [0.3, 1.05, 0.4], g: 0.6, twist: 0.15, lean: 0.3, aimW: 0 }],
+          [3.5, { px: 1.0, wp: [0.32, 1.0, 0.0], wd: [0, -0.08], g: 0.8, sp: [-0.05, 1.2, 0.5], crouch: 0.2 }],
+          [3.95, { crouch: 0.3 }], [4.08, { crouch: 0.15, liftR: 0.07 }], [4.18, { liftR: 0 }], [4.55, { crouch: 0.3 }], [4.68, { crouch: 0.15, liftR: 0.07 }], [4.78, { liftR: 0 }],   // 顿足两下：嗬！
+          [5.4, {}],
+        ] })),
+        // 2 汉后排：长矛从两人肩缝里越过去
+        { team: 'A', z: 0, x0: -0.75, tgt: [[0, 3], [2.7, 4]], aim: [[0, 3], [2.7, 4]], keys: [
           [0, { ...RA, wp: [0.3, 1.5, 0.1], wd: [0, 0.06], g: 0.5, sp: [-0.3, 1.1, 0.25] }],
-          [0.3, { px: 0.18, fL: 0.45, liftL: 0.1 }], [0.4, { liftL: 0 }], [0.7, { px: 0.38, fR: 0.1, liftR: 0.1 }], [0.8, { liftR: 0 }],
-          [1.35, { px: 0.3, wp: [0.3, 1.5, -0.2], wd: [-0.12, 0.08], g: 0.7, twist: 0.4 }],   // 收矛
-          [1.55, { px: 0.45, wp: [0.26, 1.58, 0.75], wd: [-0.13, -0.02], g: 0.28, lean: 0.4, twist: -0.25 }],   // 从两人肩缝里刺出，扎楚前左
-          [1.8, { px: 0.35, wp: [0.3, 1.5, 0.2], wd: [0, 0.06], g: 0.5, lean: 0.15, twist: 0.1 }],
-          [2.75, { px: 0.65, wp: [0.3, 1.5, -0.1], wd: [0.05, 0.06], g: 0.7 }], [2.9, { px: 0.8, wp: [0.26, 1.56, 0.8], wd: [0.08, -0.04], g: 0.28, lean: 0.4 }],   // 齐刺
-          [3.2, { px: 0.75, wp: [0.3, 1.5, 0.2], wd: [0, 0.06], g: 0.5, lean: 0.15 }],
-          [6.0, {}],
+          ...run(0.15, 0.85, 0, 0.6, 2),
+          [1.3, { px: 0.55, wp: [0.3, 1.5, -0.2], g: 0.7, twist: 0.4 }],   // 收矛
+          [1.48, { px: 0.7, wp: [0.26, 1.56, 0.78], g: 0.28, lean: 0.4, twist: -0.25, aimW: 1 }],   // 越肩一刺，扎楚前左
+          [1.7, { px: 0.6, wp: [0.3, 1.5, 0.2], g: 0.5, lean: 0.15, twist: 0.1, aimW: 0 }],
+          [2.7, { px: 0.95, wp: [0.3, 1.5, -0.1], g: 0.7 }], [2.86, { px: 1.1, wp: [0.26, 1.55, 0.8], g: 0.28, lean: 0.4, aimW: 1 }],
+          [3.1, { px: 1.0, wp: [0.3, 1.5, 0.2], wd: [0, 0.06], g: 0.5, lean: 0.15, aimW: 0 }],
+          [5.4, {}],
         ] },
-        { team: 'D', z: -0.4, x0: 0, tgt: [[0, 0]], keys: [   // 楚 前左
-          [0, RD], [0.5, { crouch: 0.26 }],
-          ...charge(0.75, 1.1, { sp: [-0.1, 1.2, 0.6], sd: [0.05, 0.05] }),   // 举盾撞上盾墙
-          [1.3, { px: 1.05, lean: 0.1 }],
-          [1.6, { px: 1.0, ...hitPose }],   // 被后排长矛扎中
-          ...stagger(1.6, 1.0, 0.5),
-          [2.48, { px: 0.45, ...guardD }], [2.56, { px: 0.15, lean: -0.2 }],   // 被盾墙撞退
-          [3.2, { px: 0.0, crouch: 0.3 }], [6.0, {}],
-        ] },
-        { team: 'D', z: 0.4, x0: 0, tgt: [[0, 1]], keys: [   // 楚 前右
-          [0, RD], [0.55, { crouch: 0.26 }],
-          ...charge(0.8, 1.1, { sp: [-0.1, 1.2, 0.6], sd: [0.05, 0.05] }),
-          [1.35, { px: 1.05, lean: 0.1 }], [1.8, { px: 1.0, ...guardD }],
-          [2.48, { px: 1.0 }], [2.56, { px: 0.6, lean: -0.25, sp: [-0.3, 1.32, 0.3], sd: [0.3, 0.2] }],   // 被盾墙撞退
-          [2.95, { px: 0.55, ...hitPose }],   // 齐刺扎中
-          ...stagger(2.95, 0.55, 0.45),
-          [4.0, { px: 0.05, ...guardD }], [6.0, {}],
-        ] },
-        { team: 'D', z: 0, x0: 0.75, tgt: [[0, 1]], keys: [   // 楚 后排：跳起来劈
+        // 3 楚前左、4 楚前右：冲上来撞盾墙（px 2.55 正好盾贴盾）
+        ...[-0.55, 0.55].map((z, i) => ({ team: 'D', z, tgt: [[0, i]], keys: [
+          [0, RD], [0.6, { crouch: 0.27 }],
+          ...run(0.65 + i * 0.04, 1.15 + i * 0.04, 0, 2.55, 3), [1.15 + i * 0.04, { px: 2.55, crouch: 0.28, lean: 0.4, sp: [-0.1, 1.2, 0.6], sd: [0.05, 0.05] }],
+          [1.35, { px: 2.5, lean: 0.25 }],
+          ...(i === 0 ? [[1.5, { px: 2.45, ...hitPose }], ...stagger(1.5, 2.45, 0.35), [2.25, { px: 2.1, ...guardD }]] : [[1.9, { px: 2.45, ...guardD }]]),
+          [2.5, { px: i === 0 ? 2.05 : 2.45 }], [2.58, { px: 1.85, lean: -0.3, sp: [-0.3, 1.32, 0.3], sd: [0.3, 0.2] }],   // 被盾墙撞退
+          ...(i === 1 ? [[2.9, { px: 1.8, ...hitPose }], ...stagger(2.9, 1.8, 0.45)] : [[3.0, { px: 1.7, ...guardD }]]),
+          [4.0, { px: 1.3, ...guardD }], [5.4, {}],
+        ] })),
+        // 5 楚后排：跳起来劈汉前右
+        { team: 'D', z: 0.2, x0: 0.8, tgt: [[0, 1]], aim: [[0, 1]], keys: [
           [0, { ...RD, wp: [0.3, 1.5, -0.05], wd: [0, 0.3], g: 0.6 }],
-          [1.3, { px: 0.7, crouch: 0.32, wp: [0.3, 1.6, -0.15], wd: [-0.3, 1.2], g: 0.7, twist: 0.3 }],   // 冲上来、戟举过头
-          [1.5, { px: 1.05, crouch: 0.4 }],
-          [1.75, { px: 1.4, py: 0.42, crouch: 0.05, lean: 0.2, liftL: 0.15, liftR: 0.15, wd: [-0.3, 1.45] }],   // 跳起来
-          [2.05, { px: 1.55, py: 0.12, lean: 0.55, wp: [0.26, 1.35, 0.55], wd: [-0.3, -0.35], g: 0.4 }],   // 劈下去，砸在汉前右举起的盾上
-          [2.2, { py: 0, crouch: 0.3, liftL: 0, liftR: 0, px: 1.5 }],
-          [2.56, { px: 1.15, lean: -0.15 }],
-          [2.95, { px: 0.95, wp: [0.3, 1.42, 0], wd: [0, -0.1], g: 0.8, ...guardD }],
-          [4.0, { px: 0.85 }], [6.0, {}],
+          ...run(0.8, 1.35, 0, 1.6, 3),
+          [1.45, { px: 1.75, crouch: 0.38, wp: [0.3, 1.62, -0.15], wd: [-0.3, 1.25], g: 0.7, twist: 0.3 }],   // 戟举过头，蹲一下
+          [1.7, { px: 2.1, py: 0.42, crouch: 0.05, lean: 0.2, liftL: 0.15, liftR: 0.15, wd: [-0.3, 1.45] }],   // 跳起来
+          [1.98, { px: 2.3, py: 0.12, lean: 0.55, wp: [0.26, 1.35, 0.55], wd: [-0.2, -0.35], g: 0.4, aimW: 0.7 }],   // 劈下去，砸在举过头的盾上
+          [2.12, { py: 0, crouch: 0.3, liftL: 0, liftR: 0, px: 2.25, aimW: 0 }],
+          [2.58, { px: 1.9, lean: -0.15 }],
+          [3.0, { px: 1.75, wp: [0.3, 1.42, 0], wd: [0, -0.1], g: 0.8, ...guardD }],
+          [5.4, {}],
         ] },
       ],
-      stab: { 2: [[1.48, 1.65]], 1: [[2.85, 3.0]] },
-      ev: [[1.3, 'clank', 3, 0], [1.34, 'clank', 4, 1], [1.6, 'hit', 2, 3], [2.48, 'clank', 0, 3], [2.48, 'clank', 1, 4], [2.56, 'dust', 3], [2.56, 'dust', 4], [2.95, 'hit', 1, 4], [0.4, 'thud', 0], [0.8, 'thud', 1], [4.35, 'thud', 0], [4.35, 'thud', 1], [5.05, 'thud', 0], [5.05, 'thud', 1]],
-      cam: [[0, { az: 0.55, r: 8.6, h: 4.4 }], [1.2, { az: 0.4, r: 7.8, h: 4.0 }], [1.8, { az: 0.7, r: 7.4, h: 3.8 }], [2.6, { az: 0.6, r: 7.6, h: 4.0 }], [3.5, { az: -0.55, r: 8.2, h: 4.2 }], [6.0, { az: -0.7, r: 8.0, h: 4.1 }]],   // 斜上方看阵型
-      beats: [[0, '三级 3v3：汉军前二后一，盾墙踏步推进'], [0.8, '楚卒冲上来撞盾墙，盾墙往后一挫'], [1.4, '后排长矛从两人肩缝里刺出，扎中楚前左'], [1.7, '楚后排跳起来劈，汉前右举盾过顶接住'], [2.45, '盾墙整排一撞，把楚卒撞退'], [2.85, '三人齐刺'], [3.6, '盾墙重新合拢，顿足两下：嗬！']],
+      stab: { 2: [[1.4, 1.6]], 1: [[2.8, 2.98]] },
+      ev: [[1.15, 'clank', 0, 3], [1.19, 'clank', 1, 4], [1.5, 'hit', 2, 3], [2.0, 'clank', 1, 5], [2.52, 'clank', 0, 3], [2.52, 'clank', 1, 4], [2.58, 'dust', 3], [2.58, 'dust', 4], [2.9, 'hit', 1, 4], [0.5, 'thud', 0], [0.85, 'thud', 1], [4.1, 'thud', 0], [4.1, 'thud', 1], [4.7, 'thud', 0], [4.7, 'thud', 1]],
+      cam: [[0, { az: 0.45, r: 7.4, h: 6.0 }], [1.1, { az: 0.4, r: 7.0, h: 5.6 }], [1.6, { az: 0.5, r: 6.8, h: 5.4 }], [2.2, { az: 0.5, r: 6.8, h: 5.4 }], [3.3, { az: -0.4, r: 7.2, h: 5.8 }], [5.4, { az: -0.45, r: 7.2, h: 5.8 }]],
+      beats: [[0, '三级 3v3：汉军前二后一，盾墙推进'], [0.9, '楚卒撞上盾墙'], [1.3, '后排长矛越肩一刺'], [1.6, '楚后排跳起来劈，汉前右举盾过顶接住'], [2.35, '盾墙整排一撞'], [2.8, '三人齐刺'], [3.5, '顿足两下：嗬！']],
     },
   };
   for (const k in TEAMS) { const s = TEAMS[k]; for (const f of s.figs) { f.keys.sort((a, b) => a[0] - b[0]); f.tr = tracks(f.keys); } s.tC = tracks(s.cam); s.beats.sort((a, b) => a[0] - b[0]); }
   const at = (tr, base, t) => { const o = {}; for (const k in base) o[k] = tr[k] ? sample(tr[k], t) : base[k]; return o; };
+  const stepOf = (arr, t) => { if (!arr) return null; let g = arr[0][1]; for (const a of arr) if (t >= a[0]) g = a.length > 2 ? a.slice(1) : a[1]; return g; };
 
   // ---------- 舞台 ----------
   const canvas = document.getElementById('cv');
@@ -349,6 +366,25 @@ h2{margin:0 0 6px;font:900 18px/1.3 var(--ef);letter-spacing:.1em}
     for (const f of FIG) S.remove(f.sol.root);
     FIG = TEAMS[k].figs.map((d, i) => { const sol = new Soldier(d.team === 'A' ? 'r' : 'b'); sol.root.position.set((d.team === 'A' ? XA : XD) + (d.team === 'A' ? 1 : -1) * (d.x0 || 0), 0, d.z); sol.root.rotation.y = d.team === 'A' ? PI / 2 : -PI / 2; S.add(sol.root); return { ...d, i, sol }; });
   }
+  // 矛要扎谁（aim）、盾要替谁挡（cover）：按两人这一帧的实际位置算，保证真碰上
+  const chest = (sol, y = 0.3) => V(0, y, 0).applyMatrix4(sol.M.upper).applyMatrix4(sol.root.matrixWorld);
+  const toLocal = (sol, p) => p.clone().applyMatrix4(sol.root.matrixWorld.clone().invert());
+  const yp = d => [Math.atan2(d.x, d.z), Math.asin(Math.max(-1, Math.min(1, d.y / d.length())))];
+  function aimCover(f, j, t) {
+    if (!f.sol.M) return; const aw = j.aimW || 0, cw = j.coverW || 0, body = V(j.side, j.py, j.px);
+    if (aw > 0.001 && f.aim) {
+      const g = stepOf(f.aim, t), tg = FIG[g].sol; if (!tg.M) return;
+      const T = toLocal(f.sol, chest(tg)), H = V(...j.wp).add(body), [y, pch] = yp(T.sub(H));
+      j.wd = [j.wd[0] + (y - j.wd[0]) * aw, j.wd[1] + (pch - j.wd[1]) * aw];
+    }
+    if (cw > 0.001 && f.cover) {
+      const [who, thr] = stepOf(f.cover, t), P = FIG[who].sol, Q = FIG[thr].sol; if (!P.M || !Q.M) return;
+      const a = chest(P, 0.25), b = Q.hW.clone().applyMatrix4(Q.root.matrixWorld), sh = V(-0.27, 0.44, 0).applyMatrix4(f.sol.M.upper).applyMatrix4(f.sol.root.matrixWorld);
+      const ab = b.clone().sub(a), u = Math.max(0.15, Math.min(0.7, sh.clone().sub(a).dot(ab) / ab.lengthSq())), X = a.clone().addScaledVector(ab, u);   // 来矛线上离自己肩膀最近的那一点
+      const Xl = toLocal(f.sol, X), Bl = toLocal(f.sol, b), sp = Xl.clone().sub(body), [y] = yp(Bl.clone().sub(Xl).setY(0));
+      j.sp = j.sp.map((v, k) => v + (sp.getComponent(k) - v) * cw); j.sd = [j.sd[0] + (y - j.sd[0]) * cw, j.sd[1] * (1 - cw)];
+    }
+  }
   const tgtOf = (f, t) => { let g = f.tgt[0][1]; for (const [a, b] of f.tgt) if (t >= a) g = b; return FIG[g].sol; };
   // 矛尖扎到对方盾面就停住，不穿过去（085「矛现在穿盾穿的有点厉害」）：矛尖过了盾的前面，就把这根矛顺着矛杆往回退到盾面上
   const SPEAR = 2.76;
@@ -388,11 +424,12 @@ h2{margin:0 0 6px;font:900 18px/1.3 var(--ef);letter-spacing:.1em}
     const [, kind, ai, di] = ev, Aa = FIG[ai] && FIG[ai].sol, Dd = di != null && FIG[di] ? FIG[di].sol : null;
     if (kind === 'block' || kind === 'tap') {   // 矛尖真碰上盾的那一帧：火星 + 亮光 + 顿一下
       const p = ev[4], n = Dd.shN.clone().transformDirection(Dd.root.matrixWorld);
-      spray(p, 40, 1.8, n, 2.0, true); flash(p, 0.8); flash(p, 0.4, 0xffffff); shake = Math.max(shake, 0.08); slow = 0.3; slowUntil = t + 0.05;
+      spray(p, 18, 1.5, n, 1.6, true); flash(p, 0.6); shake = Math.max(shake, 0.08); slow = 0.3; slowUntil = t + 0.05;
     }
+    if (kind === 'parry') { const p = W(Aa, Aa.hW.clone().addScaledVector(Aa.wdir, 0.9)); spray(p, 26, 1.5, null, 1.8, true); flash(p, 0.6); shake = Math.max(shake, 0.05); }
     if (kind === 'clank') {   // 两面盾撞在一起
       const p = Aa.shC.clone().applyMatrix4(Aa.root.matrixWorld).lerp(Dd.shC.clone().applyMatrix4(Dd.root.matrixWorld), 0.5);
-      spray(p, 30, 1.5, null, 1.8, true); flash(p, 0.7); puff(V(p.x, 0.03, p.z), 4, 0.35, 0xc9b896); shake = Math.max(shake, 0.12); slow = 0.3; slowUntil = t + 0.06;
+      spray(p, 16, 1.3, null, 1.5, true); flash(p, 0.6); puff(V(p.x, 0.03, p.z), 4, 0.35, 0xc9b896); shake = Math.max(shake, 0.12); slow = 0.3; slowUntil = t + 0.06;
     }
     if (kind === 'thud') { const p = W(Aa, V(0, 0, 0).applyMatrix4(Aa.M.pelvis)); p.y = 0.02; puff(p, 3, 0.3, 0xc9b896); shake = Math.max(shake, 0.03); }
     if (kind === 'dust') { const p = W(Aa, V(0, 0, 0).applyMatrix4(Aa.M.pelvis)); p.y = 0.03; puff(p, 6, 0.42, 0xc9b896); }
@@ -412,9 +449,11 @@ h2{margin:0 0 6px;font:900 18px/1.3 var(--ef);letter-spacing:.1em}
     if (t > slowUntil) slow = 1;
     const gdt = dt * slow; t += gdt;
     if (t >= sc.T) reset();
-    const J = FIG.map(f => { const j = at(f.tr, f.team === 'A' ? RA : RD, t); j.crouch += Math.sin(t * 3.1 + f.i) * 0.008; return j; });
+    const J = FIG.map(f => { const j = at(f.tr, f.base || (f.team === 'A' ? RA : RD), t); j.crouch += Math.sin(t * 3.1 + f.i) * 0.008; return j; });
+    FIG.forEach((f, i) => { f.sol.root.updateMatrixWorld(true); aimCover(f, J[i], t); });
+    window.__J = J;
     FIG.forEach((f, i) => { f.sol.stab = ((sc.stab || {})[i] || []).some(([a, b]) => t > a && t < b); f.sol.pose(J[i]); f.sol.root.updateMatrixWorld(true); });
-    FIG.forEach((f, i) => { const tg = tgtOf(f, t); solve(f.sol, J[i], tg); if (f.sol.contact) { const key = 'c' + i + ':' + Math.round(t * 2); if (!fired.has(key)) { fired.add(key); fire([t, 'block', i, FIG.findIndex(x => x.sol === tg), f.sol.contact.clone()], sc, t); } } });
+    FIG.forEach((f, i) => { const tg = tgtOf(f, t); solve(f.sol, J[i], tg); if (f.sol.contact) { const key = 'c' + i + ':' + Math.round(t); if (!fired.has(key)) { fired.add(key); fire([t, 'block', i, FIG.findIndex(x => x.sol === tg), f.sol.contact.clone()], sc, t); } } });
     for (const ev of sc.ev) { const key = ev.join(','); if (t >= ev[0] && !fired.has(key)) { fired.add(key); fire(ev, sc, t); } }
     for (const q of mists) { if (q.done) continue; q.age += gdt; const k = q.age / q.life; if (k >= 1) { q.done = 1; S.remove(q.m); continue; } q.m.position.addScaledVector(q.v, gdt); q.v.multiplyScalar(Math.exp(-gdt * 2)); q.m.scale.setScalar(q.s0 * (0.6 + k * 1.6)); q.m.material.opacity = 0.75 * (1 - k); }
     for (const f of flashes) { if (f.done) continue; f.age += gdt; const k = f.age / 0.14; if (k >= 1) { f.done = 1; S.remove(f.m); continue; } f.m.scale.setScalar(f.sz * (0.4 + k)); f.m.material.opacity = 1 - k; }

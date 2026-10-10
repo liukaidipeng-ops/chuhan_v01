@@ -142,9 +142,14 @@ window.ElephantLV = (() => {
     for (const L of el.legs) { sh(new THREE.CylinderGeometry(0.32, 0.29, 0.8, 16, 1, true, 0, PI), [2, 1.4], L.hip, V(0, -0.42, 0)); sh(new THREE.CylinderGeometry(0.29, 0.32, 0.6, 16, 1, true, 0, PI), [2, 1.2], L.knee, V(0, -0.3, 0)); }   // 四条腿正面披鳞甲（char-014）
     for (const s of [1, -1]) {   // 大象牙：比原来粗一倍、长三成，牙根金箍
       const curve = new THREE.CatmullRomCurve3([V(0.75, -0.35, 0.22 * s), V(1.05, -0.63, 0.3 * s), V(1.4, -0.62, 0.34 * s), V(1.66, -0.38, 0.33 * s), V(1.92, -0.06, 0.32 * s)]);   // 沿原来那对小象牙的走向，粗一倍、长出一截，把小的整个包住
-      el.head.add(Core.inked(new THREE.TubeGeometry(curve, 16, 0.095, 8), Core.toon(C.ivory), 0.015));
+      const tg = new THREE.TubeGeometry(curve, 24, 0.095, 8), pa = tg.attributes.position;   // 牙尖收细（char-015：象牙的尖部稍微再缩小一点）
+      for (let k = 0; k < pa.count; k++) { const u = Math.floor(k / 9) / 24, f = u < 0.55 ? 1 : 1 - 0.8 * Math.pow((u - 0.55) / 0.45, 1.3), c = curve.getPointAt(u), v = V(pa.getX(k), pa.getY(k), pa.getZ(k)).sub(c).multiplyScalar(f).add(c); pa.setXYZ(k, v.x, v.y, v.z); }
+      tg.computeVertexNormals(); el.head.add(Core.inked(tg, Core.toon(C.ivory), 0.015));
+      flame(el.head, 1.93, -0.02, 0.32 * s, 0.5);   // 火点在象牙尖上（char-015）
       add(el.head, [P(G.cyl(0.13, 0.13, 0.12, 10), GOLD2, 0.86, -0.48, 0.27 * s, 0.35, 0, 0.7), P(G.cyl(0.115, 0.115, 0.05, 10), 0x9e2418, 0.95, -0.56, 0.3 * s, 0.35, 0, 0.75)]);
     }
+    el.trunk.forEach((sg, i) => { if (i) sg.position.y = -0.37; const m = sg.children[0]; if (m) { m.scale.y = 1.22; m.position.y = -0.18; } });   // 四级鼻子再长一截（char-015）
+    el.ears.forEach((ear, i) => { const m = ear.children[0]; if (m) { m.rotation.y = (i ? -1 : 1) * 0.95; m.position.x = -0.18; } });   // 耳朵往两边张开，正面看得到（char-015）
     for (const L of el.legs) add(L.knee, [P(G.cyl(0.345, 0.35, 0.09, 12), GOLD, 0, -0.62, 0), P(G.cyl(0.35, 0.355, 0.025, 12), 0x9e2418, 0, -0.56, 0)]);   // 脚腕金箍
   }
   function planB(el, lv) {
@@ -158,7 +163,7 @@ window.ElephantLV = (() => {
     if (lv >= 3) {   // 青铜兽面：两只弯角 + 獠牙口
       const mk = lv >= 4 ? GOLD : BR;
       add(el.head, [P(G.box(0.12, 0.7, 0.72), mk, 0.94, 0.18, 0, 0, 0, 0.35), ...[1, -1].flatMap(s => [P(G.cone(0.09, 0.62, 6), lv >= 4 ? GOLD2 : BR2, 0.85, 0.82, 0.3 * s, 0.35 * s, 0, -0.55), P(G.sph(0.08, 6), 0xff5a1a, 0.98, 0.25, 0.22 * s)])]);
-      for (const [x, y, z] of tuskTips) flame(el.head, x + 0.05, y + 0.05, z, 0.45);
+      if (lv < 4) for (const [x, y, z] of tuskTips) flame(el.head, x + 0.05, y + 0.05, z, 0.45);   // 四级的火在 goldHead 里点在大象牙尖上
       if (lv < 4) barding(el, 0x1c1b1d, 0x2e2c2e, 3);
     }
     if (lv >= 4) {   // 背上一道火鬃

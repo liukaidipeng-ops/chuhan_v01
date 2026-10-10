@@ -151,14 +151,14 @@ button:focus-visible{outline:2px solid var(--fg);outline-offset:3px}
         o.pelvis = mk([P(G.cyl(0.21, 0.34, 0.52, 10), HAN.red, 0, 0.78, 0), ...lamellar(0.5, 0.22, 0.4, 0.7, 3, GD, GD3)], [0, 0.9, 0]);
         o.head = head(goldHelm(HAN.red));
         o.weapon = zhanma(HAN.red);
-        o.shield = mk([P(G.box(0.5, 0.78, 0.05), HAN.red, 0, 0, 0), P(G.box(0.5, 0.05, 0.07), GD2, 0, 0.37, 0), P(G.box(0.5, 0.05, 0.07), GD2, 0, -0.37, 0), P(G.box(0.05, 0.78, 0.06), GD, 0, 0, 0.01), P(G.sph(0.08, 8), GD2, 0, 0.02, 0.04)]);
+        o.shield = mk([P(G.box(0.64, 1.0, 0.05), HAN.red, 0, 0, 0), P(G.box(0.64, 0.06, 0.07), GD2, 0, 0.47, 0), P(G.box(0.64, 0.06, 0.07), GD2, 0, -0.47, 0), P(G.box(0.06, 1.0, 0.06), GD, 0, 0, 0.01), P(G.sph(0.1, 8), GD2, 0, 0.02, 0.04)]);   // Ham：「盾牌可以大一点」
         legs(o, HAN.pants, K.boot); arms(o, HAN.red, GD); return o; },
       chu() { const o = {};
         o.upper = mk([P(G.cyl(0.19, 0.18, 0.52, 10), CHU.robe, 0, 1.22, 0), ...lamellar(0.43, 0.38, 0.33, 1.07, 5, GD, GD3), P(G.box(0.44, 0.04, 0.34), K.black, 0, 1.05, 0), ...[1, -1].map(s => P(G.sph(0.085, 8), K.skin, 0.24 * s, 1.42, 0)), P(G.cyl(0.06, 0.07, 0.1, 8), K.skin, 0, 1.5, 0)], [0, 0.98, 0]);
         o.pelvis = mk([P(G.cyl(0.2, 0.28, 0.34, 10), CHU.robe, 0, 0.87, 0), ...lamellar(0.44, 0.18, 0.36, 0.72, 2, GD, GD3)], [0, 0.9, 0]);
         o.head = head([P(G.sph(0.132, 10), K.black, 0, 1.65, -0.02, 0, 0, 0, 1, 0.75, 1.05), P(G.box(0.275, 0.05, 0.275), GD, 0, 1.67, -0.01), P(G.sph(0.05, 6), K.black, 0, 1.68, -0.15), ...[1, -1].map(s => P(G.box(0.05, 0.4, 0.012), K.black, 0.04 * s, 1.48, -0.17, -0.35, 0, 0.12 * s)), P(G.sph(0.03, 6), 0x9e2418, 0, 1.68, 0.14)]);
         o.weapon = zhanma(CHU.lac);
-        o.shield = mk([P(G.cyl(0.28, 0.28, 0.05, 20), CHU.robe, 0, 0, 0, PI / 2), P(new THREE.TorusGeometry(0.27, 0.022, 6, 24), GD2, 0, 0, 0.03), P(new THREE.TorusGeometry(0.19, 0.02, 6, 24), CHU.lac, 0, 0, 0.03), P(new THREE.TorusGeometry(0.11, 0.02, 6, 20), GD, 0, 0, 0.03), P(G.sph(0.05, 8), GD2, 0, 0, 0.035)]);
+        o.shield = mk([P(G.cyl(0.36, 0.36, 0.05, 24), CHU.robe, 0, 0, 0, PI / 2), P(new THREE.TorusGeometry(0.35, 0.026, 6, 28), GD2, 0, 0, 0.03), P(new THREE.TorusGeometry(0.25, 0.022, 6, 26), CHU.lac, 0, 0, 0.03), P(new THREE.TorusGeometry(0.14, 0.022, 6, 22), GD, 0, 0, 0.03), P(G.sph(0.065, 8), GD2, 0, 0, 0.035)]);
         legs(o, CHU.pants, K.boot, GD3); arms(o, GD, GD, true); return o; },
     },
     b: {
@@ -206,7 +206,7 @@ button:focus-visible{outline:2px solid var(--fg);outline-offset:3px}
     S.add(new THREE.HemisphereLight(0xfff4e0, 0x5a4a38, 1.5));
     const sun = new THREE.DirectionalLight(0xffffff, 1.7); sun.position.set(2, 6, 4); sun.castShadow = true; sun.shadow.mapSize.set(1024, 1024); Object.assign(sun.shadow.camera, { left: -3, right: 3, top: 3, bottom: -3 }); S.add(sun);
     const ground = new THREE.Mesh(new THREE.CircleGeometry(6, 40), new THREE.MeshToonMaterial({ color: 0xd8b98a, gradientMap: grad })); ground.rotation.x = -PI / 2; ground.receiveShadow = true; S.add(ground);
-    const cam = new THREE.PerspectiveCamera(30, 4 / 3, 0.1, 40); cam.position.set(0, 1.55, 6.0); cam.lookAt(0, 1.3, 0);   // 斩马刀长，镜头退远一点把刀尖收进来
+    const cam = new THREE.PerspectiveCamera(30, 4 / 3, 0.1, 40); cam.position.set(0, 1.75, 7.6); cam.lookAt(0, 1.62, 0);   // __rot 给自查拍正 / 侧 / 背用；斩马刀长，镜头退远一点把刀尖收进来
     const han = new Soldier(D.han()), chu = new Soldier(D.chu());
     han.root.position.set(-0.75, 0, 0); chu.root.position.set(0.75, 0, 0); S.add(han.root, chu.root);
     stages.push({ R, S, cam, cv, figs: [[han, 1], [chu, -1]] });
@@ -218,7 +218,7 @@ button:focus-visible{outline:2px solid var(--fg);outline-offset:3px}
     for (const st of stages) {
       const w = st.cv.clientWidth, h = st.cv.clientHeight, pr = st.R.getPixelRatio();
       if (st.cv.width !== Math.round(w * pr) || st.cv.height !== Math.round(h * pr)) { st.R.setSize(w, h, false); st.cam.aspect = w / h; st.cam.updateProjectionMatrix(); }
-      for (const [f, s] of st.figs) { const j = STANCE(); j.crouch += Math.sin(tt * 2.2 + s) * 0.01; j.hy = Math.sin(tt * 0.7 + s) * 0.15; f.root.rotation.y = -0.55 * s + t * 0.45; f.pose(j); }
+      for (const [f, s] of st.figs) { const j = STANCE(); j.crouch += Math.sin(tt * 2.2 + s) * 0.01; j.hy = Math.sin(tt * 0.7 + s) * 0.15; f.root.rotation.y = window.__rot != null ? window.__rot : -0.55 * s + t * 0.45; f.pose(j); }
       st.R.render(st.S, st.cam);
     }
     requestAnimationFrame(loop);
