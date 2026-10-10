@@ -36,6 +36,7 @@
     TD session_01RKuN4E66BetRaUCS8BJyti、美术 Art session_01NcqhjTJxdTrUxQtViN2iri —— 都是聊天，**能收不能发**，它们按门铃找我：TD → trig_0171tqGyJSqcPNCKuoPgWADs，美术 → trig_01G4dRz58ML24sY7kM9eYnxk；
     顾问部 session_01PArjH8NToP8HANDN6f4JxG（claude/advisors，拍板单；我在 `advisors/numbers-to-advisors.md` 写 N 条，已到 N5）；**声音部 session_01VsbsKR759MUraiT41MaEAU（10-10 开，claude/sound + voice-lab；TD 写的上手文档 `source/docs/collab/SOUND-WORKFLOW.md`，够用；试听台；先出开场 + 分工草案；自己的声音部试听台 https://claude.ai/artifact/YNHGM8JvrMtytH9HjZRRT2 ，已符合审核规范）**；美术总监 session_01U1d5RrViuCEaT74h7UkG2M（claude/art-director，审批台）；只读数值部 session_01Qxpa47Er1bd8ntv9aw5DgN（不推）。
     **TD 搬进 Code（Ham 10-10 11:10：“TD的活快结束了，你可以准备新建TD窗口了…务必确保他的工作交接没有问题。如果他还有正在做的工作，可以让他继续做完。”）**：清单 `source/docs/collab/td-handoff-checklist.md`（11 节）已发 TD；TD 做完手上的活、写 `TD-HANDOFF.md`（dev）→ 我逐条核对 → 开新 TD 窗口（推 dev / main）→ 新 TD 打包、跑测试、和老 TD 对未结事项 → 确认接住前部署仍由老 TD 做。
+    **新 TD 窗口已开（10-10 11:30）：session_01LeSA918yjPExad28VrQqob（分支 dev，可推 dev / main / td/*）**。交接文档 `TD-HANDOFF.md`（dev 865563d，H64，C67 的 6 处都补了）。新 TD 说“接住了”（chat-to-code.md 写 H）之前上线仍由老 TD 做。**我下一条给 TD 的交付编号是 C68**（C67 用掉了）。之后给 TD 发消息用新会话。
     **TD 交接文档已写**（dev d23c7ae，`source/docs/collab/TD-HANDOVER.md`，工具收进 `source/tools/td/`）；我核对后 C67 请补 6 处（回滚、线上联机服务、审批台通知实测、trigger 清单、过渡期、待批 td 项），补完开新 TD 窗口。
     **优化部（Ham 10-10 开）**：session_01QkUQvrXgDJbxcwbWdMc7sU，分支 claude/perf；量性能、出补丁交 TD（perf-to-main.md P 号 / main-to-perf.md），改画面的先过 Ham；第一件事交性能现状报告。
     **H61 / H63（TD）**：C65、C66 已上线（2026.10.10-015b88）；踏营改被动、象相无视拒马、飞越被动已上线 → 我的模拟还是旧规则，下一批前先把 main 合进本分支（注意 bfai_next 的底版 a5ad197 也要换）。
