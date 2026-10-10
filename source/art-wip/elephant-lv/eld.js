@@ -74,30 +74,33 @@ window.ElephantLV = (() => {
     add(el.tail, segs, 0.015);
     el.torch.position.y = -1.15;
   }
-  // 四级金甲鳞片（Ham char-007：「给黄金象的金甲增加鳞片，不然像金壳，鳞甲之间的接缝注意用黑线，少量红色作为点缀」）
-  function scales(el) {
-    const ps = [P(G.sph(1, 18), 0x161514, 0, 2.25, 0, 0, 0, 0, 1.56, 1.06, 0.96)], up = V(0, 0, 1);
-    let row = 0;
-    for (let x = -1.32; x <= 1.26; x += 0.17, row++) {
-      const k = Math.sqrt(Math.max(0, 1 - (x / 1.6) ** 2));
-      for (let a = -1.95; a <= 1.95; a += 0.2) {
-        const aa = a + (row % 2 ? 0.1 : 0), y = 2.25 + 1.08 * Math.cos(aa) * k, z = 0.98 * Math.sin(aa) * k;
-        if (Math.abs(z) > 0.82 && y > 1.72 && y < 2.95) continue;   // 披挂底下不用铺
-        const n = V(x / 1.6 ** 2, (y - 2.25) / 1.08 ** 2, z / 0.98 ** 2).normalize(), e = new THREE.Euler().setFromQuaternion(new THREE.Quaternion().setFromUnitVectors(up, n));
-        ps.push(P(G.sph(0.11, 6, 4), (row + Math.round(a * 5)) % 3 ? GOLD : 0xc4922e, x, y, z, e.x, e.y, e.z, 1.0, 0.9, 0.22));
+  // 四级金甲鳞片（Ham char-007：鳞片、黑线接缝、少量红点缀；Ham 10-10：「鳞甲最好用贴图来表现，不要用模型」）
+  // 一张画布贴图：一排排压叠的鳞片，鳞与鳞之间露黑缝，每隔几排有一片暗红。贴在身子、两瓣臀、四条腿外面的一层薄壳上。
+  let scaleMat = null;
+  function scaleTex() {
+    if (scaleMat) return scaleMat;
+    const tex = Core.canvasTex(512, 512, (g, w, h) => {
+      g.fillStyle = '#121110'; g.fillRect(0, 0, w, h);
+      const cw = 64, ch = 44, R = (a => () => (a = (a * 16807) % 2147483647) / 2147483647)(7);
+      for (let r = -1; r < h / ch + 2; r++) for (let c = -1; c < w / cw + 2; c++) {
+        const x = c * cw + (r % 2 ? cw / 2 : 0), y = r * ch, red = (r % 4 === 1) && (c % 5 === 2);
+        const gr = g.createLinearGradient(x, y - ch * 0.2, x, y + ch);
+        if (red) { gr.addColorStop(0, '#b0301f'); gr.addColorStop(1, '#5e140c'); }
+        else { const k = 0.85 + R() * 0.2; gr.addColorStop(0, `rgb(${255 * k | 0},${222 * k | 0},${140 * k | 0})`); gr.addColorStop(0.55, `rgb(${214 * k | 0},${164 * k | 0},${62 * k | 0})`); gr.addColorStop(1, `rgb(${140 * k | 0},${98 * k | 0},${30 * k | 0})`); }
+        g.fillStyle = gr; g.strokeStyle = '#0d0c0b'; g.lineWidth = 4;
+        g.beginPath(); g.moveTo(x - cw / 2 + 3, y); g.lineTo(x + cw / 2 - 3, y); g.quadraticCurveTo(x + cw / 2 - 2, y + ch * 0.75, x, y + ch * 1.15); g.quadraticCurveTo(x - cw / 2 + 2, y + ch * 0.75, x - cw / 2 + 3, y); g.closePath(); g.fill(); g.stroke();
+        g.strokeStyle = 'rgba(255,240,200,0.35)'; g.lineWidth = 2; g.beginPath(); g.moveTo(x - cw * 0.25, y + 6); g.quadraticCurveTo(x, y + ch * 0.5, x + cw * 0.05, y + ch * 0.85); g.stroke();
       }
-    }
-    for (const s of [1, -1]) for (let a = 0; a < 7; a++) for (let b = 0; b < 6; b++) {   // 两瓣臀上也铺鳞
-      const th = -1.2 + a * 0.38 + (b % 2 ? 0.19 : 0), ph = -0.9 + b * 0.33, n = V(Math.cos(ph) * -Math.abs(Math.cos(th)), Math.sin(ph), Math.sin(th) * 0.9 * s).normalize();
-      const pnt = V(-1.3 + n.x * 0.55 * 0.74, 2.12 + n.y * 0.55 * 1.12, 0.3 * s + n.z * 0.55 * 0.8); if (n.x > 0.2) continue;
-      const e = new THREE.Euler().setFromQuaternion(new THREE.Quaternion().setFromUnitVectors(up, n)); ps.push(P(G.sph(0.1, 6, 4), (a + b) % 3 ? GOLD : 0xc4922e, pnt.x, pnt.y, pnt.z, e.x, e.y, e.z, 1, 0.9, 0.22));
-    }
-    ps.push(...Array.from({ length: 9 }, (_, i) => P(G.sph(0.045, 6), 0x9e2418, -1.2 + i * 0.3, 3.33, 0)));   // 背脊一路红钉：少量红点缀
-    add(el.body, ps, 0.012);
-    for (const L of el.legs) for (const [grp, y0] of [[L.hip, -0.15], [L.knee, -0.12]]) {
-      const r = []; for (let h = 0; h < 3; h++) for (let i = 0; i < 9; i++) { const t = i / 9 * PI * 2 + (h % 2 ? 0.35 : 0); r.push(P(G.sph(0.1, 6, 4), (i + h) % 3 ? GOLD : 0xc4922e, Math.cos(t) * 0.3, y0 - h * 0.2, Math.sin(t) * 0.3, 0, -t + PI / 2, 0, 1, 0.9, 0.25)); }
-      add(grp, r, 0.01);
-    }
+    });
+    tex.wrapS = tex.wrapT = THREE.RepeatWrapping;
+    scaleMat = (rep) => { const t = tex.clone(); t.needsUpdate = true; t.repeat.set(rep[0], rep[1]); return Core.toon(0xffffff, { map: t, unique: true }); };
+    return scaleMat;
+  }
+  function scales(el) {
+    const mat = scaleTex(), shell = (geo, rep, grp, pos, sc, rot) => { const m = Core.inked(geo, mat(rep), 0.012); m.position.copy(pos); if (sc) m.scale.copy(sc); if (rot) m.rotation.copy(rot); grp.add(m); return m; };
+    shell(new THREE.SphereGeometry(1, 40, 24), [10, 5], el.body, V(0, 2.25, 0), V(1.565, 1.065, 0.965));
+    for (const s of [1, -1]) shell(new THREE.SphereGeometry(0.555, 24, 16), [5, 4], el.body, V(-1.3, 2.12, 0.3 * s), V(0.725, 1.105, 0.785));
+    for (const L of el.legs) { shell(new THREE.CylinderGeometry(0.31, 0.28, 0.85, 20, 1, true), [4, 2], L.hip, V(0, -0.4, 0)); shell(new THREE.CylinderGeometry(0.28, 0.31, 0.72, 20, 1, true), [4, 2], L.knee, V(0, -0.36, 0)); }
     add(el.body, [1, -1].flatMap(s => [0, 1, 2, 3, 4].map(i => P(G.cone(0.05, 0.2, 6), 0x9e2418, -0.95 + i * 0.42, 1.6, 1.03 * s, PI))), 0.01);   // 披挂下缘一排红缨
   }
   function planB(el, lv) {
