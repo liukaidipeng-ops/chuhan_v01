@@ -1,0 +1,329 @@
+<title>{{DEPT}}拍板单</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Noto+Sans+SC:wght@400;500;700&family=Noto+Serif+SC:wght@600;700&display=swap">
+<style>
+/* 布局：单栏题卡，一题一张，选项是整行可点的大按钮；底部固定提交栏。汉红 = {{DEPT}} 的建议，楚青 = 你选中的 */
+:root {
+  --paper: #eef1ee; --card: #ffffff; --ink: #1b2120; --muted: #5a6560; --line: #d3dad5;
+  --han: #a8261d; --han-soft: #f6e1de; --chu: #1d5a48; --chu-soft: #e0eee8; --warn: #8a5a00;
+  --f-display: "Noto Serif SC", "Songti SC", "STSong", serif;
+  --f-body: "Noto Sans SC", "PingFang SC", "Hiragino Sans GB", "Microsoft YaHei", system-ui, sans-serif;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --paper: #101413; --card: #171d1b; --ink: #e5ebe8; --muted: #9aa6a0; --line: #29322f;
+    --han: #ef7a6e; --han-soft: #3a1e1b; --chu: #6ac3a3; --chu-soft: #16302a; --warn: #e2b04a; color-scheme: dark;
+  }
+}
+:root[data-theme="dark"] {
+  --paper: #101413; --card: #171d1b; --ink: #e5ebe8; --muted: #9aa6a0; --line: #29322f;
+  --han: #ef7a6e; --han-soft: #3a1e1b; --chu: #6ac3a3; --chu-soft: #16302a; --warn: #e2b04a; color-scheme: dark;
+}
+body { background: var(--paper); color: var(--ink); font-family: var(--f-body); font-size: 16px; line-height: 1.6; }
+.wrap { max-width: 680px; margin: 0 auto; padding-inline: 16px; padding-block: 20px 140px; display: flex; flex-direction: column; gap: 16px; }
+.eyebrow { margin: 0; font-size: 13px; letter-spacing: .12em; color: var(--muted); }
+h1 { margin: 2px 0 0; font-family: var(--f-display); font-weight: 700; font-size: 30px; line-height: 1.25; text-wrap: balance; }
+.lede { margin: 8px 0 0; color: var(--muted); font-size: 15px; }
+.batch { margin: 10px 0 0; font-weight: 500; }
+.empty { background: var(--card); border: 1px dashed var(--line); border-radius: 10px; padding: 20px 16px; color: var(--muted); }
+#open { display: flex; flex-direction: column; gap: 14px; }
+.q { background: var(--card); border: 1px solid var(--line); border-radius: 12px; padding: 16px; display: flex; flex-direction: column; gap: 10px; min-width: 0; }
+.q-top { display: flex; justify-content: space-between; align-items: center; gap: 8px; font-size: 13px; color: var(--muted); font-variant-numeric: tabular-nums; }
+.tag { font-size: 12px; padding: 1px 8px; border-radius: 999px; border: 1px solid var(--line); white-space: nowrap; }
+.tag.done { border-color: var(--chu); color: var(--chu); }
+.tag.edit { border-color: var(--warn); color: var(--warn); }
+.q h2 { margin: 0; font-family: var(--f-display); font-weight: 600; font-size: 19px; line-height: 1.4; text-wrap: balance; }
+.ctx { margin: 0; color: var(--muted); font-size: 15px; }
+fieldset { border: 0; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 8px; min-width: 0; }
+.sr { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
+.opt { display: flex; gap: 10px; align-items: flex-start; padding: 11px 12px; border: 1px solid var(--line); border-radius: 10px; cursor: pointer; background: var(--card); }
+.opt input { margin: 4px 0 0; accent-color: var(--chu); width: 18px; height: 18px; flex: none; }
+.opt:has(input:checked) { border-color: var(--chu); background: var(--chu-soft); }
+.opt:has(input:focus-visible) { outline: 2px solid var(--chu); outline-offset: 2px; }
+.opt-body { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
+.opt-label { font-weight: 500; }
+.opt-detail { font-size: 14px; color: var(--muted); }
+.chip { align-self: flex-start; font-size: 12px; line-height: 1.5; padding: 0 7px; border-radius: 4px; background: var(--han-soft); color: var(--han); font-weight: 500; }
+.why { margin: 0; font-size: 14px; color: var(--muted); border-left: 2px solid var(--han); padding-left: 10px; }
+.note-row { display: flex; flex-direction: column; gap: 6px; }
+.linkbtn { align-self: flex-start; background: none; border: 0; padding: 4px 0; color: var(--chu); font: inherit; font-size: 14px; cursor: pointer; text-decoration: underline; text-underline-offset: 3px; }
+.linkbtn:focus-visible, button:focus-visible, textarea:focus-visible, summary:focus-visible { outline: 2px solid var(--chu); outline-offset: 2px; }
+textarea { width: 100%; box-sizing: border-box; min-height: 70px; padding: 10px; border: 1px solid var(--line); border-radius: 8px; background: var(--paper); color: var(--ink); font: inherit; font-size: 15px; resize: vertical; }
+details.closed { background: var(--card); border: 1px solid var(--line); border-radius: 12px; padding: 12px 16px; }
+details.closed summary { cursor: pointer; font-weight: 500; }
+.closed-list { display: flex; flex-direction: column; gap: 10px; margin-top: 10px; }
+.closed-item { font-size: 14px; border-top: 1px solid var(--line); padding-top: 10px; }
+.closed-item b { font-weight: 500; }
+.notify { background: var(--card); border: 1px solid var(--line); border-radius: 12px; padding: 12px 16px; display: flex; flex-direction: column; gap: 8px; }
+.notify h2 { margin: 0; font-size: 15px; font-weight: 500; }
+.notify p { margin: 0; font-size: 14px; color: var(--muted); }
+.notify p.ok { color: var(--chu); }
+.notify p.bad { color: var(--warn); }
+.notify-row { display: flex; gap: 10px; flex-wrap: wrap; align-items: center; }
+.ghost { background: none; border: 1px solid var(--chu); color: var(--chu); border-radius: 8px; padding: 7px 14px; font: inherit; font-size: 14px; cursor: pointer; }
+.ghost:disabled { opacity: .55; cursor: default; }
+.bar { position: fixed; left: 0; right: 0; bottom: 0; background: var(--card); border-top: 1px solid var(--line); padding: 10px 16px calc(10px + env(safe-area-inset-bottom, 0px)); }
+.bar-in { max-width: 680px; margin: 0 auto; display: flex; align-items: center; justify-content: space-between; gap: 12px; flex-wrap: wrap; }
+.count { font-size: 14px; color: var(--muted); font-variant-numeric: tabular-nums; }
+.submit { background: var(--han); color: #fff; border: 0; border-radius: 10px; padding: 11px 22px; font: inherit; font-weight: 700; font-size: 16px; cursor: pointer; }
+:root[data-theme="dark"] .submit { color: #1a0d0b; }
+@media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) .submit { color: #1a0d0b; } }
+.submit:disabled { opacity: .55; cursor: default; }
+.status { max-width: 680px; margin: 6px auto 0; font-size: 14px; min-height: 0; }
+.status:empty { display: none; }
+.status.ok { color: var(--chu); }
+.status.bad { color: var(--warn); }
+@media (prefers-reduced-motion: no-preference) { .opt { transition: background-color .15s, border-color .15s; } }
+</style>
+
+<main class="wrap">
+  <header>
+    <p class="eyebrow">技能新象棋 · {{DEPT}}</p>
+    <h1>{{DEPT}}拍板单</h1>
+    <p class="lede">要你定的事都放在这里。每题已经选好了 {{DEPT}} 的建议（红色“{{DEPT}} 建议”），你只改不同意的；想补充就点“补一句”。最后点底部的“提交答案”。</p>
+    <p class="batch" id="batch"></p>
+  </header>
+  <section id="open" aria-live="polite">
+    <div class="empty" id="empty">正在读取要你拍板的问题……</div>
+  </section>
+  <details class="closed" id="closedWrap" hidden>
+    <summary>已经定了的（<span id="closedN">0</span>）</summary>
+    <div class="closed-list" id="closed"></div>
+  </details>
+  <section class="notify" aria-labelledby="nh">
+    <h2 id="nh">提交后自动通知 {{DEPT}}</h2>
+    <p id="nstate">正在检查……</p>
+    <div class="notify-row">
+      <button class="ghost" id="ntest" type="button">试发一条给 {{DEPT}}</button>
+      <button class="ghost" id="nmanage" type="button" hidden>打开权限设置</button>
+    </div>
+    <p id="nstat" role="status"></p>
+  </section>
+</main>
+<div class="bar" id="bar" hidden>
+  <div class="bar-in">
+    <span class="count" id="count"></span>
+    <button class="submit" id="submit" type="button">提交答案</button>
+  </div>
+  <p class="status" id="status" role="status"></p>
+</div>
+
+<script>
+(() => {
+  const $ = id => document.getElementById(id);
+  const SERVER = 'Claude Code Remote';
+  const state = { qs: [], ans: {}, sel: {}, noteOpen: {}, db: null, busy: false, perms: null };
+  const DRAFT = 'paiban-draft-v1';
+  const loadDraft = () => { try { return JSON.parse(localStorage.getItem(DRAFT) || '{}') || {}; } catch (e) { return {}; } };
+  const saveDraft = () => { try { localStorage.setItem(DRAFT, JSON.stringify(state.sel)); } catch (e) {} };
+  const draft = loadDraft();
+  const esc = s => String(s == null ? '' : s).replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[c]);
+
+  function setStatus(text, kind) { const el = $('status'); el.textContent = text || ''; el.className = 'status' + (kind ? ' ' + kind : ''); }
+  function setN(id, text, kind) { const el = $(id); el.textContent = text || ''; el.className = kind || ''; }
+
+  // 选中的值：先看你这次在页面上改的，再看已经存下的答案，再看草稿，最后用 {{DEPT}} 的建议
+  function current(q) {
+    if (state.sel[q.id]) return state.sel[q.id];
+    const a = state.ans[q.id];
+    if (a && a.choice) return { choice: a.choice, note: a.note || '' };
+    if (draft[q.id] && q.options.some(o => o.key === draft[q.id].choice)) return draft[q.id];
+    return { choice: q.rec || (q.options[0] && q.options[0].key), note: '' };
+  }
+
+  function render() {
+    const open = state.qs.filter(q => q.status !== 'closed');
+    const closed = state.qs.filter(q => q.status === 'closed');
+    const box = $('open');
+    if (!open.length) {
+      box.innerHTML = '<div class="empty">现在没有要你拍板的事。{{DEPT}} 有新问题会放在这里。</div>';
+      $('bar').hidden = true;
+    } else {
+      $('batch').textContent = open[0].batch || '';
+      box.innerHTML = open.map((q, i) => {
+        const cur = current(q), a = state.ans[q.id];
+        const changedSinceSave = a && (a.choice !== cur.choice || (a.note || '') !== (cur.note || ''));
+        const tag = !a ? '<span class="tag">还没答</span>' : changedSinceSave ? '<span class="tag edit">改了，还没提交</span>' : '<span class="tag done">已提交</span>';
+        const opts = q.options.map(o => `
+          <label class="opt">
+            <input type="radio" name="q-${esc(q.id)}" value="${esc(o.key)}" ${o.key === cur.choice ? 'checked' : ''} data-q="${esc(q.id)}">
+            <span class="opt-body">
+              <span class="opt-label">${esc(o.label)}</span>
+              ${o.key === q.rec ? '<span class="chip">{{DEPT}} 建议</span>' : ''}
+              ${o.detail ? `<span class="opt-detail">${esc(o.detail)}</span>` : ''}
+            </span>
+          </label>`).join('');
+        const showNote = state.noteOpen[q.id] || !!cur.note;
+        return `
+        <article class="q" id="q-${esc(q.id)}">
+          <div class="q-top"><span>第 ${i + 1} 题 / 共 ${open.length} 题</span>${tag}</div>
+          <h2>${esc(q.title)}</h2>
+          ${q.context ? `<p class="ctx">${esc(q.context)}</p>` : ''}
+          <fieldset><legend class="sr">${esc(q.title)} 的选项</legend>${opts}</fieldset>
+          ${q.why ? `<p class="why">{{DEPT}} 为什么这么建议：${esc(q.why)}</p>` : ''}
+          <div class="note-row">
+            ${showNote ? '' : `<button class="linkbtn" type="button" data-note="${esc(q.id)}">补一句</button>`}
+            <textarea id="note-${esc(q.id)}" data-q="${esc(q.id)}" placeholder="想补充或改条件，写在这里" ${showNote ? '' : 'hidden'}>${esc(cur.note || '')}</textarea>
+          </div>
+        </article>`;
+      }).join('');
+      $('bar').hidden = false;
+      const nChanged = open.filter(q => current(q).choice !== q.rec).length;
+      const nDone = open.filter(q => state.ans[q.id]).length;
+      $('count').textContent = `${open.length} 题 · 改了 {{DEPT}} 建议的 ${nChanged} 题` + (nDone ? ` · 已提交过 ${nDone} 题` : '');
+    }
+    $('closedWrap').hidden = !closed.length;
+    $('closedN').textContent = closed.length;
+    $('closed').innerHTML = closed.map(q => {
+      const a = state.ans[q.id], o = a && q.options.find(x => x.key === a.choice);
+      return `<div class="closed-item"><b>${esc(q.title)}</b><br>${o ? '定了：' + esc(o.label) : '（没有记录答案）'}${a && a.note ? '<br>补充：' + esc(a.note) : ''}</div>`;
+    }).join('');
+  }
+
+  document.addEventListener('change', e => {
+    const t = e.target;
+    if (t.matches('input[type=radio][data-q]')) {
+      const q = state.qs.find(x => x.id === t.dataset.q); if (!q) return;
+      const cur = current(q); state.sel[q.id] = { choice: t.value, note: cur.note || '' };
+      saveDraft(); render(); const el = document.querySelector(`input[name="q-${CSS.escape(q.id)}"][value="${CSS.escape(t.value)}"]`); if (el) el.focus();
+    }
+  });
+  document.addEventListener('input', e => {
+    const t = e.target;
+    if (t.matches('textarea[data-q]')) {
+      const q = state.qs.find(x => x.id === t.dataset.q); if (!q) return;
+      const cur = current(q); state.sel[q.id] = { choice: cur.choice, note: t.value };
+      saveDraft();
+    }
+  });
+  document.addEventListener('focusout', e => { if (e.target.matches('textarea[data-q]')) render(); });
+  document.addEventListener('click', e => {
+    const b = e.target.closest('[data-note]');
+    if (b) { state.noteOpen[b.dataset.note] = true; render(); const ta = $('note-' + b.dataset.note); if (ta) ta.focus(); }
+  });
+
+  // 每种失败各有各的修法：说清楚该去哪里点
+  function whyText(code) {
+    if (code === 'not_in_manifest') return '你没有允许这个页面使用 Claude Code Remote（或者之前点了拒绝）。点“打开权限设置”把它打开';
+    if (code === 'server_not_connected') return '你的 claude.ai 还没连上 Claude Code Remote：到 claude.ai 设置 → 连接器 里添加它';
+    if (code === 'needs_reauth') return 'Claude Code Remote 的登录过期了：到 claude.ai 设置 → 连接器 里重新连接';
+    if (code === 'selection_required') return '你有不止一个叫 Claude Code Remote 的连接器，页面在等你选一个：刷新页面，按提示选';
+    if (code === 'blocked_by_policy' || code === 'approval_required') return 'Claude Code Remote 里的 send_message 工具被关掉了（或组织不允许）：点页面顶上提示里的“Open connector settings”，把 send_message 打开，再试发一条';
+    if (code === 'tool_error') return '通知被退回（{{DEPT}} 那边的会话可能已经结束）';
+    if (code === 'server_unavailable') return '连接器暂时没响应，不确定有没有送到';
+    if (code === 'upstream_error') return '刚才可能没来得及点“允许”，或者服务暂时不通';
+    if (code === 'not_granted' || code === 'capability_disabled' || code === 'capability_removed') return '这个打开方式用不了连接器：在 claude.ai 里打开拍板单再试';
+    return '通知没发出去';
+  }
+
+  // 评论这条路：页面替你在拍板单上发一条评论并“发给 Claude”，{{DEPT}} 的会话会被叫醒（不靠连接器）
+  function commentWhy(code) {
+    if (code === 'cannot_no_session') return '{{DEPT}} 的会话现在收不到（可能已经结束）';
+    if (code === 'cannot_writers_only' || code === 'cannot_off' || code === 'no_comments') return '这个打开方式不能把评论发给 Claude';
+    if (code === 'consent_required') return '你没点“允许页面替你发评论”';
+    if (code === 'forbidden') return '页面发评论被关掉了（在 claude.ai 评论面板里可以重新允许）';
+    if (code === 'claude_unavailable') return '这次没发出去（离你点按钮隔得太久，或者 {{DEPT}} 的会话收不到）';
+    if (code === 'rate_limited') return '发得太频繁了，过一会儿再试';
+    return '评论没发出去';
+  }
+  async function viaComments(text, el) {
+    const c = await claude.use('comments');
+    if (!c) return { ok: false, code: 'no_comments' };
+    let can = 'off';
+    try { can = await c.canSendToClaude(); } catch (e) { can = 'off'; }
+    if (can !== 'available') return { ok: false, code: 'cannot_' + can };
+    try { const anchor = await c.anchorFor(el); await c.sendToClaude({ anchor, text }); return { ok: true, code: '' }; }
+    catch (e) { return { ok: false, code: (e && e.code) || 'unknown', msg: String((e && e.message) || '').slice(0, 300) }; }
+  }
+  // 连接器这条路（备用）：Claude Code Remote 的 send_message
+  async function viaMcp(message) {
+    let sid = null;
+    try { const s = await state.db.doc('meta/config').get(); sid = s.exists ? (s.data() || {}).notifySession : null; } catch (e) {}
+    if (!sid) return { ok: false, code: 'no_session' };
+    const mcp = await claude.use('mcp');
+    if (!mcp) return { ok: false, code: 'no_mcp' };
+    try { await mcp.callTool(SERVER, 'send_message', { session_id: sid, message }); return { ok: true, code: '' }; }
+    catch (e) { return { ok: false, code: (e && e.code) || 'unknown', msg: String((e && e.message) || '').slice(0, 300) }; }
+  }
+  // 先走评论，不行再走连接器；结果（成功 / 失败原因）记在 meta/notifyLog，{{DEPT}} 自己能读到，不用你转述
+  async function sendToCode(message, kind, el) {
+    const c = await viaComments(message, el);
+    const m = c.ok ? null : await viaMcp(message);
+    const ok = c.ok || (m && m.ok);
+    try { await state.db.doc('meta/notifyLog').set({ at: new Date().toISOString(), kind, ok: !!ok, via: c.ok ? 'comment' : m && m.ok ? 'mcp' : '', comment: c.code, commentMsg: c.msg || '', mcp: m ? m.code : '', mcpMsg: (m && m.msg) || '' }); } catch (e) {}
+    refreshPerm();
+    return { ok: !!ok, text: ok ? '' : commentWhy(c.code) };
+  }
+
+  async function notify(qs) {
+    const changed = qs.filter(q => current(q).choice !== q.rec || current(q).note).length;
+    const r = await sendToCode(`{{DEPT}}拍板单：用户提交了 ${qs.length} 题（改了建议或补了话的 ${changed} 题）。答案在拍板单的 answers 里。`, 'submit', $('open'));
+    if (r.ok) setStatus('已保存，也已通知 {{DEPT}}。', 'ok');
+    else setStatus(`已保存，但没通知到 {{DEPT}}：${r.text}。点下面的“试发一条给 {{DEPT}}”补发，或者回聊天说一声“答好了”。`, 'bad');
+  }
+
+  async function refreshPerm() {
+    const c = await claude.use('comments');
+    let can = 'off';
+    if (c) { try { can = await c.canSendToClaude(); } catch (e) { can = 'off'; } }
+    $('nmanage').hidden = true;
+    if (can === 'available') setN('nstate', '可以：提交答案后，页面会替你发一条评论给 {{DEPT}}（第一次会问你“是否允许页面替你发评论”，点允许）。可以先点“试发一条”确认。', 'ok');
+    else if (can === 'no_session') setN('nstate', '{{DEPT}} 的会话现在收不到通知（可能已经结束）。提交后回聊天说一声“答好了”。', 'bad');
+    else setN('nstate', '这个打开方式发不了通知。提交后回聊天说一声“答好了”。', 'bad');
+  }
+
+  $('ntest').addEventListener('click', async () => {
+    if (!state.db) return;
+    $('ntest').disabled = true; setN('nstat', '正在发……');
+    const r = await sendToCode('{{DEPT}}拍板单：试发通知（用户点了“试发一条给 {{DEPT}}”）。收到就说明拍板单能直接通知你。', 'test', $('ntest').closest('section'));
+    setN('nstat', r.ok ? '发出去了。{{DEPT}} 收到后会在这条评论下回你一句。' : r.text + '。', r.ok ? 'ok' : 'bad');
+    $('ntest').disabled = false;
+  });
+  $('nmanage').addEventListener('click', async () => {
+    try { await state.perms.manage(); }
+    catch (e) { setN('nstat', '权限面板没打开：点页面右上角的菜单，找“权限”，把 Claude Code Remote 打开。', 'bad'); }
+    refreshPerm();
+  });
+
+  async function submit() {
+    if (state.busy || !state.db) return;
+    const open = state.qs.filter(q => q.status !== 'closed'); if (!open.length) return;
+    state.busy = true; $('submit').disabled = true; setStatus('正在保存……');
+    try {
+      // 各题一起存（快一点：存完马上发通知，离你点按钮越近越容易发出去）
+      await Promise.all(open.map(q => {
+        const cur = current(q), o = q.options.find(x => x.key === cur.choice);
+        return state.db.doc('answers/' + q.id).set({
+          qid: q.id, title: q.title, batch: q.batch || '', choice: cur.choice, choiceLabel: o ? o.label : '',
+          note: cur.note || '', rec: q.rec || null, keptRec: cur.choice === q.rec, answeredAt: new Date().toISOString(),
+        });
+      }));
+    } catch (e) {
+      const code = e && e.code;
+      setStatus(code === 'invalid_argument' ? '没存上：你在这个页面上只有查看权限。' : code === 'quota_exceeded' ? '没存上：答案存储满了，告诉 {{DEPT}}。' : '没存上：网络或服务暂时不通，过一会儿再点一次“提交答案”。', 'bad');
+      state.busy = false; $('submit').disabled = false; return;
+    }
+    state.sel = {}; saveDraft();
+    await notify(open);
+    state.busy = false; $('submit').disabled = false;
+  }
+  $('submit').addEventListener('click', submit);
+
+  (async () => {
+    if (!window.claude || !window.claude.use) { $('empty').textContent = '请在 claude.ai 里打开这个页面，才能读取问题、保存答案。'; setN('nstate', '请在 claude.ai 里打开这个页面。', 'bad'); $('ntest').disabled = true; return; }
+    claude.use('permissions').then(p => { state.perms = p; refreshPerm(); });
+    const db = await claude.use('db');
+    if (!db) { $('empty').textContent = '读不到问题：请登录 claude.ai 后再打开这个页面。'; $('ntest').disabled = true; return; }
+    state.db = db;
+    const fail = e => { $('empty').textContent = '读取出了问题（' + (e && e.code || '未知') + '），刷新页面再试一次。'; };
+    db.collection('questions').orderBy('order').onSnapshot(snap => {
+      state.qs = snap.docs.map(d => ({ id: d.id, ...d.data() })).filter(q => Array.isArray(q.options) && q.options.length);
+      render();
+    }, fail);
+    db.collection('answers').onSnapshot(snap => {
+      const m = {}; for (const d of snap.docs) m[d.id] = d.data(); state.ans = m; if (state.qs.length) render();
+    }, fail);
+  })();
+})();
+</script>
