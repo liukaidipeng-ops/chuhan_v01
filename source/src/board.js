@@ -1578,7 +1578,7 @@ const Board = (() => {
     const tube = (r, op, c = col) => own(new THREE.Mesh(new THREE.TubeGeometry(curve, 64, r, 6, false), new THREE.MeshBasicMaterial({ color: c, transparent: true, opacity: op, depthWrite: false })));
     const spr = (size, c, op = 1) => { const sp = own(new THREE.Sprite(new THREE.SpriteMaterial({ map: glowTex, color: c, transparent: true, opacity: op, depthWrite: false, blending: THREE.AdditiveBlending }))); sp.scale.setScalar(size); return sp; };
     // 五个都是极简的：一道细线打底，只有一处在动（Ham 16:31：轮廓简单、极简风格）
-    const line = (op = 0.7) => tube(0.011, op);
+    const line = (op = 0.7) => tube(0.022, Math.min(1, op + 0.2));
     if (style === 1) {
       // 一、光点：细线上一颗小光点从起点跑到落点
       line(0.6); const dot = spr(0.2, hi);
