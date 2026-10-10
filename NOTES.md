@@ -18,8 +18,10 @@
   - **收敛进度（自对打汉胜率，校尉 6 万节点、前 10 步随机）**：线上 48.2%（3802 局）→ w_t3p 64.7%（600）→ w_t4 55.4%（600）。第三轮拟合（t3 + t4 + t5 数据，全部特征含 k_free）：`tools/tune/w_t5.json` 检验 0.19940 → 0.18488（−7.28%；k_free −0.335、heavy 0.618、att4 0.288、art_r_open 1.741、art_b_open 0.960）；`w_t5m.json`（--mix 0.5）纯胜负检验只 −5.23%（混合标签检验 0.05116，第 100 轮最好）。**按纯胜负 w_t5 好，但要对打定**。
   - **GitHub 在跑**：run 38033187845（提交 5806b72，248 段，08:55 开跑；每段约 20 分钟、同时 12 段）：d0-base / d1-bfirst（各 600 局，线上 + w_t3p 自对打，校尉 6 万节点，--open 10，种子 200000；D1 用 engine_rules + `--set firstTurn=b` 楚先走）、r35-up3k-hard-r/b（C65 + UP3K 对 C65）、r36-tunelive-{hard,mid}-{r,b}（线上 + w_t3p 写回公式 对 线上）。结果由机器人提交回本分支 `source/tools/simresults/`（先 git pull）。检查点 trig_012hRrLsFtsxBQqb5xpnKo74（12:20 UTC）。
     **现在这批已开跑，再推一次只会排队（不会顶掉它）；但排队时再推会顶掉排队那批。** 一次最多 256 段，max-parallel 12（Ham：模拟不急）。
+  - **10-10 10:00 更新**：测速（每秒节点，同机交替）w_t5 = w_t4（+0.9%）、w_t5m −3.8%、w_t4 比 w_t3 −8.6%。**run 38043056515（4e60e18，192 段）排在 run 51 后面**：r37-t5-mid（w_t5 对 bfai_t4.js）、r37-t5m-mid（w_t5m，NODEX 0.96，对 bfai_t4.js），校尉 6 万、种子 14000、各 600 局；r38-rev-hard（w_t4 + REVALL=1 对 bfai_t4.js，霸王 10 万、种子 13000）。
+    考卷加 10 道新规则对局题（实13–实22，`tools/dumbgames/add_review_questions.js`，裁判 = cac4cb8 线上电脑的复盘开关，judge.base），本机在考 线上 / w_t4 / w_t5 / w_t5m（草稿区 exam_shi.txt）。本机 w_t5 自对打 t6（种子 400000 起，草稿区 t6/，3 进程）在跑，先两批。
   - **下一步（按顺序）**：
-    1. w_t5 测速（草稿区 fpbench.js，TUNE_W + TUNE_FAST）定 NODEX；草稿区 `r37/` 改成“w_t5（和 w_t5m）对 上一版权重（扣速度的 NODEX）”，连同 `r38-rev-hard-r/b`（REVALL=1，召回不只救车）一起推。
+    1. （已做，见上）w_t5 测速（草稿区 fpbench.js，TUNE_W + TUNE_FAST）定 NODEX；草稿区 `r37/` 改成“w_t5（和 w_t5m）对 上一版权重（扣速度的 NODEX）”，连同 `r38-rev-hard-r/b`（REVALL=1，召回不只救车）一起推。
     2. r36 赢线上 → 用最好的权重 `node tools/tune/make_patch.js <权重> <补丁>` 重新生成 `tools/variants/bfai_tune.patch`（score_w 加了 skC / k_free / 兵法可开，旧补丁过时）→ 测试 + 和变体逐步相同 → C67 给 TD。
     3. D0 / D1 出结果 → N 条给顾问部（只当方向）。
     4. 收敛循环：最新权重自对打（--dump-pos）→ 加数据重拟合 → 对上一版；看到位标准，到了发 N 条。
