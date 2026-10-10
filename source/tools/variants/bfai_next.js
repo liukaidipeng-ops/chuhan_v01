@@ -10,6 +10,8 @@
 //   BFAI_UPESC=1：C63 电脑那一半（只有升级才解得了将时所有升法都试，不再给空行动）
 //   BFAI_DYN=X：难走的局面多想（Ham 10-10：语音 + 催促的拟人思考时间）——基础预算用完时还没算过 3 层、或者最后一层最好的那步换了 / 分数掉了 1 分以上，
 //     预算放宽到 X 倍（按节点数收手时节点上限 ×X；按时间时 3 秒 → 3X 秒）。只在霸王（最多层数 > 3）
+//   BFAI_UP3K=N：对方第二手（第 3 层）也能先升级，但只看“升了以后能走到我帅身边一格内、升之前走不到”的，最多 N 种（g5 第 22 回合：兵升四级神速营跳将，原来只在对方第一手看升级）
+//   BFAI_FASTFP=1：局面指纹提速（剖析：线上霸王 7.4% 的时间花在 fp 上，大半是逐字散列子的字段名）
 //   BFAI_CHKMUST=1：被将军时，相 / 象 / 兵升一级攻击变大的（象二级起攻击 2，H50；兵三级起攻击 2，r6）也算“保命的升级”（TD 在 H52 问的）
 'use strict';
 const fs = require('fs'), path = require('path'), os = require('os');
@@ -19,7 +21,7 @@ const src0 = execFileSync('git', ['show', rev + ':source/src/bfai.js'], { cwd: p
 function build(E, tag) {
   let s = src0;
   const rep = (a, b) => { const n = s.split(a).length - 1; if (n !== 1) throw new Error(`bfai_next：锚点出现 ${n} 次：${a.slice(0, 80)}`); s = s.replace(a, () => b); };
-  const LMR2 = +(E.BFAI_LMR2 || 0), NMP = +(E.BFAI_NMP || 0), CHKMUST = +(E.BFAI_CHKMUST || 0), ROOTREL = +(E.BFAI_ROOTREL || 0), ROOTATK = +(E.BFAI_ROOTATK || 0), RLMR = +(E.BFAI_RLMR || 0), UPESC = +(E.BFAI_UPESC || 0), DYN = +(E.BFAI_DYN || 0);
+  const LMR2 = +(E.BFAI_LMR2 || 0), NMP = +(E.BFAI_NMP || 0), CHKMUST = +(E.BFAI_CHKMUST || 0), ROOTREL = +(E.BFAI_ROOTREL || 0), ROOTATK = +(E.BFAI_ROOTATK || 0), RLMR = +(E.BFAI_RLMR || 0), UPESC = +(E.BFAI_UPESC || 0), DYN = +(E.BFAI_DYN || 0), UP3K = +(E.BFAI_UP3K || 0), FASTFP = +(E.BFAI_FASTFP || 0);
   if (LMR2) rep('{ v = -ab(r.S, depth - 2, -alpha - 0.01, -alpha, ply + 1, ext); if (v > alpha)', '{ v = -ab(r.S, depth - 2 - (mi > ' + LMR2 + ' && depth >= 4 ? 1 : 0), -alpha - 0.01, -alpha, ply + 1, ext); if (v > alpha)');
   if (NMP) {
     rep('    let best = -INF, legal = 0, bm = null;',
@@ -85,6 +87,42 @@ function build(E, tag) {
       "        if (d > 3 && !thin && now() - t0 > dynB * 0.3) { why = 'time'; break; }");
     rep("t0 + L.budget * 1.5 : soft + L.budget * 0.3;", "t0 + L.budget * 1.5 : soft + dynB * 0.3;");
     rep("      depthDone = d;\n", "      depthDone = d;\n      { const bk = JSON.stringify(actOf(kids[0])); if (d >= 3 && ((prevBK && bk !== prevBK) || (prevV != null && kids[0].v < prevV - 1))) crit = true; prevBK = bk; prevV = kids[0].v; }   // 变体 next：最好的那步换了、分数掉了 → 难走\n");
+  }
+  if (UP3K) {   // 对方第二手（第 3 层）也能先升级——只看“升了以后能走到我帅身边一格内（或吃到帅身边的子）”的，最多 UP3K 种
+    rep("const tkey = fp(S) + ':' + depth + ':' + ext + ':' + (upAt(S, ply) ? 1 : 0) + (ply === pfPly ? 2 : 0),",
+      "const tkey = fp(S) + ':' + depth + ':' + ext + ':' + (upAt(S, ply) ? 1 : 0) + (ply === pfPly ? 2 : 0) + (ply === upPly + 2 && upPly > 0 && !S.upgraded ? 4 : 0),");
+    rep("    if (upAt(S, ply)) {",
+      "    if (upPly > 0 && ply === upPly + 2 && !S.upgraded) {   // 变体 next：对方第二手的“贴帅”升级（g5 第 22 回合：四级兵神速营跳将）\n" +
+      "      for (const u of upsNearK(S, side)) {\n" +
+      "        const v = ab(u.S, depth - extd, alpha, beta, ply, ext - extd);\n" +
+      "        if (v > best) { best = v; bm = null; }\n" +
+      "        if (v > alpha) alpha = v;\n" +
+      "        if (alpha >= beta) return best;\n" +
+      "      }\n" +
+      "    }\n" +
+      "    if (upAt(S, ply)) {");
+    rep("  function upsOf(S, side) {",
+      "  // 变体 next：side 方升一级以后，能走到对方帅身边一格内（含帅本身）的那几种升级，升之前走不到的才算；每个局面只算一次\n" +
+      "  const upNearCache = new Map();\n" +
+      "  function upsNearK(S, side) {\n" +
+      "    let ups = upNearCache.get(S); if (ups) return ups; ups = [];\n" +
+      "    let k = null; for (let r = 0; r < 10 && !k; r++) for (let f = 0; f < 9; f++) { const p = S.board[r][f]; if (p && p.t === 'k' && p.s !== side) { k = [f, r]; break; } }\n" +
+      "    if (k) for (let r = 0; r < 10; r++) for (let f = 0; f < 9; f++) {\n" +
+      "      const p = S.board[r][f]; if (!p || p.s !== side || p.t === 'k' || Math.abs(f - k[0]) + Math.abs(r - k[1]) > 5) continue;\n" +
+      "      const T = A.upgradeState(S, [f, r]); if (!T) continue;\n" +
+      "      const near = mv => Math.max(Math.abs(mv.to[0] - k[0]), Math.abs(mv.to[1] - k[1])) <= 1;\n" +
+      "      const before = new Set(A.moveTargets(S, f, r).filter(near).map(mv => mv.to[0] + mv.to[1] * 9));\n" +
+      "      if (A.moveTargets(T, f, r).some(mv => near(mv) && !before.has(mv.to[0] + mv.to[1] * 9))) ups.push({ S: T, g: score(T, side) - score(S, side) });\n" +
+      "    }\n" +
+      "    ups.sort((x, y) => y.g - x.g); ups = ups.slice(0, " + UP3K + "); upNearCache.set(S, ups); return ups;\n" +
+      "  }\n" +
+      "  function upsOf(S, side) {");
+    rep("pfCache.clear(); upCache.clear();", "pfCache.clear(); upCache.clear(); upNearCache.clear();");
+  }
+  if (FASTFP) {   // 局面指纹提速：子的字段名、字符串值不再逐字散列，换成第一次见到时编的号（散列函数变了，查表结果只差在极少的碰撞上）
+    rep("    for (let r = 0; r < 10; r++) for (let f = 0; f < 9; f++) {\n      const p = S.board[r][f]; if (!p) continue;\n      mix(1000 + r * 9 + f);\n      for (const k in p) { mixS(k); const v = p[k]; if (typeof v === 'number') { mix(v | 0); mix(Math.round(v * 4096) | 0); } else if (typeof v === 'string') { mix(7); mixS(v); }",
+      "    for (let r = 0; r < 10; r++) for (let f = 0; f < 9; f++) {\n      const p = S.board[r][f]; if (!p) continue;\n      mix(1000 + r * 9 + f);\n      for (const k in p) { mix(fpId(k)); const v = p[k]; if (typeof v === 'number') { mix(v | 0); if (v !== (v | 0)) mix(Math.round(v * 4096) | 0); } else if (typeof v === 'string') { mix(7); mix(fpId(v)); }");
+    rep("  function fp(S) {", "  // 变体 next：字段名 / 字符串值 → 编号（同一个字符串永远同一个号）\n  const FPID = new Map();\n  const fpId = k => { let i = FPID.get(k); if (i === undefined) { i = 0x9e3779b1 ^ Math.imul(FPID.size + 1, 2654435761); FPID.set(k, i); } return i; };\n  function fp(S) {");
   }
   if (tag === null) return s;
   const out = path.join(os.tmpdir(), `bfai_next_${rev}_${tag || 'env'}_${process.pid}.js`);
