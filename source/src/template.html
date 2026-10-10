@@ -1109,7 +1109,7 @@ html:has(#endcard:not(.hidden)),html:has(#endcard:not(.hidden)) body,html:has(#e
 #mAsk.e-stay #askYes{flex:0 0 118px;background:none;color:var(--k);font-size:calc(16px * var(--fs,1));letter-spacing:.14em}
 #mAsk.e-stay .row{flex-direction:row}
 /* 人机被将死后的悔棋窗口（TD 10-10）：不压暗棋盘，让人看清怎么输的 */
-#mAsk.e-grace{align-items:flex-start;background:none;pointer-events:none;padding-top:max(62px,calc(env(safe-area-inset-top) + 56px))}   /* 输的是自己这边（在下面），框放上面，别挡住被将死的帅 */
+#mAsk.e-grace{background:none;pointer-events:none}   /* 居中（Ham 审批台 td-022：原来太靠上） */
 #mAsk.e-grace .wrap{pointer-events:auto;width:min(460px,100%)}
 #mAsk.e-grace .scroll{padding:20px 24px 20px}
 #mAsk.e-grace h3{margin-bottom:6px}
