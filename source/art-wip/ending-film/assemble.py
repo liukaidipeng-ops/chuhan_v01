@@ -3,7 +3,7 @@ import os, sys, json, subprocess, glob
 from PIL import Image, ImageDraw
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)) + '/../sb')
 import style as S
-H = os.path.dirname(os.path.abspath(__file__)); SRC = '/home/claude/chuhan_v01/source'; AUD = H + '/../sb/audio'
+H = os.path.dirname(os.path.abspath(__file__)); SRC = os.path.abspath(H + '/../..'); AUD = H + '/../sb/audio'
 OUT = H + '/out'; os.makedirs(OUT + '/f', exist_ok=True)
 FPS = 24; W, HH, BAR = 1280, 720, 92
 L = json.load(open(SRC + '/voice/lines.json', encoding='utf-8')); TXT = {x['id']: x['text'] for x in L}

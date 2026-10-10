@@ -1,0 +1,492 @@
+<title>CG组审批台</title>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Noto+Serif+SC:wght@900&family=Noto+Sans+SC:wght@400;500;700&display=swap">
+<style>
+/* 版式：照美术审批台的做法——一件一张，先点选、可写备注，再点「确认提交」才算数；批完盖印沉到底下。颜色只用朱、米白、墨 */
+:root {
+  --paper: #f0e7d2; --card: #f8f2e3; --ink: #141311; --ink2: #5d554a; --rule: #cdbf9f;
+  --zhu: #a8281c; --zhu-soft: #f3dcd6; --btn: #a8281c; --on-btn: #ffffff;
+  --ok: #2c6646; --ok-soft: #dcebe0; --amber: #855600; --amber-soft: #f3e7c8;
+  --display: "Noto Serif SC", "Songti SC", "STSong", serif;
+  --body: "Noto Sans SC", "PingFang SC", "Microsoft YaHei", system-ui, sans-serif;
+}
+@media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) {
+  --paper: #161513; --card: #1f1d1a; --ink: #ece3cd; --ink2: #a89d88; --rule: #3a352d;
+  --zhu: #e0654f; --zhu-soft: #3d1f1a; --btn: #a8281c; --on-btn: #ffffff;
+  --ok: #7fc79b; --ok-soft: #1c3226; --amber: #e2b45a; --amber-soft: #382c10; color-scheme: dark } }
+:root[data-theme="dark"] {
+  --paper: #161513; --card: #1f1d1a; --ink: #ece3cd; --ink2: #a89d88; --rule: #3a352d;
+  --zhu: #e0654f; --zhu-soft: #3d1f1a; --btn: #a8281c; --on-btn: #ffffff;
+  --ok: #7fc79b; --ok-soft: #1c3226; --amber: #e2b45a; --amber-soft: #382c10; color-scheme: dark }
+body { background: var(--paper); color: var(--ink); font-family: var(--body); font-size: 16px; line-height: 1.7; }
+.wrap { max-width: 880px; margin: 0 auto; padding-inline: 18px; padding-block: 24px 150px; display: flex; flex-direction: column; gap: 20px; }
+.top { display: flex; flex-wrap: wrap; align-items: flex-end; justify-content: space-between; gap: 12px 24px; padding-bottom: 14px; border-bottom: 2px solid var(--ink); }
+.eyebrow { margin: 0; font-size: 13px; letter-spacing: 0.16em; color: var(--ink2); }
+h1 { margin: 0; font-family: var(--display); font-weight: 900; font-size: clamp(34px, 7vw, 48px); line-height: 1.1; }
+.count { display: flex; align-items: baseline; gap: 10px; }
+.count .n { font-size: clamp(44px, 9vw, 60px); font-weight: 700; line-height: 1; color: var(--zhu); font-variant-numeric: tabular-nums; }
+.count.zero .n { color: var(--ok); }
+.count .lbl { font-size: 15px; color: var(--ink2); }
+.how { margin: 0; color: var(--ink2); font-size: 14px; max-width: 40em; }
+.list { display: flex; flex-direction: column; gap: 18px; }
+.card { background: var(--card); border: 1px solid var(--rule); border-top: 3px solid var(--zhu); padding: 18px 20px 20px; display: flex; flex-direction: column; gap: 12px; min-width: 0; }
+.meta { display: flex; flex-wrap: wrap; gap: 6px 12px; align-items: center; font-size: 13px; color: var(--ink2); }
+.dept { color: var(--on-btn); background: var(--ink2); padding: 0 8px; font-weight: 500; letter-spacing: 0.08em; }
+.card h2 { margin: 0; font-size: 21px; font-weight: 700; line-height: 1.35; text-wrap: balance; }
+.ask { margin: 0; font-weight: 500; }
+.points { margin: 0; padding-left: 1.2em; display: flex; flex-direction: column; gap: 3px; color: var(--ink2); font-size: 15px; overflow-wrap: anywhere; }
+.points a, .after a { color: var(--zhu); }
+.shots { display: flex; flex-direction: column; gap: 10px; }
+.shot { display: block; width: 100%; padding: 0; border: 1px solid var(--rule); background: var(--paper); cursor: zoom-in; }
+.shot img { display: block; width: 100%; height: auto; }
+.cap { margin: 4px 0 0; font-size: 13px; color: var(--ink2); }
+.after { margin: 0; font-size: 14px; color: var(--ink2); border-left: 2px solid var(--rule); padding-left: 10px; }
+.acts { display: flex; flex-wrap: wrap; gap: 10px; align-items: center; }
+button.b { font: 700 16px/1 var(--body); min-height: 46px; padding: 0 22px; border: 1.5px solid var(--ink); background: transparent; color: var(--ink); cursor: pointer; }
+button.b.go { background: var(--btn); border-color: var(--btn); color: var(--on-btn); }
+button.b.quiet { border-color: var(--rule); font-weight: 500; font-size: 14px; min-height: 38px; padding: 0 14px; color: var(--ink2); }
+button.b[aria-pressed="true"] { background: var(--ink); border-color: var(--ink); color: var(--card); }
+button.b.quiet[aria-pressed="true"] { background: var(--amber-soft); border-color: var(--amber); color: var(--amber); }
+button.b:disabled { opacity: 0.5; cursor: default; }
+button:focus-visible, textarea:focus-visible { outline: 2px solid var(--zhu); outline-offset: 2px; }
+.opts { display: flex; flex-direction: column; gap: 8px; }
+.opt { text-align: left; font: inherit; color: var(--ink); background: transparent; border: 1.5px solid var(--ink); padding: 10px 14px; cursor: pointer; display: flex; flex-direction: column; gap: 2px; }
+.opt b { font-weight: 700; } .opt span { font-size: 14px; color: var(--ink2); }
+.opt[aria-pressed="true"] { background: var(--ink); color: var(--card); }
+.opt[aria-pressed="true"] span { color: var(--card); opacity: .8; }
+.opt[aria-pressed="true"] b::after { content: "　✓ 已选"; font-weight: 500; font-size: 14px; }
+.note { display: flex; flex-direction: column; gap: 6px; }
+.note label { font-size: 14px; font-weight: 500; }
+.note label small { font-weight: 400; color: var(--ink2); margin-left: 6px; }
+textarea { font: inherit; color: var(--ink); background: var(--paper); border: 1.5px solid var(--rule); padding: 10px 12px; min-height: 76px; width: 100%; box-sizing: border-box; resize: vertical; }
+textarea:focus { border-color: var(--ink); }
+.note-head { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 8px; }
+.addimg { display: inline-flex; align-items: center; gap: 6px; font: 500 14px/1 var(--body); min-height: 40px; padding: 0 14px; border: 1.5px solid var(--ink); background: transparent; color: var(--ink); cursor: pointer; }
+.addimg:disabled { opacity: .5; cursor: default; }
+.addimg input { display: none; }
+.hint { font-size: 13px; color: var(--ink2); }
+.thumbs { display: flex; flex-wrap: wrap; gap: 8px; }
+.thumb { position: relative; width: 96px; height: 72px; border: 1px solid var(--rule); background: var(--paper); }
+.thumb img { width: 100%; height: 100%; object-fit: cover; display: block; cursor: zoom-in; }
+.thumb button { position: absolute; top: -8px; right: -8px; width: 26px; height: 26px; border-radius: 50%; border: 1.5px solid var(--ink); background: var(--card); color: var(--ink); font: 700 15px/1 var(--body); cursor: pointer; padding: 0; }
+.thumb.wait { display: grid; place-items: center; font-size: 12px; color: var(--ink2); }
+.note-tools { display: flex; flex-wrap: wrap; gap: 8px; }
+.markbtn { align-self: flex-start; font: 500 14px/1 var(--body); min-height: 38px; padding: 0 12px; margin-top: 6px; border: 1.5px solid var(--zhu); background: transparent; color: var(--zhu); cursor: pointer; }
+/* 截图标注：全屏，顶上一排工具，中间是图，手指或鼠标直接画 */
+.ed { position: fixed; inset: 0; z-index: 20; background: #0f0e0c; display: flex; flex-direction: column; padding-top: env(safe-area-inset-top, 0px); padding-bottom: env(safe-area-inset-bottom, 0px); }
+.ed[hidden], .lightbox[hidden], .sbar[hidden] { display: none; }
+.sbar { position: fixed; left: 0; right: 0; bottom: 0; z-index: 9; background: var(--card); border-top: 2px solid var(--ink); padding: 10px 16px calc(10px + env(safe-area-inset-bottom, 0px)); }
+.sbar-in { max-width: 880px; margin: 0 auto; display: flex; flex-wrap: wrap; gap: 10px; align-items: center; }
+.sbar-n { flex: 1 1 160px; font-size: 14px; color: var(--ink2); font-variant-numeric: tabular-nums; }
+.sbar-n b { color: var(--ink); }
+.sbar-msg { max-width: 880px; margin: 6px auto 0; font-size: 13px; color: var(--ink2); }
+.sbar-msg:empty { display: none; }
+.ed-bar { display: flex; flex-wrap: wrap; gap: 6px; align-items: center; padding: 8px 10px; background: #1c1a17; border-bottom: 1px solid #3a352d; }
+.ed-bar button { font: 500 14px/1 var(--body); min-height: 40px; min-width: 44px; padding: 0 12px; border: 1.5px solid #6b6255; background: transparent; color: #ece3cd; cursor: pointer; }
+.ed-bar button[aria-pressed="true"] { background: #ece3cd; color: #141311; border-color: #ece3cd; }
+.ed-bar .sw { width: 34px; min-width: 34px; padding: 0; }
+.ed-bar .sw[aria-pressed="true"] { outline: 2px solid #ece3cd; outline-offset: 2px; }
+.ed-bar .gap { flex: 1; }
+.ed-bar .done { background: #a8281c; border-color: #a8281c; color: #fff; font-weight: 700; }
+.ed-stage { flex: 1; min-height: 0; display: grid; place-items: center; padding: 10px; overflow: hidden; }
+.ed-stage canvas { max-width: 100%; max-height: 100%; touch-action: none; cursor: crosshair; background: #222; }
+.ed-tip { margin: 0; padding: 6px 12px 10px; font-size: 13px; color: #a89d88; }
+.submit { display: flex; flex-wrap: wrap; gap: 10px 14px; align-items: center; padding-top: 12px; border-top: 1px solid var(--rule); }
+.submit .pick { font-size: 14px; color: var(--ink2); }
+.submit .pick b { color: var(--ink); }
+.err { margin: 0; color: var(--zhu); font-size: 14px; font-weight: 500; }
+.empty { border: 1px dashed var(--rule); padding: 28px 20px; text-align: center; color: var(--ink2); }
+.empty b { display: block; font-family: var(--display); font-weight: 900; font-size: 28px; color: var(--ok); line-height: 1.3; }
+.done-wrap { display: flex; flex-direction: column; gap: 8px; margin-top: 8px; }
+.done-wrap h2 { margin: 0; font-size: 14px; font-weight: 500; letter-spacing: 0.16em; color: var(--ink2); }
+.row { display: grid; grid-template-columns: auto minmax(0, 1fr) auto; gap: 4px 14px; align-items: start; padding: 12px 0; border-top: 1px solid var(--rule); }
+.seal { width: 40px; height: 40px; display: grid; place-items: center; font-family: var(--display); font-weight: 900; font-size: 22px; line-height: 1; border: 2px solid currentColor; transform: rotate(-6deg); }
+.seal.approved { color: var(--zhu); background: var(--zhu-soft); } .seal.changes { color: var(--amber); background: var(--amber-soft); } .seal.chosen { color: var(--ok); background: var(--ok-soft); }
+.row .t { margin: 0; font-weight: 700; } .row .r { margin: 0; font-size: 14px; color: var(--ink2); white-space: pre-wrap; overflow-wrap: anywhere; }
+.row .told { color: var(--ink2); font-size: 13px; }
+.row .acked { color: var(--ok); font-size: 14px; font-weight: 500; }
+.row .when { font-size: 13px; color: var(--ink2); font-variant-numeric: tabular-nums; }
+.side { display: flex; flex-direction: column; align-items: flex-end; gap: 6px; }
+.foot { margin: 0; font-size: 13px; color: var(--ink2); }
+.lightbox { position: fixed; inset: 0; background: rgba(10, 10, 9, 0.9); display: grid; place-items: center; padding: 16px; z-index: 10; cursor: zoom-out; overflow: auto; }
+.lightbox img { max-width: none; width: min(2280px, 240vw); height: auto; }
+@media (min-width: 900px) { .lightbox img { width: auto; max-width: 96vw; max-height: 92vh; } }
+@media (max-width: 520px) { .row { grid-template-columns: auto minmax(0, 1fr); } .side { grid-column: 2; flex-direction: row; align-items: center; justify-content: space-between; } }
+</style>
+<div class="wrap">
+  <header class="top">
+    <div><p class="eyebrow">技能新象棋 · CG组（过场影片）</p><h1>CG组审批台</h1></div>
+    <div class="count" id="count" aria-live="polite"><span class="n" id="n">–</span><span class="lbl" id="nl">正在取待批事项</span></div>
+  </header>
+  <p class="how">终局影片（乌江、垓下、最后一战、拔剑、彭城）的分镜、样片、模型和要你定的事都放在这里。视频直接在卡片里点开播放。每件先点选（通过、要改、或选一个方案），想补充就写备注、附截图；全部看完点底部「全部提交」，一次交齐，只通知CG组一次。没批完也可以先交点选过的。CG组收到后，每件下面会亮出「✓ CG组已收到」和它的回话。图可以点开放大；批完的盖印沉到下面，点错了可以撤回。</p>
+  <section class="list" id="pending" aria-label="等你审批"></section>
+  <div class="empty" id="empty" hidden><b>都批完了</b>现在没有等你批的图。</div>
+  <section class="done-wrap" id="doneWrap" hidden><h2>已处理</h2><div id="done"></div></section>
+  <p class="foot"><span id="notifyState"></span> <button class="b quiet" id="notifyTest" type="button" hidden>发一条测试通知</button></p>
+  <p class="foot" id="foot"></p>
+</div>
+<div class="sbar" id="sbar" hidden>
+  <div class="sbar-in">
+    <span class="sbar-n" id="barN"></span>
+    <button type="button" class="b" id="bJump">跳到没批的</button>
+    <button type="button" class="b go" id="bAll">全部提交</button>
+  </div>
+  <p class="sbar-msg" id="barMsg" role="status"></p>
+</div>
+<div class="lightbox" id="lb" hidden><img id="lbImg" alt=""></div>
+<div class="ed" id="ed" hidden role="dialog" aria-label="截图标注">
+  <div class="ed-bar">
+    <button type="button" data-tool="pen" aria-pressed="true">画笔</button>
+    <button type="button" data-tool="rect" aria-pressed="false">框</button>
+    <button type="button" data-tool="arrow" aria-pressed="false">箭头</button>
+    <button type="button" data-tool="crop" aria-pressed="false">裁剪</button>
+    <button type="button" class="sw" data-color="#e0321f" aria-label="红色" aria-pressed="true" style="background:#e0321f"></button>
+    <button type="button" class="sw" data-color="#141311" aria-label="黑色" aria-pressed="false" style="background:#141311"></button>
+    <button type="button" class="sw" data-color="#f0e7d2" aria-label="米白" aria-pressed="false" style="background:#f0e7d2"></button>
+    <button type="button" id="edUndo">撤销</button>
+    <span class="gap"></span>
+    <button type="button" id="edCancel">取消</button>
+    <button type="button" class="done" id="edDone">附到备注</button>
+  </div>
+  <div class="ed-stage"><canvas id="edCv"></canvas></div>
+  <p class="ed-tip" id="edTip">在图上直接画；「裁剪」拖一个框只留框里那块。画好点「附到备注」。</p>
+</div>
+<script>
+(() => {
+  const $ = id => document.getElementById(id);
+  const el = (tag, cls, text) => { const e = document.createElement(tag); if (cls) e.className = cls; if (text != null) e.textContent = text; return e; };
+  const ui = {}, nodes = new Map();
+  let db = null, docs = [], loaded = false, readOnly = false;
+  const S = id => ui[id] || (ui[id] = { pick: null, draft: '', busy: false, err: '', files: [], uploading: 0 });
+  // 备注里附截图：选图片或直接粘贴，传进本页的素材库，提交时和备注一起存（只存 id）
+  let assetsP = null;
+  const getAssets = () => assetsP || (assetsP = (window.claude && window.claude.use ? window.claude.use('assets') : Promise.resolve(null)).catch(() => null));
+  async function addFiles(id, files) {
+    const st = S(id), imgs = [...files].filter(f => f && /^image\//.test(f.type)).slice(0, 6);
+    if (!imgs.length) return;
+    const assets = await getAssets();
+    if (!assets) { st.err = '这个打开方式传不了截图（只有能编辑的人可以传）。'; render(); return; }
+    st.uploading += imgs.length; st.err = ''; render();
+    for (const f of imgs) {
+      try { const r = await assets.upload(f); st.files.push({ id: r.id, url: r.url }); }
+      catch (e) { st.err = '截图没传上（' + ((e && e.code) || '出错') + '），再试一次。'; }
+      st.uploading--; render();
+    }
+  }
+  // ---------- 截图标注：把送审的图截下来，在上面画笔 / 框 / 箭头 / 裁剪，导出成图片附进备注 ----------
+  const ED = { id: null, img: null, W: 0, H: 0, ops: [], cur: null, crop: null, hist: [], tool: 'pen', color: '#e0321f', busy: false };
+  const cv = $('edCv'), cx = cv.getContext('2d');
+  const lw = () => Math.max(3, Math.round(ED.W / 220));
+  function drawOp(g, o) {
+    g.strokeStyle = o.c; g.lineWidth = o.w; g.lineCap = 'round'; g.lineJoin = 'round';
+    if (o.t === 'pen') { g.beginPath(); o.pts.forEach((p, i) => i ? g.lineTo(p.x, p.y) : g.moveTo(p.x, p.y)); g.stroke(); }
+    else if (o.t === 'rect') { g.strokeRect(Math.min(o.x0, o.x1), Math.min(o.y0, o.y1), Math.abs(o.x1 - o.x0), Math.abs(o.y1 - o.y0)); }
+    else if (o.t === 'arrow') {
+      const a = Math.atan2(o.y1 - o.y0, o.x1 - o.x0), hl = o.w * 4.5;
+      g.beginPath(); g.moveTo(o.x0, o.y0); g.lineTo(o.x1, o.y1);
+      g.moveTo(o.x1, o.y1); g.lineTo(o.x1 - hl * Math.cos(a - 0.45), o.y1 - hl * Math.sin(a - 0.45));
+      g.moveTo(o.x1, o.y1); g.lineTo(o.x1 - hl * Math.cos(a + 0.45), o.y1 - hl * Math.sin(a + 0.45)); g.stroke();
+    }
+  }
+  const norm = r => r && ({ x: Math.min(r.x0, r.x1), y: Math.min(r.y0, r.y1), w: Math.abs(r.x1 - r.x0), h: Math.abs(r.y1 - r.y0) });
+  function redraw() {
+    cx.clearRect(0, 0, ED.W, ED.H); cx.drawImage(ED.img, 0, 0, ED.W, ED.H);
+    for (const o of ED.ops) drawOp(cx, o);
+    if (ED.cur && ED.cur.t !== 'crop') drawOp(cx, ED.cur);
+    const c = norm(ED.cur && ED.cur.t === 'crop' ? ED.cur : ED.crop);
+    if (c && c.w > 2 && c.h > 2) {
+      cx.save(); cx.fillStyle = 'rgba(0,0,0,.55)'; cx.beginPath(); cx.rect(0, 0, ED.W, ED.H); cx.rect(c.x, c.y, c.w, c.h); cx.fill('evenodd');
+      cx.strokeStyle = '#ece3cd'; cx.lineWidth = Math.max(2, lw() / 2); cx.setLineDash([lw() * 2, lw() * 1.5]); cx.strokeRect(c.x, c.y, c.w, c.h); cx.restore();
+    }
+  }
+  function setTool(t) { ED.tool = t; document.querySelectorAll('#ed [data-tool]').forEach(b => b.setAttribute('aria-pressed', b.dataset.tool === t ? 'true' : 'false')); }
+  function setColor(c) { ED.color = c; document.querySelectorAll('#ed [data-color]').forEach(b => b.setAttribute('aria-pressed', b.dataset.color === c ? 'true' : 'false')); }
+  function openEditor(id, src) {
+    const img = new Image();
+    img.onload = () => {
+      const k = Math.min(1, 2000 / img.naturalWidth);
+      ED.id = id; ED.img = img; ED.W = Math.round(img.naturalWidth * k); ED.H = Math.round(img.naturalHeight * k);
+      ED.ops = []; ED.cur = null; ED.crop = null; ED.hist = []; ED.busy = false;
+      cv.width = ED.W; cv.height = ED.H; setTool('pen'); $('edTip').textContent = '在图上直接画；「裁剪」拖一个框只留框里那块。画好点「附到备注」。';
+      $('edDone').disabled = false; $('edDone').textContent = '附到备注';
+      $('ed').hidden = false; redraw();
+    };
+    img.onerror = () => { const st = S(id); st.err = '这张图打不开，没法标注。'; render(); };
+    img.src = src;
+  }
+  const closeEd = () => { $('ed').hidden = true; ED.img = null; ED.cur = null; };
+  function ptr(e) { const r = cv.getBoundingClientRect(); return { x: (e.clientX - r.left) * ED.W / r.width, y: (e.clientY - r.top) * ED.H / r.height }; }
+  cv.addEventListener('pointerdown', e => {
+    if (!ED.img) return; e.preventDefault(); cv.setPointerCapture(e.pointerId);
+    const p = ptr(e), w = lw();
+    ED.cur = ED.tool === 'pen' ? { t: 'pen', c: ED.color, w, pts: [p] } : { t: ED.tool, c: ED.color, w, x0: p.x, y0: p.y, x1: p.x, y1: p.y };
+    redraw();
+  });
+  cv.addEventListener('pointermove', e => {
+    if (!ED.cur) return; const p = ptr(e);
+    if (ED.cur.t === 'pen') ED.cur.pts.push(p); else { ED.cur.x1 = p.x; ED.cur.y1 = p.y; }
+    redraw();
+  });
+  const endStroke = () => {
+    const o = ED.cur; if (!o) return; ED.cur = null;
+    if (o.t === 'crop') { const c = norm(o); if (c.w > 8 && c.h > 8) { ED.hist.push({ k: 'crop', prev: ED.crop }); ED.crop = o; } }
+    else if (o.t === 'pen' ? o.pts.length > 1 : Math.hypot(o.x1 - o.x0, o.y1 - o.y0) > 4) { ED.ops.push(o); ED.hist.push({ k: 'op' }); }
+    redraw();
+  };
+  cv.addEventListener('pointerup', endStroke); cv.addEventListener('pointercancel', endStroke);
+  document.querySelectorAll('#ed [data-tool]').forEach(b => b.addEventListener('click', () => setTool(b.dataset.tool)));
+  document.querySelectorAll('#ed [data-color]').forEach(b => b.addEventListener('click', () => setColor(b.dataset.color)));
+  $('edUndo').addEventListener('click', () => { const h = ED.hist.pop(); if (!h) return; if (h.k === 'op') ED.ops.pop(); else ED.crop = h.prev; redraw(); });
+  $('edCancel').addEventListener('click', closeEd);
+  $('edDone').addEventListener('click', async () => {
+    if (!ED.img || ED.busy) return; ED.busy = true; $('edDone').disabled = true; $('edDone').textContent = '正在附上…';
+    const id = ED.id, keep = ED.crop; ED.crop = null; redraw();          // 导出时不要裁剪框的暗影
+    const c = norm(keep) || { x: 0, y: 0, w: ED.W, h: ED.H }, out = document.createElement('canvas');
+    out.width = Math.max(1, Math.round(c.w)); out.height = Math.max(1, Math.round(c.h));
+    out.getContext('2d').drawImage(cv, c.x, c.y, c.w, c.h, 0, 0, out.width, out.height);
+    let blob = null;
+    try { blob = await new Promise((res, rej) => out.toBlob(b => b ? res(b) : rej(new Error('blob')), 'image/png')); }
+    catch (e) { $('edTip').textContent = '这张图导不出来（' + ((e && e.message) || '出错') + '）。可以用系统截图后点「上传图片」。'; ED.busy = false; $('edDone').disabled = false; $('edDone').textContent = '附到备注'; ED.crop = keep; redraw(); return; }
+    closeEd();
+    await addFiles(id, [new File([blob], '标注.png', { type: 'image/png' })]);
+  });
+  document.addEventListener('keydown', e => { if (e.key === 'Escape' && !$('ed').hidden) closeEd(); });
+
+  function thumbs(list, onRemove) {
+    const box = el('div', 'thumbs');
+    list.forEach((f, i) => {
+      const src = f.url || ('/_blob/' + f.id), t = el('div', 'thumb'), g = el('img'); g.src = src; g.alt = '截图 ' + (i + 1);
+      g.addEventListener('click', () => { $('lbImg').src = src; $('lb').hidden = false; }); t.appendChild(g);
+      if (onRemove) { const x = el('button', null, '×'); x.type = 'button'; x.setAttribute('aria-label', '去掉这张截图'); x.addEventListener('click', () => onRemove(i)); t.appendChild(x); }
+      box.appendChild(t);
+    });
+    return box;
+  }
+  const pad = n => String(n).padStart(2, '0');
+  const when = iso => { const d = new Date(iso); return isNaN(d) ? '' : pad(d.getMonth() + 1) + '-' + pad(d.getDate()) + ' ' + pad(d.getHours()) + ':' + pad(d.getMinutes()); };
+  const SEAL = { approved: '准', changes: '改', chosen: '选' }, WORD = { approved: '通过', changes: '要改', chosen: '已选' };
+  // 文字里的 https 网址变成可点的链接（新标签页打开）
+  function linked(text) {
+    const f = document.createDocumentFragment(), re = /https:\/\/[A-Za-z0-9._~:\/?#\[\]@!$&'()*+,;=%-]+/g; let i = 0, m;
+    const s = String(text);
+    while ((m = re.exec(s))) { if (m.index > i) f.append(s.slice(i, m.index)); const a = el('a', null, m[0]); a.href = m[0]; a.target = '_blank'; a.rel = 'noopener'; f.append(a); i = m.index + m[0].length; }
+    if (i < s.length) f.append(s.slice(i)); return f;
+  }
+
+  // 通知只走「页面替 Ham 发评论给 Claude」（WORKFLOW 第 3 节：门铃不可靠，不用）
+  const told = {};
+  function showMcp() {
+    const f = $('notifyState'); if (!f) return;
+    f.textContent = '自动通知：提交后页面会替你发一条评论给CG组（第一次会问你“是否允许页面替你发评论”，点允许）。发不出去会直接告诉你，请在聊天里说一声。CG组收到后，每件下面会亮出「✓ 已收到」；几分钟还没亮，就是没收到。';
+    const b = $('notifyTest'); if (b) b.hidden = false;
+  }
+  // 和拍板单同一套：先由页面替你发一条评论「发给 Claude」（不靠连接器，最稳），不行再按门铃
+  async function viaComments(text, anchorEl) {
+    let c = null; try { c = await window.claude.use('comments'); } catch (e) { c = null; }
+    if (!c) return { ok: false, code: 'no_comments' };
+    let can = 'off'; try { can = await c.canSendToClaude(); } catch (e) { can = 'off'; }
+    if (can !== 'available') return { ok: false, code: 'cannot_' + can };
+    try { const anchor = await c.anchorFor(anchorEl || $('pending')); await c.sendToClaude({ anchor, text }); return { ok: true, code: '' }; }
+    catch (e) { return { ok: false, code: (e && e.code) || 'unknown', msg: String((e && e.message) || '').slice(0, 300) }; }
+  }
+  async function send(text, anchorEl) {
+    const c = await viaComments(text, anchorEl);
+    if (c.ok) return { ok: true, how: 'comment' };
+    // 门铃实测送不到（10-10），不再当通知用：评论发不出去就如实说没通知到
+    return { ok: false, comment: c.code, code: c.msg || '' };
+  }
+  async function testNotify() {
+    const b = $('notifyTest'); b.disabled = true; b.textContent = '正在发…';
+    const r = await send('【CG组审批台】这是一条测试通知，不用处理。', b);
+    b.textContent = r.ok ? '测试通知已发出' : '没发出去（' + (r.comment || '') + ' / ' + (r.code || '') + '）';
+    setTimeout(() => { b.disabled = false; b.textContent = '发一条测试通知'; }, 4000);
+  }
+  function logNotify(id, r) { try { db && db.doc('items/' + id).update({ notify: Object.assign({ at: new Date().toISOString() }, r) }).catch(() => {}); } catch (e) {} }
+  // 一次提交、一次通知：所有点选过的条目一起存，存完把结果汇成一条发给CG组（Ham 10-10：不要每次点提交都通知）
+  let allBusy = false, lastSend = '';
+  const resText = (it, p) => { const o = (it.options || []).find(x => String(x.key) === String(p.choice)); return p.status === 'approved' ? '通过' : p.status === 'chosen' ? '选了「' + (o ? o.label || o.key : p.choice) + '」' : '要改'; };
+  async function submitAll() {
+    if (allBusy || !db) return;
+    const picked = docs.filter(d => (!d.it.status || d.it.status === 'pending') && S(d.id).pick);
+    if (!picked.length) return;
+    for (const d of picked) {                               // 先检查：要改必须写备注、截图要传完
+      const st = S(d.id), note = st.draft.trim();
+      st.err = st.pick.status === 'changes' && !note ? '选了「' + (d.it.kind === 'choice' ? '都不合适' : '要改') + '」，请在备注里写一下要怎么改。' : st.uploading ? '截图还在上传，等一下再提交。' : '';
+    }
+    const bad = picked.find(d => S(d.id).err);
+    if (bad) { render(); const n = document.getElementById('card-' + bad.id); if (n) n.scrollIntoView({ behavior: 'smooth', block: 'center' }); setBar('有一件还不能交，先看红字。'); return; }
+    allBusy = true; setBar('正在提交…'); render();
+    const now = new Date().toISOString(), lines = [], saved = [];
+    for (const d of picked) {
+      const st = S(d.id), p = st.pick, note = st.draft.trim(), imgs = st.files.map(f => ({ id: f.id }));
+      try {
+        await db.doc('items/' + d.id).update({ status: p.status, choice: p.choice || '', note, noteImages: imgs, decidedAt: now });
+        lines.push(d.id + '「' + (d.it.title || '') + '」：' + resText(d.it, p) + (note ? '。备注：' + note : '') + (imgs.length ? '（附 ' + imgs.length + ' 张截图）' : ''));
+        saved.push(d.id); st.pick = null; st.draft = ''; st.files = []; st.err = '';
+      } catch (e) { if (e && e.code === 'invalid_argument') readOnly = true; st.err = readOnly ? '这个账号只能看，不能批。' : '这一件没存上，再点一次「全部提交」。'; }
+    }
+    const left = docs.filter(d => (!d.it.status || d.it.status === 'pending') && !saved.includes(d.id)).length;
+    let msg = '存好了 ' + saved.length + ' 件。';
+    if (saved.length) {
+      const text = '【CG组审批台】Ham 一次提交了 ' + saved.length + ' 件' + (left ? '，还剩 ' + left + ' 件没批' : '，全部批完') + '：\n' + lines.map(s => '· ' + s).join('\n') + '\n请去审批台读这几条，接着做。';
+      const r = await send(text, $('pending'));
+      for (const id of saved) logNotify(id, r);
+      lastSend = r.ok ? '已通知CG组。' : '没能自动通知CG组（' + [r.comment, r.code].filter(Boolean).join(' / ') + '），请在聊天里说一声“审批台批好了”。';
+      for (const id of saved) told[id] = lastSend;
+      msg += lastSend;
+    }
+    allBusy = false; render(); setBar(msg);
+  }
+  async function reopen(id) {                               // 撤回：退回待批，不通知
+    if (!db) return;
+    try { await db.doc('items/' + id).update({ status: 'pending', note: '', choice: '', noteImages: [], decidedAt: '' }); told[id] = ''; }
+    catch (e) { S(id).err = '没撤回成功，再点一次。'; render(); }
+  }
+  function nextUnpicked() {                                 // 跳到下一件还没点选的（从当前屏幕往下找，到底了从头找）
+    const list = docs.filter(d => (!d.it.status || d.it.status === 'pending') && !S(d.id).pick).sort((a, b) => (a.it.seq || 0) - (b.it.seq || 0));
+    if (!list.length) { setBar('都点选过了，点「全部提交」。'); return; }
+    const cards = list.map(d => document.getElementById('card-' + d.id)).filter(Boolean);
+    const next = cards.find(n => n.getBoundingClientRect().top > 90) || cards[0];
+    next.scrollIntoView({ behavior: 'smooth', block: 'start' });
+  }
+  function setBar(t) { const e = $('barMsg'); if (e) e.textContent = t || ''; }
+  const pickName = (it, p) => {
+    if (!p) return '';
+    if (p.status === 'approved') return '通过';
+    if (p.status === 'changes') return it.kind === 'choice' ? '都不合适，另说' : '要改';
+    const o = (it.options || []).find(x => String(x.key) === String(p.choice)); return '选 ' + (o ? (o.label || o.key) : p.choice);
+  };
+  function shots(it, markId) {
+    const box = el('div', 'shots');
+    for (const im of Array.isArray(it.images) ? it.images : []) {
+      if (im && im.video) {                                 // 样片：卡片里直接播放
+        const f = el('figure'); f.style.margin = '0';
+        const v = el('video'); v.src = im.video; v.controls = true; v.playsInline = true; v.preload = 'metadata'; v.style.cssText = 'width:100%;display:block;background:#000';
+        if (im.poster) v.poster = im.poster; f.appendChild(v); if (im.cap) f.appendChild(el('figcaption', 'cap', im.cap));
+        box.appendChild(f); continue;
+      }
+      const src = im && (im.url || (im.id ? '/_blob/' + im.id : '')); if (!src) continue;
+      const f = el('figure'); f.style.margin = '0';
+      const b = el('button', 'shot'); b.type = 'button'; b.setAttribute('aria-label', '放大看图：' + (im.cap || it.title || ''));
+      const g = el('img'); g.src = src; g.alt = im.cap || ''; g.loading = 'lazy'; b.appendChild(g);
+      b.addEventListener('click', () => { $('lbImg').src = src; $('lb').hidden = false; });
+      f.appendChild(b); if (im.cap) f.appendChild(el('figcaption', 'cap', im.cap));
+      if (markId) { const m = el('button', 'markbtn', '✎ 截这张图标注'); m.type = 'button'; m.addEventListener('click', () => openEditor(markId, src)); f.appendChild(m); }
+      box.appendChild(f);
+    }
+    return box;
+  }
+  const same = (a, b) => !!a && !!b && a.status === b.status && String(a.choice || '') === String(b.choice || '');
+  function choose(id, p) { const st = S(id); st.pick = same(st.pick, p) ? null : p; st.err = ''; render(); }
+  function pendingCard(id, it) {
+    const st = S(id), c = el('article', 'card'), meta = el('div', 'meta'); c.id = 'card-' + id;
+    if (it.dept) meta.appendChild(el('span', 'dept', it.dept));
+    if (it.seq != null) meta.appendChild(el('span', null, '第 ' + it.seq + ' 号'));
+    if (it.createdAt) meta.appendChild(el('span', null, when(it.createdAt) + ' 送审'));
+    c.append(meta, el('h2', null, it.title || '（没写标题）'));
+    if (it.ask) c.appendChild(el('p', 'ask', it.ask));
+    if (Array.isArray(it.points) && it.points.length) { const ul = el('ul', 'points'); for (const p of it.points) { const li = el('li'); li.append(linked(p)); ul.appendChild(li); } c.appendChild(ul); }
+    c.appendChild(shots(it, id));
+    if (it.after) { const a = el('p', 'after'); a.append(linked(it.after)); c.appendChild(a); }
+    if (it.kind === 'choice' && Array.isArray(it.options)) {
+      const box = el('div', 'opts');
+      for (const o of it.options) {
+        const p = { status: 'chosen', choice: String(o.key) };
+        const b = el('button', 'opt'); b.type = 'button'; b.disabled = allBusy; b.setAttribute('aria-pressed', same(st.pick, p) ? 'true' : 'false');
+        b.append(el('b', null, o.label || o.key)); if (o.desc) b.append(el('span', null, o.desc));
+        b.addEventListener('click', () => choose(id, p)); box.appendChild(b);
+      }
+      const other = el('button', 'b quiet', '都不合适，另说'); other.type = 'button'; other.disabled = allBusy;
+      const po = { status: 'changes' }; other.setAttribute('aria-pressed', same(st.pick, po) ? 'true' : 'false'); other.addEventListener('click', () => choose(id, po));
+      const row = el('div', 'acts'); row.appendChild(other); c.append(box, row);
+    } else {
+      const row = el('div', 'acts'), ok = el('button', 'b', '通过'), no = el('button', 'b', '要改'); ok.type = no.type = 'button'; ok.disabled = no.disabled = allBusy;
+      const pa = { status: 'approved' }, pc = { status: 'changes' };
+      ok.setAttribute('aria-pressed', same(st.pick, pa) ? 'true' : 'false'); no.setAttribute('aria-pressed', same(st.pick, pc) ? 'true' : 'false');
+      ok.addEventListener('click', () => choose(id, pa));
+      no.addEventListener('click', () => { choose(id, pc); const t = $('note-' + id); if (t && S(id).pick) t.focus(); });
+      row.append(ok, no); c.appendChild(row);
+    }
+    const nb = el('div', 'note'), lab = el('label'), ta = el('textarea'); ta.id = 'note-' + id; lab.htmlFor = ta.id;
+    lab.append('备注', el('small', null, st.pick && st.pick.status === 'changes' ? '要改的话必须写' : '可以不写'));
+    ta.placeholder = st.pick && st.pick.status === 'changes' ? '哪里要改、想要什么样' : '想补充的话写在这里，会跟着结果一起交给CG组';
+    ta.value = st.draft; ta.disabled = allBusy; ta.addEventListener('input', () => { st.draft = ta.value; });
+    ta.addEventListener('paste', e => { const fs = [...((e.clipboardData && e.clipboardData.files) || [])]; if (fs.some(f => /^image\//.test(f.type))) { e.preventDefault(); addFiles(id, fs); } });
+    const head = el('div', 'note-head'), add = el('label', 'addimg'), inp = el('input');
+    inp.type = 'file'; inp.accept = 'image/*'; inp.multiple = true; inp.disabled = allBusy;
+    inp.addEventListener('change', () => { addFiles(id, inp.files); inp.value = ''; });
+    add.append('＋ 上传图片', inp); if (allBusy) add.setAttribute('aria-disabled', 'true');
+    const tools = el('div', 'note-tools'), imgs = (Array.isArray(it.images) ? it.images : []).filter(im => im && (im.url || im.id));
+    if (imgs.length) {
+      const mk = el('button', 'addimg', '✎ 截图标注'); mk.type = 'button'; mk.disabled = allBusy;
+      mk.addEventListener('click', () => { const im = imgs[imgs.length - 1]; openEditor(id, im.url || '/_blob/' + im.id); });
+      tools.appendChild(mk);
+    }
+    tools.appendChild(add);
+    head.append(lab, tools);
+    nb.append(head, ta);
+    if (st.files.length || st.uploading) {
+      const tb = thumbs(st.files, i => { st.files.splice(i, 1); render(); });
+      for (let k = 0; k < st.uploading; k++) tb.appendChild(el('div', 'thumb wait', '上传中…'));
+      nb.appendChild(tb);
+    }
+    nb.appendChild(el('span', 'hint', '「截图标注」把送审的图截下来，在上面画圈、画框、画箭头、裁剪；每张图下面也有一个。自己的截图点「上传图片」，或在备注框里直接粘贴。'));
+    c.appendChild(nb);
+    const sb = el('div', 'submit'), pk = el('span', 'pick');
+    if (st.pick) { pk.append('你选的：'); pk.appendChild(el('b', null, pickName(it, st.pick))); pk.append('　最后在底部点「全部提交」一起交'); }
+    else pk.textContent = '还没点选';
+    sb.append(pk); c.appendChild(sb);
+    if (st.err) c.appendChild(el('p', 'err', st.err));
+    return c;
+  }
+  function doneRow(id, it) {
+    const st = S(id), r = el('div', 'row'), mid = el('div'), side = el('div', 'side');
+    r.appendChild(el('div', 'seal ' + it.status, SEAL[it.status] || '批'));
+    let res = WORD[it.status] || '';
+    if (it.status === 'chosen') { const o = (it.options || []).find(x => String(x.key) === String(it.choice)); res = '选了：' + (o ? o.label : it.choice); }
+    if (it.status === 'changes') res = it.note ? '要改：' + it.note : '要改（没写意见）';
+    else if (it.note) res += '\n备注：' + it.note;
+    mid.append(el('p', 't', (it.dept ? it.dept + ' · ' : '') + (it.title || '')), el('p', 'r', res));
+    if (Array.isArray(it.noteImages) && it.noteImages.length) mid.appendChild(thumbs(it.noteImages));
+    // CG组读到这一条后会写回 ack（时间 + 一句话），页面实时显示；没写回之前显示「等确认」
+    if (it.ack && it.ack.at && (!it.decidedAt || it.ack.at >= it.decidedAt)) mid.appendChild(el('p', 'r acked', '✓ CG组已收到 · ' + when(it.ack.at) + (it.ack.text ? '：' + it.ack.text : '')));
+    else if (told[id] || (it.notify && it.notify.ok)) mid.appendChild(el('p', 'r told', (told[id] || '已通知CG组。') + ' 等它确认收到…'));
+    if (st.err) mid.appendChild(el('p', 'err', st.err));
+    const undo = el('button', 'b quiet', '撤回'); undo.type = 'button'; undo.disabled = allBusy; undo.addEventListener('click', () => reopen(id));
+    side.append(el('span', 'when', when(it.decidedAt)), undo); r.append(mid, side);
+    return r;
+  }
+  function sync(box, list) { const cur = [...box.children]; if (cur.length !== list.length || cur.some((n, i) => n !== list[i])) box.replaceChildren(...list); }
+  function render() {
+    const P = [], D = [];
+    for (const d of docs) (d.it.status && d.it.status !== 'pending' ? D : P).push(d);
+    P.sort((a, b) => (a.it.seq || 0) - (b.it.seq || 0)); D.sort((a, b) => String(b.it.decidedAt || '').localeCompare(String(a.it.decidedAt || '')));
+    const build = (d, pend) => {
+      const st = S(d.id), sig = JSON.stringify([pend, d.it, st.pick, allBusy, st.err, told[d.id] || '', st.files, st.uploading]), old = nodes.get(d.id);
+      if (old && old.sig === sig) return old.node;
+      const node = pend ? pendingCard(d.id, d.it) : doneRow(d.id, d.it); nodes.set(d.id, { sig, node }); return node;
+    };
+    sync($('pending'), P.map(d => build(d, true))); sync($('done'), D.map(d => build(d, false)));
+    $('doneWrap').hidden = !D.length; $('empty').hidden = !(loaded && !P.length);
+    if (loaded) { $('n').textContent = P.length; $('nl').textContent = P.length ? '件等你批' : '件待批'; $('count').classList.toggle('zero', !P.length); }
+    const nPick = P.filter(d => S(d.id).pick).length;
+    $('sbar').hidden = !(loaded && P.length);
+    $('barN').replaceChildren('已点选 ', el('b', null, String(nPick)), ' / 共 ' + P.length + ' 件');
+    $('bAll').disabled = allBusy || !nPick; $('bAll').textContent = allBusy ? '正在提交…' : '全部提交' + (nPick ? '（' + nPick + '）' : '');
+    $('bJump').disabled = !P.some(d => !S(d.id).pick);
+  }
+  const closeLb = () => { $('lb').hidden = true; $('lbImg').removeAttribute('src'); };
+  $('lb').addEventListener('click', closeLb);
+  $('notifyTest').addEventListener('click', testNotify);
+  $('bAll').addEventListener('click', submitAll);
+  $('bJump').addEventListener('click', nextUnpicked);
+  document.addEventListener('keydown', e => { if (e.key === 'Escape' && !$('lb').hidden) closeLb(); });
+  (async () => {
+    try { db = window.claude && window.claude.use ? await window.claude.use('db') : null; } catch (e) { db = null; }
+    showMcp();
+    if (!db) { $('n').textContent = '–'; $('nl').textContent = '读不到审批记录'; $('foot').textContent = '请登录后在 Claude 里打开这个页面。'; return; }
+    db.collection('items').onSnapshot(snap => {
+      docs = snap.docs.map(d => ({ id: d.id, it: d.data() || {} })); loaded = true; render();
+    }, () => { $('nl').textContent = '连接断了，刷新一下'; });
+  })();
+})();
+</script>

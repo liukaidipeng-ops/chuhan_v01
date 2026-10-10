@@ -2,14 +2,14 @@
 import sys, time, pathlib, base64, io, os
 from playwright.sync_api import sync_playwright
 from PIL import Image
-SRC = '/home/claude/chuhan_v01/source'; H = os.path.dirname(os.path.abspath(__file__)); SP = H + '/..'
+H = os.path.dirname(os.path.abspath(__file__)); SRC = os.path.abspath(H + '/../..'); SP = H + '/..'
 A = SRC + '/art-wip/'
 sid = sys.argv[1]; fps = int(sys.argv[2]) if len(sys.argv) > 2 else 24; W = int(sys.argv[3]) if len(sys.argv) > 3 else 1280
 only = [int(x) for x in sys.argv[4].split(',')] if len(sys.argv) > 4 else None
 HH = round(W / 2.39 / 2) * 2; SS = float(os.environ.get('SS', '1'))
 OUT = f'{H}/frames/{sid}'; os.makedirs(OUT, exist_ok=True)
 with sync_playwright() as p:
-    b = p.chromium.launch(args=['--use-gl=angle', '--use-angle=swiftshader', '--enable-unsafe-swiftshader', '--ignore-gpu-blocklist'])
+    b = p.chromium.launch(executable_path=os.environ.get('PW_CHROME') or None, args=['--use-gl=angle', '--use-angle=swiftshader', '--enable-unsafe-swiftshader', '--ignore-gpu-blocklist'])
     pg = b.new_page(viewport={'width': 960, 'height': 402}); pg.set_default_timeout(1800000)
     pg.add_init_script("localStorage.setItem('xq3d-noaudio','1'); localStorage.setItem('xq3d-quality', JSON.stringify('high'))")
     pg.on('pageerror', lambda e: print('PAGEERROR', str(e)[:500], flush=True))
