@@ -1,5 +1,5 @@
 <!doctype html><html><head><meta charset=utf8><meta name=viewport content="width=device-width,initial-scale=1,viewport-fit=cover"><style>:root{color-scheme:light;box-sizing:border-box;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}html{scroll-padding-top:env(safe-area-inset-top,0px)}body{margin:0;padding:0;font:14px -apple-system,BlinkMacSystemFont,sans-serif;background:#fff;color:#000}img{max-width:100%}[hidden]:not([hidden=until-found i]){display:none!important}</style></head><body>
-<title>楚汉配音试听台</title>
+<title>声音部试听台</title>
 <style>
 /* 布局：单列试听单——每条一行：播放键 | 台词 | 三个判词；备注在行下。颜色沿用游戏的纸、墨、朱，选中用墨绿 */
 :root{
@@ -63,15 +63,19 @@ h1{font:600 26px/1.25 var(--serif);margin:0;letter-spacing:.06em;text-wrap:balan
 .send button.again{background:transparent;color:var(--red)}
 .send button[disabled]{opacity:.5;cursor:default}
 .send button:focus-visible{outline:2px solid var(--jade);outline-offset:2px}
+.ack{border:1.5px solid var(--jade);color:var(--jade);background:var(--card);border-radius:6px;padding:10px 14px;font:600 15px/1.5 var(--sans)}
+.ack.wait{border-color:var(--amber);color:var(--amber)}
+.ack.bad{border-color:var(--red);color:var(--red)}
 .send p{margin:0;font-size:14px;color:var(--mut)} .send p.bad{color:var(--red)} .send p.ok{color:var(--jade)}
 @media (prefers-reduced-motion:no-preference){ .play.on::after{content:"";position:absolute;inset:-5px;border-radius:50%;border:1.5px solid var(--red);animation:pulse 1.1s ease-out infinite} @keyframes pulse{from{opacity:.8;transform:scale(.92)}to{opacity:0;transform:scale(1.18)}} }
 </style>
 <main>
   <header>
-    <h1>楚汉配音试听台</h1>
-    <p class="lead">点圆键听，听完点一个判词，想说的写在旁边。全部自动保存。评完点最下面的「提交」，我那边会自动收到。</p>
+    <h1>声音部试听台</h1>
+    <p class="lead">点圆键听，听完点一个判词，想说的写在旁边。全部自动保存。评完点「提交」，声音部当场收到，收到后这里会亮出<b>回执</b>。</p>
   </header>
   <div class="bar"><span>候选已评 <b id="done">0</b> / <b id="total">0</b></span><button type="button" id="next" class="jump">跳到没评的 ↓</button><button type="button" id="send2" class="jump go">提交</button><span class="st" id="st">正在连接保存功能…</span></div>
+  <div class="ack" id="ack" hidden></div>
   <div id="list"><p class="empty">正在读取试音清单…</p></div>
   <section class="all">
     <h3>整体想说的</h3>
@@ -80,7 +84,9 @@ h1{font:600 26px/1.25 var(--serif);margin:0;letter-spacing:.06em;text-wrap:balan
   <section class="send">
     <h3>评完了？</h3>
     <button type="button" id="send">提 交</button>
-    <p id="sendSt">点一下，我那边会自动收到，接着处理这一批（通过的放进游戏，没过的按备注重录）。第一次点时浏览器会问你是否允许这个页面用「Claude Code Remote」，选允许。</p>
+    <p id="nstate">正在检查能不能直接通知声音部…</p>
+    <button type="button" id="ntest" class="jump">试发一条给声音部</button>
+    <p id="sendSt">点一下，声音部当场收到。收到后上面会亮出绿色回执，写着几点几分收到。第一次点时浏览器会问是否允许这个页面发评论、用「Claude Code Remote」，都选允许。</p>
   </section>
 </main>
 <script>
@@ -221,7 +227,7 @@ h1{font:600 26px/1.25 var(--serif);margin:0;letter-spacing:.06em;text-wrap:balan
   });
 
   // ---------- 提交：页面替你“按响”一个提前设好的提醒，提醒直接送进和 Claude 的那段对话 ----------
-  const NOTIFY = 'trig_01W35STHBCavAc6wHcR1tsZ5', SRV = 'Claude Code Remote';
+  const NOTIFY = 'trig_01FiP6dgMSFYgkevQ4srqoZK', SRV = 'Claude Code Remote';
   const mcpP = window.claude && window.claude.use ? window.claude.use('mcp') : Promise.resolve(null);
   let top = null, sending = false, armed = false;
   function sendSt(t, cls) { const p = $('sendSt'); p.textContent = t; p.className = cls || ''; }
@@ -249,38 +255,86 @@ h1{font:600 26px/1.25 var(--serif);margin:0;letter-spacing:.06em;text-wrap:balan
       case 'needs_reauth': return '「Claude Code Remote」的登录过期了：到 claude.ai 设置 → 连接器 里重新连一下。这次评分已经存好了，在聊天里说一声就行。';
       case 'server_unavailable': case 'upstream_error': return '通知可能没送到（那边一时没回话）。过一会儿再点一次；重复送到也没关系，我会照最新的评分处理。';
       case 'not_granted': case 'capability_disabled': case 'capability_removed': return '这次打开的页面不能替你通知我。评分已经存好了，在聊天里说一声“提交了”就行。';
-      default: return '通知没送到（' + ((e && (e.code || e.message)) || e) + '）。评分已经存好了，在聊天里说一声“提交了”就行。';
+      default: return '两路都没送到（' + ((e && (e.code || e.message)) || e) + '）。评分已经存好了；再点一次提交，还不行就截图发我。';
     }
   }
-  async function notify(msg) {
-    const mcp = await mcpP;
-    if (!mcp) throw { code: 'not_granted' };
+  const comP = window.claude && window.claude.use ? window.claude.use('comments') : Promise.resolve(null);
+  // 先在页面上发一条“发给 Claude”的评论（直接叫醒声音部，和拍板单一样）；不通再按门铃。结果记在 meta/notifyLog，声音部自己能读
+  async function viaComments(text, el) {
+    const com = await comP; if (!com) return { ok: false, code: 'no_comments' };
+    let can = 'off'; try { can = await com.canSendToClaude(); } catch (e) { }
+    if (can !== 'available') return { ok: false, code: 'cannot_' + can };
+    try { const anchor = await com.anchorFor(el); await com.sendToClaude({ anchor, text }); return { ok: true }; }
+    catch (e) { return { ok: false, code: (e && e.code) || 'unknown', msg: String((e && e.message) || '').slice(0, 300) }; }
+  }
+  async function viaBell(text) {
+    const mcp = await mcpP; if (!mcp) return { ok: false, code: 'no_mcp' };
     let id = NOTIFY;
     if (db) try { const d = await db.doc('cfg/notify').get(); const x = d.exists && d.data(); if (x && x.trigger) id = String(x.trigger); } catch (e) { }
-    // 先“立刻按响”，当场送到；按不响再退回老办法：把提醒的时间改到一分钟后
-    try { await mcp.callTool(SRV, 'fire_trigger', { trigger_id: id, text: msg }, { cache: false }); return 'now'; }
-    catch (e) {
-      if (e && (e.code === 'tool_error' || e.code === 'bad_request')) { await mcp.callTool(SRV, 'update_trigger', { trigger_id: id, run_once_at: new Date(Date.now() + 60000).toISOString(), enabled: true }, { cache: false }); return 'soon'; }
-      throw e;
+    try { await mcp.callTool(SRV, 'fire_trigger', { trigger_id: id, text }, { cache: false }); return { ok: true }; }
+    catch (e) { return { ok: false, code: (e && e.code) || 'unknown', msg: String((e && e.message) || '').slice(0, 300) }; }
+  }
+  async function notify(msg, el, kind) {
+    const c = await viaComments(msg, el);
+    const m = c.ok ? null : await viaBell(msg);
+    const ok = c.ok || (m && m.ok);
+    if (db) try { await db.doc('meta/notifyLog').set({ at: new Date().toISOString(), kind: kind || 'submit', ok: !!ok, via: c.ok ? 'comment' : m && m.ok ? 'bell' : '', comment: c.code || '', commentMsg: c.msg || '', bell: m ? (m.code || '') : '', bellMsg: (m && m.msg) || '' }); } catch (e) { }
+    refreshPerm();
+    if (!ok) throw { code: c.code || (m && m.code) };
+    return c.ok ? 'comment' : 'bell';
+  }
+  async function refreshPerm() {
+    const com = await comP; let can = 'off';
+    if (com) try { can = await com.canSendToClaude(); } catch (e) { }
+    const el = $('nstate');
+    if (can === 'available') { el.textContent = '能直接通知：提交后页面替你发一条评论给声音部（第一次会问是否允许页面替你发评论，点允许）。'; el.className = 'ok'; }
+    else if (can === 'no_session') { el.textContent = '声音部的窗口现在收不到评论，提交时会改按门铃。'; el.className = 'bad'; }
+    else { el.textContent = '这个打开方式发不了评论，提交时会改按门铃。'; el.className = 'bad'; }
+  }
+  // 回执：声音部读到后写 ack/<批次>，这里马上亮
+  let sentAt = 0, waitT = null, ackUnsub = null;
+  function showAck(x) {
+    const el = $('ack'); el.hidden = false;
+    if (x && x.at && (!sentAt || new Date(x.at).getTime() >= sentAt - 5000)) {
+      clearInterval(waitT); waitT = null;
+      const t = new Date(x.at).toLocaleTimeString('zh-CN', { hour: '2-digit', minute: '2-digit', second: '2-digit' });
+      el.className = 'ack'; el.textContent = `✓ 声音部 ${t} 已收到` + (x.note ? `：${x.note}` : '');
+      return;
     }
+    el.className = 'ack wait';
+    const tick = () => { const s = Math.round((Date.now() - sentAt) / 1000); el.textContent = `已送出，等声音部回执… ${s} 秒` + (s > 90 ? '（超过一分半还没回执，说明没送到，请在聊天里叫我）' : ''); if (s > 90) el.className = 'ack bad'; };
+    tick(); clearInterval(waitT); waitT = setInterval(tick, 1000);
+  }
+  function watchAck() {
+    if (!db || !top || ackUnsub) return;
+    try { ackUnsub = db.doc('ack/' + top.id).onSnapshot(d => { const x = d.exists ? d.data() : null; if (x) showAck(x); else if (sentAt) showAck(null); }, () => { }); } catch (e) { }
   }
   async function submit() {
     if (sending || !top) return;
     const c = topStats();
     if (c.left && !armed) { armed = true; setBtns('仍然提交'); sendSt(`这一批还有 ${c.left} 条没评。没评的我先不动它们。确定要提交就再点一次。`, 'bad'); return; }
-    armed = false; sending = true; setBtns('提交中…', true); sendSt('正在通知…');
-    try { await flush(); } catch (e) { }
-    const msg = `试听台提交：${top.title}（${top.id}）——就它 ${c.yes}、还行 ${c.ok}、不行 ${c.no}${c.left ? `、没评 ${c.left}` : ''}；写了备注 ${c.notes} 处。`;
-    if (db && canSave) try { await db.doc('submit/' + top.id).set({ at: new Date().toISOString(), yes: c.yes, ok: c.ok, no: c.no, left: c.left, notes: c.notes }); } catch (e) { }
+    armed = false; sending = true; setBtns('提交中…', true); sendSt('正在送出…');
+    const msg = `【声音部试听台提交】${top.title}（${top.id}）——就它 ${c.yes}、还行 ${c.ok}、不行 ${c.no}${c.left ? `、没评 ${c.left}` : ''}；备注 ${c.notes} 处。`;
+    sentAt = Date.now();
+    const sendP = notify(msg, $('send'), 'submit');   // 趁着这一下点击马上送，不等保存
+    const saveP = (async () => { try { await flush(); } catch (e) { } if (db && canSave) try { await db.doc('submit/' + top.id).set({ at: new Date().toISOString(), yes: c.yes, ok: c.ok, no: c.no, left: c.left, notes: c.notes }); } catch (e) { } })();
     try {
-      const how = await notify(msg);
-      const t = new Date().toLocaleTimeString('zh-CN', { hour: '2-digit', minute: '2-digit' });
-      sendSt(how === 'now' ? `${t} 已通知，我这就处理，好了会在聊天里回你。之后改了评分，可以再点一次。` : `${t} 已安排通知，大约一分钟后送到我这边。之后改了评分，可以再点一次。`, 'ok');
+      const how = await sendP;
+      showAck(null); watchAck();
+      sendSt(how === 'comment' ? '✓ 已通知声音部（发了一条评论）。声音部会在这条评论下回你，上面也会亮绿色回执。' : '✓ 已通知声音部（按了门铃）。收到后上面会亮绿色回执。', 'ok');
       setBtns('再提交一次', false, true);
-    } catch (e) { sendSt(why(e), 'bad'); setBtns('提 交'); }
+    } catch (e) { sentAt = 0; sendSt(why(e), 'bad'); setBtns('提 交'); }
+    await saveP;
     sending = false;
   }
   $('send').addEventListener('click', submit);
+  $('ntest').addEventListener('click', async () => {
+    $('ntest').disabled = true; sendSt('正在试发…');
+    try { const how = await notify('【声音部试听台】试发通知（Ham 点了“试发一条”）。收到请回执。', $('ntest'), 'test'); sentAt = Date.now(); showAck(null); sendSt(how === 'comment' ? '✓ 试发出去了（评论）。声音部会在评论下回你。' : '✓ 试发出去了（门铃）。', 'ok'); }
+    catch (e) { sendSt(why(e), 'bad'); }
+    $('ntest').disabled = false;
+  });
+  refreshPerm();
   $('send2').addEventListener('click', () => { $('send').scrollIntoView({ behavior: 'smooth', block: 'center' }); submit(); });
   async function paintSent() {   // 这一批以前提交过：按钮上写明
     if (!db || !top) return;
@@ -288,11 +342,11 @@ h1{font:600 26px/1.25 var(--serif);margin:0;letter-spacing:.06em;text-wrap:balan
   }
 
   // ---------- 起 ----------
-  fetch('clips.json').then(r => r.json()).then(d => { top = (d.batches || [])[0] || null; render(d); paintSent(); }).catch(() => { $('list').innerHTML = '<p class="empty">试音清单没读出来，刷新一下试试。</p>'; });
+  fetch('clips.json').then(r => r.json()).then(d => { top = (d.batches || [])[0] || null; render(d); paintSent(); watchAck(); }).catch(() => { $('list').innerHTML = '<p class="empty">试音清单没读出来，刷新一下试试。</p>'; });
   (async () => {
     db = window.claude && window.claude.use ? await window.claude.use('db') : null;
     if (!db) { status('这次打开没法保存，评语请直接发在聊天里', 'bad'); return; }
-    canSave = true; status('可以开始了，自动保存', 'ok'); paintSent();
+    canSave = true; status('可以开始了，自动保存', 'ok'); paintSent(); watchAck();
     db.collection('fb').onSnapshot(snap => {
       for (const d of snap.docs) { if (dirty.has(d.id)) continue; const x = d.data() || {}; state[d.id] = { v: x.v || '', note: x.note || '' }; }
       paint();
