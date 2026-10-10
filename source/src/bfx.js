@@ -239,6 +239,7 @@ const BFX = (() => {
     const c = { lv: P0.lv, dlv: T0 ? T0.lv : 1 };
     if (opts.onImpact) c.onImpact = opts.onImpact;
     if (T0) { c.survive = !!tHit && !tKill; c.killed = !!tKill; c.counter = died ? 'die' : counter ? 'hurt' : null; c.ranged = !!opts.ranged; }
+    if (counter && (P0.lv >= 2 || (P0.t === 'k' && P0.w))) c.hp = [P0.hp, P0.t === 'k' && P0.w ? BF.CFG.finalKingHp : BF.hpOf(P0.t, P0.lv)];   // 攻方脚下临时血圈（拒马撞上那一下少一段）
     await Fx.playMove(info, { c, noCamp: opts.noCamp });
     if (tHit) shatter(to, 1);
     if (!Fx.state.quiet) {
@@ -399,17 +400,20 @@ const BFX = (() => {
     const name = BF.SKILL_CN[sk];
     if (cine() || Fx.level === 'std') title(name, (side === 'r' ? '汉军' : '楚军') + XQ.NAMES[side][P0.t], 1500);
     if (sk === 'juma') {
-      const A = Board.pos(at[0], at[1]);
+      // 拒马（Ham 10-09，美术 M20）：几级就几个兵，齐喝一声、压低重心、长矛斜指来敌（三级前二后一）；模型模式下立在棋盘上的那一队直接摆，拒马生效期间一直保持
+      const A = Board.pos(at[0], at[1]), m = Board.pieces.get(P0.id);
       shotAt(at, 2.4, 1.5);
-      const sq = Squads.make('p', side, A, side === 'r' ? 0 : Math.PI, 'defend', P0.lv);
-      Fx.sink(Board.pieces.get(P0.id));
-      await sq.appear(); if (sq.setPose) sq.setPose('brace');
-      for (let i = 0; i < 4; i++) Sfx.B.wood(i * 0.15, 0.4);
-      Sfx.B.shout(0.2, 6, 0.08, 0.5);
+      const stand = Squads.Stand.on && m ? Squads.Stand.sq(m) : null;
+      const sq = stand || Squads.make('p', side, A, Squads.standYaw(side), 'defend', P0.lv, P0.lv);
+      if (!stand) { Fx.sink(m); await sq.appear(); }
+      if (sq.troop) { sq.setPose('ready'); await sleep(0.2); sq.troop.actAll('thrust', 0.3, 0.12); }
+      Sfx.B.shout(0.05, 6, 0.08, 0.5);
+      await sleep(0.25);
+      if (sq.troop) Squads.jmForm(sq, true); else if (sq.setPose) sq.setPose('brace');
+      for (let i = 0; i < 4; i++) Sfx.B.wood(0.1 + i * 0.15, 0.4);
       for (let i = 0; i < 10; i++) { const a = i / 10 * 6.28; P.dust(A.clone().add(new V3(Math.cos(a) * 0.5, 0, Math.sin(a) * 0.5)), 1, null, 0.15); }
-      await sleep(1.0);
-      await sq.dissolve();
-      await Fx.rise(Board.pieces.get(P0.id), A, 0.35);
+      await sleep(1.1);
+      if (!stand) { await sq.dissolve(); await Fx.rise(m, A, 0.35); }
     } else if (sk === 'chongzhen') {
       // 冲阵：冲到跳板前狠撞一下（跳板挨 1 点），再腾空越过它，落到它身后一格；身后打不死就撞完退回原位
       const m = Board.pieces.get(P0.id), land = info.extra.land || to;
