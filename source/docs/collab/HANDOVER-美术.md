@@ -22,9 +22,9 @@ Ham 10-10 19:27：「你开始准备局内动画（角色设计，建模，绑�
 3. 在 `source/docs/collab/model-to-main.md` **最上面**写交付单：`## M编号 · 日期 · 交付 · 类别（一句话）`，下面写「提交」「Ham 确认」（引原话、审批台编号和时间）「改了哪些文件」「需要 TD 做的」「我看过的 / 没看的」。下一个编号 **M29**。
 4. TD 的文件（`main.js`、`board.js`、`squads.js`、`models.js`、`fx.js`、`bfx.js`、`build.js` 等）不直接改：在一份拷贝上改完、构建、拍样片，把改法写进交付单。
 5. 声音：动画交付时把每个声音在第几秒响、多长写进交付单，声音部（session_01VsbsKR759MUraiT41MaEAU）照着配。M27 是样板。
-6. 提交说明结尾要带本会话的 `Claude-Session:` 一行。注意 `WORKFLOW.md` 第 7 节写着「提交信息里不写模型名称」，这条要和 Ham 确认（美术窗口一直带着 `Co-Authored-By` 那行）。
+6. 提交说明结尾要带本会话的 `Claude-Session:` 一行。正文不写模型名，结尾的署名行照留（WORKFLOW 第 7 节）。
 
-## 3. 文件归属（建议的分工草案，等 Ham 点头、TD 同意）
+## 3. 文件归属（Ham 10-10 19:34 点头：角色部那两条「对」）
 **交给角色部**
 - `source/src/tiger.js`：汉相虎骑 TigerHD（一到四级造型、扑击 / 咆哮 / 倒地、炸碎 / 撞散 / 打飞三种死法、文臣分头和两臂）。
 - `source/src/juma.js`：拒马路障 JumaWall（M28 交付，等 TD 加进构建）。
@@ -36,7 +36,7 @@ Ham 10-10 19:27：「你开始准备局内动画（角色设计，建模，绑�
 - `source/src/face.js`（棋子字形）、`source/src/merit.js`（军功印）、`source/src/upfx.js`（棋子升级翻面，和棋子材质绑在一起）、`template.html` 的样式段。
 - `source/art-wip/` 里：`piece-face/`、`piece-font/`、`wood-face/`、`side-ring/`、`merit/`、`ui-mocks/`、`upgrade-fx/`。
 
-**过场 CG（终局影片）**：`source/art-wip/` 里的 `ending-film/`、`ending-sb/`、`liubang-v2/`、`xiangyu-v3/`、`wuzhui/`、`wuzhui3d/`。Ham 说以后可能另开 CG 组；在那之前由谁接，要问 Ham（见第 7 节）。
+**过场 CG（终局影片）**：`source/art-wip/` 里的 `ending-film/`、`ending-sb/`、`liubang-v2/`、`xiangyu-v3/`、`wuzhui/`、`wuzhui3d/`。Ham 10-10 19:34：「你把乌江做完以后wrap掉，然后咱们开始准备交接，搬家去code！」——乌江由美术窗口做完收尾，再另写一份 CG 交接。
 
 ## 4. 现在的状态
 **已交、已上线**：M17～M23、M25（战象踩死肢解冲飞、践踏震死掀上天、碎石加倍）。
@@ -73,8 +73,7 @@ Ham 10-10 19:27：「你开始准备局内动画（角色设计，建模，绑�
 - 改 TD 文件做样片：把 `source` 拷一份到草稿目录（`node_modules`、`music`、`voice` 用软链接），在拷贝里改、`node build.js`，用拷贝的 `dist/site/index.html` 拍。
 
 ## 7. 要问 Ham 的
-- 分工草案（第 3 节）对不对；过场 CG 在 CG 组开张以前归谁。乌江第二版已通过（art-088），后面是垓下、最后一战、拔剑、彭城。Ham 19:08：「先把所有局内动画工作都结束了再去弄乌江」。
-- 提交说明里的模型名称那一行（第 2 节第 6 条）。
+- 分工、过场 CG 已定（第 3 节）。提交说明：正文不写模型名，结尾的 `Co-Authored-By` / `Claude-Session` 署名行照留（WORKFLOW 第 7 节已澄清）。
 
 ## 8. 联系人
 | 部门 | 会话 | 正文写哪里 |
