@@ -1,0 +1,3 @@
+{ "args": "--games 600 --seed 400000 --level mid --nodes mid=60000 --open 10 --dump-pos --ai tools/variants/bfai_next.js",
+  "env": { "BFAI_NEXT_BASE": "54ba8bc", "BFAI_TUNE_W": "tools/tune/w_t5.json", "BFAI_TUNE_FAST": "1" }, "chunks": 12,
+  "note": "收敛标准②（同一批开局逐局比）：w_t5 自对打，现在线上规则（54ba8bc），校尉 6 万节点，前 10 步随机，种子 400000–400599（两版同一批开局）；顺带收下一轮调权重的数据（--dump-pos）" }
