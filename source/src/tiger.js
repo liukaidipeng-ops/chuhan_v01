@@ -354,7 +354,7 @@ const TigerHD = (() => {
   // ---------- 文臣 ----------
   // look: robe 上衣、skirt 下裳、edge 领袖缘、sash 大带
   function makeMinisterFigure(side, look) {
-    const c = SIDE[side], g = new THREE.Group(), parts = [], robeN = hex(look.robe), edgeN = hex(look.edge);
+    const c = SIDE[side], g = new THREE.Group(), parts = [], hp = [], ha = [], hb = [], robeN = hex(look.robe), edgeN = hex(look.edge);
     const nPleat = q(18, 12, 10, 8, 6, 0), pleat = (u, t) => nPleat ? 0.035 * Math.sin(u * 2 * PI * nPleat) * sstep(0.25, 0.9, t) : 0;
     // 下裳：罩住虎背往两边垂，带褶
     g.add(inked(loft([[0, 0.68, 0, 0.16, 0.16, 0.2], [0, 0.5, 0, 0.2, 0.2, 0.25], [0.02, 0.25, 0, 0.3, 0.3, 0.4], [0.03, 0, 0, 0.38, 0.4, 0.5], [0.03, -0.14, 0, 0.41, 0.43, 0.54], [0.03, -0.2, 0, 0.41, 0.43, 0.55]],
@@ -376,36 +376,41 @@ const TigerHD = (() => {
     if (upto(3)) { const js = q([8, 20], [3, 8], [3, 6]); parts.push(P(new THREE.TorusGeometry(0.05, 0.018, js[0], js[1]), 0xa8c8ae, 0.12, 0.36, 0.265, 0, PI / 2, 0)); }
     // 广袖：右臂前伸持杖，左臂收在胸前托虎符；袖口往下坠成一个兜
     const sleeve = pts => inked(loft(pts, { len: 30, rad: 28, seg: [[8, 10], [5, 8], [5, 8], [4, 6], [3, 5]] }), clothMat(look.robe, look.edge, look.line, 0.16, 10));
-    g.add(sleeve([[-0.02, 1.0, 0.24, 0.09, 0.09, 0.09], [0.08, 0.94, 0.34, 0.11, 0.14, 0.11], [0.22, 0.88, 0.42, 0.11, 0.26, 0.12], [0.33, 0.9, 0.46, 0.1, 0.36, 0.11], [0.37, 0.9, 0.47, 0.06, 0.3, 0.07]]));
-    g.add(sleeve([[-0.02, 1.0, -0.24, 0.09, 0.09, 0.09], [0.06, 0.9, -0.33, 0.11, 0.14, 0.11], [0.18, 0.8, -0.3, 0.11, 0.24, 0.12], [0.27, 0.8, -0.2, 0.1, 0.3, 0.11], [0.3, 0.8, -0.17, 0.06, 0.24, 0.07]]));
+    const slA = sleeve([[-0.02, 1.0, 0.24, 0.09, 0.09, 0.09], [0.08, 0.94, 0.34, 0.11, 0.14, 0.11], [0.22, 0.88, 0.42, 0.11, 0.26, 0.12], [0.33, 0.9, 0.46, 0.1, 0.36, 0.11], [0.37, 0.9, 0.47, 0.06, 0.3, 0.07]]);
+    const slB = sleeve([[-0.02, 1.0, -0.24, 0.09, 0.09, 0.09], [0.06, 0.9, -0.33, 0.11, 0.14, 0.11], [0.18, 0.8, -0.3, 0.11, 0.24, 0.12], [0.27, 0.8, -0.2, 0.1, 0.3, 0.11], [0.3, 0.8, -0.17, 0.06, 0.24, 0.07]]);
     const hand = q([12, 10], [5, 4], [5, 3], [4, 2]);
-    parts.push(P(SQ(0.05, hand), C.skin, 0.4, 0.92, 0.47, 0, 0, 0, 1.1, 1, 0.9), P(SQ(0.05, hand), C.skin, 0.33, 0.83, -0.15, 0, 0, 0, 1.1, 0.9, 1));
+    ha.push(P(SQ(0.05, hand), C.skin, 0.4, 0.92, 0.47, 0, 0, 0, 1.1, 1, 0.9)); hb.push(P(SQ(0.05, hand), C.skin, 0.33, 0.83, -0.15, 0, 0, 0, 1.1, 0.9, 1));
     // 虎符：左手托着的一枚小金虎
-    if (upto(4)) parts.push(P(SQ(0.05, q([12, 8], [5, 3], [4, 2])), 0xd6a43e, 0.37, 0.89, -0.14, 0, 0, 0, 1.5, 0.75, 0.6));
-    if (upto(2)) parts.push(P(SQ(0.03, q([10, 8], [5, 3], [4, 2])), 0xd6a43e, 0.44, 0.91, -0.14));
-    if (upto(1)) parts.push(P(YG(0.008, 0.008, 0.07, 6), 0xd6a43e, 0.3, 0.915, -0.14, 0, 0, 0.9));
+    if (upto(4)) hb.push(P(SQ(0.05, q([12, 8], [5, 3], [4, 2])), 0xd6a43e, 0.37, 0.89, -0.14, 0, 0, 0, 1.5, 0.75, 0.6));
+    if (upto(2)) hb.push(P(SQ(0.03, q([10, 8], [5, 3], [4, 2])), 0xd6a43e, 0.44, 0.91, -0.14));
+    if (upto(1)) hb.push(P(YG(0.008, 0.008, 0.07, 6), 0xd6a43e, 0.3, 0.915, -0.14, 0, 0, 0.9));
     // 头：面、鼻、眉眼、耳、三绺须
     const hy = 1.27;
-    parts.push(P(SQ(0.135, q([28, 20], [12, 8], [10, 6], [8, 5], [7, 4], [6, 3])), C.skin, 0, hy, 0, 0, 0, 0, 0.95, 1.1, 0.88));
-    if (upto(3)) parts.push(P(new THREE.ConeGeometry(0.022, 0.07, q(8, 4, 3), 1, !!LOD), C.skin, 0.125, hy - 0.005, 0, 0, 0, -0.25));
+    hp.push(P(SQ(0.135, q([28, 20], [12, 8], [10, 6], [8, 5], [7, 4], [6, 3])), C.skin, 0, hy, 0, 0, 0, 0, 0.95, 1.1, 0.88));
+    if (upto(3)) hp.push(P(new THREE.ConeGeometry(0.022, 0.07, q(8, 4, 3), 1, !!LOD), C.skin, 0.125, hy - 0.005, 0, 0, 0, -0.25));
     for (const s of [1, -1]) {
-      if (upto(3)) parts.push(P(SQ(0.014, q([8, 6], [5, 3], [4, 2])), 0x151413, 0.112, hy + 0.03, s * 0.05, 0, 0, 0, 0.6, 0.55, 1.6));
-      if (upto(2)) parts.push(P(new THREE.BoxGeometry(0.012, 0.01, 0.055), 0x151413, 0.108, hy + 0.058, s * 0.052, s * 0.2));
-      if (upto(2)) parts.push(P(SQ(0.03, q([10, 8], [5, 3], [4, 2])), C.skin, -0.005, hy, s * 0.118, 0, 0, 0, 0.7, 1.2, 0.5));
-      if (upto(3)) parts.push(LP([[0.118, hy - 0.045, s * 0.02, 0.008, 0.008, 0.012], [0.125, hy - 0.07, s * 0.06, 0.01, 0.01, 0.014], [0.11, hy - 0.17, s * 0.085, 0.004, 0.004, 0.006]], 0x151413, { len: 10, rad: 8, seg: [[3, 4], [3, 3], [2, 3]], side: V(1, 0, 0) })); // 髭
+      if (upto(3)) hp.push(P(SQ(0.014, q([8, 6], [5, 3], [4, 2])), 0x151413, 0.112, hy + 0.03, s * 0.05, 0, 0, 0, 0.6, 0.55, 1.6));
+      if (upto(2)) hp.push(P(new THREE.BoxGeometry(0.012, 0.01, 0.055), 0x151413, 0.108, hy + 0.058, s * 0.052, s * 0.2));
+      if (upto(2)) hp.push(P(SQ(0.03, q([10, 8], [5, 3], [4, 2])), C.skin, -0.005, hy, s * 0.118, 0, 0, 0, 0.7, 1.2, 0.5));
+      if (upto(3)) hp.push(LP([[0.118, hy - 0.045, s * 0.02, 0.008, 0.008, 0.012], [0.125, hy - 0.07, s * 0.06, 0.01, 0.01, 0.014], [0.11, hy - 0.17, s * 0.085, 0.004, 0.004, 0.006]], 0x151413, { len: 10, rad: 8, seg: [[3, 4], [3, 3], [2, 3]], side: V(1, 0, 0) })); // 髭
     }
-    parts.push(LP([[0.095, hy - 0.1, 0, 0.03, 0.03, 0.045], [0.115, hy - 0.2, 0, 0.03, 0.03, 0.04], [0.135, hy - 0.34, 0, 0.018, 0.018, 0.022], [0.14, hy - 0.44, 0, 0.004, 0.004, 0.005]], 0x151413, { len: 16, rad: 12, seg: [[5, 6], [4, 5], [3, 4], [3, 3], [2, 3]] })); // 长须
+    hp.push(LP([[0.095, hy - 0.1, 0, 0.03, 0.03, 0.045], [0.115, hy - 0.2, 0, 0.03, 0.03, 0.04], [0.135, hy - 0.34, 0, 0.018, 0.018, 0.022], [0.14, hy - 0.44, 0, 0.004, 0.004, 0.005]], 0x151413, { len: 16, rad: 12, seg: [[5, 6], [4, 5], [3, 4], [3, 3], [2, 3]] })); // 长须
     // 发、进贤冠（展筒前高后低）、簪、缨
-    parts.push(P(SQ(0.14, q([24, 16], [10, 7], [8, 5], [7, 4], [6, 3], [5, 3]), 0, PI * 2, 0, PI * 0.46), 0x151413, -0.018, hy + 0.012, 0, 0, 0, 0.6, 0.96, 1.08, 0.9));
-    if (upto(2)) parts.push(P(SQ(0.05, q([12, 10], [5, 4], [4, 2])), 0x151413, -0.03, hy + 0.17, 0));
+    hp.push(P(SQ(0.14, q([24, 16], [10, 7], [8, 5], [7, 4], [6, 3], [5, 3]), 0, PI * 2, 0, PI * 0.46), 0x151413, -0.018, hy + 0.012, 0, 0, 0, 0.6, 0.96, 1.08, 0.9));
+    if (upto(2)) hp.push(P(SQ(0.05, q([12, 10], [5, 4], [4, 2])), 0x151413, -0.03, hy + 0.17, 0));
     const cap = new THREE.Shape(); cap.moveTo(-0.11, 0); cap.lineTo(0.1, 0); cap.lineTo(0.115, 0.2); cap.lineTo(0.06, 0.23); cap.lineTo(-0.02, 0.12); cap.lineTo(-0.12, 0.09); cap.closePath();
     const capGeo = new THREE.ExtrudeGeometry(cap, LOD ? { depth: 0.124, bevelEnabled: false } : { depth: 0.1, bevelEnabled: true, bevelThickness: 0.012, bevelSize: 0.012, bevelSegments: 3 }); capGeo.translate(0, 0, LOD ? -0.062 : -0.05);
-    parts.push(P(capGeo, look.cap, -0.01, hy + 0.115, 0));
-    if (upto(2)) { const bs = q([8, 28], [3, 11], [3, 8]); parts.push(P(new THREE.TorusGeometry(0.105, 0.016, bs[0], bs[1]), look.capBand, -0.005, hy + 0.115, 0, PI / 2, 0, 0, 1, 0.92, 1)); }
-    if (upto(2)) parts.push(P(new THREE.CylinderGeometry(0.008, 0.008, 0.34, q(8, 4, 3), 1, LOD >= 2), c.trim, -0.03, hy + 0.17, 0, PI / 2));
-    if (upto(1)) parts.push(P(SG(0.016, 8, 6), c.trim, -0.03, hy + 0.17, 0.17));
-    if (upto(1)) for (const s of [1, -1]) parts.push(LP([[0.0, hy + 0.11, s * 0.105, 0.006, 0.006, 0.006], [0.04, hy - 0.04, s * 0.122, 0.006, 0.006, 0.006], [0.08, hy - 0.13, s * 0.06, 0.006, 0.006, 0.006], [0.09, hy - 0.15, 0, 0.006, 0.006, 0.006]], 0x8e2016, { len: 16, rad: 6, seg: [[6, 3], [4, 3]], side: V(1, 0, 0) }));
+    hp.push(P(capGeo, look.cap, -0.01, hy + 0.115, 0));
+    if (upto(2)) { const bs = q([8, 28], [3, 11], [3, 8]); hp.push(P(new THREE.TorusGeometry(0.105, 0.016, bs[0], bs[1]), look.capBand, -0.005, hy + 0.115, 0, PI / 2, 0, 0, 1, 0.92, 1)); }
+    if (upto(2)) hp.push(P(new THREE.CylinderGeometry(0.008, 0.008, 0.34, q(8, 4, 3), 1, LOD >= 2), c.trim, -0.03, hy + 0.17, 0, PI / 2));
+    if (upto(1)) hp.push(P(SG(0.016, 8, 6), c.trim, -0.03, hy + 0.17, 0.17));
+    if (upto(1)) for (const s of [1, -1]) hp.push(LP([[0.0, hy + 0.11, s * 0.105, 0.006, 0.006, 0.006], [0.04, hy - 0.04, s * 0.122, 0.006, 0.006, 0.006], [0.08, hy - 0.13, s * 0.06, 0.006, 0.006, 0.006], [0.09, hy - 0.15, 0, 0.006, 0.006, 0.006]], 0x8e2016, { len: 16, rad: 6, seg: [[6, 3], [4, 3]], side: V(1, 0, 0) }));
     g.add(inkedMerged(parts));
+    // 头、两条胳膊各成一组（支点在颈、肩），死的时候能单独飞出去（美术 M24，Ham 审批台 086「文官也需要有断肢」）
+    const limb = (name, pv, ms) => { const L = new THREE.Group(); L.name = name; L.position.set(pv[0], pv[1], pv[2]); for (const m of ms) { m.position.x -= pv[0]; m.position.y -= pv[1]; m.position.z -= pv[2]; L.add(m); } g.add(L); };
+    limb('fhead', [0, 1.15, 0], [inkedMerged(hp)]);
+    limb('farmA', [-0.02, 1.0, 0.24], [slA, inkedMerged(ha)]);   // 持杖那条
+    limb('farmB', [-0.02, 1.0, -0.24], [slB, inkedMerged(hb)]);  // 托虎符那条
     return g;
   }
 
@@ -813,6 +818,9 @@ const TigerHD = (() => {
     const N = n => g.getObjectByName(n), fl = [], staff = N('staff'), fig = N('fig'), neck = N('neck'), tail = N('tail');
     if (staff) fl.push(detach(host, staff, v(-0.4, 3.2, 1.4), new V3(5, 2, 7), 0.02));
     if (fig) { const f = detach(host, fig, v(-0.7, 2.4, -1.1), F.clone().multiplyScalar(1.2), 0.06); f.qLand = f.q0.clone().premultiply(new THREE.Quaternion().setFromAxisAngle(F, Math.PI / 2)); fl.push(f); }
+    // 文臣也断肢：头、两条胳膊各自飞出去（Ham 审批台 086）
+    if (fig) { const lb = (n, u, w) => { const x = fig.getObjectByName(n); if (x) fl.push(detach(host, x, u, w, 0.05)); };
+      lb('fhead', v(0.7, 2.3, 0.9), new V3(6, 3, -4)); lb('farmA', v(1.0, 1.9, 1.5), new V3(-5, 7, 3)); lb('farmB', v(-0.2, 1.8, -1.3), new V3(4, -6, 5)); }   // 飞得低一点，落在镜头里看得见
     if (neck) fl.push(detach(host, neck, v(1.4, 2.2, 0.6), new V3(3, 6, -5), 0.08));
     if (tail) fl.push(detach(host, tail, v(-1.6, 1.6, 0.4), new V3(2, -7, 3), 0.02));
     for (let i = 0; i < 4; i++) { const h = N('hip' + i); if (h) fl.push(detach(host, h, v((i < 2 ? 1 : -1) * (0.6 + rr()), 1.8 + rr() * 1.2, (i % 2 ? 1 : -1) * (0.8 + rr())), new V3(rr() * 8 - 4, rr() * 8 - 4, rr() * 8 - 4), 0.03)); }
@@ -852,7 +860,7 @@ const TigerHD = (() => {
     const fig = N('fig'), staff = N('staff'), k = 1 / (g.scale.x || 1);
     // 被打飞：顺着来犯方向退飞一段（劲越大越远），先腾一下再落地
     const pw = Math.max(0, opt.power ?? 1), D = opt.dir ? opt.dir.clone().setY(0).normalize() : new V3(), far = 0.35 * pw, kx = D.dot(F), kz = -D.dot(Rt);
-    let t = 0, ff = null, fs = null, dust1 = false, dust2 = false;
+    let t = 0, ff = null, fs = null, fa = null, dust1 = false, dust2 = false;
     return new Promise(res => {
       const off = Core.onFrame(dt => {
         t += dt;
@@ -862,11 +870,15 @@ const TigerHD = (() => {
         wrap.position.set((0.12 * st + far * kb * kx) * k, hop * k, (0.1 * st * ds + far * kb * kz) * k);  // 往前踉跄、往倒的那边歪，再加上被打退的那一段（虎骑自己的坐标：+x 前，+z 左）
         if (t >= 0.1 && !ff) {   // 文臣被颠出去，摔向虎倒下的另一边；节杖脱手
           if (fig) { ff = detach(host, fig, F.clone().multiplyScalar(0.15).add(new V3(0, 0.9 + 0.2 * pw, 0)).addScaledVector(Rt, ds * 0.5).addScaledVector(D, 1.1 * pw), F.clone().multiplyScalar(-2 * ds), 0.05); ff.qLand = ff.q0.clone().premultiply(new THREE.Quaternion().setFromAxisAngle(F, -Math.PI / 2 * ds)); o.figOff = true; }
+          // 持杖那条胳膊被砍飞，一股血（Ham 审批台 086「文官也需要有断肢」）
+          const arm = fig && fig.getObjectByName('farmA');
+          if (arm) { fa = detach(host, arm, F.clone().multiplyScalar(0.3).add(new V3(0, 1.7, 0)).addScaledVector(Rt, -ds * 0.6).addScaledVector(D, 1.4 * pw), new V3(5, -4, 6), 0.04); bloodMist(host.localToWorld(fa.obj.position.clone()), D, 0.5); }
           if (staff) { fs = detach(host, staff, F.clone().multiplyScalar(0.6).add(new V3(0, 1.2, 0)).addScaledVector(Rt, ds * 0.7).addScaledVector(D, 1.3 * pw), F.clone().multiplyScalar(-1.8 * ds).add(new V3(0, 1.2, 0)), 0.015); o.staffOff = true; }
           if (!ff) ff = {};
         }
         if (ff && ff.obj && fly(ff, (t - 0.1) * 1.5, yg) && !dust1) { dust1 = true; puff(host.localToWorld(ff.obj.position.clone()), { vel: new V3(0, 0.25, 0), color: 0xc9b896, size: 0.3, size2: 0.8, life: 0.5, op: 0.6 }); }
         if (fs && fs.obj) fly(fs, (t - 0.1) * 1.35, yg);
+        if (fa) { fly(fa, (t - 0.1) * 1.5, yg); if (t < 0.75 && Math.random() < 0.45) puff(host.localToWorld(fa.obj.position.clone()), { vel: new V3(0, -0.2, 0), color: 0x8e1408, size: 0.07, size2: 0.16, life: 0.35, op: 0.8 }); }
         if (t > 0.55 && !dust2) { dust2 = true; const p = g.localToWorld(new V3(0, 0, 0.5 * k * ds)); for (let i = 0; i < 3; i++) puff(p.clone().add(new V3((Math.random() - 0.5) * 0.3, 0.06, (Math.random() - 0.5) * 0.3)), { vel: new V3(0, 0.2, 0), color: 0xc9b896, size: 0.3, size2: 0.8, life: 0.5, op: 0.6 }); }
         if (t > 1.4) { off(); res(); }
       });
