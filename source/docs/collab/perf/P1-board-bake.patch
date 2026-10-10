@@ -1,0 +1,47 @@
+diff --git a/source/src/board.js b/source/src/board.js
+index ead3937..f9f860a 100644
+--- a/source/src/board.js
++++ b/source/src/board.js
+@@ -211,7 +211,41 @@ const Board = (() => {
+     const gl = new THREE.Mesh(new THREE.BoxGeometry(2 * BX + 0.37, 0.012, depth + 0.19), goldM); gl.position.set(0, 0.08, sg * 0.09); g.add(gl);
+     return g;
+   }
+-  root.add(makeHalf(true), makeHalf(false));
++  // 静止不动的装饰合成少数几个网格（优化部 P1）：同一材质、同样影子设置的合成一个，画面不变；
++  //   两半棋盘原来每帧约 120 次绘制（金边、铜包角、木梯、台基、描边各画各的），合完二十来次。半透明的、多材质的、带贴图的不动
++  function bakeStatic(g) {
++    g.updateMatrixWorld(true);
++    const inv = g.matrixWorld.clone().invert(), buckets = new Map();
++    g.traverse(o => {
++      if (!o.isMesh || o.isSkinnedMesh || o.isInstancedMesh || Array.isArray(o.material) || !o.visible) return;
++      const m = o.material, th = m.userData.thick;
++      if (m.transparent || m.map) return;
++      // 描边材质每次调用都新建一个（outlineMat），粗细、颜色一样的算同一种
++      const key = (th ? 'ol' + th.value + ':' + m.color.getHex() + ':' + m.side : m.uuid) + (o.castShadow ? 'c' : '') + (o.receiveShadow ? 'r' : '');
++      let b = buckets.get(key); if (!b) buckets.set(key, b = { mat: m, list: [], cast: o.castShadow, recv: o.receiveShadow });
++      b.list.push(o);
++    });
++    for (const b of buckets.values()) {
++      if (b.list.length < 2) continue;
++      const geos = b.list.map(o => (o.geometry.index ? o.geometry.toNonIndexed() : o.geometry.clone()).applyMatrix4(new THREE.Matrix4().multiplyMatrices(inv, o.matrixWorld)));
++      if (geos.some(q => !q.attributes.position || !q.attributes.normal)) { geos.forEach(q => q.dispose()); continue; }
++      const out = new THREE.BufferGeometry();
++      for (const n of ['position', 'normal']) {
++        let len = 0; for (const q of geos) len += q.attributes[n].array.length;
++        const arr = new Float32Array(len); let off = 0;
++        for (const q of geos) { arr.set(q.attributes[n].array, off); off += q.attributes[n].array.length; }
++        out.setAttribute(n, new THREE.BufferAttribute(arr, 3));
++      }
++      out.computeBoundingSphere(); geos.forEach(q => q.dispose());
++      const mesh = new THREE.Mesh(out, b.mat); mesh.castShadow = b.cast; mesh.receiveShadow = b.recv; g.add(mesh);
++      for (const o of b.list) o.parent.remove(o);
++    }
++    // 合完剩下的空壳组（inked 的外层）拿掉
++    const prune = o => { for (const c of o.children.slice()) { prune(c); if (c.isGroup && !c.children.length) o.remove(c); } };
++    prune(g);
++    return g;
++  }
++  root.add(bakeStatic(makeHalf(true)), bakeStatic(makeHalf(false)));
+ 
+   // ---------- 楚河汉界：流动的河水 ----------
+   const riverText = canvasTex(2048, 104, (g, w, h) => {
