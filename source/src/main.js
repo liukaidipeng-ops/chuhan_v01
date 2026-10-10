@@ -12,6 +12,8 @@
       '开局过场「落子入局」（美术总监朱墨设计）：点「开战 / 开始」或房间开局后，两颗子飞到帥位、將位翻面，各自生出半张棋盘，在河界会合，再露出对局、镜头抬起；点一下就能跳过，系统开了「减少动态效果」不播。手机竖屏的对局镜头压低拉近了一些（双指照样能缩回原来的远度，还能更远）；手机主界面、联机大厅的底边对齐',
       '技能模式「霸王」更强了（数值部）：同样时间算得更深（靠后的平淡着法少算、先假装停一手试探）；局面复杂或危险时多想一会儿，最多约 8 秒，平时还是 3 秒左右',
       '省电（Ham 说手机发烫）：画面没在动的时候每秒只画 30 帧（原来高刷手机跟着屏幕 90～120 帧在画），影子有东西在动才重算；一碰屏幕、走子演出、镜头在动时照常满帧。手机默认开，设置 → 画面里有「省电」开关',
+      '跳过去、打过去的走法提示画成一道抛物线，从这枚子的顶上落到目标子的顶上（往一侧斜一点，顺着镜头方向跳的也看得出）：炮隔子吃子、飞越、踏营，技能里的霹雳、冲阵、齐射；地上一道淡影',
+      '技能模式规则：马的「踏营」也改成被动（同飞越）——三级马在敌方半场、冷却好了，马腿被蹩住的日字落点直接能点，点了先问一句用不用，用了冷却 2 回合',
       '结算画面的「复盘」和「分析」合成一个「复盘」：进去就是复盘加分析面板；复盘条上多一个「分析」，可以收起、再打开（揭棋没有分析，只复盘）；「我的棋局」里的复盘也一样',
       '人机对战输了（被将死、困毙等）先不进结算：弹一个框，10 秒内点「悔棋」就悔回去接着下，点「认输」或等 10 秒才进结算（悔棋次数照常算；用完了就直接结算）',
       '技能模式规则：象、相撞上拒马不挨那 1 点（践踏、齐射本来就不触发）；「飞越」改成被动——三级起冷却好了，象眼被塞住的田字落点直接能点，点了先问一句用不用，用了冷却 5 回合',
@@ -455,7 +457,7 @@
       const q = g.at(e.to[0], e.to[1]); let n = notation(g.board, e);
       // 被动走法（神速营 / 回防 / 铁甲禁卫）前面标出技能名
       const mv = p && p.lv >= 3 ? g.legalFrom(e.from[0], e.from[1]).find(m => m.to[0] === e.to[0] && m.to[1] === e.to[1]) : null;
-      if (mv && mv.via) n = { shensu: '神速', huifang: '回防', jinwei: '禁衛', feiyue: '飛越' }[mv.via] + '·' + n;
+      if (mv && mv.via) n = { shensu: '神速', huifang: '回防', jinwei: '禁衛', feiyue: '飛越', taying: '踏營' }[mv.via] + '·' + n;
       return q && p && q.hp > g.atkOf(p) ? n + '·攻' : n;
     }
     if (e.k === 'sk' && p) {
@@ -2221,13 +2223,14 @@
     if (a.k === 'mv' && h.ev.some(e => e.e === 'splash' && e.how === 'jianta') && h.ev.some(e => (e.e === 'hit' || e.e === 'kill') && e.how === 'jianta')) return h;
     return null;
   }
+  const ARC_SK = new Set(['chongzhen', 'pili', 'qishe']);   // 这些技能是跳过去 / 打过去的：指示画成抛物线（Ham 审批台 td-021）
   function bfAsk(a, from) {
     // 飞越（Ham 10-10 改被动）：点了象眼被塞住的落点，先问一句用不用飞越
     if (a.k === 'mv' && !a.fy) {
       const m = selMoves.find(x => x.to[0] === a.to[0] && x.to[1] === a.to[1]), me = game.at(from[0], from[1]);
-      if (m && m.via === 'feiyue' && me) {
-        const cd = BF.CFG.skills.feiyue.cooldown;
-        ask('飞 越', `${XQ.NAMES[me.s].e}眼被塞住了，要用「飞越」强行跳过去吗？用了之后冷却 ${cd} 回合。`, 0, '飞 越', '不 用').then(y => { if (y && sel && sel[0] === from[0] && sel[1] === from[1]) bfAsk({ ...a, fy: 1 }, from); });
+      if (m && (m.via === 'feiyue' || m.via === 'taying') && me) {   // 踏营也改了被动（Ham 审批台 td-024），同样先问
+        const fy = m.via === 'feiyue', cd = BF.CFG.skills[m.via].cooldown, nm = fy ? '飞 越' : '踏 营';
+        ask(nm, fy ? `${XQ.NAMES[me.s].e}眼被塞住了，要用「飞越」强行跳过去吗？用了之后冷却 ${cd} 回合。` : `马腿被蹩住了，要用「踏营」强行跳过去吗？用了之后冷却 ${cd} 回合。`, 0, nm, '不 用').then(y => { if (y && sel && sel[0] === from[0] && sel[1] === from[1]) bfAsk({ ...a, fy: 1 }, from); });
         return;
       }
     }
@@ -2733,7 +2736,7 @@
       const cn = BF.SKILL_CN[skn];
       if (k.targets.length === 1 && !k.targets[0].to) { doBF(k.targets[0]); return; }
       bfMode = { kind: 'sk', targets: k.targets, hint: `${cn}：点选目标（${{ chongzhen: '点前方第一枚子当跳板', taying: '无视马腿', pili: '炮击敌子', qishe: '斜线两格内' }[skn] || ''}）` };
-      Board.showMoves(sel, bfDmg(k.targets.map(t => ({ from: t.at, to: t.to, atk: true, skill: true })), k.sk), true);   // 技能的落点都带金色四角框，和普通走子区分开
+      Board.showMoves(sel, bfDmg(k.targets.map(t => ({ from: t.at, to: t.to, atk: true, skill: true, arc: ARC_SK.has(k.sk) })), k.sk), true);   // 技能的落点都带金色四角框，和普通走子区分开
       renderBar(); return;
     }
     if (a === 'art') {
@@ -2911,6 +2914,7 @@
     else if (info.k === 'pass') line = `${SIDE_ARMY[s]}按兵不动`;
     if (info.k === 'mv' && info.extra && info.extra.via === 'shensu') line = `${nm(s, 'p')}神速营疾行` + (info.check ? '，将军！' : '');
     if (info.k === 'mv' && info.extra && info.extra.via === 'feiyue') line = line ? line.replace(nm(s, 'e'), nm(s, 'e') + '飞越，') : `${nm(s, 'e')}飞越`;   // 被动飞越：在原句里标出来
+    if (info.k === 'mv' && info.extra && info.extra.via === 'taying') line = line ? line.replace(nm(s, 'n'), nm(s, 'n') + '踏营，') : `${nm(s, 'n')}踏营`;
     if (ev.some(x => x.e === 'final')) { line = (line ? line + '；' : '') + '决战：双方车马兵炮尽没，象、士、帅将皆可过河'; }
     const oc = ev.find(x => x.e === 'occupy');
     if (oc) line = (line ? line + '；' : '') + `${oc.s === 'r' ? '汉帅' : '楚将'}占住${oc.s === 'r' ? '楚' : '汉'}营九宫 ${oc.n}/${BF.CFG.finalOccupyRounds}` + (oc.n >= BF.CFG.finalOccupyRounds ? '，夺营！' : '');
