@@ -1,0 +1,18 @@
+/* 第二轮总审 5：房间页的「开始 / 准备」做成和别的页一样的主操作 */
+/* 电脑：墨色大圆子，和人机、创建页的主操作一个样子；同一行的其他按钮退成小的空心按钮 */
+@media (min-width:641px){
+  #lobby #pWait #roomHostRow,#lobby #pWait #roomGuestRow{align-items:center;justify-content:center;gap:18px}
+  #lobby #pWait #bRoomStart,#lobby #pWait #bRoomReady{all:unset;box-sizing:border-box;cursor:pointer;--d:112px;--pb:var(--k);--pf:var(--c);order:-1;width:var(--d);height:var(--d);border-radius:50%;display:flex;align-items:center;justify-content:center;
+    background:var(--pb);color:var(--pf);box-shadow:inset 0 0 0 calc(var(--d)*.04) var(--pb),inset 0 0 0 calc(var(--d)*.05) var(--pf);font-family:var(--ef);font-weight:900;font-size:30px;letter-spacing:.12em;padding-left:.12em;transition:transform .16s}
+  #lobby #pWait #bRoomStart:hover,#lobby #pWait #bRoomReady:hover{transform:translateY(-6px)}
+  #lobby #pWait #bRoomStart:focus-visible,#lobby #pWait #bRoomReady:focus-visible{outline:3px solid var(--c);outline-offset:7px}
+}
+/* 手机：固定在底部的一整条墨色按钮，和人机、本地、创建页的「开战 / 开始 / 创建」一样 */
+@media (max-width:640px){
+  #lobby #pWait .e-body{padding-bottom:110px}
+  #lobby #pWait #bRoomStart,#lobby #pWait #bRoomReady{position:fixed;left:16px;right:16px;bottom:calc(14px + var(--safe-b,0px));z-index:5;height:60px;min-height:0;margin:0;background:var(--k);color:var(--c);border:2px solid var(--c);font-size:26px;letter-spacing:.4em;padding-left:.4em}
+  #lobby #pWait:not(.hidden)::after{content:"";position:fixed;left:0;right:0;bottom:0;height:calc(88px + var(--safe-b,0px));background:var(--g);border-top:2px solid var(--c);z-index:4}
+}
+/* 6：结算页四个按钮排成两行两个；引语提亮成半透明米白 */
+@media (max-width:640px){ #endcard .row{display:grid!important;grid-template-columns:1fr 1fr;gap:10px;width:min(320px,100%)} #endcard .row .btn{width:100%;margin:0} #endcard .row .btn:last-child:nth-child(odd){grid-column:1/-1} }
+#endcard .cols + div{color:rgba(240,231,210,.72)!important}
