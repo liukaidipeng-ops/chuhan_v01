@@ -12,6 +12,8 @@ cs = set()
 for f in [D + '/src/template.html', D + '/voice/lines.json', D + '/voice/real/real.json'] + glob.glob(D + '/src/*.js'):   # 台词表也算上（TD 10-05 加）：主帅的话是从台词表里取出来显示在气泡里的
     s = open(f, encoding='utf-8', errors='ignore').read()
     cs |= {c for c in s if '一' <= c <= '鿿'}
+# 额外字表（美术总监 10-10 加，CG 组要的）：不在源码、台词表里但要用粗宋显示的字（比如过场片名「汉五年 · 冬」），写进 fonts/songhei-extra.txt
+if os.path.exists(D + '/fonts/songhei-extra.txt'): cs |= {c for c in open(D + '/fonts/songhei-extra.txt', encoding='utf-8').read() if '一' <= c <= '鿿'}
 # 数字、字母、标点也收进来（TD 10-06 加）：原来字表只有汉字，“第 30 回合”“鸿门宴·20”里的数字和标点退回各家系统自己的字体，同一行里粗细、字形都对不上
 cs |= {chr(c) for c in range(0x20, 0x7f)} | set('·—…‘’“”、。「」『』（）《》〈〉！，：；？％＋－／～▸▶×°')
 open(D + '/fonts/songhei-chars.txt', 'w', encoding='utf-8').write(''.join(sorted(cs)) + '\n')
