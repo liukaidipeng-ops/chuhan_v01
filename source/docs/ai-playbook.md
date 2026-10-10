@@ -18,6 +18,9 @@
 - **分三步走：**
   1. **自动调现有公式的权重**（`tools/tune/`，2026-10-09 开始）：打分公式拆成“特征 × 权重”（81 项，原权重下和线上逐个相等），
      自对打收“安静局面 + 终局胜负”，用逻辑回归反推每个权重（国际象棋界叫 Texel 调参）。等于只有一层的网络，便宜，大部分好处在这一步。
+     **结果（2026-10-10）：第一轮（3802 局校尉自对打、16 万个局面，检验误差 −6.5%）对同底版霸王 83%、校尉 84%（各 600 局）——比所有搜索改动加起来都大。**
+     加 11 个潜力特征（第七版的想法）−7.1%、霸王 85.6%。上线写法：`tools/tune/score_w.js` 把权重写回原公式（不慢；特征版慢 36%），`make_patch.js` 出补丁。
+     下一轮：用新权重自对打收数据（t4）、加新特征（技能就绪、贴帅子数、逼到家门口），再拟合；每轮都要对线上对打确认。
   2. 第 1 步有效，再训一个**小网络当打分公式**（搜索不变，只换打分；国际象棋最强的引擎现在就是这样）。
   3. 网络必须**很小、很快**才能放进网页：打分一慢就少算几层，反而变弱（“算深”最值钱，见第 7 节）。
 - 代价：网络是黑箱（复盘拆不开分数）；规则一改要重训，手写公式改一行就行。
@@ -59,6 +62,7 @@
 | `tools/tune/feats.js` | 打分公式拆成特征 × 权重；局面压缩 / 还原 | `feats(S, BF.ai, BF.CFG)`、`W0`、`pack` / `unpack` |
 | `bfsim.js --dump-pos` | 对打时收“安静局面”（自己这步和对方下一步都没打到子、走前没被将军）+ 终局胜负 | 数据批：`tools/simjobs/t1-data-mid.json` |
 | `tools/tune/fit.js` | 拟合权重：先定 K，再调权重；每五局留一局检验；`--check` 全量核对原权重 = 线上 | `node tools/tune/fit.js 结果.json.gz --out tools/tune/w_t1.json` |
+| `tools/tune/score_w.js`、`make_patch.js` | 权重写回原公式（结构、分项不变）；生成给 TD 的补丁 | `node tools/tune/make_patch.js tools/tune/w_t3p.json` → `tools/variants/bfai_tune.patch` |
 | `tools/variants/bfai_tuned.js` | C61 的电脑换上调出来的权重（`BFAI_TUNE_W`），拿去对打 | `--ai-r tools/variants/bfai_tuned.js --ai-b tools/variants/bfai_c61.js` |
 | 变体生成器 `tools/variants/bfai_*.js` | 不动 `src`，按文字锚点给线上电脑打补丁、用环境变量开关；`make(开关, 名字)` 能在同一进程里生成两份（对打时一边陪练一边待测） | `bfai_fast.js`（提速）、`bfai_upfix.js`（升级盲区、陪练）、`bfai_trace.js`（复盘：预想线 + 估值拆分 + 裁判） |
 
