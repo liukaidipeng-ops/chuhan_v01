@@ -1,0 +1,344 @@
+<title>技能特效试映台</title>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Noto+Serif+SC:wght@900&family=Noto+Sans+SC:wght@400;500&display=swap">
+<style>
+/* 版式：上面一块三维小棋盘放特效，下面一条操作栏（技能 / 甲乙丙 / 重播 / 慢放）。单一深色：朱、米白、墨，和游戏界面一套 */
+:root {
+  --ink: #141311; --ink2: #1f1d1a; --paper: #f0e7d2; --zhu: #a8281c; --line: rgba(240,231,210,.55); --muted: rgba(240,231,210,.68);
+  --f-display: "Noto Serif SC", "Songti SC", "STSong", serif;
+  --f-body: "Noto Sans SC", "PingFang SC", "Microsoft YaHei", system-ui, sans-serif;
+  color-scheme: dark;
+}
+html, body { height: 100%; }
+body { background: var(--ink); color: var(--paper); font-family: var(--f-body); display: flex; flex-direction: column; }
+#stage { position: relative; flex: 1 1 auto; min-height: 260px; }
+#stage canvas { display: block; width: 100%; height: 100%; }
+#cap { position: absolute; left: 16px; top: 12px; right: 16px; display: flex; flex-direction: column; gap: 2px; pointer-events: none; }
+#cap b { font-family: var(--f-display); font-weight: 900; font-size: clamp(20px, 4vw, 30px); letter-spacing: .2em; }
+#cap span { font-size: 13px; color: var(--muted); max-width: 46em; }
+#bar { flex: none; padding: 12px 16px calc(14px + env(safe-area-inset-bottom, 0px)); display: flex; flex-direction: column; gap: 10px; background: var(--ink2); border-top: 2px solid var(--paper); }
+.row { display: flex; gap: 0; flex-wrap: wrap; }
+.row.gap { gap: 8px; }
+button { font: inherit; cursor: pointer; }
+.seg button { min-height: 44px; padding: 0 14px; margin-left: -2px; border: 2px solid var(--paper); background: none; color: var(--paper); font-family: var(--f-display); font-weight: 900; font-size: 15px; letter-spacing: .15em; }
+.seg button:first-child { margin-left: 0; }
+.seg button[aria-pressed="true"] { background: var(--paper); color: var(--ink); }
+.seg button:focus-visible, .act:focus-visible { outline: 2px solid var(--zhu); outline-offset: 2px; }
+.opts { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 8px; }
+.opts button { text-align: left; padding: 8px 10px; border: 2px solid var(--line); background: none; color: var(--paper); display: flex; flex-direction: column; gap: 2px; min-width: 0; }
+.opts button b { font-family: var(--f-display); font-weight: 900; font-size: 16px; letter-spacing: .1em; }
+.opts button small { font-size: 12px; color: var(--muted); line-height: 1.45; }
+.opts button[aria-pressed="true"] { border-color: var(--paper); background: rgba(240,231,210,.08); box-shadow: inset 0 0 0 1px var(--paper); }
+.act { min-height: 44px; padding: 0 18px; border: 2px solid var(--paper); background: var(--paper); color: var(--ink); font-family: var(--f-display); font-weight: 900; letter-spacing: .2em; }
+.act.ghost { background: none; color: var(--paper); }
+.act[aria-pressed="true"] { background: var(--zhu); border-color: var(--zhu); color: var(--paper); }
+.note { font-size: 12px; color: var(--muted); }
+@media (max-width: 560px) { .opts { grid-template-columns: minmax(0, 1fr); } .opts button small { display: none; } .seg button { padding: 0 10px; font-size: 14px; letter-spacing: .08em; } }
+</style>
+
+<div id="stage"><div id="cap"><b id="capT">践踏</b><span id="capS"></span></div></div>
+<div id="bar">
+  <div class="row seg" id="skills" role="group" aria-label="技能"></div>
+  <div class="opts" id="opts" role="group" aria-label="方案"></div>
+  <div class="row gap"><button class="act" id="play">重 播</button><button class="act ghost" id="slow" aria-pressed="false">慢 放</button><span class="note" id="tnote"></span></div>
+</div>
+
+<script src="three.min.js"></script>
+<script>
+(() => {
+const C = { zhu: 0xa8281c, ink: 0x141311, paper: 0xf0e7d2, wood: 0xe3c48f, gold: 0xd9b877 };
+const SK = {
+  jianta: { name: '践踏', who: '楚 · 战象（四级被动）', rule: '攻击或吃子后，落点周围一圈的敌子各扣 1 点。',
+    opts: [['甲 · 天降象腿', '一条巨大的半透明象腿从天上踩下来，地面一圈冲击波，全场一震。'],
+           ['乙 · 战象虚影', '战象身后立起一头巨象的墨影，前蹄扬起再重重踏下，裂纹向四周爬开。'],
+           ['丙 · 墨印踏地', '一枚巨大的象足墨印从天而降盖在落点，墨花溅开，周围一圈一格格亮红。']] },
+  qishe: { name: '齐射', who: '汉 · 相（四级）', rule: '不动身，射斜线 1～2 格内的一个敌子，扣 1 点。',
+    opts: [['甲 · 箭雨', '七支箭从相身上划弧线飞出，错落落在目标周围，最后一支正中。'],
+           ['乙 · 巨弩', '相头顶浮出一架半透明巨弩，拉满、放箭，一支大箭拖着光直贯目标。'],
+           ['丙 · 万箭升空', '一排箭从相身上竖着升空，在天上排成扇面停一拍，再齐齐扎向目标。']] },
+  hujia: { name: '护驾', who: '士（三级）', rule: '与帅（将）互换位置，可解将。',
+    opts: [['甲 · 金盾换位', '士和帅一起腾起、交叉换位，帅的新位置前立起一面半透明金盾，一声铮响。'],
+           ['乙 · 卫士虚影', '士身上走出一个持盾卫士的墨影，大步护到帅身前，两子换位后卫士单膝跪下散去。'],
+           ['丙 · 墨影换位', '士和帅化成两股墨，沿九宫斜线交错流过，在对方位置重新聚成子。']] },
+  juma: { name: '拒马', who: '兵（二级）', rule: '原地架矛，两回合内对方近身来犯的子先挨 1 点。',
+    opts: [['甲 · 拒马升地', '兵的前方和两侧，三架木拒马从地里顶出来，尘土四溅，之后一直立着。'],
+           ['乙 · 虚影矛阵', '一圈半透明长矛从棋子四周斜刺而出，矛尖一闪，收成一圈淡淡的矛影守着。'],
+           ['丙 · 天降拒马', '一架巨大的半透明拒马从天上砸下，落地一震，缩成棋子脚下的一圈拒马。']] },
+};
+const ORDER = ['jianta', 'qishe', 'hujia', 'juma'];
+let cur = 'jianta', opt = 0, slow = false;
+try { const s = JSON.parse(localStorage.getItem('sfx-sel') || 'null'); if (s && SK[s.k]) { cur = s.k; opt = s.o | 0; } } catch (e) {}
+
+// ---------- 场景 ----------
+const stage = document.getElementById('stage');
+const renderer = new THREE.WebGLRenderer({ antialias: true });
+renderer.setPixelRatio(Math.min(2, window.devicePixelRatio || 1));
+renderer.shadowMap.enabled = true; renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+renderer.outputColorSpace = THREE.SRGBColorSpace;
+stage.appendChild(renderer.domElement);
+const scene = new THREE.Scene(); scene.background = new THREE.Color(0x1a1714); scene.fog = new THREE.Fog(0x1a1714, 18, 34);
+const camera = new THREE.PerspectiveCamera(40, 1, 0.1, 100);
+const CAM0 = new THREE.Vector3(0, 6.6, 6.2), LOOK = new THREE.Vector3(0, 0.4, 0.2);
+scene.add(new THREE.HemisphereLight(0xfff6e6, 0x5a4a3a, 1.5));
+const sun = new THREE.DirectionalLight(0xfff0dc, 2.4); sun.position.set(-2.5, 16, 3); sun.castShadow = true;
+sun.shadow.mapSize.set(2048, 2048); Object.assign(sun.shadow.camera, { left: -8, right: 8, top: 8, bottom: -8, near: 1, far: 40 }); sun.shadow.bias = -0.0006;
+scene.add(sun);
+
+const cv = (w, h, draw) => { const c = document.createElement('canvas'); c.width = w; c.height = h; draw(c.getContext('2d'), w, h); const t = new THREE.CanvasTexture(c); t.colorSpace = THREE.SRGBColorSpace; t.anisotropy = 8; return t; };
+// 棋盘：只放 7 × 6 格的一块（够演）
+const FW = 7, RW = 6, X = f => f - (FW - 1) / 2, Z = r => r - (RW - 1) / 2;
+const boardTex = cv(1024, 900, (g, w, h) => {
+  const gr = g.createLinearGradient(0, 0, w, h); gr.addColorStop(0, '#e8cb95'); gr.addColorStop(1, '#d9b67a'); g.fillStyle = gr; g.fillRect(0, 0, w, h);
+  g.globalAlpha = .12; for (let i = 0; i < 70; i++) { g.strokeStyle = i % 2 ? '#8a5a2a' : '#fff3d8'; g.lineWidth = 1 + Math.random() * 3; g.beginPath(); const y = Math.random() * h; g.moveTo(0, y); g.bezierCurveTo(w * .3, y + 20 * Math.sin(i), w * .7, y - 20 * Math.cos(i), w, y + 10); g.stroke(); }
+  g.globalAlpha = 1; g.strokeStyle = '#3b2a1a'; g.lineWidth = 3;
+  const sx = w / (FW + 1), sy = h / (RW + 1);
+  for (let f = 0; f < FW; f++) { g.beginPath(); g.moveTo(sx * (f + 1), sy); g.lineTo(sx * (f + 1), sy * RW); g.stroke(); }
+  for (let r = 0; r < RW; r++) { g.beginPath(); g.moveTo(sx, sy * (r + 1)); g.lineTo(sx * FW, sy * (r + 1)); g.stroke(); }
+});
+const board = new THREE.Mesh(new THREE.BoxGeometry(FW + 1, 0.3, RW + 1), [0, 0, new THREE.MeshStandardMaterial({ map: boardTex, roughness: .7 }), 0, 0, 0].map(m => m || new THREE.MeshStandardMaterial({ color: 0x8a5a2a, roughness: .8 })));
+board.position.y = -0.15; board.receiveShadow = true; scene.add(board);
+const floor = new THREE.Mesh(new THREE.PlaneGeometry(80, 80), new THREE.MeshStandardMaterial({ color: 0x2a241e, roughness: 1 })); floor.rotation.x = -Math.PI / 2; floor.position.y = -0.3; floor.receiveShadow = true; scene.add(floor);
+
+const faceTex = (ch, red) => cv(256, 256, (g, w) => {
+  const c = w / 2; g.fillStyle = '#ecd2a0'; g.beginPath(); g.arc(c, c, c - 2, 0, 7); g.fill();
+  g.strokeStyle = red ? '#a8281c' : '#141311'; g.lineWidth = 10; g.beginPath(); g.arc(c, c, c - 14, 0, 7); g.stroke(); g.lineWidth = 3; g.beginPath(); g.arc(c, c, c - 30, 0, 7); g.stroke();
+  g.fillStyle = red ? '#a8281c' : '#141311'; g.font = '900 128px "Noto Serif SC", "Songti SC", serif'; g.textAlign = 'center'; g.textBaseline = 'middle'; g.fillText(ch, c, c + 6);
+});
+const PH = 0.22, PR = 0.42;
+const sideMat = new THREE.MeshStandardMaterial({ color: 0xc9945a, roughness: .5 });
+function piece(ch, red) {
+  const g = new THREE.Group();
+  const body = new THREE.Mesh(new THREE.CylinderGeometry(PR, PR, PH, 48), [sideMat, new THREE.MeshStandardMaterial({ map: faceTex(ch, red), roughness: .5 }), sideMat]);
+  body.position.y = PH / 2; body.castShadow = true; body.receiveShadow = true; g.add(body);
+  g.userData = { ch, red, body, hit: 0 };
+  scene.add(g); return g;
+}
+const at = (m, f, r) => { m.position.set(X(f), 0, Z(r)); return m; };
+
+// ---------- 时间线 ----------
+// 所有动画都按 T（秒）算，换方案时重来；seek(t) 可以停在任意一刻（自查截帧用）
+let T = 0, playing = true, items = [], dur = 4, shake = 0;
+const ease = { out: k => 1 - Math.pow(1 - k, 3), in: k => k * k * k, io: k => k < .5 ? 4 * k * k * k : 1 - Math.pow(-2 * k + 2, 3) / 2, back: k => 1 + 2.7 * Math.pow(k - 1, 3) + 1.7 * Math.pow(k - 1, 2) };
+const clamp = (v, a = 0, b = 1) => Math.max(a, Math.min(b, v));
+const seg = (t, a, b) => clamp((t - a) / (b - a));
+function clear() { for (const o of items) { scene.remove(o); o.traverse && o.traverse(n => { if (n.geometry) n.geometry.dispose(); }); } items = []; }
+const add = o => { scene.add(o); items.push(o); return o; };
+const ghostMat = (color, op = .4) => new THREE.MeshStandardMaterial({ color, transparent: true, opacity: op, depthWrite: false, roughness: .6, emissive: color, emissiveIntensity: .25 });
+// 冲击环、尘土、伤害数字、受击闪红
+function ring(color = C.paper) { const m = add(new THREE.Mesh(new THREE.RingGeometry(.9, 1, 64), new THREE.MeshBasicMaterial({ color, transparent: true, depthWrite: false, side: THREE.DoubleSide }))); m.rotation.x = -Math.PI / 2; m.visible = false; return m; }
+function ringAt(m, t, t0, x, z, R, dur2 = .6) { const k = seg(t, t0, t0 + dur2); m.visible = k > 0 && k < 1; m.position.set(x, .02, z); const s = .2 + R * ease.out(k); m.scale.set(s, s, s); m.material.opacity = .85 * (1 - k); }
+const dmgTex = cv(128, 64, (g) => { g.font = '900 52px "Noto Serif SC", serif'; g.textAlign = 'center'; g.textBaseline = 'middle'; g.lineWidth = 8; g.strokeStyle = '#141311'; g.strokeText('-1', 64, 34); g.fillStyle = '#f0e7d2'; g.fillText('-1', 64, 34); });
+function dmg() { const s = add(new THREE.Sprite(new THREE.SpriteMaterial({ map: dmgTex, transparent: true, depthWrite: false }))); s.scale.set(.9, .45, 1); s.visible = false; return s; }
+function dmgAt(s, t, t0, p) { const k = seg(t, t0, t0 + .9); s.visible = k > 0 && k < 1; s.position.set(p.position.x, .6 + k * .7, p.position.z); s.material.opacity = k < .7 ? 1 : 1 - (k - .7) / .3; }
+function hitFlash(p, t, t0) { const k = seg(t, t0, t0 + .5), on = k > 0 && k < 1 ? Math.sin(k * Math.PI) : 0; const mats = p.userData.body.material; mats.forEach(m => { m.emissive = m.emissive || new THREE.Color(); m.emissive.setRGB(.65 * on, .08 * on, .05 * on); }); p.position.y = on * .05 * Math.sin(k * 40); }
+function dust(n, color = 0xd8c39a) {
+  const geo = new THREE.BufferGeometry(), pos = new Float32Array(n * 3); geo.setAttribute('position', new THREE.BufferAttribute(pos, 3));
+  const pts = add(new THREE.Points(geo, new THREE.PointsMaterial({ color, size: .09, transparent: true, depthWrite: false })));
+  pts.userData.seed = Array.from({ length: n }, () => [Math.random() * 6.283, .4 + Math.random(), .6 + Math.random() * 1.2]); pts.visible = false; return pts;
+}
+function dustAt(pts, t, t0, x, z, R = 1.6, d = 1) {
+  const k = seg(t, t0, t0 + d); pts.visible = k > 0 && k < 1; const a = pts.geometry.attributes.position.array;
+  pts.userData.seed.forEach(([ang, sp, up], i) => { const r = R * sp * ease.out(k); a[i * 3] = x + Math.cos(ang) * r; a[i * 3 + 1] = up * k * (1 - k) * 1.6; a[i * 3 + 2] = z + Math.sin(ang) * r; });
+  pts.geometry.attributes.position.needsUpdate = true; pts.material.opacity = 1 - k;
+}
+const arc = (a, b, h, k) => new THREE.Vector3(a.x + (b.x - a.x) * k, a.y + (b.y - a.y) * k + h * 4 * k * (1 - k), a.z + (b.z - a.z) * k);
+
+// ---------- 各技能 ----------
+let pieces = [], build = null;
+function reset() { pieces.forEach(p => scene.remove(p)); pieces = []; clear(); shake = 0; }
+const P = (ch, red, f, r) => { const p = at(piece(ch, red), f, r); pieces.push(p); return p; };
+
+// 象腿（甲）：腿是一根略收腰的柱子 + 三片趾甲，墨色半透明
+function elephantLeg() {
+  const g = new THREE.Group(), m = ghostMat(0x2b2622, .42);
+  const leg = new THREE.Mesh(new THREE.CylinderGeometry(1.15, 1.35, 9, 40, 1, true), m); leg.position.y = 4.5; g.add(leg);
+  const foot = new THREE.Mesh(new THREE.CylinderGeometry(1.35, 1.45, .25, 40), m); foot.position.y = .12; g.add(foot);
+  const nail = ghostMat(0xf0e7d2, .5);
+  for (const a of [-.55, 0, .55]) { const n = new THREE.Mesh(new THREE.SphereGeometry(.3, 16, 10, 0, 6.3, 0, 1.6), nail); n.position.set(Math.sin(a) * 1.38, .05, Math.cos(a) * 1.38); n.scale.set(1, .7, .6); n.rotation.y = a; g.add(n); }
+  return add(g);
+}
+// 墨影巨象（乙）：一张立着的水墨战象侧影（画在画布上），绕后脚抬起前身再踏下
+const eleTex = cv(1024, 768, (g, w, h) => {
+  g.fillStyle = 'rgba(28,24,21,.92)'; g.strokeStyle = 'rgba(28,24,21,.92)'; g.lineCap = 'round'; g.lineJoin = 'round';
+  g.beginPath(); g.ellipse(430, 360, 270, 175, -.05, 0, 7); g.fill();                    // 身
+  g.beginPath(); g.ellipse(690, 300, 120, 115, .2, 0, 7); g.fill();                      // 头
+  g.beginPath(); g.moveTo(760, 330); g.bezierCurveTo(840, 420, 820, 560, 760, 640); g.bezierCurveTo(750, 660, 790, 690, 805, 660); g.lineWidth = 58; g.stroke();   // 鼻
+  g.beginPath(); g.ellipse(640, 300, 70, 120, .25, 0, 7); g.fillStyle = 'rgba(48,42,37,.95)'; g.fill(); g.fillStyle = 'rgba(28,24,21,.92)';   // 耳
+  for (const [x, w2] of [[230, 70], [330, 70], [560, 74], [650, 74]]) { g.beginPath(); g.roundRect ? g.roundRect(x - w2 / 2, 420, w2, 290, 22) : g.rect(x - w2 / 2, 420, w2, 290); g.fill(); }   // 腿
+  g.beginPath(); g.moveTo(170, 330); g.quadraticCurveTo(120, 380, 130, 470); g.lineWidth = 14; g.stroke();   // 尾
+  g.beginPath(); g.moveTo(745, 380); g.quadraticCurveTo(820, 400, 860, 360); g.lineWidth = 20; g.strokeStyle = 'rgba(240,231,210,.9)'; g.stroke();   // 牙
+  g.globalCompositeOperation = 'destination-out'; g.globalAlpha = .18;
+  for (let k = 0; k < 900; k++) { g.beginPath(); g.arc(Math.random() * w, Math.random() * h, 1 + Math.random() * 5, 0, 7); g.fill(); }   // 飞白
+});
+function ghostElephant() {
+  const g = new THREE.Group(), piv = new THREE.Group();
+  const pl = new THREE.Mesh(new THREE.PlaneGeometry(4, 3), new THREE.MeshBasicMaterial({ map: eleTex, transparent: true, depthWrite: false, side: THREE.DoubleSide }));
+  pl.position.set(-(230 / 1024 - .5) * 4, -(.5 - 710 / 768) * 3, 0);   // 枢轴 = 后脚着地点
+  piv.add(pl); g.add(piv); g.userData = { piv, mat: pl.material, frontX: 4 * (650 - 230) / 1024 };
+  return add(g);
+}
+// 象足墨印（丙）：圆角足底 + 四个趾印
+const footTex = cv(512, 512, (g, w) => {
+  const c = w / 2; g.fillStyle = 'rgba(20,19,17,.92)';
+  g.beginPath(); g.ellipse(c, c + 30, 170, 190, 0, 0, 7); g.fill();
+  for (const a of [-.9, -.3, .3, .9]) { g.beginPath(); g.ellipse(c + Math.sin(a) * 175, c - Math.cos(a) * 165 + 20, 42, 34, a, 0, 7); g.fill(); }
+  g.globalCompositeOperation = 'destination-out'; g.globalAlpha = .25; for (let i = 0; i < 260; i++) { g.beginPath(); g.arc(c + (Math.random() - .5) * 360, c + (Math.random() - .5) * 380, 2 + Math.random() * 7, 0, 7); g.fill(); }
+});
+const splashTex = cv(512, 512, (g, w) => { const c = w / 2; g.fillStyle = 'rgba(20,19,17,.85)'; for (let i = 0; i < 46; i++) { const a = Math.random() * 6.283, r = 120 + Math.random() * 120; g.beginPath(); g.arc(c + Math.cos(a) * r, c + Math.sin(a) * r, 4 + Math.random() * 16, 0, 7); g.fill(); } g.lineWidth = 10; g.strokeStyle = 'rgba(20,19,17,.5)'; g.beginPath(); g.arc(c, c, 150, 0, 7); g.stroke(); });
+const decal = (tex, size) => { const m = add(new THREE.Mesh(new THREE.PlaneGeometry(size, size), new THREE.MeshBasicMaterial({ map: tex, transparent: true, depthWrite: false }))); m.rotation.x = -Math.PI / 2; m.visible = false; return m; };
+const tileFlash = () => { const m = add(new THREE.Mesh(new THREE.PlaneGeometry(.96, .96), new THREE.MeshBasicMaterial({ color: C.zhu, transparent: true, depthWrite: false }))); m.rotation.x = -Math.PI / 2; m.visible = false; return m; };
+// 箭
+function arrow(scale = 1, glow = false) {
+  const g = new THREE.Group(), wood = new THREE.MeshStandardMaterial({ color: 0x5a3a20 }), tip = new THREE.MeshStandardMaterial({ color: 0x2a2a2a, metalness: .6, roughness: .3, emissive: glow ? 0xffd27e : 0, emissiveIntensity: glow ? .8 : 0 });
+  const sh = new THREE.Mesh(new THREE.CylinderGeometry(.025, .025, 1, 6), wood); sh.rotation.x = Math.PI / 2; g.add(sh);
+  const hd = new THREE.Mesh(new THREE.ConeGeometry(.06, .18, 8), tip); hd.rotation.x = Math.PI / 2; hd.position.z = .58; g.add(hd);
+  const fl = new THREE.Mesh(new THREE.PlaneGeometry(.12, .2), new THREE.MeshBasicMaterial({ color: C.zhu, side: THREE.DoubleSide })); fl.position.z = -.42; g.add(fl);
+  g.scale.setScalar(scale); g.visible = false; return add(g);
+}
+const aimAlong = (o, p, q) => { o.position.copy(p); o.lookAt(q); };
+// 盾、卫士、拒马
+function shield() { const g = new THREE.Group(), m = ghostMat(0xd9b877, .45); const d = new THREE.Mesh(new THREE.CylinderGeometry(.75, .75, .08, 40), m); d.rotation.x = Math.PI / 2; g.add(d); const b = new THREE.Mesh(new THREE.SphereGeometry(.18, 16, 10), ghostMat(0xfff0c8, .7)); b.position.z = .06; g.add(b); const rim = new THREE.Mesh(new THREE.TorusGeometry(.75, .05, 8, 40), ghostMat(0xfff0c8, .6)); g.add(rim); g.visible = false; return add(g); }
+function guard() {
+  const g = new THREE.Group(), m = ghostMat(0x241f1c, .42);
+  const body = new THREE.Mesh(new THREE.CapsuleGeometry(.32, 1.1, 8, 16), m); body.position.y = 1.1; g.add(body);
+  const head = new THREE.Mesh(new THREE.SphereGeometry(.24, 16, 12), m); head.position.y = 2.05; g.add(head);
+  const hel = new THREE.Mesh(new THREE.ConeGeometry(.28, .35, 16), ghostMat(0xd9b877, .5)); hel.position.y = 2.3; g.add(hel);
+  const sh = new THREE.Mesh(new THREE.BoxGeometry(.9, 1.2, .08), ghostMat(0xa8281c, .5)); sh.position.set(0, 1.2, .42); g.add(sh);
+  const sp = new THREE.Mesh(new THREE.CylinderGeometry(.03, .03, 2.8, 6), ghostMat(0xf0e7d2, .6)); sp.position.set(.5, 1.4, .1); g.add(sp);
+  g.visible = false; return add(g);
+}
+function cheval(mat) {   // 拒马：横木 + 两组交叉尖桩
+  const g = new THREE.Group(); const beam = new THREE.Mesh(new THREE.CylinderGeometry(.05, .05, .9, 8), mat); beam.rotation.z = Math.PI / 2; beam.position.y = .22; g.add(beam);
+  for (const x of [-.3, 0, .3]) for (const s of [1, -1]) { const st = new THREE.Group(); const pole = new THREE.Mesh(new THREE.CylinderGeometry(.03, .035, .62, 6), mat); st.add(pole); const tip = new THREE.Mesh(new THREE.ConeGeometry(.045, .14, 6), mat); tip.position.y = .38; st.add(tip); st.position.set(x, .22, 0); st.rotation.x = s * .75; g.add(st); }
+  return g;
+}
+
+const FX = {
+  jianta(o) {   // 楚象在 (3,1)，跳到 (3,3) 吃掉汉兵（落点），周围 3 个汉子挨 1 点
+    const el = P('象', false, 3, 1), victim = P('兵', true, 3, 3), ns = [P('兵', true, 2, 3), P('相', true, 4, 4), P('仕', true, 2, 4)];
+    const A = el.position.clone(), B = victim.position.clone(), D = 1.0;
+    const ds = ns.map(dmg), rg = ring(o === 2 ? C.ink : C.paper), rg2 = ring(C.zhu), du = dust(80);
+    let leg, ele, foot, splash, tiles;
+    if (o === 0) leg = elephantLeg();
+    if (o === 1) ele = ghostElephant();
+    if (o === 2) { foot = decal(footTex, 3.2); splash = decal(splashTex, 3.4); tiles = [[-1, -1], [0, -1], [1, -1], [-1, 0], [1, 0], [-1, 1], [0, 1], [1, 1]].map(tileFlash); }
+    const IMP = o === 0 ? 1.55 : o === 1 ? 2.1 : 1.45;   // 冲击那一刻
+    dur = IMP + 1.9;
+    return t => {
+      // 象跳到落点（0.0–0.6），落下时把汉兵压扁吃掉
+      const k = ease.io(seg(t, 0, .6)); el.position.copy(arc(A, B, .9, k));
+      const vk = seg(t, .5, .66); victim.scale.set(1, 1 - .9 * vk, 1); victim.visible = vk < 1;   // 象落下那一刻把兵压扁吃掉，之后才是践踏
+      if (o === 0) {   // 象腿：0.7 起从 12 高处加速落下，1.55 落地，停 0.3，再 0.5 内淡出上收
+        const fall = ease.in(seg(t, .7, IMP)), up = seg(t, IMP + .35, IMP + .85);
+        leg.position.set(B.x, 12 * (1 - fall) + up * 3, B.z); leg.visible = t > .7 && up < 1;
+        leg.traverse(n => n.material && (n.material.opacity = (n.material.color.r > .5 ? .5 : .42) * (1 - up)));
+      }
+      if (o === 1) {   // 巨象：0.6–1.0 浮现在象身后，1.0–1.6 绕后脚抬起前身，1.6–2.1 踏下（前脚落在落点）
+        const fi = seg(t, .6, 1.0), rear = ease.out(seg(t, 1.0, 1.6)), stomp = ease.in(seg(t, 1.6, IMP)), fo = seg(t, IMP + .4, IMP + 1.0);
+        const u = ele.userData; ele.visible = fi > 0 && fo < 1;
+        ele.position.set(B.x - u.frontX, 0, B.z - .35); ele.rotation.y = 0;
+        u.piv.rotation.z = .38 * rear * (1 - stomp); u.mat.opacity = .85 * fi * (1 - fo);
+      }
+      if (o === 2) {   // 墨印：0.7–1.45 从 4 倍大小、高处压下；落地后墨花 0.6 秒溅开，八格依次亮红
+        const k2 = ease.in(seg(t, .7, IMP)), fo = seg(t, IMP + 1.0, IMP + 1.8);
+        foot.visible = t > .7; foot.position.set(B.x, .03 + 6 * (1 - k2), B.z); const s = 1 + 3 * (1 - k2); foot.scale.set(s, s, s); foot.material.opacity = Math.min(1, (t - .7) * 4) * (1 - fo);
+        const sk = seg(t, IMP, IMP + .6); splash.visible = sk > 0 && fo < 1; splash.position.set(B.x, .025, B.z); const ss = .6 + .5 * ease.out(sk); splash.scale.set(ss, ss, ss); splash.material.opacity = .9 * (1 - fo);
+        tiles.forEach((m, i) => { const [dx, dz] = [[-1, -1], [0, -1], [1, -1], [-1, 0], [1, 0], [-1, 1], [0, 1], [1, 1]][i]; const tk = seg(t, IMP + .05 * i, IMP + .05 * i + .5); m.visible = tk > 0 && tk < 1; m.position.set(B.x + dx, .02, B.z + dz); m.material.opacity = .55 * Math.sin(tk * Math.PI); });
+      }
+      ringAt(rg, t, IMP, B.x, B.z, 2.6, .7); ringAt(rg2, t, IMP + .08, B.x, B.z, 1.8, .5); dustAt(du, t, IMP, B.x, B.z, 1.8, 1.1);
+      shake = Math.max(0, 1 - Math.abs(t - IMP - .15) / .35) * (o === 1 ? .22 : .18);
+      ns.forEach((p, i) => { hitFlash(p, t, IMP + .1); dmgAt(ds[i], t, IMP + .15, p); });
+    };
+  },
+  qishe(o) {   // 汉相 (2,4) 射斜线两格 (4,2) 的楚卒
+    const xi = P('相', true, 2, 4), tg = P('卒', false, 4, 2); P('卒', false, 5, 3); P('車', false, 1, 1);
+    const A = xi.position.clone().setY(.5), B = tg.position.clone().setY(.3), d = dmg(), rg = ring(C.zhu);
+    let HIT; const arrows = [];
+    if (o === 0) { for (let i = 0; i < 7; i++) arrows.push(arrow(1)); HIT = 1.6; }
+    if (o === 1) { arrows.push(arrow(2.2, true)); HIT = 1.5; }
+    if (o === 2) { for (let i = 0; i < 9; i++) arrows.push(arrow(.9)); HIT = 1.9; }
+    let bow, trail; if (o === 1) { bow = new THREE.Group(); const m = ghostMat(0x5a3a20, .5); const stock = new THREE.Mesh(new THREE.BoxGeometry(.18, .14, 1.8), m); bow.add(stock); for (const s of [1, -1]) { const limb = new THREE.Mesh(new THREE.BoxGeometry(1.1, .08, .1), m); limb.position.set(s * .55, 0, .7); limb.rotation.y = s * -.25; bow.add(limb); } add(bow); bow.visible = false;
+      trail = add(new THREE.Mesh(new THREE.CylinderGeometry(.05, .05, 1, 8), new THREE.MeshBasicMaterial({ color: 0xffd27e, transparent: true, depthWrite: false }))); trail.visible = false; }
+    dur = HIT + 1.4;
+    return t => {
+      if (o === 0) arrows.forEach((a, i) => { const t0 = .3 + i * .12, k = seg(t, t0, t0 + .9); a.visible = k > 0 && k < 1.0001 && t < HIT + .9;
+        const off = i === 6 ? [0, 0] : [Math.cos(i * 2.4) * .45, Math.sin(i * 2.4) * .45], end = B.clone().add(new THREE.Vector3(off[0], -.25, off[1]));
+        const p = arc(A, end, 1.8, Math.min(k, 1)), q = arc(A, end, 1.8, Math.min(1, k + .02)); if (k < 1) aimAlong(a, p, q); else a.position.copy(end); });
+      if (o === 1) { const fi = seg(t, .2, .6), pull = seg(t, .6, 1.2), fo = seg(t, HIT + .2, HIT + .7); bow.visible = fi > 0 && fo < 1; bow.position.copy(A).add(new THREE.Vector3(0, 1.0, 0)); bow.scale.setScalar(1.3); bow.lookAt(B.clone().add(new THREE.Vector3(0, .5, 0)));
+        bow.traverse(n => n.material && (n.material.opacity = .5 * fi * (1 - fo))); const a = arrows[0], k = ease.in(seg(t, 1.2, HIT)); const p0 = bow.position.clone(), p = p0.clone().lerp(B, k); a.visible = t > .9 && t < HIT; aimAlong(a, p, B); if (t < 1.2) a.position.copy(p0).add(B.clone().sub(p0).normalize().multiplyScalar(-.3 * pull));
+        trail.visible = t > 1.2 && t < HIT + .3; const tl = p0.distanceTo(p) || .01; trail.scale.set(1, tl, 1); trail.position.copy(p0).lerp(p, .5); trail.lookAt(p); trail.rotateX(Math.PI / 2); trail.material.opacity = .7 * (1 - seg(t, HIT, HIT + .3)); }
+      if (o === 2) arrows.forEach((a, i) => { const ang = (i - 4) * .22, sky = A.clone().add(new THREE.Vector3(Math.sin(ang) * 1.6, 1.7 + Math.cos(ang) * .4, -.6)), rise = ease.out(seg(t, .2 + i * .04, .9 + i * .04)), dive = ease.in(seg(t, 1.25, HIT));
+        a.visible = t > .2 && t < HIT + .05; const end = B.clone().add(new THREE.Vector3((i - 4) * .06, -.2, 0));
+        if (dive <= 0) { const p = A.clone().lerp(sky, rise); a.position.copy(p); a.lookAt(p.clone().add(new THREE.Vector3(0, 1, 0))); } else { const p = sky.clone().lerp(end, dive); aimAlong(a, p, end); } });
+      hitFlash(tg, t, HIT); dmgAt(d, t, HIT + .05, tg); ringAt(rg, t, HIT, B.x, B.z, 1.2, .5);
+      shake = Math.max(0, 1 - Math.abs(t - HIT - .05) / .2) * .06;
+    };
+  },
+  hujia(o) {   // 汉仕 (4,4) 与帅 (3,5) 互换；楚车在 (3,1) 将军
+    const shi = P('仕', true, 4, 4), shuai = P('帥', true, 3, 5), ju = P('車', false, 3, 1);
+    const A = shi.position.clone(), B = shuai.position.clone(); dur = 3.2;
+    let sh, gd, inkA, inkB; const rg = ring(0xd9b877);
+    if (o === 0) sh = shield();
+    if (o === 1) gd = guard();
+    if (o === 2) { inkA = dust(120, 0x141311); inkB = dust(120, 0x141311); inkA.material.size = inkB.material.size = .14; }
+    const SW0 = o === 2 ? .9 : .4, SW1 = SW0 + (o === 2 ? .8 : 1.0);
+    return t => {
+      const k = ease.io(seg(t, SW0, SW1));
+      if (o !== 2) { shi.position.copy(arc(A, B, 1.0, k)); shuai.position.copy(arc(B, A, .6, k)); }
+      else { const v = 1 - Math.sin(Math.PI * seg(t, SW0 - .5, SW1 + .5)); const vis = t < SW0 - .1 || t > SW1 + .1; shi.position.copy(k < .5 ? A : B); shuai.position.copy(k < .5 ? B : A); shi.scale.setScalar(vis ? 1 : .01); shuai.scale.setScalar(vis ? 1 : .01);
+        const pts = (P0, P1, obj, s) => { const a = obj.geometry.attributes.position.array, kk = seg(t, SW0 - .3, SW1 + .3); obj.visible = kk > 0 && kk < 1; obj.material.opacity = Math.sin(kk * Math.PI); obj.userData.seed.forEach(([ang, sp, up], i) => { const u = clamp(kk * 1.4 - (i / 120) * .4); const p = arc(P0, P1, .5 + .4 * s, u); a[i * 3] = p.x + Math.cos(ang) * .25 * Math.sin(u * Math.PI); a[i * 3 + 1] = .2 + p.y + up * .15 * Math.sin(u * Math.PI); a[i * 3 + 2] = p.z + Math.sin(ang) * .25 * Math.sin(u * Math.PI); }); obj.geometry.attributes.position.needsUpdate = true; };
+        pts(A, B, inkA, 1); pts(B, A, inkB, -1); }
+      if (o === 0) { const up = ease.back(seg(t, SW1 - .1, SW1 + .35)), fo = seg(t, dur - .8, dur - .2); sh.visible = up > 0 && fo < 1; sh.position.set(A.x, .1 + .9 * up, A.z - .55); sh.rotation.set(0, 0, 0); sh.traverse(n => n.material && (n.material.opacity = .5 * Math.min(1, up * 1.5) * (1 - fo))); }
+      if (o === 1) { const fi = seg(t, .1, .4), walk = ease.io(seg(t, .4, SW1)), kneel = ease.out(seg(t, SW1 + .2, SW1 + .6)), fo = seg(t, SW1 + .7, SW1 + 1.3); gd.visible = fi > 0 && fo < 1; const p = A.clone().lerp(A.clone().add(new THREE.Vector3(0, 0, -.55)), walk); gd.position.copy(p); gd.rotation.y = Math.PI; gd.scale.set(1, 1 - .3 * kneel, 1); gd.traverse(n => n.material && (n.material.opacity = (n.material.color.r > .6 ? .6 : .45) * fi * (1 - fo))); }
+      ringAt(rg, t, SW1, A.x, A.z, 1.4, .5);
+    };
+  },
+  juma(o) {   // 汉兵 (3,3) 架拒马；楚马 (3,1)、楚車 (5,3) 在近处
+    const bing = P('兵', true, 3, 3); P('馬', false, 2, 1); P('車', false, 5, 3);
+    const B = bing.position.clone(); dur = 3.2; const du = dust(60), rg = ring(C.zhu);
+    const wood = new THREE.MeshStandardMaterial({ color: 0x6b4426, roughness: .8 });
+    let set = [], big, spears = [];
+    const SPOTS = [[0, -1, 0], [-1, 0, Math.PI / 2], [1, 0, Math.PI / 2]];
+    if (o === 0) set = SPOTS.map(([dx, dz, ry]) => { const c = add(cheval(wood)); c.position.set(B.x + dx * .62, 0, B.z + dz * .62); c.rotation.y = ry; c.visible = false; c.traverse(n => n.isMesh && (n.castShadow = true)); return c; });
+    if (o === 1) for (let i = 0; i < 10; i++) { const s = add(new THREE.Group()); const pole = new THREE.Mesh(new THREE.CylinderGeometry(.025, .025, 1.1, 6), ghostMat(0x241f1c, .45)); pole.position.y = .55; s.add(pole); const tip = new THREE.Mesh(new THREE.ConeGeometry(.06, .22, 8), ghostMat(0xf0e7d2, .7)); tip.position.y = 1.2; s.add(tip); s.visible = false; spears.push(s); }
+    if (o === 2) { big = add(cheval(ghostMat(0x241f1c, .45))); big.visible = false; set = SPOTS.map(([dx, dz, ry]) => { const c = add(cheval(wood)); c.position.set(B.x + dx * .62, 0, B.z + dz * .62); c.rotation.y = ry; c.scale.setScalar(.01); c.visible = false; return c; }); }
+    const IMP = o === 2 ? 1.1 : .6;
+    return t => {
+      if (o === 0) set.forEach((c, i) => { const k = ease.back(seg(t, .3 + i * .15, .75 + i * .15)); c.visible = k > 0; c.position.y = -.5 * (1 - k); });
+      if (o === 1) spears.forEach((s, i) => { const a = i / 10 * 6.283, k = ease.back(seg(t, .3 + i * .03, .7 + i * .03)), settle = seg(t, 1.4, 2.0); s.visible = k > 0; const R = .55; s.position.set(B.x + Math.cos(a) * R, 0, B.z + Math.sin(a) * R); s.rotation.set(0, 0, 0); s.rotateY(-a); s.rotateZ(-.55 * k); s.scale.setScalar(.4 + .6 * k - .35 * settle); s.traverse(n => n.material && (n.material.opacity = (n.material.color.r > .6 ? .7 : .45) * (1 - .55 * settle))); });
+      if (o === 2) { const fall = ease.in(seg(t, .3, IMP)), shrink = ease.io(seg(t, IMP + .35, IMP + .95)); big.visible = t > .3 && shrink < 1; big.position.set(B.x, 7 * (1 - fall), B.z); big.scale.setScalar(4.5 * (1 - shrink) + .6 * shrink); big.traverse(n => n.material && (n.material.opacity = .45 * (1 - shrink)));
+        set.forEach((c, i) => { const k = ease.back(seg(t, IMP + .6 + i * .1, IMP + 1.0 + i * .1)); c.visible = k > 0; c.scale.setScalar(Math.max(.01, k)); }); }
+      dustAt(du, t, IMP, B.x, B.z, 1.2, .9); ringAt(rg, t, IMP, B.x, B.z, 1.3, .5);
+      shake = Math.max(0, 1 - Math.abs(t - IMP - .05) / .25) * (o === 2 ? .16 : .05);
+    };
+  },
+};
+
+// ---------- 界面 ----------
+const $ = id => document.getElementById(id);
+function ui() {
+  $('skills').innerHTML = ORDER.map(k => `<button type="button" data-k="${k}" aria-pressed="${k === cur}">${SK[k].name}</button>`).join('');
+  $('opts').innerHTML = SK[cur].opts.map(([l, d], i) => `<button type="button" data-o="${i}" aria-pressed="${i === opt}"><b>${l}</b><small>${d}</small></button>`).join('');
+  $('capT').textContent = SK[cur].name + ' · ' + SK[cur].opts[opt][0].slice(4);
+  $('capS').textContent = SK[cur].who + '：' + SK[cur].rule;
+}
+function start() { reset(); build = FX[cur](opt); T = 0; playing = true; ui(); $('tnote').textContent = '约 ' + dur.toFixed(1) + ' 秒' + (slow ? ' · 慢放 0.4 倍' : ''); try { localStorage.setItem('sfx-sel', JSON.stringify({ k: cur, o: opt })); } catch (e) {} }
+$('skills').addEventListener('click', e => { const b = e.target.closest('[data-k]'); if (!b) return; cur = b.dataset.k; opt = 0; start(); });
+$('opts').addEventListener('click', e => { const b = e.target.closest('[data-o]'); if (!b) return; opt = +b.dataset.o; start(); });
+$('play').addEventListener('click', start);
+$('slow').addEventListener('click', () => { slow = !slow; $('slow').setAttribute('aria-pressed', slow); start(); });
+
+function resize() { const w = stage.clientWidth, h = stage.clientHeight; renderer.setSize(w, h, false); camera.aspect = w / h; const far = w / h < 1 ? 1.75 : 1; camera.position.copy(CAM0).multiplyScalar(far); camera.updateProjectionMatrix(); }
+addEventListener('resize', resize);
+function frame(t) {
+  build && build(t);
+  const s = shake; camera.position.copy(CAM0).multiplyScalar(camera.aspect < 1 ? 1.75 : 1); camera.lookAt(LOOK);
+  if (s > 0) { camera.position.x += (Math.random() - .5) * s; camera.position.y += (Math.random() - .5) * s; }
+  renderer.render(scene, camera);
+}
+let last = performance.now();
+function loop(now) { const dt = Math.min(.05, (now - last) / 1000); last = now; if (playing) { T += dt * (slow ? .4 : 1); if (T > dur + .8) T = 0, start(); } frame(T); requestAnimationFrame(loop); }
+// 自查用：停在某一刻
+window.fx = { seek(k, o, t) { cur = k; opt = o; start(); playing = false; T = t; frame(t); return dur; }, state: () => ({ cur, opt, T, dur }), scene, pieces: () => pieces, items: () => items };
+(document.fonts && document.fonts.load ? Promise.all([document.fonts.load('900 64px "Noto Serif SC"')]).catch(() => {}) : Promise.resolve()).then(() => { resize(); start(); requestAnimationFrame(loop); });
+})();
+</script>

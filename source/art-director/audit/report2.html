@@ -1,0 +1,68 @@
+<title>美术第二轮总审</title>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Noto+Serif+SC:wght@700;900&family=Noto+Sans+SC:wght@400;500&display=swap">
+<style>
+/* 版式：一张长卷，按优先级分三段；每条一张实拍 + 问题 / 建议 / 归谁。颜色只用游戏自己的朱、米白、墨 */
+:root {
+  --paper: #f0e7d2; --ink: #141311; --zhu: #a8281c; --line: #cdbf9f; --muted: #5d554a; --card: #f7f0df;
+  --f-display: "Noto Serif SC", "Songti SC", "STSong", serif;
+  --f-body: "Noto Sans SC", "PingFang SC", "Microsoft YaHei", system-ui, sans-serif;
+}
+@media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) {
+  --paper: #161513; --ink: #ece3cd; --zhu: #e0654f; --line: #3a352d; --muted: #a89d88; --card: #1f1d1a; color-scheme: dark; } }
+:root[data-theme="dark"] { --paper: #161513; --ink: #ece3cd; --zhu: #e0654f; --line: #3a352d; --muted: #a89d88; --card: #1f1d1a; color-scheme: dark; }
+body { background: var(--paper); color: var(--ink); font-family: var(--f-body); font-size: 16px; line-height: 1.7; }
+.wrap { max-width: 760px; margin: 0 auto; padding-inline: 16px; padding-block: 28px 64px; display: flex; flex-direction: column; gap: 36px; }
+header { display: flex; flex-direction: column; gap: 8px; border-bottom: 2px solid var(--ink); padding-bottom: 18px; }
+.eyebrow { margin: 0; font-size: 13px; letter-spacing: .2em; color: var(--muted); }
+h1 { margin: 0; font-family: var(--f-display); font-weight: 900; font-size: 34px; line-height: 1.2; text-wrap: balance; }
+.lede { margin: 0; color: var(--muted); }
+h2 { margin: 0; font-family: var(--f-display); font-weight: 900; font-size: 24px; display: flex; align-items: baseline; gap: 12px; flex-wrap: wrap; }
+h2 small { font-family: var(--f-body); font-weight: 400; font-size: 14px; color: var(--muted); }
+section { display: flex; flex-direction: column; gap: 18px; }
+.verdict { background: var(--ink); color: var(--paper); padding: 18px 18px; display: flex; flex-direction: column; gap: 8px; }
+.verdict p { margin: 0; }
+.verdict b { font-family: var(--f-display); font-weight: 900; }
+.item { display: flex; flex-direction: column; gap: 10px; border-top: 1px solid var(--line); padding-top: 16px; }
+.item h3 { margin: 0; font-family: var(--f-display); font-weight: 700; font-size: 19px; line-height: 1.4; display: flex; gap: 10px; align-items: baseline; }
+.item h3 .no { font-family: var(--f-display); color: var(--zhu); font-variant-numeric: tabular-nums; flex: none; }
+.shots { display: flex; gap: 10px; flex-wrap: wrap; }
+.shots figure { margin: 0; flex: 1 1 260px; min-width: 0; display: flex; flex-direction: column; gap: 4px; }
+.shots figure.narrow { flex: 0 1 200px; }
+.shots img { display: block; width: 100%; max-width: 100%; border: 1px solid var(--line); }
+figcaption { font-size: 13px; color: var(--muted); }
+dl { margin: 0; display: grid; grid-template-columns: 3.2em minmax(0, 1fr); gap: 4px 10px; }
+dt { font-weight: 500; color: var(--zhu); }
+dd { margin: 0; min-width: 0; }
+.tag { display: inline-block; font-size: 12px; letter-spacing: .1em; padding: 0 6px; border: 1px solid var(--ink); }
+.good { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 14px; }
+.good figure { margin: 0; display: flex; flex-direction: column; gap: 6px; }
+.good img { display: block; width: 100%; border: 1px solid var(--line); }
+.good p { margin: 0; font-size: 15px; }
+@media (max-width: 560px) { .good { grid-template-columns: minmax(0, 1fr); } h1 { font-size: 28px; } }
+.next { background: var(--card); border: 2px solid var(--ink); padding: 16px; display: flex; flex-direction: column; gap: 8px; }
+.next ol { margin: 0; padding-left: 1.4em; display: flex; flex-direction: column; gap: 4px; }
+.foot { font-size: 13px; color: var(--muted); }
+</style>
+
+
+<main class="wrap">
+<header><p class="eyebrow">技能新象棋 · 美术总监（朱墨） · 10-10 下午</p><h1>美术第二轮总审</h1>
+<p class="lede">看的是最新版（dev c9cb6e1，加上待上线的 V10 棋子立体和影子）：大厅和各页、弹窗、对局、结算、复盘，电脑 1440×900、手机 390×844 共 90 张实拍。</p></header>
+<div class="verdict"><p><b>总评：大面已经齐了，剩下的是边角。</b>上午那 12 条都处理完（做了或你定了不改）。这次找出 9 条：先改 4 条（看得见的错），规范 3 条，小处 2 条。第 1 条是我上次交付的漏，我先认。</p><p>每条改之前照旧出改前改后的图上审批台，你点头才交 TD。</p></div>
+<section><h2>先改 <small>都是看得见的错，改法都很小</small></h2>
+<div class="item"><h3><span class="no">1</span>房间页有两个墨色按钮（我上次的漏）</h3><div class="shots"><figure class="narrow"><img src="img/m_wait.jpg" alt="手机房间页"><figcaption>手机房间页</figcaption></figure><figure class=""><img src="img/pc_wait.jpg" alt="电脑房间页"><figcaption>电脑房间页</figcaption></figure></div><dl><dt>问题</dt><dd>「开始」和「发送邀请链接」都是墨色实心，违反一页一个主按钮。上次交付单 V3 写了把「发送邀请链接」改空心，但那句样式优先级不够，没生效——是我当时没在房间页实拍验证。</dd><dt>建议</dt><dd>把那句样式加上页面前缀，一行。</dd><dt>归谁</dt><dd><span class="tag">美术总监</span> 出图，TD 接线</dd></dl></div>
+<div class="item"><h3><span class="no">2</span>手机技能栏弹出来压住自己的名牌和底部按钮</h3><div class="shots"><figure class=""><img src="img/m_sk.jpg" alt="手机：选中兵后弹出的技能按钮"><figcaption>手机：选中兵后弹出的技能按钮</figcaption></figure></div><dl><dt>问题</dt><dd>「召回良将」「确定」「取消」盖在刘邦名牌和「悔」「谱」按钮上，名牌上的字被切开。（这张是截图脚本摆的按钮，位置用的是游戏真样式。）</dd><dt>建议</dt><dd>技能栏整体往上抬到名牌上方，或名牌在技能栏打开时让出位置。</dd><dt>归谁</dt><dd><span class="tag">美术总监</span> 出图，TD 接线</dd></dl></div>
+<div class="item"><h3><span class="no">3</span>手机「轮到红方走棋」和对方喊话气泡叠在一起</h3><div class="shots"><figure class=""><img src="img/m_toast.jpg" alt="手机顶部"><figcaption>手机顶部</figcaption></figure></div><dl><dt>问题</dt><dd>提示条压在项羽的喊话气泡上，两段字互相挡。</dd><dt>建议</dt><dd>提示条和气泡错开（气泡下移一行，或提示条出现时气泡先让）。</dd><dt>归谁</dt><dd><span class="tag">美术总监</span> 出图，TD 接线</dd></dl></div>
+<div class="item"><h3><span class="no">4</span>退出、认输的确认框叠在暂停卡上，两层框露边</h3><div class="shots"><figure class=""><img src="img/m_exit.jpg" alt="手机：暂停 → 退出"><figcaption>手机：暂停 → 退出</figcaption></figure></div><dl><dt>问题</dt><dd>确认框下面还露着「暂停」卡的大字和按钮，像两张纸没对齐。</dd><dt>建议</dt><dd>弹确认时把暂停卡先藏起来，关掉确认再出来。</dd><dt>归谁</dt><dd><span class="tag">美术总监</span> 出图，TD 接线</dd></dl></div>
+</section>
+<section><h2>规范走样 <small>页面和别的页不是一套</small></h2>
+<div class="item"><h3><span class="no">5</span>房间页的主操作不像主操作，下半页空着</h3><div class="shots"><figure class=""><img src="img/pc_wait.jpg" alt="电脑房间页"><figcaption>电脑房间页</figcaption></figure></div><dl><dt>问题</dt><dd>别的页面（人机、本地、创建）主操作都是落在格线上的大圆子；房间页的「开始」是一个小方按钮，夹在一排按钮里。手机上按钮全挤在中间，底部空一大块、没有固定底栏。</dd><dt>建议</dt><dd>「开始」改成和其他页一样的主操作（电脑大圆子、手机底栏），其余按钮退成空心小按钮。</dd><dt>归谁</dt><dd><span class="tag">美术总监</span> 出图，TD 接线</dd></dl></div>
+<div class="item"><h3><span class="no">6</span>结算页按钮排成 3+1，「返回大厅」孤零零一个</h3><div class="shots"><figure class="narrow"><img src="img/m_end.jpg" alt="手机结算页"><figcaption>手机结算页</figcaption></figure></div><dl><dt>问题</dt><dd>四个按钮在手机上折成两行，第二行只有「返回大厅」。引语那行灰字在朱底上也偏暗（上次提过，你没定）。</dd><dt>建议</dt><dd>四个按钮排成两行两个；引语提亮成半透明米白。</dd><dt>归谁</dt><dd><span class="tag">美术总监</span> 出图，TD 接线</dd></dl></div>
+<div class="item"><h3><span class="no">7</span>加载页标题在朱底上几乎看不见</h3><div class="shots"><figure class="narrow"><img src="img/m_loading.jpg" alt="手机加载页"><figcaption>手机加载页</figcaption></figure></div><dl><dt>问题</dt><dd>「技能新象棋」是暗灰色，压在朱底上对比很低，像没加载出来。</dd><dt>建议</dt><dd>改成墨色或米白，和大厅的大字一致。</dd><dt>归谁</dt><dd><span class="tag">美术总监</span> 出图，TD 接线</dd></dl></div>
+</section>
+<section><h2>小处 <small>不急</small></h2>
+<div class="item"><h3><span class="no">8</span>电脑对局里的技能按钮太小、太灰</h3><div class="shots"><figure class=""><img src="img/pc_skillbtn.jpg" alt="电脑右下"><figcaption>电脑右下</figcaption></figure></div><dl><dt>问题</dt><dd>「召回良将」「四面楚歌」两个按钮小，暂时用不了时是深暖灰（你定的），但能用时也不够醒目，离右边一列圆按钮太近。</dd><dt>建议</dt><dd>按钮放大一档，和右边圆按钮拉开一点间距。</dd><dt>归谁</dt><dd><span class="tag">美术总监</span> 出图，TD 接线</dd></dl></div>
+<div class="item"><h3><span class="no">9</span>复盘没有步数时，分析面板是一大块空黑框</h3><div class="shots"><figure class=""><img src="img/m_replay.jpg" alt="手机复盘：0 步"><figcaption>手机复盘：0 步</figcaption></figure></div><dl><dt>问题</dt><dd>开局就认输、0 步的复盘，面板里只有「汉 — 楚 —」，空着一大块。</dd><dt>建议</dt><dd>0 步时只显示一行「这局没有走子，没有可分析的」，面板收矮。</dd><dt>归谁</dt><dd><span class="tag">美术总监</span> 出图，TD 接线</dd></dl></div>
+</section>
+<div class="next"><b>我建议的顺序</b><ol><li>1、3、4、7 一起做（都是一两行样式，一张图看完）</li><li>2、5、6 一起做（要动布局，各出一版对比图）</li><li>8、9 最后</li></ol></div>
+<p class="foot">截图环境是软件渲染、没装系统宋体；没看真机。技能特效（象腿那类）不在这份里，单独在拍板单 ad-05 问你由谁做。</p></main>

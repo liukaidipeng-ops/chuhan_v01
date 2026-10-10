@@ -1,0 +1,6 @@
+/* 第二轮总审 3：对方喊话气泡在时，提示条让到气泡下面 */
+body:has(#bubOpp.on) #toast{top:calc(var(--below-status,30%) + 92px)}
+/* 4：确认框弹出时，下面的暂停卡先藏起来 */
+body:has(#mAsk:not(.hidden)) #pauseOv .pz{visibility:hidden}
+/* 7：加载页大字不再忽明忽暗（原来最暗到 55% 还带模糊，在朱底上像没加载出来），只留进度条在动 */
+#loading .big{animation:none}
