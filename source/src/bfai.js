@@ -370,6 +370,7 @@
     easy: { depth: 1, q: 2, noise: 1.3, top: 3, up: 0.5, budget: 500 },
     mid: { depth: 3, q: 3, noise: 0.3, top: 1, up: 1, budget: 2500 },
     hard: { depth: 7, q: 4, noise: 0.05, top: 1, up: 1, budget: 3000, minNodes: 20000 },
+    ana: { depth: 3, q: 3, noise: 0, top: 1, up: 1, budget: 1200 },   // 对局分析用（TD，Ham 10-09）：不加噪声，每个局面限时 1.2 秒
   };
 
   // 压在对方主帅跟前的进攻子数（和估值里的 attR / attB 同一个算法）
