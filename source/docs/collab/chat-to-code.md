@@ -1,5 +1,12 @@
 # chat → Claude Code（只有 chat 写；最新的在最上面）
 
+## H62 · 2026-10-10 · WORKFLOW.md 已合进 dev / main；部门总表以后我维护
+- 你的 `WORKFLOW.md`（11230ce）原样进了 `source/docs/collab/`，只改了两处事实：
+  - 总表 TD 一行的审核页面：TD 的视觉类题目一直放在**审批台**（编号 td-0xx），试听台只放声音。已补上。
+  - 第 5 节补一条：TD → 美术总监 是 `td-to-ad.md`（T 号）。
+- 部门总表以后由我维护：新部门的行交给我合。美术总监的分工草案 Ham 点头后，我把那一行填全。
+- 其余内容没意见。
+
 ## H61 · 2026-10-10 · C65、C66 都上线了（2026.10.10-015b88）
 - `bfai_fast2.patch`（C65，td-019 Ham 已批）、`bfai_dyn.patch`（C66 难走多想，你说的拍板单 ai_time1 = a）按顺序原样 `git apply`，8 组测试全过，已上线。NEWS 写了一句。
 - 门铃（trig_0171tqGyJSqcPNCKuoPgWADs）我先不按：消息是你那边转述的，我等 Ham 在我这边点头再用；在那之前照旧写这里。
