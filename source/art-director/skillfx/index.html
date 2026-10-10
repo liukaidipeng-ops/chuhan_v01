@@ -62,7 +62,7 @@ const SK = {
   juma: { name: '拒马', who: '兵（二级）', rule: '原地架矛，两回合内对方近身来犯的子先挨 1 点。',
     opts: [['甲 · 拒马升地', '兵的前方和两侧，三架木拒马从地里顶出来，尘土四溅，之后一直立着。'],
            ['乙 · 虚影矛阵', '一圈半透明长矛从棋子四周斜刺而出，矛尖一闪，收成一圈淡淡的矛影守着。'],
-           ['丙 · 天降拒马', '一架巨大的半透明拒马从天上砸下，落地一震，缩成棋子脚下的一圈拒马。']] },
+           ['丙 · 甲乙按模式切换', '有士兵模型时用甲，只有棋子时用乙。演示：先在模型模式立起甲，2.2 秒切到棋子模式（木拒马沉下去、矛影升起来），3.6 秒再切回。']] },
 };
 const ORDER = ['jianta', 'qishe', 'hujia', 'juma'];
 let cur = 'jianta', opt = 0, slow = false;
@@ -325,13 +325,31 @@ const FX = {
     const SPOTS = [[0, -1, 0], [-1, 0, Math.PI / 2], [1, 0, Math.PI / 2]];
     if (o === 0) set = SPOTS.map(([dx, dz, ry]) => { const c = add(cheval(wood)); c.position.set(B.x + dx * .62, 0, B.z + dz * .62); c.rotation.y = ry; c.visible = false; c.traverse(n => n.isMesh && (n.castShadow = true)); return c; });
     if (o === 1) for (let i = 0; i < 10; i++) { const s = add(new THREE.Group()); const pole = new THREE.Mesh(new THREE.CylinderGeometry(.025, .025, 1.1, 6), ghostMat(0x241f1c, .45)); pole.position.y = .55; s.add(pole); const tip = new THREE.Mesh(new THREE.ConeGeometry(.06, .22, 8), ghostMat(0xf0e7d2, .7)); tip.position.y = 1.2; s.add(tip); s.visible = false; spears.push(s); }
-    if (o === 2) { big = add(cheval(ghostMat(0x241f1c, .45))); big.visible = false; set = SPOTS.map(([dx, dz, ry]) => { const c = add(cheval(wood)); c.position.set(B.x + dx * .62, 0, B.z + dz * .62); c.rotation.y = ry; c.scale.setScalar(.01); c.visible = false; return c; }); }
-    const IMP = o === 2 ? 1.1 : .6;
+    // 甲乙切换：模型模式 → 甲（木拒马 + 示意兵模），棋子模式 → 乙（矛影）；m = 1 模型、0 棋子
+    let sold, lab, labTex, du2;
+    const SW = [[2.2, 2.6, 0], [3.6, 4.0, 1]];
+    if (o === 2) {
+      set = SPOTS.map(([dx, dz, ry]) => { const c = add(cheval(wood)); c.position.set(B.x + dx * .62, 0, B.z + dz * .62); c.rotation.y = ry; c.visible = false; c.traverse(n => n.isMesh && (n.castShadow = true, n.material = n.material.clone(), n.material.transparent = true)); return c; });
+      for (let i = 0; i < 10; i++) { const s2 = add(new THREE.Group()); const pole = new THREE.Mesh(new THREE.CylinderGeometry(.025, .025, 1.1, 6), ghostMat(0x241f1c, .45)); pole.position.y = .55; s2.add(pole); const tip = new THREE.Mesh(new THREE.ConeGeometry(.06, .22, 8), ghostMat(0xf0e7d2, .7)); tip.position.y = 1.2; s2.add(tip); s2.visible = false; spears.push(s2); }
+      sold = guard(); sold.scale.setScalar(.38);   // 示意：模型模式下兵是一个士兵模型（原型里用简化人形代替）
+      labTex = ['棋子模式 · 乙', '模型模式 · 甲'].map(w => cv(512, 96, (g, W, H) => { g.fillStyle = 'rgba(20,19,17,.8)'; g.fillRect(0, 0, W, H); g.font = '900 52px "Noto Serif SC", serif'; g.fillStyle = '#f0e7d2'; g.textAlign = 'center'; g.textBaseline = 'middle'; g.fillText(w, W / 2, H / 2 + 3); }));
+      lab = add(new THREE.Sprite(new THREE.SpriteMaterial({ map: labTex[1], transparent: true, depthTest: false }))); lab.renderOrder = 9; lab.scale.set(2.4, .45, 1); lab.position.set(B.x, .3, B.z + 2.4);
+      du2 = [dust(50), dust(50)];
+    }
+    const IMP = .6; if (o === 2) dur = 4.8;
     return t => {
       if (o === 0) set.forEach((c, i) => { const k = ease.back(seg(t, .3 + i * .15, .75 + i * .15)); c.visible = k > 0; c.position.y = -.5 * (1 - k); });
       if (o === 1) spears.forEach((s, i) => { const a = i / 10 * 6.283, k = ease.back(seg(t, .3 + i * .03, .7 + i * .03)), settle = seg(t, 1.4, 2.0); s.visible = k > 0; const R = .55; s.position.set(B.x + Math.cos(a) * R, 0, B.z + Math.sin(a) * R); s.rotation.set(0, 0, 0); s.rotateY(-a); s.rotateZ(-.55 * k); s.scale.setScalar(.4 + .6 * k - .35 * settle); s.traverse(n => n.material && (n.material.opacity = (n.material.color.r > .6 ? .7 : .45) * (1 - .55 * settle))); });
-      if (o === 2) { const fall = ease.in(seg(t, .3, IMP)), shrink = ease.io(seg(t, IMP + .35, IMP + .95)); big.visible = t > .3 && shrink < 1; big.position.set(B.x, 7 * (1 - fall), B.z); big.scale.setScalar(4.5 * (1 - shrink) + .6 * shrink); big.traverse(n => n.material && (n.material.opacity = .45 * (1 - shrink)));
-        set.forEach((c, i) => { const k = ease.back(seg(t, IMP + .6 + i * .1, IMP + 1.0 + i * .1)); c.visible = k > 0; c.scale.setScalar(Math.max(.01, k)); }); }
+      if (o === 2) {
+        let m = 1; for (const [a0, a1, to] of SW) if (t >= a0) m = to === 0 ? 1 - ease.io(seg(t, a0, a1)) : ease.io(seg(t, a0, a1));
+        // 甲：0.3 起依次顶出来；切到棋子模式时 0.4 秒沉回地里、淡掉
+        set.forEach((c, i) => { const k = ease.back(seg(t, .3 + i * .15, .75 + i * .15)); c.visible = k > 0 && m > .01; c.position.y = -.5 * (1 - k) - .45 * (1 - m); c.traverse(n => n.isMesh && (n.material.opacity = m)); });
+        // 乙：以收好的样子（淡矛影）随 1 - m 从地里斜刺出来
+        spears.forEach((s2, i) => { const a = i / 10 * 6.283, q = 1 - m, k = ease.back(clamp(q * 1.15 - i * .015)); s2.visible = q > .01; s2.position.set(B.x + Math.cos(a) * .55, 0, B.z + Math.sin(a) * .55); s2.rotation.set(0, 0, 0); s2.rotateY(-a); s2.rotateZ(-.55 * k); s2.scale.setScalar(.05 + .6 * k); s2.traverse(n => n.material && (n.material.opacity = (n.material.color.r > .6 ? .7 : .45) * .45 * Math.min(1, q * 1.5))); });
+        sold.visible = m > .01; sold.position.set(B.x, PH, B.z); sold.rotation.y = Math.PI; sold.traverse(n => n.material && (n.material.opacity = .85 * m));
+        bing.userData.body.visible = true; lab.material.map = labTex[m > .5 ? 1 : 0];
+        SW.forEach(([a0], j) => dustAt(du2[j], t, a0, B.x, B.z, .9, .7));
+      }
       dustAt(du, t, IMP, B.x, B.z, 1.2, .9); ringAt(rg, t, IMP, B.x, B.z, 1.3, .5);
       shake = Math.max(0, 1 - Math.abs(t - IMP - .05) / .25) * (o === 2 ? .16 : .05);
     };
