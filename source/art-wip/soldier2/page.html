@@ -180,7 +180,7 @@ canvas{width:100%;max-width:100%;aspect-ratio:16/9;display:block;background:#2b2
     // 汉兵：弓步双手长刺——后手在胯边推，前手在矛杆中段；身子压低前探，拧腰送肩
     hanThrust: { ...base, crouch: 0.2, lean: 0.55, twist: -0.45, sway: -0.05, fL: 0.75, fR: -0.55, wp: [0.18, 0.95, 0.12], wd: [-0.04, -0.05], g: 0.15, two: true, g2: 0.55, hx: 0.15, hy: 0.2, fyL: -0.1, fyR: 0.5 },
     // 楚卒：压低身子举盾，戟从盾上架出去，准备反刺
-    chuGuard: { ...base, crouch: 0.22, lean: 0.32, twist: 0.35, sway: 0.03, fL: 0.42, fR: -0.38, wp: [0.32, 1.08, 0.12], wd: [0.05, 0.12], g: 0.75, sp: [-0.16, 1.15, 0.42], sd: [0.08, 0.05], hx: -0.05, fyR: 0.6 },
+    chuGuard: { ...base, crouch: 0.22, lean: 0.32, twist: 0.35, sway: 0.03, fL: 0.42, fR: -0.38, wp: [0.32, 1.08, 0.12], wd: [0.2, 0.17], g: 0.75, sp: [-0.16, 1.15, 0.42], sd: [0.08, 0.05], hx: -0.05, fyR: 0.6 },
     hanIdle: { ...base, fL: 0.1, fR: -0.1, wp: [0.26, 1.0, 0.16], wd: [0.02, 1.4], g: 1.0, sp: [-0.3, 1.0, 0.26], sd: [-0.2, 0] },
     chuIdle: { ...base, fL: 0.1, fR: -0.1, wp: [0.26, 1.0, 0.16], wd: [0.02, 1.4], g: 1.0, sp: [-0.3, 1.0, 0.26], sd: [-0.2, 0] },
   };
@@ -192,7 +192,7 @@ canvas{width:100%;max-width:100%;aspect-ratio:16/9;display:block;background:#2b2
       const A = new Soldier2('r'), D = new Soldier2('b');
       A.root.position.set(-1.25, 0, 0); A.root.rotation.y = PI / 2; D.root.position.set(1.15, 0, 0); D.root.rotation.y = -PI / 2;
       A.pose(POSES.hanThrust); D.pose(POSES.chuGuard); S.add(A.root, D.root); figs.push(A, D);
-      cam.fov = 26; cam.position.set(2.6, 1.05, 4.6); cam.lookAt(-0.05, 0.95, 0);   // 斜着看：楚卒的盾面、汉兵的正脸都看得到
+      cam.fov = 26; cam.position.set(3.5, 1.15, 3.7); cam.lookAt(-0.05, 0.95, 0);   // 斜着看：楚卒的盾面、汉兵的正脸都看得到
     } else {
       const xs = [-2.1, -1.4, -0.7, 0.7, 1.4, 2.1], ys = [0, PI / 2, PI, 0, PI / 2, PI];
       xs.forEach((x, i) => { const f = new Soldier2(i < 3 ? 'r' : 'b'); f.root.position.set(x, 0, 0); f.root.rotation.y = ys[i]; f.pose(i < 3 ? POSES.hanIdle : POSES.chuIdle); S.add(f.root); figs.push(f); });
