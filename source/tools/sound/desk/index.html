@@ -257,10 +257,10 @@ h1{font:600 26px/1.25 var(--serif);margin:0;letter-spacing:.06em;text-wrap:balan
     if (!mcp) throw { code: 'not_granted' };
     let id = NOTIFY;
     if (db) try { const d = await db.doc('cfg/notify').get(); const x = d.exists && d.data(); if (x && x.trigger) id = String(x.trigger); } catch (e) { }
-    // 先把提醒的时间改到一分钟后（这条路实测可靠，到点一定送到）；改不了再试“立刻按响”
-    try { await mcp.callTool(SRV, 'update_trigger', { trigger_id: id, run_once_at: new Date(Date.now() + 60000).toISOString(), enabled: true }, { cache: false }); return 'soon'; }
+    // 先“立刻按响”，当场送到；按不响再退回老办法：把提醒的时间改到一分钟后
+    try { await mcp.callTool(SRV, 'fire_trigger', { trigger_id: id, text: msg }, { cache: false }); return 'now'; }
     catch (e) {
-      if (e && (e.code === 'tool_error' || e.code === 'bad_request')) { await mcp.callTool(SRV, 'fire_trigger', { trigger_id: id, text: msg }, { cache: false }); return 'now'; }
+      if (e && (e.code === 'tool_error' || e.code === 'bad_request')) { await mcp.callTool(SRV, 'update_trigger', { trigger_id: id, run_once_at: new Date(Date.now() + 60000).toISOString(), enabled: true }, { cache: false }); return 'soon'; }
       throw e;
     }
   }
