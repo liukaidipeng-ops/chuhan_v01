@@ -74,14 +74,8 @@ const BFX = (() => {
   // 场边全被震倒：两边军营里的兵、观战席上的人
   function crowdDown(c) { try { Camp.quake(c); } catch (e) { } try { Spect.quake(c); } catch (e) { } }
   // 碎石：从震源往四周崩出去
-  const rockGeo = new THREE.DodecahedronGeometry(0.06); rockGeo.userData.keep = true;
-  function rubble(c, n = 16, r = 1, power = 1) {
-    for (let i = 0; i < (Core.quality === 'low' ? Math.ceil(n / 2) : n); i++) {
-      const a = Math.random() * 6.28, o = new THREE.Mesh(rockGeo, Core.toon(i % 3 ? 0x6b6257 : 0x8a7f70));
-      o.scale.setScalar(R(0.5, 1.7)); o.position.copy(c).add(new V3(Math.cos(a) * r * R(0.2, 0.8), 0.08, Math.sin(a) * r * R(0.2, 0.8)));
-      Fx.throwObj(o, new V3(Math.cos(a) * R(1, 3.2) * power, R(2.2, 5.5) * power, Math.sin(a) * R(1, 3.2) * power), { life: R(1.2, 2.2), ink: false });
-    }
-  }
+  //   （挪到 Squads.rubble 了，战象正面踩也要崩——美术 M25）
+  const rubble = (...a) => Squads.rubble(...a);
   // 被震飞 / 炸飞：棋子模式下棋子碎成块飞出去；模型模式下换成那队兵的模型，被掀飞、断肢落地留血
   const modelKill = e => (Squads.Stand.on || Fx.level !== 'low') && e.t && e.t !== 'k';
   function blowAway(e, from, power = 1.4, burnt = false, hit) {
@@ -130,7 +124,7 @@ const BFX = (() => {
       setTimeout(() => { P.plume(q, out.clone().negate(), R(0.45, 0.7), 2); P.dust(q, 3, out.clone().negate(), R(0.4, 0.6)); if (i % 3 === 0) P.smoke(q.clone().setY(TOP + 0.1), 2, 0.9, 0x8b7e68); }, (rr - 0.7) * 160);
     }
     P.dust(c, 24, null, 0.6);
-    rubble(c.clone().setY(TOP), 22, 1.2, 1.1);
+    rubble(c.clone().setY(TOP), 44, 1.4, 1.35);   // 践踏总会崩出大量碎石（美术 M25，Ham 10-10）
     crowdDown(c);
     const hs = ev.filter(e => (e.e === 'hit' || e.e === 'kill') && e.how === 'jianta');
     await sleep(0.12);

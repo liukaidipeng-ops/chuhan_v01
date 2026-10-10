@@ -1099,7 +1099,9 @@ const Board = (() => {
   function enamelFace(s, t, wire) {
     const ch = XQ.NAMES[s][t], key = s + ch + wire;
     if (enamelCache.has(key)) return enamelCache.get(key);
-    const N = LOWQ() ? 256 : 384, c = N / 2, lw = N * 0.028, gp = Face.path(ch, N);   // 字形和木棋子同一套宋体、同一大小同一位置（face.js，美术 M21）
+    const N = LOWQ() ? 256 : 384, c = N / 2, lw = N * 0.028, gp = new Path2D(); gp.addPath(Face.path(ch, N));   // 字形和木棋子同一套宋体、同一大小同一位置（face.js，美术 M21）
+    // 汉楚色圈（美术 M23，审批台 081 选甲）：字外一道细珐琅圈，和字同一套丝、同一种釉
+    gp.moveTo(c + N * 0.394, c); gp.arc(c, c, N * 0.394, 0, Math.PI * 2); gp.moveTo(c + N * 0.374, c); gp.arc(c, c, N * 0.374, 0, Math.PI * 2, true);
     const shape = (g, strokeCol, fillCol) => {
       g.lineJoin = 'round';
       if (strokeCol) { g.strokeStyle = strokeCol; g.lineWidth = lw; g.stroke(gp); }
@@ -1111,7 +1113,7 @@ const Board = (() => {
       g.save(); g.translate(N * 0.006, N * 0.01); shape(g, 'rgba(30,18,8,.55)', 'rgba(30,18,8,.55)'); g.restore();
       shape(g, wire === 'silver' ? '#e9ebf0' : '#ffd987', null);
       // 釉面：上亮下深的渐变（像微微下凹的釉）
-      const gr = g.createLinearGradient(0, c - N * 0.3, 0, c + N * 0.3);
+      const gr = g.createLinearGradient(0, c - N * 0.47, 0, c + N * 0.47);   // 范围放大到圈（M23）
       if (s === 'r') { gr.addColorStop(0, '#c42a17'); gr.addColorStop(0.5, '#951709'); gr.addColorStop(1, '#640c04'); }
       else { gr.addColorStop(0, '#2c2826'); gr.addColorStop(0.5, '#121010'); gr.addColorStop(1, '#060505'); }
       shape(g, null, gr);
