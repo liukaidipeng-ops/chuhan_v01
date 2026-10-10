@@ -1,5 +1,5 @@
 {
- "batch": "b38",
+ "batch": "b41",
  "list_voices": false,
  "hosts": [
   "https://api.minimax.cn",
@@ -13,195 +13,291 @@
  ],
  "jobs": [
   {
-   "id": "sol_r_t1",
+   "id": "cheer_0_a",
    "voice": "Spanish_PowerfulSoldier",
-   "text": "楚狗，过来送死！",
-   "emotion": "angry",
-   "speed": 0.9,
-   "pitch": 0,
-   "vol": 1,
-   "modify": {
-    "intensity": -90
-   }
-  },
-  {
-   "id": "sol_r_t2",
-   "voice": "Spanish_PowerfulSoldier",
-   "text": "就这点力气？再来啊！",
-   "emotion": "angry",
-   "speed": 0.9,
-   "pitch": 0,
-   "vol": 1,
-   "modify": {
-    "intensity": -90
-   }
-  },
-  {
-   "id": "sol_r_t3",
-   "voice": "Spanish_PowerfulSoldier",
-   "text": "这盾，你破不了！",
-   "emotion": "angry",
-   "speed": 0.9,
-   "pitch": 0,
-   "vol": 1,
-   "modify": {
-    "intensity": -90
-   }
-  },
-  {
-   "id": "sol_r_f1",
-   "voice": "Spanish_PowerfulSoldier",
-   "text": "杀——！！",
-   "emotion": "angry",
-   "speed": 0.9,
-   "pitch": 0,
-   "vol": 1,
-   "modify": {
-    "intensity": -90
-   }
-  },
-  {
-   "id": "sol_r_f2",
-   "voice": "Spanish_PowerfulSoldier",
-   "text": "给我刺！！",
-   "emotion": "angry",
-   "speed": 0.9,
-   "pitch": 0,
-   "vol": 1,
-   "modify": {
-    "intensity": -90
-   }
-  },
-  {
-   "id": "sol_r_f3",
-   "voice": "Spanish_PowerfulSoldier",
-   "text": "顶住！谁也别退！！",
-   "emotion": "angry",
-   "speed": 0.9,
-   "pitch": 0,
-   "vol": 1,
-   "modify": {
-    "intensity": -90
-   }
-  },
-  {
-   "id": "sol_r_c1",
-   "voice": "Spanish_PowerfulSoldier",
-   "text": "倒了！哈哈哈！",
+   "text": "嗷——！！",
    "emotion": "happy",
-   "speed": 0.95,
+   "speed": 1,
    "pitch": 0,
    "vol": 1,
    "modify": {
-    "intensity": -90
+    "intensity": -80
    }
   },
   {
-   "id": "sol_r_c2",
+   "id": "cheer_0_o",
    "voice": "Spanish_PowerfulSoldier",
-   "text": "汉军威武！！",
+   "text": "哦吼——！！",
    "emotion": "happy",
-   "speed": 0.95,
+   "speed": 1,
    "pitch": 0,
    "vol": 1,
    "modify": {
-    "intensity": -90
+    "intensity": -80
    }
   },
   {
-   "id": "sol_b_t1",
-   "voice": "Spanish_PowerfulVeteran",
-   "text": "汉家小儿，也敢挡我？",
-   "emotion": "angry",
-   "speed": 0.9,
-   "pitch": 0,
-   "vol": 1,
-   "modify": {
-    "intensity": -90
-   }
-  },
-  {
-   "id": "sol_b_t2",
-   "voice": "Spanish_PowerfulVeteran",
-   "text": "软绵绵的，没吃饭吗！",
-   "emotion": "angry",
-   "speed": 0.9,
-   "pitch": 0,
-   "vol": 1,
-   "modify": {
-    "intensity": -90
-   }
-  },
-  {
-   "id": "sol_b_t3",
-   "voice": "Spanish_PowerfulVeteran",
-   "text": "躲在盾后面算什么本事！",
-   "emotion": "angry",
-   "speed": 0.9,
-   "pitch": 0,
-   "vol": 1,
-   "modify": {
-    "intensity": -90
-   }
-  },
-  {
-   "id": "sol_b_f1",
-   "voice": "Spanish_PowerfulVeteran",
-   "text": "杀——！！",
-   "emotion": "angry",
-   "speed": 0.9,
-   "pitch": 0,
-   "vol": 1,
-   "modify": {
-    "intensity": -90
-   }
-  },
-  {
-   "id": "sol_b_f2",
-   "voice": "Spanish_PowerfulVeteran",
-   "text": "破他的盾！！",
-   "emotion": "angry",
-   "speed": 0.9,
-   "pitch": 0,
-   "vol": 1,
-   "modify": {
-    "intensity": -90
-   }
-  },
-  {
-   "id": "sol_b_f3",
-   "voice": "Spanish_PowerfulVeteran",
-   "text": "霸王在上，冲！！",
-   "emotion": "angry",
-   "speed": 0.9,
-   "pitch": 0,
-   "vol": 1,
-   "modify": {
-    "intensity": -90
-   }
-  },
-  {
-   "id": "sol_b_c1",
-   "voice": "Spanish_PowerfulVeteran",
-   "text": "哈哈哈，又倒一个！",
+   "id": "cheer_0_h",
+   "voice": "Spanish_PowerfulSoldier",
+   "text": "哈哈哈哈！",
    "emotion": "happy",
-   "speed": 0.95,
+   "speed": 1,
    "pitch": 0,
    "vol": 1,
    "modify": {
-    "intensity": -90
+    "intensity": -80
    }
   },
   {
-   "id": "sol_b_c2",
-   "voice": "Spanish_PowerfulVeteran",
-   "text": "大楚威武！！",
+   "id": "cheer_0_y",
+   "voice": "Spanish_PowerfulSoldier",
+   "text": "喔——！！",
    "emotion": "happy",
-   "speed": 0.95,
+   "speed": 1,
    "pitch": 0,
    "vol": 1,
    "modify": {
-    "intensity": -90
+    "intensity": -80
+   }
+  },
+  {
+   "id": "cheer_1_a",
+   "voice": "Spanish_PowerfulVeteran",
+   "text": "嗷——！！",
+   "emotion": "happy",
+   "speed": 1,
+   "pitch": 0,
+   "vol": 1,
+   "modify": {
+    "intensity": -80
+   }
+  },
+  {
+   "id": "cheer_1_o",
+   "voice": "Spanish_PowerfulVeteran",
+   "text": "哦吼——！！",
+   "emotion": "happy",
+   "speed": 1,
+   "pitch": 0,
+   "vol": 1,
+   "modify": {
+    "intensity": -80
+   }
+  },
+  {
+   "id": "cheer_1_h",
+   "voice": "Spanish_PowerfulVeteran",
+   "text": "哈哈哈哈！",
+   "emotion": "happy",
+   "speed": 1,
+   "pitch": 0,
+   "vol": 1,
+   "modify": {
+    "intensity": -80
+   }
+  },
+  {
+   "id": "cheer_1_y",
+   "voice": "Spanish_PowerfulVeteran",
+   "text": "喔——！！",
+   "emotion": "happy",
+   "speed": 1,
+   "pitch": 0,
+   "vol": 1,
+   "modify": {
+    "intensity": -80
+   }
+  },
+  {
+   "id": "cheer_2_a",
+   "voice": "Spanish_PassionateWarrior",
+   "text": "嗷——！！",
+   "emotion": "happy",
+   "speed": 1,
+   "pitch": 0,
+   "vol": 1,
+   "modify": {
+    "intensity": -80
+   }
+  },
+  {
+   "id": "cheer_2_o",
+   "voice": "Spanish_PassionateWarrior",
+   "text": "哦吼——！！",
+   "emotion": "happy",
+   "speed": 1,
+   "pitch": 0,
+   "vol": 1,
+   "modify": {
+    "intensity": -80
+   }
+  },
+  {
+   "id": "cheer_2_h",
+   "voice": "Spanish_PassionateWarrior",
+   "text": "哈哈哈哈！",
+   "emotion": "happy",
+   "speed": 1,
+   "pitch": 0,
+   "vol": 1,
+   "modify": {
+    "intensity": -80
+   }
+  },
+  {
+   "id": "cheer_2_y",
+   "voice": "Spanish_PassionateWarrior",
+   "text": "喔——！！",
+   "emotion": "happy",
+   "speed": 1,
+   "pitch": 0,
+   "vol": 1,
+   "modify": {
+    "intensity": -80
+   }
+  },
+  {
+   "id": "cheer_3_a",
+   "voice": "Spanish_AngryMan",
+   "text": "嗷——！！",
+   "emotion": "happy",
+   "speed": 1,
+   "pitch": 0,
+   "vol": 1,
+   "modify": {
+    "intensity": -80
+   }
+  },
+  {
+   "id": "cheer_3_o",
+   "voice": "Spanish_AngryMan",
+   "text": "哦吼——！！",
+   "emotion": "happy",
+   "speed": 1,
+   "pitch": 0,
+   "vol": 1,
+   "modify": {
+    "intensity": -80
+   }
+  },
+  {
+   "id": "cheer_3_h",
+   "voice": "Spanish_AngryMan",
+   "text": "哈哈哈哈！",
+   "emotion": "happy",
+   "speed": 1,
+   "pitch": 0,
+   "vol": 1,
+   "modify": {
+    "intensity": -80
+   }
+  },
+  {
+   "id": "cheer_3_y",
+   "voice": "Spanish_AngryMan",
+   "text": "喔——！！",
+   "emotion": "happy",
+   "speed": 1,
+   "pitch": 0,
+   "vol": 1,
+   "modify": {
+    "intensity": -80
+   }
+  },
+  {
+   "id": "cheer_4_a",
+   "voice": "Portuguese_AngryMan",
+   "text": "嗷——！！",
+   "emotion": "happy",
+   "speed": 1,
+   "pitch": 0,
+   "vol": 1,
+   "modify": {
+    "intensity": -80
+   }
+  },
+  {
+   "id": "cheer_4_o",
+   "voice": "Portuguese_AngryMan",
+   "text": "哦吼——！！",
+   "emotion": "happy",
+   "speed": 1,
+   "pitch": 0,
+   "vol": 1,
+   "modify": {
+    "intensity": -80
+   }
+  },
+  {
+   "id": "cheer_4_h",
+   "voice": "Portuguese_AngryMan",
+   "text": "哈哈哈哈！",
+   "emotion": "happy",
+   "speed": 1,
+   "pitch": 0,
+   "vol": 1,
+   "modify": {
+    "intensity": -80
+   }
+  },
+  {
+   "id": "cheer_4_y",
+   "voice": "Portuguese_AngryMan",
+   "text": "喔——！！",
+   "emotion": "happy",
+   "speed": 1,
+   "pitch": 0,
+   "vol": 1,
+   "modify": {
+    "intensity": -80
+   }
+  },
+  {
+   "id": "cheer_5_a",
+   "voice": "Japanese_GenerousIzakayaOwner",
+   "text": "嗷——！！",
+   "emotion": "happy",
+   "speed": 1,
+   "pitch": 0,
+   "vol": 1,
+   "modify": {
+    "intensity": -80
+   }
+  },
+  {
+   "id": "cheer_5_o",
+   "voice": "Japanese_GenerousIzakayaOwner",
+   "text": "哦吼——！！",
+   "emotion": "happy",
+   "speed": 1,
+   "pitch": 0,
+   "vol": 1,
+   "modify": {
+    "intensity": -80
+   }
+  },
+  {
+   "id": "cheer_5_h",
+   "voice": "Japanese_GenerousIzakayaOwner",
+   "text": "哈哈哈哈！",
+   "emotion": "happy",
+   "speed": 1,
+   "pitch": 0,
+   "vol": 1,
+   "modify": {
+    "intensity": -80
+   }
+  },
+  {
+   "id": "cheer_5_y",
+   "voice": "Japanese_GenerousIzakayaOwner",
+   "text": "喔——！！",
+   "emotion": "happy",
+   "speed": 1,
+   "pitch": 0,
+   "vol": 1,
+   "modify": {
+    "intensity": -80
    }
   }
  ],
