@@ -102,7 +102,8 @@ textarea:focus { border-color: var(--ink); }
 .seal { width: 40px; height: 40px; display: grid; place-items: center; font-family: var(--display); font-weight: 900; font-size: 22px; line-height: 1; border: 2px solid currentColor; transform: rotate(-6deg); }
 .seal.approved { color: var(--zhu); background: var(--zhu-soft); } .seal.changes { color: var(--amber); background: var(--amber-soft); } .seal.chosen { color: var(--ok); background: var(--ok-soft); }
 .row .t { margin: 0; font-weight: 700; } .row .r { margin: 0; font-size: 14px; color: var(--ink2); white-space: pre-wrap; overflow-wrap: anywhere; }
-.row .told { color: var(--ok); font-size: 13px; }
+.row .told { color: var(--ink2); font-size: 13px; }
+.row .acked { color: var(--ok); font-size: 14px; font-weight: 500; }
 .row .when { font-size: 13px; color: var(--ink2); font-variant-numeric: tabular-nums; }
 .side { display: flex; flex-direction: column; align-items: flex-end; gap: 6px; }
 .foot { margin: 0; font-size: 13px; color: var(--ink2); }
@@ -116,7 +117,7 @@ textarea:focus { border-color: var(--ink); }
     <div><p class="eyebrow">技能新象棋 · 美术总监（朱墨）</p><h1>美术总监审批台</h1></div>
     <div class="count" id="count" aria-live="polite"><span class="n" id="n">–</span><span class="lbl" id="nl">正在取待批事项</span></div>
   </header>
-  <p class="how">界面、棋盘、棋子的出图都放在这里。每件先点选（通过、要改、或选一个方案），想补充就写备注、附截图；全部看完点底部「全部提交」，一次交齐，只通知美术总监一次。没批完也可以先交点选过的。图可以点开放大；批完的盖印沉到下面，点错了可以撤回。</p>
+  <p class="how">界面、棋盘、棋子的出图都放在这里。每件先点选（通过、要改、或选一个方案），想补充就写备注、附截图；全部看完点底部「全部提交」，一次交齐，只通知美术总监一次。没批完也可以先交点选过的。美术总监收到后，每件下面会亮出「✓ 美术总监已收到」和它的回话。图可以点开放大；批完的盖印沉到下面，点错了可以撤回。</p>
   <section class="list" id="pending" aria-label="等你审批"></section>
   <div class="empty" id="empty" hidden><b>都批完了</b>现在没有等你批的图。</div>
   <section class="done-wrap" id="doneWrap" hidden><h2>已处理</h2><div id="done"></div></section>
@@ -450,7 +451,9 @@ textarea:focus { border-color: var(--ink); }
     else if (it.note) res += '\n备注：' + it.note;
     mid.append(el('p', 't', (it.dept ? it.dept + ' · ' : '') + (it.title || '')), el('p', 'r', res));
     if (Array.isArray(it.noteImages) && it.noteImages.length) mid.appendChild(thumbs(it.noteImages));
-    if (told[id]) mid.appendChild(el('p', 'r told', told[id]));
+    // 美术总监读到这一条后会写回 ack（时间 + 一句话），页面实时显示；没写回之前显示「等确认」
+    if (it.ack && it.ack.at && (!it.decidedAt || it.ack.at >= it.decidedAt)) mid.appendChild(el('p', 'r acked', '✓ 美术总监已收到 · ' + when(it.ack.at) + (it.ack.text ? '：' + it.ack.text : '')));
+    else if (told[id] || (it.notify && it.notify.ok)) mid.appendChild(el('p', 'r told', (told[id] || '已通知美术总监。') + ' 等它确认收到…'));
     if (st.err) mid.appendChild(el('p', 'err', st.err));
     const undo = el('button', 'b quiet', '撤回'); undo.type = 'button'; undo.disabled = allBusy; undo.addEventListener('click', () => reopen(id));
     side.append(el('span', 'when', when(it.decidedAt)), undo); r.append(mid, side);
