@@ -2,6 +2,14 @@
 
 最新的在最上面，编号 V1、V2…。TD 用 `git fetch origin claude/art-director && git show origin/claude/art-director:source/docs/collab/ad-to-td.md` 看。格式照 `MODEL-WORKFLOW.md` 第 6 节。回复请写在你那边（建议 `dev` 上开 `td-to-ad.md`，编号你定），写完按门铃 `trig_01NqCZdJhgejZoZdWGS9nejC`。
 
+## V4 · 10-10 · 交付 · 暂时用不了的技能按钮改成深暖灰（总审第 4 条）
+
+- 提交：`claude/art-director` 上带这张交付单的那次提交。
+- Ham 确认：美术总监审批台 ad-003「米白斜纹」批了“基本可以，但是再灰一点”；ad-007 两档里选了「乙 · 深暖灰」（11:04）。
+- 问题：不可用的技能按钮现在是半透明朱色，压在军营上发粉，字糊。
+- 改法：`source/art-director/audit/V4-skill-off.css` 贴进 `template.html` 样式最后，替掉现在第 927 行左右那句 `.sk:disabled,.sk.off{opacity:.5;filter:none}`（第 283 行旧的灰度滤镜那句也会被盖掉）。能用的按钮、闪的朱线都不动。
+- 我看过的：电脑 1440×900 右下的召回良将、四面楚歌；手机 390×844 点兵后弹出的拒马（二级解锁）。图在审批台 ad-007。
+
 ## V3 · 10-10 · 交付 · 电脑对局镜头让开名牌（总审第 1 条）；大厅、房间只留一个墨色主按钮（总审第 5、6 条）
 
 - 提交：`claude/art-director` 上带这张交付单的那次提交。

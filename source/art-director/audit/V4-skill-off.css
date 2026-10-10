@@ -1,0 +1,3 @@
+/* 美术总监 V4（Ham 审批台 ad-007 选乙「深暖灰」）：暂时用不了的技能按钮——不靠透明度，深暖灰底、细斜纹、字照样看得清 */
+.sk:disabled,.sk.off{opacity:1;filter:none;background:#b9b2a4;background-image:repeating-linear-gradient(-45deg,transparent 0 6px,rgba(20,19,17,.08) 6px 7px);color:#4a453d;box-shadow:inset 0 0 0 1.5px #6b6458;outline:none;animation:none}
+.sk:disabled small,.sk.off small{color:#4a453d;opacity:.85}
