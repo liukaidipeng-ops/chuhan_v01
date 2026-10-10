@@ -1315,6 +1315,17 @@ html:has(#endcard:not(.hidden)),html:has(#endcard:not(.hidden)) body,html:has(#e
   #pHall:not(.hidden){grid-template-columns:minmax(0,1fr) 200px;grid-template-rows:56px minmax(0,1fr);column-gap:40px}
   #lobby .lv{margin-bottom:52px}
 }
+/* 手机主界面、联机大厅底边对齐（美术总监 V1 第 3 条，Ham 圈出来的两处） */
+@media (max-width:640px){
+  #pMain{padding-bottom:calc(24px + var(--safe-b))!important}
+  #pMain .menu .btn:last-child{margin-bottom:0}
+  #pHall .e-body{display:flex;flex-direction:column}
+  #lobby #hallList{flex:1 1 auto;display:flex;flex-direction:column;overflow:auto}
+  #lobby #hallList li{flex:none}
+  #lobby #hallList:after{content:"";flex:1 0 0;min-height:0;border:solid var(--c);border-width:0 2px;background:repeating-linear-gradient(to top,transparent 0 90px,var(--c) 90px 92px)}
+  #lobby #pHall.pane .e-bar{margin-top:0}
+  #lobby #pHall.pane h3{border-bottom-width:0}
+}
 </style>
 </head>
 <body>
