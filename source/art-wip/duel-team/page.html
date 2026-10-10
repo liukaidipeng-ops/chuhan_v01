@@ -25,6 +25,7 @@ h2{margin:0 0 6px;font:900 18px/1.3 var(--ef);letter-spacing:.1em}
   <p class="lead">一对一用保底版。二级 2v2 拼配合：一人举盾掩护、一人从他盾边刺出。三级 3v3 拼阵型：前两面盾并成墙整排推进，后一人长矛从肩上越过去刺，盾墙对撞再齐刺。</p>
   <div class="ctl" role="group" aria-label="几对几"><span>等级</span><button data-s="2v2" class="on">二级 2v2</button><button data-s="3v3">三级 3v3</button></div>
   <div class="ctl" role="group" aria-label="速度"><span>速度</span><button data-r="1" class="on">正常</button><button data-r="0.3">慢放</button><button data-r="0">暂停</button></div>
+  <div class="ctl" role="group" aria-label="结果"><span>结果</span><button data-k="0" class="on">扣血</button><button data-k="1">击杀</button></div>
   <canvas id="cv"></canvas>
   <div class="beat" id="beat" aria-live="polite"></div>
   </div>
@@ -261,7 +262,7 @@ h2{margin:0 0 6px;font:900 18px/1.3 var(--ef);letter-spacing:.1em}
           [5.2, {}],
         ] },
       ],
-      stab: { 0: [[1.78 * K12, 2.08 * K12]] },
+      stab: { 0: [[1.78 * K12, 2.08 * K12]] }, killAt: [1],
       ev: [[1.66 * K12, 'parry', 0, 1], [1.84 * K12, 'hit', 0, 1], [2.82 * K12, 'thud', 0], [3.12 * K12, 'thud', 0], [2.44, 'clank', 2, 3], [2.5, 'dust', 3]],
       cam: [[0, { az: 0.2, r: 6.8, h: 4.6 }], [1.5, { az: 0.15, r: 6.4, h: 4.4 }], [1.85, { az: 0.4, r: 6.4, h: 4.8 }], [2.6, { az: 0.45, r: 6.6, h: 4.8 }], [3.2, { az: -0.3, r: 6.8, h: 4.6 }], [5.2, { az: -0.38, r: 6.8, h: 4.5 }]],
       beats: [[0, '二级 2v2'], [0.55, '汉甲冲刺突刺，楚甲举盾挡住'], [1.35, '楚甲反刺，汉甲拨开顺势扎中'], [1.7, '楚乙从侧面扑上来刺汉甲'], [1.95, '汉乙横跨一步，伸盾替同伴挡住'], [2.4, '举盾一撞，把楚乙撞开'], [2.7, '汉甲嘲讽，汉乙在旁护着']],
@@ -317,7 +318,7 @@ h2{margin:0 0 6px;font:900 18px/1.3 var(--ef);letter-spacing:.1em}
           [5.4, {}],
         ] },
       ],
-      stab: { 2: [[1.4, 1.6]], 1: [[2.8, 2.98]] },
+      stab: { 2: [[1.4, 1.6]], 1: [[2.8, 2.98]] }, killAt: [4],
       ev: [[1.15, 'clank', 0, 3], [1.19, 'clank', 1, 4], [1.5, 'hit', 2, 3], [2.0, 'clank', 1, 5], [2.52, 'clank', 0, 3], [2.52, 'clank', 1, 4], [2.58, 'dust', 3], [2.58, 'dust', 4], [2.9, 'hit', 1, 4], [0.5, 'thud', 0], [0.85, 'thud', 1], [4.1, 'thud', 0], [4.1, 'thud', 1], [4.7, 'thud', 0], [4.7, 'thud', 1]],
       cam: [[0, { az: 0.12, r: 7.2, h: 5.0 }], [1.1, { az: 0.08, r: 6.8, h: 4.8 }], [1.6, { az: 0.15, r: 6.6, h: 4.6 }], [2.2, { az: 0.15, r: 6.6, h: 4.6 }], [3.3, { az: -0.15, r: 7.0, h: 4.8 }], [5.4, { az: -0.2, r: 7.0, h: 4.8 }]],
       beats: [[0, '三级 3v3：汉军前二后一，盾墙推进'], [0.9, '楚卒撞上盾墙'], [1.3, '后排长矛越肩一刺'], [1.6, '楚后排跳起来劈，汉前右举盾过顶接住'], [2.35, '盾墙整排一撞'], [2.8, '三人齐刺'], [3.5, '顿足两下：嗬！']],
@@ -355,12 +356,34 @@ h2{margin:0 0 6px;font:900 18px/1.3 var(--ef);letter-spacing:.1em}
     }
   }
   const flying = [];
-  function sever(sol, keys, vel, spin) {   // 拆下一组零件，整组一起飞（相对位置不变）
+  function sever(sol, keys, vel, spin, o = {}) {   // 拆下一组零件，整组一起飞（相对位置不变）；o.bk 以哪一节为原点转，o.floor 落地高度，o.maxAng 最多转多少
     sol.root.updateMatrixWorld(true);
-    const g = new THREE.Group(); g.matrixAutoUpdate = false; const base = new THREE.Matrix4().multiplyMatrices(sol.root.matrixWorld, sol.M.upper);
+    const g = new THREE.Group(); g.matrixAutoUpdate = false; const base = new THREE.Matrix4().multiplyMatrices(sol.root.matrixWorld, sol.M[o.bk || 'upper']);
     g.matrix.copy(base); S.add(g); const inv = base.clone().invert();
     for (const k of keys) { const o = sol.p[k]; sol.gone.add(k); const wm = new THREE.Matrix4().multiplyMatrices(sol.root.matrixWorld, o.matrix); sol.root.remove(o); o.matrix.multiplyMatrices(inv, wm); g.add(o); }
-    flying.push({ g, base, v: vel.clone(), w: spin.clone(), t: 0, sol, keys });
+    flying.push({ g, base, v: vel.clone(), w: spin.clone(), t: 0, sol, keys, floor: o.floor ?? 0.18, maxAng: o.maxAng ?? 1e9 });
+  }
+  // ---------- 击杀（Ham 10-10：「被杀死的士兵会被击飞，有概率断肢，需要实时结算」）----------
+  // 飞的方向、速度、断不断、断哪一节，都在扎中那一下当场按矛的方向和力度算；同一段每次播都不一样
+  const qs = new URLSearchParams(location.search), DISMEMBER = +(qs.get('dismember') ?? 0.4);
+  let rng = Math.random; if (qs.has('seed')) { let a = +qs.get('seed') || 1; rng = () => (a = (a * 16807) % 2147483647) / 2147483647; }
+  const LIMBS = [{ k: ['head'], j: 'head', w: 1.0 }, { k: ['uarmS', 'farmS', 'shield'], j: 'uarmS', w: 0.9 }, { k: ['farmS', 'shield'], j: 'farmS', w: 0.7 }, { k: ['uarmW', 'farmW', 'weapon'], j: 'uarmW', w: 0.9 }, { k: ['farmW', 'weapon'], j: 'farmW', w: 0.7 }, { k: ['shinL'], j: 'shinL', w: 0.35 }, { k: ['shinR'], j: 'shinR', w: 0.35 }];
+  function kill(att, def, p, power = 1) {
+    def.root.updateMatrixWorld(true);
+    const d = att.wdir.clone().transformDirection(att.root.matrixWorld).setY(0).normalize(), wp = M => V(0, 0, 0).setFromMatrixPosition(M).applyMatrix4(def.root.matrixWorld);
+    let cut = null;
+    if (rng() < DISMEMBER) {   // 断肢：离扎中的地方越近的那一节越容易断
+      const c = LIMBS.map(l => { const q = wp(def.M[l.j]); return { l, q, s: l.w / (0.2 + q.distanceTo(p)) }; });
+      let r = rng() * c.reduce((a, b) => a + b.s, 0); cut = c[c.length - 1]; for (const x of c) { r -= x.s; if (r <= 0) { cut = x; break; } }
+      const v = d.clone().multiplyScalar(2.0 * power + rng() * 1.2).add(V((rng() - 0.5) * 1.4, 2.4 + rng() * 1.6, (rng() - 0.5) * 1.4));
+      sever(def, cut.l.k, v, V(rng() * 16 - 8, rng() * 16 - 8, rng() * 16 - 8), { bk: cut.l.j, floor: 0.06 });
+      spray(cut.q, 60, 1.5, d); puff(cut.q, 8, 0.7, 0x9e180c, d.clone().multiplyScalar(0.5)); def.stump = { p: cut.q, until: t + 0.7 };
+    }
+    // 整个人被击飞：顺着矛的方向往后仰倒，力度带一点随机
+    const rest = Object.keys(def.p).filter(k => !def.gone.has(k)), axis = new THREE.Vector3().crossVectors(V(0, 1, 0), d).normalize();
+    sever(def, rest, d.clone().multiplyScalar((1.0 + rng() * 0.6) * power).add(V((rng() - 0.5) * 0.4, 1.1 + rng() * 0.7, 0)), axis.multiplyScalar(5 + rng() * 2.5).add(V(0, (rng() - 0.5) * 2.5, 0)), { bk: 'pelvis', floor: 0.16, maxAng: 1.45 + rng() * 0.2 });
+    puff(p, 6, 0.6, 0x9e180c, d); spray(p, 40, 1.3, d); shake = Math.max(shake, 0.25); slow = 0.35; slowUntil = t + 0.25;
+    return cut ? cut.l.j : null;
   }
   function build(k) {
     for (const f of FIG) S.remove(f.sol.root);
@@ -433,9 +456,11 @@ h2{margin:0 0 6px;font:900 18px/1.3 var(--ef);letter-spacing:.1em}
     }
     if (kind === 'thud') { const p = W(Aa, V(0, 0, 0).applyMatrix4(Aa.M.pelvis)); p.y = 0.02; puff(p, 3, 0.3, 0xc9b896); shake = Math.max(shake, 0.03); }
     if (kind === 'dust') { const p = W(Aa, V(0, 0, 0).applyMatrix4(Aa.M.pelvis)); p.y = 0.03; puff(p, 6, 0.42, 0xc9b896); }
+    if (kind === 'hit' && KILL && (sc.killAt || []).includes(di)) { const p = W(Dd, V(0.1, 0.35, 0).applyMatrix4(Dd.M.upper)); kill(Aa, Dd, p, ev[4] || 1); return; }
     if (kind === 'hit') { puff(W(Dd, V(0.24, 0.38, 0).applyMatrix4(Dd.M.upper)), 4, 0.45, 0x9e180c, V(0.6, 0, 0)); spray(W(Dd, V(0.24, 0.38, 0).applyMatrix4(Dd.M.upper)), 26, 1.1, V(1, 0, 0)); shake = Math.max(shake, 0.12); slow = 0.45; slowUntil = t + 0.1; }
   }
   // ---------- 主循环 ----------
+  let KILL = qs.get('kill') === '1';
   let scen = '2v2', rate = 1, t = 0, last = performance.now(), fired = new Set();
   const beat = document.getElementById('beat'), fade = { v: 0 };
   function reset() {
@@ -463,9 +488,9 @@ h2{margin:0 0 6px;font:900 18px/1.3 var(--ef);letter-spacing:.1em}
       if (d.m.position.y <= 0.01) { d.done = 1; S.remove(d.m); const p = new THREE.Mesh(padGeo, padMat); p.userData.pad = 1; p.position.set(d.m.position.x, 0.004 + Math.random() * 0.002, d.m.position.z); p.scale.setScalar(d.m.scale.x * (1.5 + Math.random() * 2)); S.add(p); }
     }
     for (const f of flying) {
-      f.t += gdt; const y0 = new THREE.Vector3().setFromMatrixPosition(f.base).y, ty = y0 + f.v.y * f.t - 4.9 * f.t * f.t, land = ty <= 0.18; if (land && f.tl == null) f.tl = f.t; const tl = f.tl ?? f.t;
-      const q = new THREE.Quaternion().setFromAxisAngle(f.w.clone().normalize(), f.w.length() * tl);
-      const pos = new THREE.Vector3().setFromMatrixPosition(f.base).add(V(f.v.x * tl, 0, f.v.z * tl)); pos.y = Math.max(0.18, ty);
+      f.t += gdt; const y0 = new THREE.Vector3().setFromMatrixPosition(f.base).y, ty = y0 + f.v.y * f.t - 4.9 * f.t * f.t, land = ty <= f.floor; if (land && f.tl == null) f.tl = f.t; const tl = f.tl ?? f.t;
+      const q = new THREE.Quaternion().setFromAxisAngle(f.w.clone().normalize(), Math.min(f.maxAng, f.w.length() * tl));
+      const pos = new THREE.Vector3().setFromMatrixPosition(f.base).add(V(f.v.x * tl, 0, f.v.z * tl)); pos.y = Math.max(f.floor, ty);
       const rq = new THREE.Quaternion().setFromRotationMatrix(new THREE.Matrix4().extractRotation(f.base)).premultiply(q);
       f.g.matrix.compose(pos, rq, V(1, 1, 1)); if (!land && Math.random() < 0.7) spray(pos, 1, 0.3, null);
     }
@@ -480,6 +505,7 @@ h2{margin:0 0 6px;font:900 18px/1.3 var(--ef);letter-spacing:.1em}
   function loop(now) { const dt = Math.min(0.05, (now - last) / 1000) * rate; last = now; size(); step(dt); requestAnimationFrame(loop); }
   document.querySelectorAll('[data-s]').forEach(b => b.onclick = () => { document.querySelectorAll('[data-s]').forEach(x => x.classList.toggle('on', x === b)); reset(); scen = b.dataset.s; build(scen); reset(); });
   document.querySelectorAll('[data-r]').forEach(b => b.onclick = () => { document.querySelectorAll('[data-r]').forEach(x => x.classList.toggle('on', x === b)); rate = +b.dataset.r; });
+  document.querySelectorAll('[data-k]').forEach(b => { b.classList.toggle('on', +b.dataset.k === +KILL); b.onclick = () => { document.querySelectorAll('[data-k]').forEach(x => x.classList.toggle('on', x === b)); KILL = b.dataset.k === '1'; reset(); }; });
   window.__dbg = () => ({ t });
   window.__reset = () => { reset(); };
   window.__scen = k => { reset(); scen = k; build(k); reset(); };

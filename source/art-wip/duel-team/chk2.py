@@ -13,7 +13,7 @@ with sync_playwright() as p:
     pg.route('https://fonts.googleapis.com/**', lambda r: r.fulfill(body='', content_type='text/css'))
     # 时钟换成可控的：页面用 performance.now 算帧间隔
     pg.add_init_script("(()=>{let T=0;window.__setT=v=>{T=v};performance.now=()=>T;const r=window.requestAnimationFrame.bind(window);window.requestAnimationFrame=f=>r(()=>f(T));})()")
-    pg.goto(pathlib.Path(H + '/_t.html').as_uri()); time.sleep(3)
+    pg.goto(pathlib.Path(H + '/_t.html').as_uri() + os.environ.get('Q', '')); time.sleep(3)
     pg.click('[data-r="0"]'); time.sleep(0.3); pg.evaluate(f"()=>window.__scen('{scen}')"); pg.evaluate("()=>window.__reset()"); cur = 0.0
     for tt in times:
         n = 0
