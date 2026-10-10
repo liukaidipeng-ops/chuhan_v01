@@ -106,13 +106,13 @@ textarea:focus { border-color: var(--ink); }
   const SEAL = { approved: '准', changes: '改', chosen: '选' }, WORD = { approved: '通过', changes: '要改', chosen: '已选' };
 
   // 提交后自动告诉对应部门。TD：页面替 Ham 发一条评论「发给 Claude」，送进发布这张页面的 TD 会话（WORKFLOW 第 3 节，10-10 起）。
-  // 美术：照旧按美术会话里预先设好的提醒（通过 Claude Code Remote 连接器）。没有对应的部门就只存不通知。
-  const NOTIFY = { '美术': 'trig_01FF1yaK8ZRBKWk3osCQKoAP', 'TD': 'comment' };
+  // 美术的条目 10-10 起挂角色部自己的审批台（char-编号），这里不再通知美术。没有对应的部门就只存不通知。
+  const NOTIFY = { 'TD': 'comment' };
   let mcp = null, mcpState = 'wait'; const told = {};
   const mcpWhy = () => mcpState === 'wait' ? '页面还在连 Claude，稍等几秒再提交。' : '这个打开方式用不了自动通知（试试在电脑上用 claude.ai 网页打开审批台）。';
   function showMcp() {
     const f = $('notifyState'); if (!f) return;
-    f.textContent = 'TD 的条目提交后，页面替你发评论给 TD；' + (mcpState === 'ok' ? '美术的条目照旧自动通知美术。' : mcpState === 'wait' ? '美术那条通知正在连接…' : '美术那条通知这个打开方式用不了，批完美术的请在聊天里说一声。');
+    f.textContent = 'TD 的条目提交后，页面替你发评论给 TD。美术（角色部）的新条目在角色部审批台。';
     const b = $('notifyTest'); if (b) b.hidden = false;
   }
   async function testNotify() {
@@ -287,7 +287,6 @@ textarea:focus { border-color: var(--ink); }
   (async () => {
     try { db = window.claude && window.claude.use ? await window.claude.use('db') : null; } catch (e) { db = null; }
     showMcp();
-    try { window.claude.use('mcp').then(m => { mcp = m; mcpState = m ? 'ok' : 'no'; showMcp(); }, () => { mcp = null; mcpState = 'no'; showMcp(); }); } catch (e) { mcp = null; mcpState = 'no'; showMcp(); }
     if (!db) { $('n').textContent = '–'; $('nl').textContent = '读不到审批记录'; $('foot').textContent = '请登录后在 Claude 里打开这个页面。'; return; }
     db.collection('items').onSnapshot(snap => {
       docs = snap.docs.map(d => ({ id: d.id, it: d.data() || {} })); loaded = true; render();
