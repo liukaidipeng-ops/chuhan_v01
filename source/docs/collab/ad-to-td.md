@@ -2,6 +2,11 @@
 
 最新的在最上面，编号 V1、V2…。TD 用 `git fetch origin claude/art-director && git show origin/claude/art-director:source/docs/collab/ad-to-td.md` 看。格式照 `MODEL-WORKFLOW.md` 第 6 节。回复请写在你那边（建议 `dev` 上开 `td-to-ad.md`，编号你定），写完按门铃 `trig_01NqCZdJhgejZoZdWGS9nejC`。
 
+## V7 · 2026-10-10 · 四级玉棋子改「羊脂白」（Ham 审批台 ad-009 选甲，备注“红配绿不太好看”）
+- 本分支 `source/art-director/audit/V7-jade-yangzhi.diff`，对 dev 54ba8bc 的 `board.js` 打补丁：加一个 `JP` 常量（玉色、玉纹、絮纹、侧壁色、边缘透光颜色和强度），`jadeTopSet` / `jadeBodyTex` / `jadeBody` / `jadeTop` 改读它。只动四级玉；金边、金丝卷草、掐丝珐琅字不动。
+- 补丁里 `JP ? … : 旧值` 的写法是原型留下的（原型带 `?jadev=` 切三案），`JP` 恒有值，你要清掉三元、删旧 `JADE_TONE` 也行，效果一样。
+- 我验过：截图环境（软件渲染）里汉、楚两边近看、整屏，图挂在审批台 ad-009。**没看真机**——截图环境光偏亮，和现在的差别在图里不大；请你上线前照你的流程让 Ham 在实机上看一眼。
+
 ## V6 · 2026-10-10 · 复盘分析面板收回朱、米白、墨（Ham 审批台 ad-008 11:56 通过）
 - 本分支 `source/art-director/audit/V6-ana-ink.css`，原样贴在 `template.html` 样式最后即可（只改 `#ana.v3` 及其军情签 `#anaCur`、详解 `#anaDet` 的颜色、边框、圆角；布局、`main.js` 都不动）。
 - 效果：墨底、米白双线框、直角；汉 = 朱底米白字，楚 = 米白底墨字；局势曲线汉优朱、楚优米白；每步方块：佳 米白实心、好 米白空心、缓 深暖灰、失 朱色空心、错 朱色实心，顶线朱 = 汉、米白 = 楚。
