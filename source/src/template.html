@@ -606,7 +606,7 @@ body.compact #rpBar{bottom:calc(60px + var(--safe-b))}
 @keyframes inkin{from{opacity:0;filter:blur(8px)}to{opacity:1;filter:blur(0)}}
 #skip{position:fixed;left:50%;transform:translateX(-50%);bottom:calc(16px + var(--safe-b));z-index:12;pointer-events:auto;background:rgba(27,26,25,.78);color:#f1e3c2;border-color:rgba(217,184,119,.7)}
 body.cine #skip{bottom:calc(11vh + 12px)}
-body.compact #skip{bottom:calc(62px + var(--safe-b))}
+body.compact #skip{bottom:calc(152px + var(--safe-b))}   /* 手机：抬到自己名牌上面，别压住「红方」（美术总监 10-10 看到的）*/
 #toast{position:fixed;left:50%;top:30%;transform:translateX(-50%);background:rgba(27,26,25,.92);color:var(--paper2);padding:10px 22px;border-radius:3px;font-size:calc(17px * var(--fs,1));letter-spacing:.08em;opacity:0;transition:opacity .35s;pointer-events:none;z-index:40;text-align:center;max-width:90vw;box-shadow:inset 0 0 0 1px rgba(217,184,119,.4)}
 #toast.on{opacity:1}
 .help{text-align:left;font-size:calc(16px * var(--fs,1));line-height:1.9}
@@ -1472,6 +1472,7 @@ html:has(#endcard:not(.hidden)),html:has(#endcard:not(.hidden)) body,html:has(#e
   <div class="opt"><div class="lbl">碎片留存<small>断肢、碎块在场上留多久</small></div><div class="seg" data-s="debris"><button data-v="0">不留</button><button data-v="3">三回合</button><button data-v="5">五回合</button><button data-v="999">永久</button></div></div>
   <div class="opt"><div class="lbl">血腥程度</div><div class="seg" data-s="gore"><button data-v="3">高</button><button data-v="2">中</button><button data-v="1">低</button><button data-v="0">关</button></div></div>
   <div class="opt"><div class="lbl">画质<small>卡顿时调低</small></div><div class="seg" data-s="quality"><button data-v="high">高</button><button data-v="mid">中</button><button data-v="low">低</button></div></div>
+  <div class="opt"><div class="lbl">省电<small>画面没在动时每秒 30 帧，手机发烫时开着；手机默认开</small></div><div class="seg" data-s="eco"><button data-v="1">开</button><button data-v="0">关</button></div></div>
   </div>
   <div class="tabp hidden" data-t="snd">
   <div class="opt"><div class="lbl">背景音乐</div><div class="seg" data-s="music"><button data-v="zen">禅意</button><button data-v="war">战意</button><button data-v="off">关</button></div></div>

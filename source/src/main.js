@@ -8,6 +8,7 @@
   // 更新说明（设置里、大厅底部点「更新」查看；最新的放最前）
   const NEWS = [
     ['第六版', '2026 年 10 月', [
+      '省电（Ham 说手机发烫）：画面没在动的时候每秒只画 30 帧（原来高刷手机跟着屏幕 90～120 帧在画），影子有东西在动才重算；一碰屏幕、走子演出、镜头在动时照常满帧。手机默认开，设置 → 画面里有「省电」开关',
       '结算画面的「复盘」和「分析」合成一个「复盘」：进去就是复盘加分析面板；复盘条上多一个「分析」，可以收起、再打开（揭棋没有分析，只复盘）；「我的棋局」里的复盘也一样',
       '人机对战输了（被将死、困毙等）先不进结算：弹一个框，10 秒内点「悔棋」就悔回去接着下，点「认输」或等 10 秒才进结算（悔棋次数照常算；用完了就直接结算）',
       '技能模式规则：象、相撞上拒马不挨那 1 点（践踏、齐射本来就不触发）；「飞越」改成被动——三级起冷却好了，象眼被塞住的田字落点直接能点，点了先问一句用不用，用了冷却 5 回合',
@@ -142,7 +143,7 @@
   };
   const S = {
     music: store.get('music', 'zen'), vMusic: store.get('vMusic', 55), vSfx: store.get('vSfx', 90), vVoice: store.get('vVoice', 100), voice: store.get('voice', 2),
-    models: store.get('models', 0), debris: store.get('debris', 3), confirm: store.get('confirm', 1), turnfx: store.get('turnfx', 'wave'),   // confirm：落子要点两下（Ham 10-09 要的，防误触；默认开）
+    models: store.get('models', 0), eco: store.get('eco', Core.isMobile ? 1 : 0), debris: store.get('debris', 3), confirm: store.get('confirm', 1), turnfx: store.get('turnfx', 'wave'),   // confirm：落子要点两下（Ham 10-09 要的，防误触；默认开）
     vis: store.get('vis', store.get('fx', 1) === 0 ? 'low' : 'cine'), gore: store.get('gore', 3), server: store.get('server', ''),
     speed: store.get('speed', 1.5), // 动画播放速度
   };
@@ -156,11 +157,11 @@
 
   function applySettings() {
     Fx.level = S.vis; Fx.gore = +S.gore; Voice.enabled = !!+S.voice; Voice.mode = +S.voice === 2 ? 'real' : 'orig';
-    Squads.Stand.set(!!+S.models); Fx.keep = +S.debris || 0;
+    Squads.Stand.set(!!+S.models); Fx.keep = +S.debris || 0; Core.setEco(!!+S.eco);
     Core.Time.boost = +S.speed || 1.5;
     Sfx.setVol('music', S.vMusic / 100 * 0.9); Sfx.setVol('sfx', S.vSfx / 100); Sfx.setVol('voice', S.vVoice / 100);
     Net.custom = S.server || '';
-    for (const k of ['music', 'vMusic', 'vSfx', 'vVoice', 'voice', 'vis', 'gore', 'server', 'speed', 'models', 'debris', 'confirm', 'turnfx']) store.set(k, S[k]);
+    for (const k of ['music', 'vMusic', 'vSfx', 'vVoice', 'voice', 'vis', 'gore', 'server', 'speed', 'models', 'debris', 'confirm', 'turnfx', 'eco']) store.set(k, S[k]);
   }
   Net.custom = S.server || '';
   Core.Time.boost = +S.speed || 1.5;
@@ -4392,7 +4393,7 @@
   const hostRec = store.get('host', null);
   // （主帅兵法用哪一套由每一局的 opts.bs 决定，见 startGame；网址带 ?beishui=0 时，这台机器新开的局回到破釜沉舟）
   // 省电（?eco=1）：演出、结算、自动复盘、电脑在走的时候照常满帧
-  if (Core.ECO) Core.onFrame(() => { if (busy || Ending.running || (RP && RP.playing) || document.body.classList.contains('cine')) Core.poke(300); });
+  Core.onFrame(() => { if (Core.ECO && (busy || Ending.running || (RP && RP.playing) || document.body.classList.contains('cine'))) Core.poke(300); });
   window.__xq = {
     get busy() { return busy; }, get started() { return started; }, get game() { return game; }, get mode() { return mode; }, get aiThinking() { return aiThinking; },
     doMove, startGame, finishGame, Ending, Fx, Board, Core, Camp, Squads, Spect, setView, onData, Net, requestUndo, sendEmote, get clock() { return clock; }, get opts() { return opts; }, joinRoom, notation, get notes() { return notes; }, aiSay,
