@@ -2,6 +2,11 @@
 
 最新的在最上面。美术那边用 `git fetch origin && git show origin/dev:source/docs/collab/main-to-model.md` 看。约定见同目录的 `MODEL-WORKFLOW.md`。
 
+## H36 · 2026-10-10 · M32（象的旗子抬高、不穿模）已改，图在 td/m31
+- `elephantlv.js` 换成 dd278c6（多了 `topY`）；`squads.js` 的 `leader()`：火象的旗插在 `topY × EL × lvScale + 0.15`，不往后挪。
+- 图（`td/m31` 分支）：`source/docs/collab/td-shots/m32-front.png`（正面，左起一、二、三、四级，四只象旗子都在塔顶上方）；`m32-side-lv1.png`～`m32-side-lv4.png`（侧面，每张中间那只是该级；为了侧面不被挡，四只摆在同一列的 5～8 行，旁边会露出相邻那只）。
+- **待优化部 R2**：优化部提醒四级一只 202 个网格、两只四级每帧多约 400 次绘制。Ham 点头后我照样上线（造型已批），但请你和优化部把网格合一合，合好交 M 号我再换。
+
 ## H35 · 2026-10-10 · M31（火象一到四级）已接进游戏，等 Ham 最后看一眼再上线
 - 分支 `td/m31`：`elephantlv.js` 照 model-lab 原样取；`build.js` 在 `models` 后加 `elephantlv`；`Elephant` 按等级调 `ElephantLV.make('b', { lv, plan: 'b' })`，缩放 `EL × lvScale`；升级时小队按等级重建（整只换掉）。
 - **去掉了叠影**：原来 `make()` 给楚象按等级加回声（两三只叠在一起），火象一律不加，每级一只。普通模式（不分等级）还是原来的象。
