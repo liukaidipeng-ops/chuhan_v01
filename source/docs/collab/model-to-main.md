@@ -2,6 +2,50 @@
 
 最新的在最上面，编号接着往下排（M1、M2…）。格式见同目录 `MODEL-WORKFLOW.md` 第 6 节。TD 用 `git show origin/model-lab:source/docs/collab/model-to-main.md` 看。
 
+## M21 · 10-10 · 交付 · 棋子字面（宋体十四字统一 + 年轮木面每颗不一样；银金玉的字一起换）
+
+- 提交：model-lab 上带这张交付单的那次提交。交付前合过 `origin/dev`（d1c700b），`node build.js` 能过，`test/*.test.js` 全过。
+- Ham 确认：审批台 art-072 选丙「年轮」（10-10 00:13），备注「纹理再深一点，三个形态有疏有密有粗有细，加旋转、翻转，随机分布，尽量每颗都不一样；炮还是靠下；务必保证所有字体统一」；art-074 退回（01:34）「马和相还是很粗，整体换一个统一的字体」；art-078 选乙「宋体」（08:13），备注写着「银、金、玉三级的字跟着一起换」。
+- 换掉 M13 的「牙黄面」：木棋子改成年轮木面，色边、字色不变（汉朱 `#b3241a`、楚墨 `#1a1714`）。
+- 改了哪些文件：新文件 `source/src/face.js`（美术管）。十四个字是思源宋体 TC Bold 的轮廓，直接写成路径（Path2D），**不打包字体文件、不用等字体加载**，各平台画出来一样；同一个缩放，粗细天然一致，按墨迹居中（炮不再靠下）。对外：
+  - `Face.wood(g, w, s, ch, id)`：在 w×w 的画布上画整面木棋子（年轮 + 色边 + 字）。`id` 决定这颗子的年轮：三种形态（疏粗 / 密细 / 疏密相间）× 随机种子 × 随机转角 × 横竖翻转，同一 id 每次画出来一样。
+  - `Face.path(ch, size, cx, cy)`：字的 Path2D（画布像素），`size` 是字面贴图边长，`cx/cy` 默认正中。珐琅字、暗子背面都用它。
+- 构建顺序没加之前 face.js 不会进页面，什么都不变。
+
+**需要 TD 做的**（我在一份拷贝上照下面改完、构建、拍过图，见文末）
+1. `build.js` 第 5 行 `order`：`'core', 'board'` 中间加 `'face'`。
+2. `board.js` 约 487–507 行：`faceCache` 和 `faceTex` 整段换成
+   ```js
+   // 木棋子字面（美术 M21：审批台 078 宋体 + 072 年轮）：画法在 face.js。每颗子的年轮都不一样，所以按棋子 id 缓存；同一 id 换了兵种（揭棋翻出来）就在原画布上重画
+   const faceCache = {};
+   function faceTex(s, t, id = 0) {
+     const key = s + (id | 0), ch = XQ.NAMES[s][t], hit = faceCache[key];
+     if (hit) {
+       if (hit.ch !== ch) { const cv = hit.tex.image; Face.wood(cv.getContext('2d'), cv.width, s, ch, id); hit.ch = ch; hit.tex.needsUpdate = true; }
+       return hit.tex;
+     }
+     const N = Core.quality === 'low' ? 384 : 512;
+     return (faceCache[key] = { ch, tex: canvasTex(N, N, (g, w) => Face.wood(g, w, s, ch, id)) }).tex;
+   }
+   ```
+   - 贴图从 14 张（每种字一张）变成每颗子一张，最多 32 张；低画质档 384、其余 512。这里用 `Core.quality` 没用 `LOWQ()`，因为 `LOWQ` 在 713 行才定义。
+3. `board.js` 三处把 id 带上：`makePiece` 约 558 行、`setFace` 约 572 行 `faceTex(p.s, p.t)` → `faceTex(p.s, p.t, p.id)`；`fx.js` 约 939 行（揭棋翻子浮起的字）`Board.faceTex(p.s, p.t)` → `Board.faceTex(p.s, p.t, p.id)`。
+4. `board.js` 约 548–549 行（揭棋暗子背面那个极淡的兵种字）两行换成一行：
+   ```js
+   g.fillStyle = red ? 'rgba(236,206,140,.075)' : 'rgba(236,206,140,.065)'; g.fill(Face.path(XQ.NAMES[s][pt], w * 0.81, c, c));   // 和字面同一套宋体，小一圈
+   ```
+5. `board.js` `enamelFace` 约 1113–1119 行（`const N = …` 到 `shape` 结束）换成下面，再把约 1126 行渐变那句的 `fs * 0.5` 换成 `N * 0.3`（`createLinearGradient(0, c - N * 0.3, 0, c + N * 0.3)`），其余不动：
+   ```js
+   const N = LOWQ() ? 256 : 384, c = N / 2, lw = N * 0.028, gp = Face.path(ch, N);   // 字形和木棋子同一套宋体、同一大小同一位置（face.js）
+   const shape = (g, strokeCol, fillCol) => {
+     g.lineJoin = 'round';
+     if (strokeCol) { g.strokeStyle = strokeCol; g.lineWidth = lw; g.stroke(gp); }
+     if (fillCol) { g.fillStyle = fillCol; g.fill(gp); }
+   };
+   ```
+- 棋盘上别的字（中间朱印「漢/楚」、楚河汉界、头顶「殺」「-1」）这次没动，还是原来的字体。
+- 我看过的（`source/art-wip/piece-face/m21_check.jpg`）：电脑 1440×900 汉、楚两边木棋子，银、金、玉三级；手机 390×844；揭棋暗子背面；揭棋翻子后贴图换对（同一 id 重画、和面上的是同一张）。十四个字和 078 送审的字模逐像素比过：墨量差 1% 以内、位置差 1 像素以内（512 的图）。没看的：低画质档（只是贴图小一档）、联机。
+
 ## M20 · 10-10 · 交付 · 动作（拒马：持矛兵压低重心挡敌，撞上掉一滴血，退开再冲）
 
 - 提交：model-lab 上带这张交付单的那次提交。交付前合过 `origin/dev`（ae6c2f9），`node build.js` 能过，`test/*.test.js` 全过。
