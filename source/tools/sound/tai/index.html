@@ -84,6 +84,8 @@ h1{font:600 26px/1.25 var(--serif);margin:0;letter-spacing:.06em;text-wrap:balan
   <section class="send">
     <h3>评完了？</h3>
     <button type="button" id="send">提 交</button>
+    <p id="nstate">正在检查能不能直接通知声音部…</p>
+    <button type="button" id="ntest" class="jump">试发一条给声音部</button>
     <p id="sendSt">点一下，声音部当场收到。收到后上面会亮出绿色回执，写着几点几分收到。第一次点时浏览器会问是否允许这个页面发评论、用「Claude Code Remote」，都选允许。</p>
   </section>
 </main>
@@ -257,25 +259,37 @@ h1{font:600 26px/1.25 var(--serif);margin:0;letter-spacing:.06em;text-wrap:balan
     }
   }
   const comP = window.claude && window.claude.use ? window.claude.use('comments') : Promise.resolve(null);
-  // 两路同时送：①在页面上发一条“发给 Claude”的评论（直接叫醒声音部）；②按声音部门铃。任一路通了就算送到
-  async function notify(msg) {
-    const tries = [];
-    tries.push((async () => {
-      const com = await comP; if (!com) throw { code: 'not_granted' };
-      if (com.canSendToClaude) { const ok = await com.canSendToClaude(); if (ok !== 'available') throw { code: 'claude_' + ok }; }
-      const anchor = await com.anchorFor($('send'));
-      await com.sendToClaude({ anchor, text: msg }); return 'com';
-    })());
-    tries.push((async () => {
-      const mcp = await mcpP; if (!mcp) throw { code: 'not_granted' };
-      let id = NOTIFY;
-      if (db) try { const d = await db.doc('cfg/notify').get(); const x = d.exists && d.data(); if (x && x.trigger) id = String(x.trigger); } catch (e) { }
-      await mcp.callTool(SRV, 'fire_trigger', { trigger_id: id, text: msg }, { cache: false }); return 'bell';
-    })());
-    const r = await Promise.allSettled(tries);
-    const ok = r.filter(x => x.status === 'fulfilled').map(x => x.value);
-    if (!ok.length) throw r[0].reason || r[1].reason;
-    return ok;
+  // 先在页面上发一条“发给 Claude”的评论（直接叫醒声音部，和拍板单一样）；不通再按门铃。结果记在 meta/notifyLog，声音部自己能读
+  async function viaComments(text, el) {
+    const com = await comP; if (!com) return { ok: false, code: 'no_comments' };
+    let can = 'off'; try { can = await com.canSendToClaude(); } catch (e) { }
+    if (can !== 'available') return { ok: false, code: 'cannot_' + can };
+    try { const anchor = await com.anchorFor(el); await com.sendToClaude({ anchor, text }); return { ok: true }; }
+    catch (e) { return { ok: false, code: (e && e.code) || 'unknown', msg: String((e && e.message) || '').slice(0, 300) }; }
+  }
+  async function viaBell(text) {
+    const mcp = await mcpP; if (!mcp) return { ok: false, code: 'no_mcp' };
+    let id = NOTIFY;
+    if (db) try { const d = await db.doc('cfg/notify').get(); const x = d.exists && d.data(); if (x && x.trigger) id = String(x.trigger); } catch (e) { }
+    try { await mcp.callTool(SRV, 'fire_trigger', { trigger_id: id, text }, { cache: false }); return { ok: true }; }
+    catch (e) { return { ok: false, code: (e && e.code) || 'unknown', msg: String((e && e.message) || '').slice(0, 300) }; }
+  }
+  async function notify(msg, el, kind) {
+    const c = await viaComments(msg, el);
+    const m = c.ok ? null : await viaBell(msg);
+    const ok = c.ok || (m && m.ok);
+    if (db) try { await db.doc('meta/notifyLog').set({ at: new Date().toISOString(), kind: kind || 'submit', ok: !!ok, via: c.ok ? 'comment' : m && m.ok ? 'bell' : '', comment: c.code || '', commentMsg: c.msg || '', bell: m ? (m.code || '') : '', bellMsg: (m && m.msg) || '' }); } catch (e) { }
+    refreshPerm();
+    if (!ok) throw { code: c.code || (m && m.code) };
+    return c.ok ? 'comment' : 'bell';
+  }
+  async function refreshPerm() {
+    const com = await comP; let can = 'off';
+    if (com) try { can = await com.canSendToClaude(); } catch (e) { }
+    const el = $('nstate');
+    if (can === 'available') { el.textContent = '能直接通知：提交后页面替你发一条评论给声音部（第一次会问是否允许页面替你发评论，点允许）。'; el.className = 'ok'; }
+    else if (can === 'no_session') { el.textContent = '声音部的窗口现在收不到评论，提交时会改按门铃。'; el.className = 'bad'; }
+    else { el.textContent = '这个打开方式发不了评论，提交时会改按门铃。'; el.className = 'bad'; }
   }
   // 回执：声音部读到后写 ack/<批次>，这里马上亮
   let sentAt = 0, waitT = null, ackUnsub = null;
@@ -302,18 +316,25 @@ h1{font:600 26px/1.25 var(--serif);margin:0;letter-spacing:.06em;text-wrap:balan
     armed = false; sending = true; setBtns('提交中…', true); sendSt('正在送出…');
     const msg = `【声音部试听台提交】${top.title}（${top.id}）——就它 ${c.yes}、还行 ${c.ok}、不行 ${c.no}${c.left ? `、没评 ${c.left}` : ''}；备注 ${c.notes} 处。`;
     sentAt = Date.now();
-    const sendP = notify(msg);   // 趁着这一下点击马上送，不等保存
+    const sendP = notify(msg, $('send'), 'submit');   // 趁着这一下点击马上送，不等保存
     const saveP = (async () => { try { await flush(); } catch (e) { } if (db && canSave) try { await db.doc('submit/' + top.id).set({ at: new Date().toISOString(), yes: c.yes, ok: c.ok, no: c.no, left: c.left, notes: c.notes }); } catch (e) { } })();
     try {
       const how = await sendP;
       showAck(null); watchAck();
-      sendSt(`已送出（${how.map(x => x === 'com' ? '评论' : '门铃').join(' + ')}）。声音部收到后上面会亮绿色回执。之后改了评分，可以再点一次。`, 'ok');
+      sendSt(how === 'comment' ? '✓ 已通知声音部（发了一条评论）。声音部会在这条评论下回你，上面也会亮绿色回执。' : '✓ 已通知声音部（按了门铃）。收到后上面会亮绿色回执。', 'ok');
       setBtns('再提交一次', false, true);
     } catch (e) { sentAt = 0; sendSt(why(e), 'bad'); setBtns('提 交'); }
     await saveP;
     sending = false;
   }
   $('send').addEventListener('click', submit);
+  $('ntest').addEventListener('click', async () => {
+    $('ntest').disabled = true; sendSt('正在试发…');
+    try { const how = await notify('【声音部试听台】试发通知（Ham 点了“试发一条”）。收到请回执。', $('ntest'), 'test'); sentAt = Date.now(); showAck(null); sendSt(how === 'comment' ? '✓ 试发出去了（评论）。声音部会在评论下回你。' : '✓ 试发出去了（门铃）。', 'ok'); }
+    catch (e) { sendSt(why(e), 'bad'); }
+    $('ntest').disabled = false;
+  });
+  refreshPerm();
   $('send2').addEventListener('click', () => { $('send').scrollIntoView({ behavior: 'smooth', block: 'center' }); submit(); });
   async function paintSent() {   // 这一批以前提交过：按钮上写明
     if (!db || !top) return;
