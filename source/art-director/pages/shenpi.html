@@ -278,7 +278,7 @@ textarea:focus { border-color: var(--ink); }
   const mcpWhy = () => mcpState === 'wait' ? '页面还在连 Claude，稍等几秒再提交。' : '这个打开方式用不了自动通知（试试在电脑上用 claude.ai 网页打开）。';
   function showMcp() {
     const f = $('notifyState'); if (!f) return;
-    f.textContent = '自动通知：提交后页面会替你发一条评论给美术总监（第一次会问你“是否允许页面替你发评论”，点允许）；评论发不出去时再按门铃' + (mcpState === 'ok' ? '（门铃已就绪）' : mcpState === 'wait' ? '（门铃连接中）' : '（门铃这个打开方式用不了）') + '。';
+    f.textContent = '自动通知：提交后页面会替你发一条评论给美术总监（第一次会问你“是否允许页面替你发评论”，点允许）。发不出去会直接告诉你，请在聊天里说一声。美术总监收到后，每件下面会亮出「✓ 已收到」；几分钟还没亮，就是没收到。';
     const b = $('notifyTest'); if (b) b.hidden = false;
   }
   async function wake(trig, text) {
@@ -301,8 +301,8 @@ textarea:focus { border-color: var(--ink); }
   async function send(text, anchorEl) {
     const c = await viaComments(text, anchorEl);
     if (c.ok) return { ok: true, how: 'comment' };
-    if (mcp) { try { const how = await wake(NOTIFY['美术总监'], text); return { ok: true, how, comment: c.code }; } catch (e) { return { ok: false, comment: c.code, code: (e && e.code) || 'unknown', msg: String((e && e.message) || '').slice(0, 300) }; } }
-    return { ok: false, comment: c.code, code: 'no_mcp:' + mcpState };
+    // 门铃实测送不到（10-10），不再当通知用：评论发不出去就如实说没通知到
+    return { ok: false, comment: c.code, code: c.msg || '' };
   }
   async function testNotify() {
     const b = $('notifyTest'); b.disabled = true; b.textContent = '正在发…';
@@ -340,7 +340,7 @@ textarea:focus { border-color: var(--ink); }
       const text = '【美术总监审批台】Ham 一次提交了 ' + saved.length + ' 件' + (left ? '，还剩 ' + left + ' 件没批' : '，全部批完') + '：\n' + lines.map(s => '· ' + s).join('\n') + '\n请去审批台读这几条，接着做。';
       const r = await send(text, $('pending'));
       for (const id of saved) logNotify(id, r);
-      lastSend = r.ok ? '已通知美术总监（' + (r.how === 'comment' ? '评论' : '门铃') + '）。' : '没能自动通知美术总监（' + [r.comment, r.code].filter(Boolean).join(' / ') + '），请在聊天里说一声“审批台批好了”。';
+      lastSend = r.ok ? '已通知美术总监。' : '没能自动通知美术总监（' + [r.comment, r.code].filter(Boolean).join(' / ') + '），请在聊天里说一声“审批台批好了”。';
       for (const id of saved) told[id] = lastSend;
       msg += lastSend;
     }
