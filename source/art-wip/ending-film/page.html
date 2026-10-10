@@ -1,0 +1,44 @@
+<title>乌江样片</title>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Noto+Serif+SC:wght@600;900&family=Noto+Sans+SC:wght@400;500&display=swap">
+<style>
+/* 一块银幕居中，下面一张镜头表 */
+:root{--bg:#0e0d0c;--fg:#ece3cf;--dim:#9d9483;--line:#2c2924;--red:#b8392a;
+  --ef:"Noto Serif SC","Songti SC",serif;--es:"Noto Sans SC","PingFang SC",sans-serif;color-scheme:dark}
+body{background:var(--bg);color:var(--fg);font-family:var(--es);padding-block:28px 56px;padding-inline:16px}
+.wrap{max-width:1100px;margin:0 auto;display:flex;flex-direction:column;gap:22px}
+h1{margin:0;font:900 32px/1.2 var(--ef);letter-spacing:.2em;display:flex;align-items:center;gap:14px}
+h1 i{font-style:normal;font:900 15px/1 var(--ef);background:var(--red);color:var(--fg);padding:6px 7px;letter-spacing:0}
+.lead{margin:0;color:var(--dim);font-size:14px;line-height:1.8;max-width:70ch}
+video{width:100%;max-width:100%;aspect-ratio:16/9;background:#000;display:block;box-shadow:0 0 0 1px var(--line)}
+table{border-collapse:collapse;width:100%;font-size:14px;line-height:1.6}
+.tw{overflow-x:auto}
+th,td{border-bottom:1px solid var(--line);padding:10px 12px;text-align:left;vertical-align:top}
+th{color:var(--dim);font-weight:500;font-size:13px;letter-spacing:.1em}
+td:first-child{font:900 15px var(--ef);white-space:nowrap}
+td:nth-child(2){font-variant-numeric:tabular-nums;color:var(--dim);white-space:nowrap}
+h2{margin:8px 0 0;font:900 18px var(--ef);letter-spacing:.14em}
+ul{margin:0;padding-left:1.2em;color:var(--fg);font-size:14px;line-height:1.9}
+</style>
+<div class="wrap">
+  <h1>乌江 · 第一段样片 <i>楚</i></h1>
+  <p class="lead">终局「楚败」里乌江那一段，四十三秒，按分镜的 G06、G10、G09、G13、G14 拍的。乌骓是新做的三维模型，项羽能骑在马上、下马抚马、把缰绳交给亭长。配音用的是游戏里已经录好的台词，带胶片颗粒和 2.39:1 宽银幕。手机竖着看就是中间一条，横过来全屏。</p>
+  <video src="wujiang.mp4" poster="poster.jpg" controls playsinline preload="metadata"></video>
+  <div class="tw"><table>
+    <thead><tr><th>镜</th><th>时长</th><th>画面</th><th>声音</th></tr></thead>
+    <tbody>
+      <tr><td>片名</td><td>2.6″</td><td>乌江 · 汉五年冬</td><td>古琴低音</td></tr>
+      <tr><td>G06</td><td>7″</td><td>黎明江面，晨雾、芦苇，渡船挂着灯笼；项王骑乌骓带二十几骑沿岸奔来，逆光扬尘，镜头慢推</td><td>旁白：于是项王乃欲东渡乌江……</td></tr>
+      <tr><td>G10</td><td>5″</td><td>侧面长焦跟拍：项王勒马，由快步到慢走、停下，回头望来路；前景芦苇虚焦</td><td>马蹄、一声马嘶</td></tr>
+      <tr><td>G09</td><td>5.5″</td><td>仰拍侧脸：项王仰头望天</td><td>项王：天之亡我，我何渡为！</td></tr>
+      <tr><td>G13</td><td>16″</td><td>双人中景：项王抚马，乌骓低头蹭他；亭长从船边走来、作揖，双手接过缰绳；焦点在手和缰绳之间移动</td><td>项王：吾知公长者……以赐公。</td></tr>
+      <tr><td>G14</td><td>5″</td><td>汉军骑兵一排排从山脊后冒出来，旗子立起，逆光扬尘，镜头微抖</td><td>战鼓、马蹄、地鸣，一声锣切黑</td></tr>
+    </tbody>
+  </table></div>
+  <h2>还没做的</h2>
+  <ul>
+    <li>上马、下马的动作（这一版在剪辑上跳过了下马）；亭长的脸和手还是老模型</li>
+    <li>汉军骑兵还是对局里的低精度马，正式版换高精度、马腿要跑起来</li>
+    <li>垓下（夜、四面楚歌、帐中）和最后一战、拔剑；彭城那条线</li>
+    <li>配乐现在是临时垫的</li>
+  </ul>
+</div>
