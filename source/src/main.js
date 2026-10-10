@@ -8,6 +8,13 @@
   // 更新说明（设置里、大厅底部点「更新」查看；最新的放最前）
   const NEWS = [
     ['第六版', '2026 年 10 月', [
+      '省电（Ham 说手机发烫）：画面没在动的时候每秒只画 30 帧（原来高刷手机跟着屏幕 90～120 帧在画），影子有东西在动才重算；一碰屏幕、走子演出、镜头在动时照常满帧。手机默认开，设置 → 画面里有「省电」开关',
+      '结算画面的「复盘」和「分析」合成一个「复盘」：进去就是复盘加分析面板；复盘条上多一个「分析」，可以收起、再打开（揭棋没有分析，只复盘）；「我的棋局」里的复盘也一样',
+      '人机对战输了（被将死、困毙等）先不进结算：弹一个框，10 秒内点「悔棋」就悔回去接着下，点「认输」或等 10 秒才进结算（悔棋次数照常算；用完了就直接结算）',
+      '技能模式规则：象、相撞上拒马不挨那 1 点（践踏、齐射本来就不触发）；「飞越」改成被动——三级起冷却好了，象眼被塞住的田字落点直接能点，点了先问一句用不用，用了冷却 5 回合',
+      '技能模式「拒马」有了新动作（美术画的）：几级就几个兵，压低重心、长矛斜指来敌（三级前二后一，四级金甲的斩马刀也前指），模型模式下拒马的两回合里一直摆着；敌方撞上矛尖先掉 1 点血——头顶飘「−1」、脚下血圈少一段、头马人立——然后面朝拒马倒退几步再冲。顺带修好：原来撞完是转身走回起点，再冲时背对着拒马',
+      '棋子换了新字面（美术画的）：十四个字统一成一套宋体，粗细一致、炮字不再偏下；木棋子换成年轮木面，每颗子的年轮疏密、走向都不一样；银、金、玉棋子的珐琅字也换成同一套字',
+      '技能模式棋子升级有了变身动画（美术画的）：棋子跳起来翻个身，翻到侧面那一刻换上新材质，落下时迸一圈光（银白 / 金 / 玉白）；脚下血圈、拒马桩留在原地不跟着翻',
       '联机、人机对局楚军获胜时的结算曲换成新写的两首，随机放一首：「乌骓」（马嘶、马蹄、古筝往上扬）、「楚凯」（编钟奏的庄重楚调，最后一声钟余音拉长）',
       '技能模式电脑会想到「先升级、攻击变大、再吃子」了（比如升象吃炮），原来这种升级被它的筛子挡掉（数值部改的，对原来的霸王不吃亏）',
       '结算画面多了「分 析」：电脑把整局每一步评一遍（佳 / 好 / 缓 / 失 / 错），底下一条兵势河看谁占优，点一枚兵符看这步该怎么走；「详解」结合前后几步讲清楚这步为什么错、应该怎么走、两条路走下去差多少，还能在棋盘上演示（Ham 选的方案三「沙盘兵势」）',
@@ -136,7 +143,7 @@
   };
   const S = {
     music: store.get('music', 'zen'), vMusic: store.get('vMusic', 55), vSfx: store.get('vSfx', 90), vVoice: store.get('vVoice', 100), voice: store.get('voice', 2),
-    models: store.get('models', 0), debris: store.get('debris', 3), confirm: store.get('confirm', 1), turnfx: store.get('turnfx', 'wave'),   // confirm：落子要点两下（Ham 10-09 要的，防误触；默认开）
+    models: store.get('models', 0), eco: store.get('eco', Core.isMobile ? 1 : 0), debris: store.get('debris', 3), confirm: store.get('confirm', 1), turnfx: store.get('turnfx', 'wave'),   // confirm：落子要点两下（Ham 10-09 要的，防误触；默认开）
     vis: store.get('vis', store.get('fx', 1) === 0 ? 'low' : 'cine'), gore: store.get('gore', 3), server: store.get('server', ''),
     speed: store.get('speed', 1.5), // 动画播放速度
   };
@@ -150,11 +157,11 @@
 
   function applySettings() {
     Fx.level = S.vis; Fx.gore = +S.gore; Voice.enabled = !!+S.voice; Voice.mode = +S.voice === 2 ? 'real' : 'orig';
-    Squads.Stand.set(!!+S.models); Fx.keep = +S.debris || 0;
+    Squads.Stand.set(!!+S.models); Fx.keep = +S.debris || 0; Core.setEco(!!+S.eco);
     Core.Time.boost = +S.speed || 1.5;
     Sfx.setVol('music', S.vMusic / 100 * 0.9); Sfx.setVol('sfx', S.vSfx / 100); Sfx.setVol('voice', S.vVoice / 100);
     Net.custom = S.server || '';
-    for (const k of ['music', 'vMusic', 'vSfx', 'vVoice', 'voice', 'vis', 'gore', 'server', 'speed', 'models', 'debris', 'confirm', 'turnfx']) store.set(k, S[k]);
+    for (const k of ['music', 'vMusic', 'vSfx', 'vVoice', 'voice', 'vis', 'gore', 'server', 'speed', 'models', 'debris', 'confirm', 'turnfx', 'eco']) store.set(k, S[k]);
   }
   Net.custom = S.server || '';
   Core.Time.boost = +S.speed || 1.5;
@@ -347,17 +354,17 @@
   function toast(msg, ms = 2200) { const t = $('toast'); t.innerHTML = msg; t.classList.add('on'); clearTimeout(toastT); toastT = setTimeout(() => t.classList.remove('on'), ms); }
   function banner(t, s, ms = 2600) { $('banner').classList.remove('lite'); $('bannerT').textContent = t; $('bannerS').textContent = s || ''; $('banner').classList.add('on'); setTimeout(() => $('banner').classList.remove('on'), ms); }
   let askTimer = null;
-  function ask(title, text, secs = 0, yes = '同 意', no = '拒 绝', cls = '') {   // cls = 'e-stay'：退出确认，“留下”是大按钮（样式归美术）
+  function ask(title, text, secs = 0, yes = '同 意', no = '拒 绝', cls = '', cdFmt = null) {   // cls = 'e-stay'：退出确认，“留下”是大按钮（样式归美术）；'e-grace'：贴在底下、不压暗棋盘
     return new Promise(res => {
       $('askT').textContent = title; $('askP').textContent = text; $('askYes').textContent = yes; $('askNo').textContent = no;
-      $('mAsk').classList.toggle('e-stay', cls === 'e-stay');
+      $('mAsk').classList.toggle('e-stay', cls === 'e-stay'); $('mAsk').classList.toggle('e-grace', cls === 'e-grace');
       $('mAsk').classList.remove('hidden');
       let left = secs;
-      const fin = v => { clearInterval(askTimer); $('mAsk').classList.add('hidden'); $('mAsk').classList.remove('e-stay'); res(v); };
+      const fin = v => { clearInterval(askTimer); $('mAsk').classList.add('hidden'); $('mAsk').classList.remove('e-stay', 'e-grace'); res(v); };
       $('askYes').onclick = () => fin(true); $('askNo').onclick = () => fin(false);
       clearInterval(askTimer);
-      $('askCd').textContent = secs ? `${left} 秒后自动拒绝` : '';
-      if (secs) askTimer = setInterval(() => { left--; $('askCd').textContent = `${left} 秒后自动拒绝`; if (left <= 0) fin(false); }, 1000);
+      const cdt = n => cdFmt ? cdFmt(n) : `${n} 秒后自动拒绝`; $('askCd').textContent = secs ? cdt(left) : '';
+      if (secs) askTimer = setInterval(() => { left--; $('askCd').textContent = cdt(Math.max(0, left)); if (left <= 0) fin(false); }, 1000);
     });
   }
   // 带输入框的询问（房间密码）：确定返回输入的字，取消返回 null
@@ -368,7 +375,7 @@
     return ask(title, text, 0, '确 定', '取 消').then(ok => { row.classList.add('hidden'); return ok ? inp.value.trim() : null; });
   }
   const pwHash = (code, pw) => { let h = 2166136261; for (const ch of code + ':' + pw) { h ^= ch.codePointAt(0); h = Math.imul(h, 16777619); } return (h >>> 0).toString(36); };
-  const closeAsk = () => { clearInterval(askTimer); $('mAsk').classList.add('hidden'); $('mAsk').classList.remove('e-stay'); $('askInRow').classList.add('hidden'); };
+  const closeAsk = () => { clearInterval(askTimer); $('mAsk').classList.add('hidden'); $('mAsk').classList.remove('e-stay', 'e-grace'); $('askInRow').classList.add('hidden'); };
 
   // ---------- 对局状态 ----------
   let mode = null, mySide = 'r', viewSide = 'r', opts = { ...ropts }, hostSide = 'r';
@@ -444,8 +451,8 @@
     if (e.k === 'mv') {
       const q = g.at(e.to[0], e.to[1]); let n = notation(g.board, e);
       // 被动走法（神速营 / 回防 / 铁甲禁卫）前面标出技能名
-      const mv = p && p.lv >= 4 ? g.legalFrom(e.from[0], e.from[1]).find(m => m.to[0] === e.to[0] && m.to[1] === e.to[1]) : null;
-      if (mv && mv.via) n = { shensu: '神速', huifang: '回防', jinwei: '禁衛' }[mv.via] + '·' + n;
+      const mv = p && p.lv >= 3 ? g.legalFrom(e.from[0], e.from[1]).find(m => m.to[0] === e.to[0] && m.to[1] === e.to[1]) : null;
+      if (mv && mv.via) n = { shensu: '神速', huifang: '回防', jinwei: '禁衛', feiyue: '飛越' }[mv.via] + '·' + n;
       return q && p && q.hp > g.atkOf(p) ? n + '·攻' : n;
     }
     if (e.k === 'sk' && p) {
@@ -1295,7 +1302,7 @@
       if (info.captured) Spect.react(info.mover);
       if (!busy && game.turn === mySide) { turnStartAt = performance.now(); slowIdx = 0; }
       updateHud();
-      if (info.result && !busy) finishGame(info.result);
+      if (info.result && !busy) endOrGrace(info.result);
       else if (!busy) localFlip();
     });
   }
@@ -1350,7 +1357,36 @@
     else await Core.sleep(0.8);
   }
   let endSkip = false, endSkipRes = null;
+  // 人机对战输了（被将死、困毙、主帅阵亡、九宫失守）：先不进结算，10 秒内还能悔棋（Ham 10-10 12:09）。悔棋次数用完、电脑对电脑、超时认输不算
+  let graceTok = 0;
+  const GRACE_T = { checkmate: '被 将 死 了', stalemate: '困 毙', kingdead: '主 帅 阵 亡', occupy: '九 宫 失 守' };
+  function graceOk(r) {
+    if (!r || !r.winner || r.winner === mySide || !GRACE_T[r.reason]) return false;
+    if (!vsAI() || aiBoth() || watching() || RP || !opts.undo) return false;
+    if (opts.undo < 99 && undoUsed[mySide] >= opts.undo) return false;
+    return game.history.length >= undoPlies(mySide);
+  }
+  async function endOrGrace(r) {
+    if (!graceOk(r)) { finishGame(r); return; }
+    const tok0 = ++graceTok;
+    // 先让「绝杀」大字放完、镜头回到棋盘上方，让人看清怎么输的，再开始倒计时
+    await Core.sleep(2.6);
+    if (tok0 !== graceTok || ended || !game.result) return;
+    try { if (Core.Cam.cine) { document.body.classList.remove('cine'); await Core.Cam.home(0.7); } } catch (e) { }
+    if (tok0 !== graceTok || ended || !game.result) return;
+    const tok = graceTok, S0 = +Core.DIAG.get('grace') || 10;   // ?grace=60：测试用，慢机器上拉长
+    const done = y => {
+      if (tok !== graceTok) return; graceTok++;
+      if (ended || !game.result) return;
+      if (y) { const plies = undoPlies(mySide); cancelAI(); applyUndo(plies, mySide); aiSay('undo'); }
+      else finishGame(r);
+    };
+    const left = opts.undo >= 99 ? '' : `（悔棋还剩 ${opts.undo - undoUsed[mySide]} 次）`;
+    ask(GRACE_T[r.reason], `${S0} 秒内还可以悔棋，悔回去接着下${left}；不悔就进结算。`, S0, '悔 棋', '认 输', 'e-grace', n => `还剩 ${n} 秒`).then(done);
+    setTimeout(() => done(false), (S0 + 1.5) * 1000);   // 提示框万一被别的关掉，也照样进结算
+  }
   function finishGame(result) {
+    graceTok++;
     if (ended) return;
     ended = true; endSkip = false;
     const skipP = new Promise(r => { endSkipRes = r; });
@@ -1374,8 +1410,8 @@
       const tune = (mode === 'host' || mode === 'guest' || mode === 'ai' || W) && result.winner ? { side: persp === 'win' ? result.winner : mySide } : null;
       await Ending.play(result, {
         again: W ? () => { Ending.hideCard(); toast('等待棋手开新局…'); } : requestAgain, againText: W ? '继 续 观 战' : '',
-        lobby: toLobby, persp, tune, instant: endSkip || slain, review: startReplay,
-        extra: [...(anaOk(game) ? [{ text: '分 析', fn: anaOpen }] : []), ...(watching() ? [] : [{ text: '保 存', fn: () => openSave() }])],   // 结算卡：复盘 · 分析 · 保存（Ham 10-10 td-014 / td-015）
+        lobby: toLobby, persp, tune, instant: endSkip || slain, review: reviewOpen,
+        extra: watching() ? [] : [{ text: '保 存', fn: () => openSave() }],   // 结算卡：复盘（带分析，Ham 10-10 13:32 合成一个）· 保存
         mine: mode === 'local' || W || aiBoth() || !result.winner ? '' : (persp === 'win' ? '你 胜 了' : '你 败 了'),
       });
       if (pendingRestart) { const st = pendingRestart; pendingRestart = null; restart(st === true ? undefined : st); if (mode === 'host') Net.send({ t: 'restart', state: snapshot() }); }
@@ -1443,13 +1479,16 @@
     $('rpBar').querySelector('[data-rp="play"]').textContent = RP.playing ? '❚❚ 暂停' : '▶ 播放';
     $('rpBar').querySelectorAll('[data-rp]').forEach(b => { const a = b.dataset.rp; b.disabled = a !== 'exit' && a !== 'play' && RP.busy || ((a === 'prev' || a === 'first') && RP.k === 0) || ((a === 'next' || a === 'last') && RP.k >= RP.n); });
   }
+  // 复盘和分析合成一个按钮（Ham 10-10 13:32）：进复盘就把分析面板一起打开；揭棋看不见暗子，只复盘。复盘条上「分析」可以收起 / 再打开
+  function reviewOpen() { if (anaOk(game)) anaOpen(); else startReplay(); }
+  reviewOpen.label = '复 盘';
   function startReplay(quiet) {
     if (RP || !game) return;
     Ending.hideCard();
     clearFinale(); Camp.reset();
     Core.Cam.moveId = (Core.Cam.moveId || 0) + 1; Core.Cam.cine = false; document.body.classList.remove('cine');
     RP = { real: game, k: 0, n: rpSteps(game), busy: false, playing: false };
-    $('rpBar').classList.remove('hidden');
+    $('rpBar').classList.remove('hidden'); $('rpBar').querySelector('[data-rp="ana"]').classList.toggle('hidden', !anaOk(game));
     $('hud').classList.remove('hidden');
     setView(viewSide);
     rpShow(0);
@@ -1468,6 +1507,7 @@
     const b = e.target.closest('[data-rp]'); if (!b || !RP || b.disabled) return;
     const a = b.dataset.rp; Sfx.select && Sfx.select();
     if (a === 'exit') exitReplay(false);
+    else if (a === 'ana') { if ($('ana').classList.contains('hidden')) anaOpen(); else anaClose(); rpAnaBtn(); }
     else if (a === 'play') rpPlay();
     else if (RP.busy) return;
     else if (a === 'next') rpStep();
@@ -1530,7 +1570,7 @@
     const real = RP ? RP.real : game;
     if (!anaOk(real)) { toast('揭棋看不见暗子，这一局没法分析'); return; }
     if (!RP) startReplay(true);
-    $('ana').classList.remove('hidden'); document.body.classList.add('anaOn');
+    $('ana').classList.remove('hidden'); document.body.classList.add('anaOn'); rpAnaBtn();
     // 面板挡住一边：电脑上棋盘往左让一点，手机上往上让一点
     document.body.classList.toggle('anaWide', ANAV === 1 || ANAV === 3);
     anaFit(true); setTimeout(() => anaFit(), 700);
@@ -1556,7 +1596,8 @@
     const from = keep; Core.tween(0.35, k => Core.viewShift(from[0] + (to[0] - from[0]) * k, from[1] + (to[1] - from[1]) * k, from[2] + (to[2] - from[2]) * k), Core.ease.inOut);
   }
   window.addEventListener('resize', () => setTimeout(() => anaFit(), 300));
-  function anaClose() { anaTok2++; anaDet = null; anaDetPaint(); $('ana').classList.add('hidden'); document.body.classList.remove('anaOn', 'anaWide'); Board.showStep(null); Core.viewShift(0, 0); }
+  const rpAnaBtn = () => { const b = $('rpBar').querySelector('[data-rp="ana"]'); if (b) { const on = !$('ana').classList.contains('hidden'); b.textContent = on ? '收起分析' : '分 析'; b.classList.toggle('on', on); } };
+  function anaClose() { anaTok2++; anaDet = null; anaDetPaint(); $('ana').classList.add('hidden'); document.body.classList.remove('anaOn', 'anaWide'); Board.showStep(null); Core.viewShift(0, 0); rpAnaBtn(); }
   async function anaStart(real) {
     const tok = ++anaTok, M = real.bf ? ANA.bf : ANA.std;
     const steps = anaSteps(real), n = steps.length;
@@ -2151,6 +2192,15 @@
     return null;
   }
   function bfAsk(a, from) {
+    // 飞越（Ham 10-10 改被动）：点了象眼被塞住的落点，先问一句用不用飞越
+    if (a.k === 'mv' && !a.fy) {
+      const m = selMoves.find(x => x.to[0] === a.to[0] && x.to[1] === a.to[1]), me = game.at(from[0], from[1]);
+      if (m && m.via === 'feiyue' && me) {
+        const cd = BF.CFG.skills.feiyue.cooldown;
+        ask('飞 越', `${XQ.NAMES[me.s].e}眼被塞住了，要用「飞越」强行跳过去吗？用了之后冷却 ${cd} 回合。`, 0, '飞 越', '不 用').then(y => { if (y && sel && sel[0] === from[0] && sel[1] === from[1]) bfAsk({ ...a, fy: 1 }, from); });
+        return;
+      }
+    }
     // 点了目标的技能一律先“瞄准”：目标被瞄准圈框住，下方出现「确定」，点了才发动（会伤到谁照旧先标出来）
     const aimed = a.k === 'sk' && !!a.to;
     const h = bfNeedConfirm(a) || (aimed ? (bfHarm(a) || { list: [], ev: [] }) : null);
@@ -2798,7 +2848,7 @@
       if (game.mustPass() && canAct() && (mode === 'local' || game.turn === mySide)) toast(`${SIDE_CN[game.turn]}方无子可走，请点「停着」`, 2600);
       else if (game.upOnly && game.upOnly() && canAct() && (mode === 'local' || game.turn === mySide)) toast('被将军：直接走解不了将，先给能解将的子升一级（升了也解不了将的子不让升）', 3200);
       else if (game.mayPass() && game.fx.sm > 0 && canAct() && (mode === 'local' || game.turn === mySide)) toast('四面楚歌：楚军只能走将，或点「停着」', 2800);
-      if (info.result && !busy) finishGame(info.result);
+      if (info.result && !busy) endOrGrace(info.result);
       else if (!busy && (vsAI() || hostBot()) && isAI(game.turn)) maybeAI();
       else if (!busy) localFlip();
     });
@@ -2830,6 +2880,7 @@
     else if (info.k === 'ult') line = s === 'b' ? `鸿门宴：汉王 ${BF.CFG.ultimates.hongmen.rounds} 回合不得移动` : '四面楚歌：楚军军心涣散，动弹不得';
     else if (info.k === 'pass') line = `${SIDE_ARMY[s]}按兵不动`;
     if (info.k === 'mv' && info.extra && info.extra.via === 'shensu') line = `${nm(s, 'p')}神速营疾行` + (info.check ? '，将军！' : '');
+    if (info.k === 'mv' && info.extra && info.extra.via === 'feiyue') line = line ? line.replace(nm(s, 'e'), nm(s, 'e') + '飞越，') : `${nm(s, 'e')}飞越`;   // 被动飞越：在原句里标出来
     if (ev.some(x => x.e === 'final')) { line = (line ? line + '；' : '') + '决战：双方车马兵炮尽没，象、士、帅将皆可过河'; }
     const oc = ev.find(x => x.e === 'occupy');
     if (oc) line = (line ? line + '；' : '') + `${oc.s === 'r' ? '汉帅' : '楚将'}占住${oc.s === 'r' ? '楚' : '汉'}营九宫 ${oc.n}/${BF.CFG.finalOccupyRounds}` + (oc.n >= BF.CFG.finalOccupyRounds ? '，夺营！' : '');
@@ -4184,7 +4235,7 @@
     if (o.think) game.__think = o.think;
     if (o.branches) game.__branches = o.branches;
     ended = true;
-    startReplay();
+    reviewOpen();
     toast(`复盘：${rec.head} · ${stampOf(rec.t)}`, 2600);
   }
   // —— 标“这步笨”：点棋谱上的某一步 ——
@@ -4341,6 +4392,8 @@
   const urlRoom = (q.get('room') || '').toUpperCase();
   const hostRec = store.get('host', null);
   // （主帅兵法用哪一套由每一局的 opts.bs 决定，见 startGame；网址带 ?beishui=0 时，这台机器新开的局回到破釜沉舟）
+  // 省电（?eco=1）：演出、结算、自动复盘、电脑在走的时候照常满帧
+  Core.onFrame(() => { if (Core.ECO && (busy || Ending.running || (RP && RP.playing) || document.body.classList.contains('cine'))) Core.poke(300); });
   window.__xq = {
     get busy() { return busy; }, get started() { return started; }, get game() { return game; }, get mode() { return mode; }, get aiThinking() { return aiThinking; },
     doMove, startGame, finishGame, Ending, Fx, Board, Core, Camp, Squads, Spect, setView, onData, Net, requestUndo, sendEmote, get clock() { return clock; }, get opts() { return opts; }, joinRoom, notation, get notes() { return notes; }, aiSay,

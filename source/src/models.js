@@ -307,6 +307,7 @@ const Models = (() => {
     return out;
   }
   const newJ = kp => ({ crouch: 0, lean: 0, twist: 0, sway: 0, hx: 0, hy: 0, lL: 0, lR: 0, lLz: 0, aW: kp.aW, aWz: 0.05, wAbs: kp.wAbs, wz: 0, aS: kp.aS, aSz: -0.05, sAbs: kp.sAbs });
+  const JM_OFF = { twist: 0, sway: 0, hy: 0, lLz: 0, wz: 0, aWz: 0.05, aSz: -0.05 };
   const JKEYS = ['crouch', 'lean', 'twist', 'sway', 'hx', 'hy', 'lL', 'lR', 'lLz', 'aW', 'aWz', 'wAbs', 'wz', 'aS', 'aSz', 'sAbs'];
 
   class Troop {
@@ -353,6 +354,9 @@ const Models = (() => {
       let walk = 0, rate = 1.6;
       const T = t + u.phase;
       const set = o => Object.assign(J, o);
+      const jm = u.pose === 'jmLow' || u.pose === 'jmHigh';
+      // 刚从拒马姿势收回来：拒马动到的那几个关节（别的姿势多半不管）先归位，免得侧身、弓步、刀尖外撇带进下一个动作
+      if (jm) u.jmOff = 0.6; else if (u.jmOff > 0) { u.jmOff -= dt; set(JM_OFF); }
       switch (u.pose) {
         case 'idle': set({ crouch: 0, lean: 0.02, twist: Math.sin(T * 0.4) * 0.08, sway: 0, hx: 0, hy: Math.sin(T * 0.3) * 0.25, aW: kp.aW, wAbs: kp.wAbs, aS: kp.aS, sAbs: kp.sAbs, aWz: 0.05, aSz: -0.05 }); break;
         // 坐立不安：东张西望、挪重心、手里兵器攥了又松（倒计时最后几秒的本方观战士兵）
@@ -389,7 +393,13 @@ const Models = (() => {
         case 'ready': set({ crouch: 0.08, lean: 0.15, aW: kp.chargeW, wAbs: kp.chargeAbs, aS: -1.0, sAbs: 0.1, hx: -0.1 }); break;
         // 擂鼓的架势：两腿微屈，双槌端在胸前
         case 'drum': set({ crouch: 0.07, lean: 0.1, twist: 0, sway: 0, hx: 0.02, hy: 0, aW: -1.25, aWz: 0.12, wAbs: 1.05, aS: -1.25, aSz: -0.12, sAbs: 1.05 }); break;
+        // 拒马阵（美术 M20，Ham 10-09）：前腿弓、后腿蹬，身子压低侧过来，矛斜指前上方（约对着马胸），盾顶在前
+        case 'jmLow': set({ crouch: 0.22, lean: 0.3, twist: -0.35, sway: 0, hx: -0.35, hy: 0.25, lL: -0.74, lR: 0.74, lLz: 0.1, aW: -0.6, aWz: 0.15, wAbs: 1.24, wz: 0, aS: -1.35, aSz: 0.3, sAbs: 0.3 }); break;
+        // 后排（三级前二后一的那一个）：站高一点，矛从前排两人中间伸出去
+        case 'jmHigh': set({ crouch: 0.05, lean: 0.12, twist: -0.2, sway: 0, hx: -0.15, hy: 0.15, lL: -0.35, lR: 0.35, lLz: 0.05, aW: -1.35, aWz: 0.2, wAbs: 1.32, wz: 0, aS: -0.9, aSz: -0.25, sAbs: 0.15 }); break;
       }
+      // 四级金甲斩马刀手：刀刃也要前指（审批台 art-075）
+      if (jm && this.kind === 'zhanma') set({ wz: 0.5, wAbs: 1.4, aW: -0.75 });
       // 一次性动作
       if (u.act && u.actT >= 0) {
         const q = Math.min(1, u.actT / u.actDur), s = Math.sin(q * Math.PI);
@@ -402,6 +412,8 @@ const Models = (() => {
           case 'raise': J.aW = -2.5; J.wAbs = 0; break;
           case 'hit': J.lean -= 0.5 * s; J.hx -= 0.6 * s; J.aW += 0.6 * s; J.aS += 0.6 * s; break;
           case 'shieldBash': J.aS = -1.3 - 0.4 * s; J.lean += 0.3 * s; break;
+          // 拒马挨撞：身子往后一挫、矛杆一沉，脚不退（美术 M20）
+          case 'jmHit': J.lean -= 0.3 * s; J.crouch += 0.05 * s; J.wAbs += 0.1 * s; J.hx += 0.25 * s; break;
           // 擂鼓：槌高高扬起再砸在鼓面上（beatW 右手、beatS 左手），砸下去的一瞬身子跟着一沉
           case 'beatW': case 'beatS': {
             const up = q < 0.45 ? Math.sin(q / 0.45 * Math.PI / 2) : Math.max(0, 1 - (q - 0.45) / 0.18), hit = q > 0.6 ? Math.max(0, 1 - (q - 0.63) / 0.37) : 0;
@@ -430,7 +442,11 @@ const Models = (() => {
         const sw = Math.sin(u.ph);
         if (!u.dead) {
           const sit = u.pose === 'mourn' ? -1.4 : 0;
-          J.lL = sw * 0.55 * walk + sit; J.lR = -sw * 0.55 * walk + sit;
+          // 拒马阵是弓步：腿用姿势给的目标值（上面 JKEYS 那一圈已经缓过去了），不按走路重算
+          if (u.pose !== 'jmLow' && u.pose !== 'jmHigh') {
+            const lL = sw * 0.55 * walk + sit, lR = -sw * 0.55 * walk + sit;
+            if (u.jmOff > 0) { J.lL += (lL - J.lL) * kS; J.lR += (lR - J.lR) * kS; } else { J.lL = lL; J.lR = lR; }   // 刚收拒马：腿慢慢并回来
+          }
           if (u.pose === 'march' || u.pose === 'run') { J.aS += -sw * 0.12 * walk; }
         }
         // 抛飞

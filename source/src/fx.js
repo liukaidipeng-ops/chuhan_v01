@@ -936,7 +936,7 @@ const Fx = (() => {
     P.ink(c, 10, 0.45, 0.3, 0.8);
     for (let i = 0; i < nn(14); i++) spawn({ pos: c.clone(), vel: rv(1.6, 1.4, 1.6), tex: Core.Tex.spark, add: true, color: 0xf2c46a, size: 0.12, size2: 0.02, life: R(0.4, 0.8), drag: 1.5 });
     const bg = new THREE.Sprite(new THREE.SpriteMaterial({ map: Board.glowTex, color: 0xf6ecd4, transparent: true, depthTest: false, depthWrite: false }));
-    const fg = new THREE.Sprite(new THREE.SpriteMaterial({ map: Board.faceTex(p.s, p.t), transparent: true, depthTest: false, depthWrite: false }));
+    const fg = new THREE.Sprite(new THREE.SpriteMaterial({ map: Board.faceTex(p.s, p.t, p.id), transparent: true, depthTest: false, depthWrite: false }));
     bg.renderOrder = 30; fg.renderOrder = 31;
     scene.add(bg, fg);
     tween(1.1, k => {

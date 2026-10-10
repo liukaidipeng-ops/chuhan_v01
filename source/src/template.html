@@ -217,6 +217,8 @@ input.code{font-size:calc(30px * var(--fs,1));letter-spacing:.4em;text-align:cen
 .gainpop.r{color:#ffd37a;text-shadow:0 0 2px #7a1a0c,0 2px 0 #7a1a0c,0 0 12px rgba(200,40,20,.9)}
 .gainpop.b{color:#ffe7a8;text-shadow:0 0 2px #111,0 2px 0 #111,0 0 12px rgba(0,0,0,.9)}
 .gainpop small{display:block;font-size:calc(13px * var(--fs,1));color:#f3e2b8;font-family:var(--font)}
+.jmMinus{position:fixed;z-index:31;pointer-events:none;font:900 calc(30px * var(--fs,1)) "Noto Serif SC",serif;color:#fff2da;background:#a8281c;padding:1px 11px;box-shadow:inset 0 0 0 2px #a8281c,inset 0 0 0 3.5px #fff2da,0 3px 10px rgba(0,0,0,.45);transform:translate(-50%,-100%);animation:jmMinus 1.5s ease-out forwards}
+@keyframes jmMinus{0%{opacity:0;transform:translate(-50%,-60%) scale(1.6)}12%{opacity:1;transform:translate(-50%,-100%) scale(1)}70%{opacity:1;transform:translate(-50%,-150%)}100%{opacity:0;transform:translate(-50%,-185%)}}
 .gainpop.lbl{font-size:calc(16px * var(--fs,1));font-family:var(--font);letter-spacing:.2em}
 /* 晋升题签 */
 .rankpop{position:fixed;z-index:31;pointer-events:none;transform:translate(-50%,-100%);display:flex;flex-direction:column;align-items:center;gap:2px;padding:7px 16px 9px;white-space:nowrap;background:linear-gradient(#2a211a,#15110e);border:1px solid #c9a045;border-radius:3px;box-shadow:0 0 0 3px rgba(21,17,14,.85),0 0 0 4px rgba(201,160,69,.5),0 10px 26px rgba(0,0,0,.45);animation:rankpop 2.6s cubic-bezier(.2,.8,.2,1) forwards}
@@ -590,6 +592,7 @@ body.anaOn #log{display:none}
 @media (max-width:760px){#ana{left:8px;right:8px;width:auto;top:auto;bottom:calc(158px + var(--safe-b));height:36vh;padding:8px 10px}#anaChart{max-height:72px}#anaSum .as{padding:3px 6px}}
 #rpBar button.x{background:transparent;box-shadow:inset 0 0 0 1px rgba(217,184,119,.55)}
 #rpBar button:disabled{opacity:.35;cursor:default}
+#rpBar button.an{min-width:64px;background:transparent;box-shadow:inset 0 0 0 1px rgba(217,184,119,.55)}#rpBar button.an.on{background:rgba(217,184,119,.22)}
 #rpInfo{color:#f1e3c2;font-size:calc(14px * var(--fs,1));letter-spacing:.08em;padding:0 6px;font-family:var(--num);white-space:nowrap}
 body.compact #rpBar{bottom:calc(60px + var(--safe-b))}
 #endcard{position:fixed;inset:0;z-index:11;display:flex;align-items:center;justify-content:center;flex-direction:column;gap:20px;background:radial-gradient(ellipse at center,#f1e8d4 0%,#d9ccb0 100%);padding:20px}
@@ -603,7 +606,7 @@ body.compact #rpBar{bottom:calc(60px + var(--safe-b))}
 @keyframes inkin{from{opacity:0;filter:blur(8px)}to{opacity:1;filter:blur(0)}}
 #skip{position:fixed;left:50%;transform:translateX(-50%);bottom:calc(16px + var(--safe-b));z-index:12;pointer-events:auto;background:rgba(27,26,25,.78);color:#f1e3c2;border-color:rgba(217,184,119,.7)}
 body.cine #skip{bottom:calc(11vh + 12px)}
-body.compact #skip{bottom:calc(62px + var(--safe-b))}
+body.compact #skip{bottom:calc(152px + var(--safe-b))}   /* 手机：抬到自己名牌上面，别压住「红方」（美术总监 10-10 看到的）*/
 #toast{position:fixed;left:50%;top:30%;transform:translateX(-50%);background:rgba(27,26,25,.92);color:var(--paper2);padding:10px 22px;border-radius:3px;font-size:calc(17px * var(--fs,1));letter-spacing:.08em;opacity:0;transition:opacity .35s;pointer-events:none;z-index:40;text-align:center;max-width:90vw;box-shadow:inset 0 0 0 1px rgba(217,184,119,.4)}
 #toast.on{opacity:1}
 .help{text-align:left;font-size:calc(16px * var(--fs,1));line-height:1.9}
@@ -1106,6 +1109,13 @@ html:has(#endcard:not(.hidden)),html:has(#endcard:not(.hidden)) body,html:has(#e
 #mAsk.e-stay #askNo{flex:1 1 0;background:var(--k);color:var(--c);font-size:calc(20px * var(--fs,1));letter-spacing:.24em}
 #mAsk.e-stay #askYes{flex:0 0 118px;background:none;color:var(--k);font-size:calc(16px * var(--fs,1));letter-spacing:.14em}
 #mAsk.e-stay .row{flex-direction:row}
+/* 人机被将死后的悔棋窗口（TD 10-10）：不压暗棋盘，让人看清怎么输的 */
+#mAsk.e-grace{background:none;pointer-events:none}   /* 居中（Ham 审批台 td-022：原来太靠上） */
+#mAsk.e-grace .wrap{pointer-events:auto;width:min(460px,100%)}
+#mAsk.e-grace .scroll{padding:20px 24px 20px}
+#mAsk.e-grace h3{margin-bottom:6px}
+#mAsk.e-grace .cd{font-family:var(--ef);font-weight:900;font-size:calc(18px * var(--fs,1));color:#a8281c;letter-spacing:.1em}
+#mAsk.e-grace .row{margin-top:14px}
 
 /* ---------- 电脑宽屏：房间设置、等待房间、加入房间撑满一屏（底部一条棋盘格，主操作的棋子落在正中） ---------- */
 @media (min-width:641px){
@@ -1462,6 +1472,7 @@ html:has(#endcard:not(.hidden)),html:has(#endcard:not(.hidden)) body,html:has(#e
   <div class="opt"><div class="lbl">碎片留存<small>断肢、碎块在场上留多久</small></div><div class="seg" data-s="debris"><button data-v="0">不留</button><button data-v="3">三回合</button><button data-v="5">五回合</button><button data-v="999">永久</button></div></div>
   <div class="opt"><div class="lbl">血腥程度</div><div class="seg" data-s="gore"><button data-v="3">高</button><button data-v="2">中</button><button data-v="1">低</button><button data-v="0">关</button></div></div>
   <div class="opt"><div class="lbl">画质<small>卡顿时调低</small></div><div class="seg" data-s="quality"><button data-v="high">高</button><button data-v="mid">中</button><button data-v="low">低</button></div></div>
+  <div class="opt"><div class="lbl">省电<small>画面没在动时每秒 30 帧，手机发烫时开着；手机默认开</small></div><div class="seg" data-s="eco"><button data-v="1">开</button><button data-v="0">关</button></div></div>
   </div>
   <div class="tabp hidden" data-t="snd">
   <div class="opt"><div class="lbl">背景音乐</div><div class="seg" data-s="music"><button data-v="zen">禅意</button><button data-v="war">战意</button><button data-v="off">关</button></div></div>
@@ -1657,7 +1668,7 @@ html:has(#endcard:not(.hidden)),html:has(#endcard:not(.hidden)) body,html:has(#e
 <div id="fade"></div>
 <div id="endcard" class="hidden"></div>
 <div id="ana" class="hidden"><div class="anaH"><b>对局分析</b><span id="anaProg"></span><button id="anaX" title="收起">✕</button></div><div id="anaDet" class="hidden"></div><div id="anaCur" class="hidden"></div><div id="anaSum"></div><svg id="anaChart" viewBox="0 0 360 112" preserveAspectRatio="none"></svg><div id="anaList"></div></div>
-<div id="rpBar" class="hidden"><button data-rp="first" title="回到开局">|◀</button><button data-rp="prev" title="后退一步">◀</button><button data-rp="play" class="pl">▶ 播放</button><button data-rp="next" title="前进一步">▶</button><button data-rp="last" title="跳到终局">▶|</button><span id="rpInfo"></span><button data-rp="exit" class="x">退出复盘</button></div>
+<div id="rpBar" class="hidden"><button data-rp="first" title="回到开局">|◀</button><button data-rp="prev" title="后退一步">◀</button><button data-rp="play" class="pl">▶ 播放</button><button data-rp="next" title="前进一步">▶</button><button data-rp="last" title="跳到终局">▶|</button><span id="rpInfo"></span><button data-rp="ana" class="an">分 析</button><button data-rp="exit" class="x">退出复盘</button></div>
 <button class="btn small hidden" id="skip">跳过 ▸▸</button>
 <div id="toast"></div>
 <div id="viewTag" aria-live="polite"><div class="row"><span data-v="0">沙盘</span><span data-v="1">俯瞰</span><span data-v="2" class="lock">定盘</span></div><div class="row lc"><span data-l="flip" class="flip">换边</span><span data-l="free">自由视角</span></div><small id="viewTagS"></small></div>

@@ -1187,15 +1187,29 @@ const Squads = (() => {
     if (live) { showNow(att); showNow(def); await Promise.all([turnTo(att, yawA, 0.22), turnTo(def, yaw + Math.PI, 0.22)]); }
     else await Promise.all([att.appear(), sleep(0.15).then(() => def.appear())]);
     if (def.setPose) def.setPose('ready');
-    // 兵法·拒马：攻方先撞上木桩
+    // 兵法·拒马（美术 M20，Ham 10-09）：守方压低重心、长矛斜指来敌；攻方撞上矛尖先掉 1 点血，面朝守方倒退几步再冲
     if (c.counter) {
-      if (def.setPose) def.setPose('brace');
-      const hitAt = B.clone().addScaledVector(d, -0.55);
+      jmForm(def, true);
+      if (!def.troop && def.setPose) def.setPose('brace');
+      const ring = hpRing(att, c.hp);
+      await sleep(0.3);   // 迎敌：先让人看清守方立起拒马阵
+      const hitAt = B.clone().addScaledVector(d, att.troop ? -0.72 : -0.8);   // 步兵身子短，停近一点矛尖才顶得到
       await charge(att, hitAt);
+      // 撞上：守方身子一挫，血、木屑，镜头一震
       Sfx.B.stab(0, 0.5); Sfx.B.woodbreak(0.05, 0.35); Cam.shake(0.14);
-      Fx.P.blood(att.center(0.25), 14, 0.7, d.clone().negate()); Fx.P.wood(hitAt, 8, d.clone().negate(), 0.6);
+      if (def.troop) def.troop.units.forEach(u => def.troop.act(u.i, 'jmHit', 0.3));
+      Fx.P.blood(att.center(0.25), 14, 0.7, d.clone().negate()); Fx.P.wood(B.clone().addScaledVector(d, -0.5).setY(TOP + 0.2), 8, d.clone().negate(), 0.6);
+      jmRecoil(att);
+      // 地上也溅血（Ham 审批台 td-020）：撞上的地方一大一小两摊，血雾落地时再补一摊
+      { const g0 = att.center(0).addScaledVector(d, 0.18), nd = d.clone().negate(); g0.y = Fx.groundAt(g0);
+        Fx.Marks.blood(g0, 0.8, nd); sleep(0.12).then(() => Fx.Marks.blood(g0.clone().addScaledVector(rightOf(att.yaw), 0.12).addScaledVector(nd, 0.1), 0.45, nd));
+        sleep(0.35).then(() => { const g1 = att.center(0); g1.y = Fx.groundAt(g1); Fx.Marks.blood(g1, 0.55, nd); }); }
+      // 掉一滴血：头顶飘「−1」，脚下血圈少一段
+      const popH = att.troop ? 0.48 : att instanceof Elephant ? 0.85 : 0.6;
+      popAt(() => att.center(popH), '−1'); if (ring) ring.hit();
       if (counterDie) {
         await att.die('stab', d.clone().negate(), 1, att.center(0));
+        if (ring) ring.done();
         await sleep(0.6);
         att.dissolve(); await sleep(0.2);
         if (await settleSquad(def, tgt, B)) return;
@@ -1203,8 +1217,16 @@ const Squads = (() => {
         if (tgt) await Fx.rise(tgt, B, 0.4);
         return;
       }
+      // 被顶回半步，再面朝守方倒退开（不转身——原来是转身走回起点，再冲时背对着守方）
+      const a0 = att.anchor.clone();
+      await tween(0.3, k => { att.anchor.copy(a0).addScaledVector(d, -0.2 * k); }, ease.out);
       await sleep(0.2);
-      await retreat(att, A); // 余血再战：退回起点重新冲锋
+      const drip = onFrame(() => { if (Math.random() < 0.06) { const g = att.center(0).add(rv(0.12, 0, 0.12)); g.y = Fx.groundAt(g); Fx.Marks.blood(g, R(0.15, 0.28), d.clone().negate()); } });   // 退的时候一路滴血
+      await backOff(att, B.clone().addScaledVector(d, -Math.min(1.7, Math.max(1.25, A.distanceTo(B)))));
+      drip();
+      if (ring) ring.done();
+      jmForm(def, false);
+      await sleep(0.15);
     }
     if (c.survive) def.die = (hit, dir, power, center) => hurtSquad(def, hit, dir, power, center);
     if (cine && t !== 'c') {
@@ -1256,6 +1278,68 @@ const Squads = (() => {
     speedUp(sq, 1);
     await walkPath(sq, [from, to], Math.max(0.35, from.distanceTo(to) / 2.2));
     speedUp(sq, 0);
+  }
+  // ---------- 兵法·拒马（美术 M20）----------
+  // 守方阵形：二级两人并排、四级三名斩马刀手一字排开（照 lineUp）；三级改成前二后一，后排那人站高一点，矛从前排两人中间伸出去（审批台 art-073 选 A）
+  const JM_STACK = [[-0.15, 0.1], [0.15, 0.1], [0, -0.16]];
+  function jmForm(sq, on, offPose = 'ready') {
+    if (!sq || !sq.troop || sq.t !== 'p') return;
+    if (!sq.off0) sq.off0 = sq.offsets.map(o => o.slice());
+    const stack = on && !sq.elite && sq.troop.count === 3;
+    sq.offsets = (stack ? JM_STACK : sq.off0).map(o => o.slice());
+    sq.jm = !!on;
+    for (const u of sq.troop.units) if (!u.dead) u.pose = on ? (stack && u.i === 2 ? 'jmHigh' : 'jmLow') : offPose;
+  }
+  // 攻方撞上矛尖：骑兵头马人立一下，战车的马也扬一扬前蹄，步兵往后一仰
+  function jmRecoil(sq) {
+    if (sq.troop) sq.troop.units.forEach(u => sq.troop.act(u.i, 'hit', 0.35, Math.random() * 0.08));
+    if (sq.crew) sq.crew.units.forEach(u => sq.crew.act(u.i, 'hit', 0.35, Math.random() * 0.08));
+    const rear = (h, top) => { if (h && 'rearK' in h) tween(0.42, k => { h.rearK = k < 0.45 ? top * k / 0.45 : top * (1 - 0.7 * (k - 0.45) / 0.55); }); };
+    if (sq.riders) { rear(sq.riders[0], 1); sq.riders.slice(1).forEach(h => rear(h, 0.35)); }
+    if (sq.m && sq.m.horses) sq.m.horses.forEach((h, i) => rear(h, i ? 0.3 : 0.6));
+    else if (sq.m) rear(sq.m, 0.6);
+    if (sq.horse) rear(sq.horse, 0.8);
+    if (sq.general) rear(sq.general, 1);
+    if (sq.riders || (sq.m && sq.m.horses)) Sfx.B.neigh(0.05, 0.08, 'a');
+  }
+  // 面朝守方倒退：只挪位置不转身，步子放慢
+  async function backOff(sq, to) {
+    if (!sq.anchor) return;
+    const from = sq.anchor.clone(), L = from.distanceTo(to); if (L < 0.05) return;
+    if (sq.troop) { sq.follow = true; sq.setPose('stagger'); }
+    if (sq.riders) sq.riders.forEach(h => { h.speed = 0.35; });
+    if (sq.m && 'speed' in sq.m) sq.m.speed = 0.3;
+    if (sq.horse) sq.horse.speed = 0.25;
+    if (sq.general) sq.general.speed = 0.3;
+    await tween(Math.max(0.45, Math.min(0.75, L / 1.6)), k => { sq.anchor.lerpVectors(from, to, k); }, ease.inOut);
+    speedUp(sq, 0);
+    if (sq.troop) sq.setPose('ready');
+  }
+  // 攻方脚下临时的血圈（演出时棋子收起来了，借它的样子）：撞上那一下少一段
+  function hpRing(sq, hp) {
+    if (!sq.anchor || !hp || !Board.footRing || hp[1] < 2) return null;
+    let [n, max] = hp, g = Board.footRing(n, max, sq.side), k = 0, want = 1;
+    const root = new THREE.Group(); root.add(g); root.scale.setScalar(0.001); scene.add(root);
+    const off = onFrame(dt => {
+      k += (want - k) * Math.min(1, dt * 10);
+      root.position.set(sq.anchor.x, TOP + 0.002, sq.anchor.z); root.scale.setScalar(Math.max(0.001, k));
+      if (!want && k < 0.02) { off(); scene.remove(root); }
+    });
+    return {
+      hit() { root.remove(g); g = Board.footRing(Math.max(0, --n), max, sq.side); root.add(g); Fx.ring(sq.anchor.clone().setY(TOP + 0.02), 1.3, 0.4, 0x9e2418, 0.8); },
+      done() { want = 0; },
+    };
+  }
+  // 在某个三维位置上方飘一个字（掉血的「−1」）：跟着那个位置走（镜头在动、人在退）
+  function popAt(get, text, cls = 'jmMinus', life = 1.6) {
+    const el = document.createElement('div'); el.className = cls; el.textContent = text;
+    const place = () => {
+      const v = get().project(Core.camera), r = Core.renderer.domElement.getBoundingClientRect();
+      el.style.left = (r.left + (v.x + 1) / 2 * r.width) + 'px'; el.style.top = (r.top + (1 - v.y) / 2 * r.height) + 'px'; el.style.display = v.z > 1 ? 'none' : '';
+    };
+    try { place(); document.body.appendChild(el); } catch (e) { return; }
+    let t = 0;
+    const off = onFrame(dt => { t += dt; try { place(); } catch (e) { } if (t > life) { off(); el.remove(); } });
   }
   async function retreat(sq, A) {
     if (!sq.anchor || sq.mode === 'battery') return;
@@ -1359,20 +1443,21 @@ const Squads = (() => {
       const d = m.userData.deco; if (d) for (const c of d.children) if (c.userData.skin) c.visible = show;
     }
     function reconcile() {
-      const g = Board.lastGame, lvOf = new Map();
-      if (g && g.bf) for (const row of g.board) for (const p of row) if (p) lvOf.set(p.id, p.lv || 1);
+      const g = Board.lastGame, lvOf = new Map(), jmOf = new Set();
+      if (g && g.bf) for (const row of g.board) for (const p of row) if (p) { lvOf.set(p.id, p.lv || 1); if (p.t === 'p' && g.jmActive && g.jmActive(p)) jmOf.add(p.id); }
       for (const m of [...map.keys()]) if (!m.parent || Board.pieces.get(m.userData.id) !== m) drop(m);
       for (const m of Board.pieces.values()) {
         const u = m.userData;
         if (u.h || !u.t || u.t === 'h') { drop(m); continue; }
         const lv = g && g.bf ? lvOf.get(u.id) || 1 : 0, key = u.s + u.t + lv + (u.t === 'k' && finalMode ? 'F' : '');
         const st = map.get(m);
-        if (st && st.key === key) continue;
+        if (st && st.key === key) { if (!!st.sq.jm !== jmOf.has(u.id)) jmForm(st.sq, jmOf.has(u.id), 'idle'); continue; }   // 拒马生效期间这一队一直摆拒马阵
         drop(m);
         noRankFlag = true;
         let sq; try { sq = make(u.t, u.s, new V3(m.position.x, TOP, m.position.z), faceYaw(u.s), 'move', lv || 1, lv); } finally { noRankFlag = false; }
         const ns = { sq, key, k: 0, ph: Math.random() * 6.28 }; vis(ns, 0.001);
         if (sq.setPose && sq.troop) sq.setPose('idle');
+        if (jmOf.has(u.id)) jmForm(sq, true);
         if (sq.crew) sq.crew.setPose('idle');           // 炮手：站定，不再原地踏步
         if (sq.horse && !sq.mounted) sq.horse.speed = 0;
         // 一面写着棋子字的旗：由领头的背在身后（帅将的旗由随从擎着，只留「帥 / 將」一面）
@@ -1436,5 +1521,5 @@ const Squads = (() => {
     };
   })();
 
-  return { get finalMode() { return finalMode; }, set finalMode(v) { finalMode = !!v; }, Stand, move, capture, pieceBoat, heroDefeat, make, charge, retreat, hurtSquad, yawOf, knightCorner, Shade, Infantry, Guards, Crossbow, TigerRider, Elephant, Chariot, Cavalry, Cannon, General, killUnit, walkPath, turnTo, TroopSquad };
+  return { get finalMode() { return finalMode; }, set finalMode(v) { finalMode = !!v; }, Stand, move, capture, pieceBoat, heroDefeat, make, jmForm, standYaw, charge, retreat, hurtSquad, yawOf, knightCorner, Shade, Infantry, Guards, Crossbow, TigerRider, Elephant, Chariot, Cavalry, Cannon, General, killUnit, walkPath, turnTo, TroopSquad };
 })();
