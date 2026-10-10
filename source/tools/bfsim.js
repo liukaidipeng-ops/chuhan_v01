@@ -10,6 +10,8 @@
 //   --max-rounds N   超过这么多回合算和（默认 150）
 //   --dump-pos       记下“安静局面”（自己这步和对方下一步都没打到子、走前没被将军）+ 终局胜负，给自动调估值权重用（tools/tune/）
 //   --open N         开局多样化：前 N 步（双方合计）在“差不到约 1.5 分”的着法里随机挑（默认 6；0 = 关）
+//   --open-ai FILE   开局那 N 步统一由这个电脑挑（不设就由各自的电脑挑）。比两版电脑时用：同一个种子 → 完全相同的开局局面，
+//                    不会因为两版估值不同挑出不同的开局（N9：w_t5 / w_t6 的汉胜率差 9.5 点，多半来自各自挑的开局）
 //   --seed N         起始随机种子（第 i 局用 seed + i，可复现）
 //   --preset NAME    预设配置（见下方 PRESETS；可多个，逗号分隔）：baseline（普通象棋对照）、no-pofu / no-revive / no-simian / no-hongmen
 //                    （关掉某个兵法）、no-<技能>（如 no-chongzhen，关掉某个兵种技能）、
@@ -349,6 +351,7 @@ function parseArgs(argv) {
     else if (k === '--jobs') o.jobs = +v();
     else if (k === '--max-rounds') o.maxRounds = +v();
     else if (k === '--open') o.open = +v();
+    else if (k === '--open-ai') o.openAI = v();
     else if (k === '--seed') o.seed = +v();
     else if (k === '--preset') o.presets.push(...v().split(',').filter(Boolean));
     else if (k === '--set') o.sets.push(v());
@@ -497,9 +500,10 @@ function worker() {
         const U = BF.CFG.ultimates, left = g.used.ult[side] < U[side === 'r' ? 'simian' : 'hongmen'].usesPerGame;
         if (left && g.merit[side] >= U.cost - 7) L += 'Save';
       }
-      const seq = await AIS[side].think(BF.cloneState(g.S), L);
+      const AI = R.plies < job.open && AIMAP.O ? AIMAP.O : AIS[side];
+      const seq = await AI.think(BF.cloneState(g.S), L);
       const dt = Date.now() - t0; R.ms += dt; if (dt > R.msMax) R.msMax = dt;
-      const st = AIS[side].think.last; if (st && st.nodes != null) { R.nodes = (R.nodes || 0) + st.nodes; R.nodeMoves = (R.nodeMoves || 0) + 1; }
+      const st = AI.think.last; if (st && st.nodes != null) { R.nodes = (R.nodes || 0) + st.nodes; R.nodeMoves = (R.nodeMoves || 0) + 1; }
       if (!seq.length) { let why = ''; try { why = `（${side === 'r' ? '汉' : '楚'}方，第 ${g.round} 回合，${BF.ai.inCheck(g.S, side) ? '被将军' : '没被将军'}，普通行动 ${BF.ai.expand(g.S).length} 种，破釜 / 背水组合 ${side === 'b' && !g.S.used.art.b && BF.ai.pofuPairs ? BF.ai.pofuPairs(g.S).length : 0} 种）`; } catch (e) { why = '（' + e.message + '）'; } throw new Error('电脑没有给出行动' + why); }
       let noisy = false;
       for (const a of seq) {
@@ -626,6 +630,7 @@ async function run(o) {
     const seeds = o.seedlist || []; if (!o.seedlist) for (let i = 0; i < o.games; i++) seeds.push(o.seed + i);
     for (const seed of seeds) jobs.push({ seed, aiR: 'R', aiB: 'B', red: o.red || o.level, black: o.black || o.level, maxRounds: o.maxRounds, open: o.open, saveUlt: o.saveUlt, stopAfterRevive: !!o.stopAfterRevive, dumpPos: !!o.dumpPos });
   }
+  if (o.openAI) ais.O = resolveAI(o.openAI);   // 开局那几步统一由它挑
   const results = [], errors = [], warned = new Set();
   let next = 0, done = 0, stopped = null;
   const t0 = Date.now();
@@ -673,6 +678,7 @@ async function run(o) {
   sum.errors = errors.length; sum.seconds = Math.round((Date.now() - t0) / 1000);
   sum.label = [o.presets.join('+'), ...o.sets, o.saveUlt ? 'save-ult' : ''].filter(Boolean).join(' ') || 'current';
   sum.level = (o.red || o.level) + ' vs ' + (o.black || o.level) + ((o.aiR || o.aiB || o.ai !== 'src/bfai.js') ? `  [汉 ${o.aiR || o.ai} | 楚 ${o.aiB || o.ai}]` : '');
+  if (o.openAI) sum.level += `  [开局 ${o.open} 步由 ${o.openAI} 挑]`;
   print(sum, o);
   if (errors.length) console.log(`✗ 出错的局 ${errors.length} 个（没算进胜负；出错的局往往不是随便哪局，结果可能有偏差）：`, errors.slice(0, 3).map(e => e.seed + ' ' + e.error.split('\n')[0]).join(' | '));
   return sum;
