@@ -106,6 +106,29 @@ def volley3():
     return c
 import sys as _s
 OUTS = _s.argv[4:] or ['all']
+if 'b48' in OUTS:   # 第四十五批：“在这个基础上，再多叠一些木头碎屑，石块，木头断裂，碎块的音效，叠加懂吗？往上叠！！！”
+    import glob as _g
+    BF = _s.argv[5]   # CC0 75-cc0-breaking-falling-hit-sfx 解出来的目录
+    def B(name, k): fs = sorted(_g.glob(f'{BF}/bfh1_{name}_*.ogg')); p = fs[k % len(fs)]; CACHE.setdefault(p, V.load(p)); return CACHE[p]
+    def pile(t0, span, n, base, seed):   # 一大堆碎块：断裂、碎裂、木头落地、石块碎、石块落地，错开叠
+        r = np.random.default_rng(seed); kinds = ['wood_breaking', 'breaking', 'wood_falling', 'rock_breaking', 'rock_falling', 'falling', 'wood_hit']
+        c = []
+        for j in range(n):
+            k = kinds[j % len(kinds)]; t = t0 + (r.uniform(0, 0.12) if j < 7 else r.uniform(0.05, span))
+            c.append((t, B(k, int(r.integers(9))), base - (0 if j < 7 else r.uniform(3, 9)), r.uniform(0.8, 1.2)))
+        return c
+    DEB = lambda t, db: (t, A('destruction/explode_debris_20')[:int(1.6 * SR)] * np.minimum(1, (int(1.6 * SR) - np.arange(int(1.6 * SR))) / (0.5 * SR)), db)
+    COL = lambda t, db: (t, A('destruction/building_collapse_large_01')[:int(1.4 * SR)] * np.minimum(1, (int(1.4 * SR) - np.arange(int(1.4 * SR))) / (0.5 * SR)), db)
+    ARROW = 'snap'
+    tail = [(1.36, LION(2), -1), (1.42, S('paws'), -8), (1.70, S('boom'), -12), (1.70, S('punch'), -4), (1.75, S('death'), -5), (1.8, S('stones'), -10), (1.9, S('plank'), -8), (2.05, S('wood'), -8), (2.2, LION(1), -2)]
+    V.save(render(volley3() + tail + morewood(1.70, 7, 3) + pile(1.70, 1.0, 24, 6, 1) + [DEB(1.72, 2)], 3.0), O + '/juma_xiang_kill.mp3', '64k')
+    ek = [(0.0, S('elecry'), -4), *[(t, S('stomp'), -6, 0.8) for t in (0.1, 0.35, 0.6)], (0.0, S('elerun'), -10),
+      *morewood(0.80, 16, 5), (0.80, S('boom'), -8), (0.80, S('rumble'), -10), (0.84, S('death'), -4), (0.9, S('sgrunt'), -6),
+      (1.0, S('rockfall'), -10), (1.1, S('plank'), -2), (1.2, S('plank'), -4, 1.2), (1.25, S('wood'), -3), (1.35, S('wood'), -5, 1.3), (1.4, S('plank'), -5, 0.8), (1.5, S('wood'), -6),
+      (1.62, S('soft'), -4, 0.8), (1.62, S('stones'), -6), (1.75, S('plank'), -8),
+      *[(t, S('stomp'), -6, 0.8) for t in (1.2, 1.5)], (1.8, S('elecry'), -2, 0.92)]
+    V.save(render(ek + pile(0.80, 1.4, 34, 8, 2) + [DEB(0.82, 4), COL(0.85, 0)], 2.8), O + '/juma_ele_kill.mp3', '64k'); print('b48 ok')
+    raise SystemExit
 if 'b47' in OUTS:
     for m in ('snap', 'zip', 'thunk'):
         ARROW = m; V.save(render(volley3(), 2.4), O + f'/juma_xiang_hit_{m}.mp3', '64k')
