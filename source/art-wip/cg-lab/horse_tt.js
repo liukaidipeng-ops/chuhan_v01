@@ -18,7 +18,7 @@ window.STILL = {};
       if (ver === 'new') CG.cgify(H.group);
       ctx.add(SB.shadows(H.group));
       let fov = 26;
-      if (vn === 'head' || vn === 'head3') { const hp = H.head.localToWorld(H.headAt(0.5, 0.4).c.clone()); lk = hp.toArray(); cp = hp.clone().add(vn === 'head' ? V(0.05, 0.05, 1.5) : V(0.9, 0.1, 1.1)).toArray(); fov = 24; }
+      if (vn === 'head' || vn === 'head3') { const hp = H.head.localToWorld(H.headAt(0.5, 0.4).c.clone()); lk = hp.toArray(); hp.y += 0.12; lk = hp.toArray(); cp = hp.clone().add(vn === 'head' ? V(0.05, 0.05, 1.7) : V(0.95, 0.1, 1.25)).toArray(); fov = 26; }
       const cam = SB.cam(cp, lk, fov);
       return { ctx, cam, post: { focus: cam.position.distanceTo(V(...lk)), ap: 0.25, maxR: 8, exp: vn.startsWith('head') ? 1.3 : 1.0, gain: [1.04, 0.99, 0.94], sat: 0.95, vign: 0.35, grain: 0.03 } };
     };

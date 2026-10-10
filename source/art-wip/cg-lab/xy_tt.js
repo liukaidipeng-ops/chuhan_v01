@@ -10,16 +10,16 @@ window.STILL = {};
     ctx.shadowAt([0, 0, 0], 3);
     return ctx;
   }
-  for (const ver of ['old', 'new']) for (const vn of ['body', 'face', 'back']) {
+  for (const ver of ['old', 'new']) for (const vn of ['body', 'face', 'back', 'face3']) {
     STILL[ver + '_' + vn] = () => {
       const ctx = studio();
       const X = XY4.make({ stage: 2, cg: ver === 'new' }); X.group.rotation.y = 0.35; X.update(0.1); X.group.updateMatrixWorld(true);
       if (ver === 'new') { CG.cgify(X.group); CG.wind(X.group, { k: 1 }); CG.tick(1.7); }
       ctx.add(SB.shadows(X.group));
       const hp = X.J.head.getWorldPosition(V(0, 0, 0)).add(V(0, 0.08, 0));
-      const cam = vn === 'face' ? SB.cam(hp.clone().add(V(0.25, -0.02, 0.85)).toArray(), hp.toArray(), 22)
+      const cam = vn === 'face3' ? SB.cam(hp.clone().add(V(0.7, 0.02, 0.55)).toArray(), hp.toArray(), 20) : vn === 'face' ? SB.cam(hp.clone().add(V(0.25, -0.02, 0.85)).toArray(), hp.toArray(), 22)
         : vn === 'back' ? SB.cam([-2.6, 1.4, -3.4], [0, 1.0, 0], 26) : SB.cam([1.4, 1.3, 4.4], [0, 1.0, 0], 26);
-      return { ctx, cam, post: { focus: cam.position.distanceTo(vn === 'face' ? hp : V(0, 1, 0)), ap: 0.25, maxR: 8, exp: 1.05, gain: [1.04, 0.99, 0.94], sat: 0.95, vign: 0.35, grain: 0.03 } };
+      return { ctx, cam, post: { focus: cam.position.distanceTo(vn.startsWith('face') ? hp : V(0, 1, 0)), ap: 0.25, maxR: 8, exp: 1.05, gain: [1.04, 0.99, 0.94], sat: 0.95, vign: 0.35, grain: 0.03 } };
     };
   }
 })();

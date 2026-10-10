@@ -121,8 +121,21 @@ const XY3 = (() => {
       for (const t of [0.3, 0.55, 0.8]) put(el, gridGeo(32, 1, (u, v) => { const a = u * TAU, r = 0.068 - 0.014 * t + 0.003, y = -t * R.L2 - v * 0.012; return [Math.sin(a) * r, y, Math.cos(a) * r]; }), M(C.gold), 0.003);
       const eg = put(el, new THREE.CylinderGeometry(0.072, 0.072, 0.018, 32), M(0x3a3530), 0.005); eg.rotation.z = PI / 2; eg.position.x = s * 0.06; J['elb' + s] = eg;
       const eg2 = put(el, new THREE.CylinderGeometry(0.03, 0.03, 0.022, 20), M(C.gold), 0.003); eg2.rotation.z = PI / 2; eg2.position.x = s * 0.064;
-      // 披膊：三层甲片搭在上臂外侧
-      for (let k = 0; k < 3; k++) {
+      // 披膊：三层甲片搭在上臂外侧（o.cg：换成下面的肩甲，cg-005）
+      if (o.cg) {
+        // 肩甲（cg-005，Ham：「不一定要是金的，现在这个太像齿轮了，又小又奇怪」）：黑铁札甲，肩头一片圆顶甲盖住肩，下面四层甲片一层比一层宽、往外张，
+        // 每层下沿一道暗铜边；肩顶正外侧一枚暗铜虎面小圆牌（留一点霸王的虎纹，不再是金虎头）
+        const lam = (ru, rv) => M(0xffffff, { map: (() => { const t = LAM.clone(); t.needsUpdate = true; t.repeat.set(ru, rv); return t; })(), side: THREE.DoubleSide });
+        put(sh, new THREE.SphereGeometry(0.112, 28, 12, s > 0 ? -PI * 0.15 : PI * 0.15, PI * 1.0 * s, 0, PI * 0.42).rotateY(s > 0 ? 0 : PI).translate(0, 0.0, 0), lam(4, 1), 0.005).position.y = -0.005;
+        for (let k = 0; k < 3; k++) {   // 贴着上臂包过去（太宽太直会像两块纸板）
+          const y0 = -0.03 - k * 0.05, r0 = 0.1 + k * 0.009;
+          put(sh, gridGeo(24, 3, (u, v) => { const a = s * (-0.55 + u * 2.15), r = r0 + v * 0.012, y = y0 - v * 0.066 - 0.012 * Math.cos(a * s - 0.5); return [Math.sin(a) * r, y, Math.cos(a) * r * 0.95]; }, false), lam(8, 1), 0.005);
+          put(sh, gridGeo(24, 1, (u, v) => { const a = s * (-0.55 + u * 2.15), r = r0 + 0.013, y = y0 - 0.066 - 0.012 * Math.cos(a * s - 0.5) - v * 0.008; return [Math.sin(a) * r, y, Math.cos(a) * r * 0.95]; }, false), M(0x4a3a22, { side: THREE.DoubleSide }), 0);
+        }
+        const boss = put(sh, new THREE.CylinderGeometry(0.036, 0.038, 0.012, 28), [M(0x4a3a22), M(0xffffff, { map: tigerTex(0x6a5430) }), M(0x4a3a22)], 0.003);
+        boss.rotation.z = -s * PI / 2; boss.position.set(s * 0.112, 0.0, 0);
+      }
+      for (let k = 0; k < (o.cg ? 0 : 3); k++) {
         const y0 = -0.03 - k * 0.055;
         put(sh, gridGeo(16, 3, (u, v) => { const a = s * (-0.4 + u * 2.2), r = 0.105 + k * 0.006, y = y0 - v * 0.075; return [Math.sin(a) * r, y, Math.cos(a) * r * 0.9]; }, false), M(0xffffff, { map: (() => { const t = LAM.clone(); t.needsUpdate = true; t.repeat.set(3, 1); return t; })(), side: THREE.DoubleSide }), 0.005);
         put(sh, gridGeo(16, 1, (u, v) => { const a = s * (-0.4 + u * 2.2), r = 0.108 + k * 0.006, y = y0 - 0.075 - v * 0.008; return [Math.sin(a) * r, y, Math.cos(a) * r * 0.9]; }, false), M(C.gold, { side: THREE.DoubleSide }), 0);
@@ -133,6 +146,7 @@ const XY3 = (() => {
     }
     // 虎头吞肩：一圈虎毛 + 金虎头（张嘴、獠牙、红眼），胳膊从虎嘴里伸出来
     for (const s of [-1, 1]) {
+      if (o.cg) { const T = new THREE.Group(); root.add(T); J['tiger' + s] = T; continue; }   // cg：金虎头不要了，肩甲在胳膊那里做
       const T = new THREE.Group(); T.position.set(s * 0.355, 1.505, 0.005); T.rotation.set(0.12, s * 0.7, s * -0.2); root.add(T); J['tiger' + s] = T;
       if (o.cg) { T.scale.setScalar(0.66); T.position.set(s * 0.33, 1.49, 0.0); }   // 特写里虎头比脸还大，抢戏
       // 虎毛：一圈锯齿的扁环，背在虎头后面
@@ -151,8 +165,9 @@ const XY3 = (() => {
     }
 
     // —— 头 ——
-    put(neck, gridGeo(32, 6, (u, v) => { const a = u * TAU, r = 0.072 + 0.008 * v; return [Math.sin(a) * r, 0.08 - v * 0.12, 0.004 + Math.cos(a) * r * 0.9]; }), M(C.skin), 0.005);
+    put(neck, gridGeo(32, 6, (u, v) => { const a = u * TAU, r = 0.072 + 0.008 * v; return [Math.sin(a) * r, 0.08 - v * 0.12, 0.004 + Math.cos(a) * r * 0.9]; }), M(o.cg ? 0x6e4e3a : C.skin), 0.005);   // cg：脖子在胡子底下的阴影里，压暗
     xyHead({ head, M, put, VG, st, C, cg: !!o.cg });
+    if (o.cg) { const sc = put(neck, gridGeo(40, 6, (u, v) => { const a = u * TAU, r = 0.088 - 0.012 * v + 0.012 * Math.sin(v * PI) + 0.006 * Math.sin(a * 7 + v * 3); return [Math.sin(a) * r * 1.08, -0.11 + v * 0.15, 0.008 + Math.cos(a) * r]; }), M(0x3a1a14), 0.004); sc.renderOrder = 1; }   // 领巾：盖住胡子下面那截光脖子（cg-005）
     if (st < 3) helmet({ head, M, put, VG, st, C, lamMat, cg: !!o.cg });
 
     // —— 兵器：右手卜字戟（竖着、杆从拳里穿过）；左胯长剑，左手按在剑柄上 ——
@@ -257,19 +272,29 @@ const XY3 = (() => {
     const ZF = [[1.0, 0.0], [0.8, 0.6], [0.6, 0.85], [0.42, 0.96], [0.3, 1.04], [0.17, 0.95], [0.02, 0.96], [-0.28, 0.99], [-0.41, 1.02], [-0.54, 0.99], [-0.64, 0.92], [-0.78, 0.99], [-0.9, 0.78], [-1.0, 0.3]];
     const WF = [[1.0, 0.9], [0.5, 1.0], [0.25, 0.98], [0.0, 1.0], [-0.2, 0.98], [-0.45, 0.93], [-0.65, 0.82], [-0.85, 0.62], [-1.0, 0.4]];   // 方下巴：下半张脸比刘邦宽
     const tab = (T, y) => { for (let i = 0; i < T.length - 1; i++) if (y <= T[i][0] && y >= T[i + 1][0]) { const t = (T[i][0] - y) / (T[i][0] - T[i + 1][0]), e = t * t * (3 - 2 * t); return T[i][1] + (T[i + 1][1] - T[i][1]) * e; } return T[T.length - 1][1]; };
-    const g = new THREE.SphereGeometry(1, 128, 96), P = g.attributes.position;
-    for (let i = 0; i < P.count; i++) {
-      let x = P.getX(i), y = P.getY(i), z = P.getZ(i); const ax = Math.abs(x), front = sstep(0.15, 0.9, z);
+    const G2 = (a, b) => Math.exp(-(a * a + b * b));
+    const deform = (x, y, z) => { const ax = Math.abs(x), front = sstep(0.15, 0.9, z);
       x *= tab(WF, y);
       if (z > 0) z *= 1 + (tab(ZF, y) - 1) * front * (1 - 0.5 * sstep(0.3, 0.8, ax));
       if (z < 0) { z *= 1.06 + 0.06 * sstep(-0.2, 0.5, y); if (y < -0.3) z *= 1 - 0.25 * sstep(-0.3, -0.9, y); }
-      z -= 0.075 * Math.exp(-(((ax - 0.33) / 0.15) ** 2 + ((y - 0.12) / 0.1) ** 2)) * front;
+      z -= (cg ? 0.11 : 0.075) * Math.exp(-(((ax - 0.33) / 0.15) ** 2 + ((y - 0.12) / 0.1) ** 2)) * front;   // 眼窝
       z += 0.07 * Math.exp(-(((ax - 0.56) / 0.17) ** 2 + ((y + 0.04) / 0.15) ** 2)) * front;
+      if (cg) {
+        z += 0.06 * G2((ax - 0.3) / 0.22, (y - 0.27) / 0.05) * front;          // 眉弓：一道横着的骨棱压在眼窝上
+        z += 0.035 * G2((ax - 0.58) / 0.1, (y - 0.0) / 0.1) * front;          // 颧骨
+        z -= 0.03 * G2((ax - 0.22) / 0.05, (y + 0.3) / 0.12) * front;          // 鼻唇沟
+        z += 0.03 * G2(ax / 0.1, (y + 0.86) / 0.07) * front;                   // 下巴尖
+        x *= 1 - 0.04 * G2((ax - 0.75) / 0.2, (y - 0.15) / 0.15) * front;     // 太阳穴往里收
+      }
       if (y < -0.35 && y > -0.9) x *= 1 + 0.08 * Math.exp(-(((y + 0.62) / 0.14) ** 2)) * (1 - front * 0.5);
-      P.setXYZ(i, x * SX, y * SY, z * SZ);
-    }
+      return [x * SX, y * SY, z * SZ]; };
+    const g = new THREE.SphereGeometry(1, 128, 96), P = g.attributes.position;
+    for (let i = 0; i < P.count; i++) P.setXYZ(i, ...deform(P.getX(i), P.getY(i), P.getZ(i)));
     g.computeVertexNormals();
-    put(head, g, M(0xffffff, { map: faceTex(st, C) }), 0.006).position.y = HY;
+    put(head, g, M(0xffffff, { map: cg ? faceTexCG(st, C) : faceTex(st, C) }), 0.006).position.y = HY;
+    // 脸上一点（单位球坐标 x, y，朝前）在头里的位置和法线
+    const onFace = (x, y) => { const z = Math.sqrt(Math.max(0.02, 1 - x * x - y * y)), p = V(...deform(x, y, z)), q = V(...deform(x * 1.01, y * 1.01, z * 1.01)); p.y += HY; q.y += HY; return { p, n: q.sub(p).normalize() }; };
+    if (cg) cgFace({ head, M, put, VG, st, C, onFace, HY, SX, SY, SZ });
     const faceZ = y => tab(ZF, y) * SZ;
     const nose = gridGeo(24, 20, (u, v) => { const y = 0.15 - v * 0.44, a = (u - 0.5) * PI, prof = v < 0.82 ? 0.004 + 0.025 * Math.pow(v / 0.82, 1.1) : 0.029 - 0.045 * Math.pow((v - 0.82) / 0.18, 1.6), w = 0.008 + 0.007 * v * v + 0.012 * sstep(0.7, 0.95, v) * (1 - sstep(0.97, 1, v)); return [Math.sin(a) * w, y * SY, faceZ(y) - 0.004 + Math.cos(a) * Math.max(0.003, prof)]; }, false);
     put(head, nose, M(C.skin), 0.0045).position.y = HY;
@@ -304,6 +329,54 @@ const XY3 = (() => {
       B.push({ geo: taper([V(0.02, HY + SY * 0.75, SZ * 0.55), V(0.045, HY + SY * 0.45, SZ * 0.97), V(0.035, HY + SY * 0.12, SZ * 1.03)], 0.0045, 0.0012, 6, 10), color: C.hair, m: new THREE.Matrix4() });
     }
     head.add(VG(B, 0.0026));
+  }
+  function cgFace({ head, M, put, VG, st, C, onFace, HY, SX, SY }) {
+    const J = head.userData.J = {};
+    const angry = st < 3; seed = 77;
+    J.lids = [];
+    for (const s of [-1, 1]) {
+      const { p, n } = onFace(s * 0.31, 0.09), c = p.clone().addScaledVector(n, -0.004);   // 眼珠前沿露出眼窝一点
+      const eye = new THREE.Group(); eye.position.copy(c); head.add(eye);
+      const iris = cv(128, 128, (g, w) => { g.fillStyle = '#efe7da'; g.fillRect(0, 0, w, w); g.save(); g.translate(64, 64); g.scale(0.5, 1); const gr = g.createRadialGradient(0, 0, 3, 0, 0, 22); gr.addColorStop(0, '#120a06'); gr.addColorStop(0.35, '#2a170c'); gr.addColorStop(0.85, '#4a2c18'); gr.addColorStop(1, '#1a0f08'); g.fillStyle = gr; g.beginPath(); g.arc(0, 0, 22, 0, TAU); g.fill(); g.fillStyle = '#060403'; g.beginPath(); g.arc(0, 0, 8, 0, TAU); g.fill(); g.restore(); });   // 球面贴图横向一圈是 360°，纵向 180°，横着压一半才是圆
+      const ball = new THREE.Mesh(new THREE.SphereGeometry(0.0128, 24, 16).rotateY(-PI / 2), M(0xffffff, { map: iris })); ball.rotation.set(-0.08, s * -0.12, 0); eye.add(ball);   // 贴图中心朝 +z（瞳孔朝前）
+      const glint = new THREE.Mesh(new THREE.SphereGeometry(0.0022, 8, 6), new THREE.MeshBasicMaterial({ color: 0xfff8ee })); glint.position.set(s * -0.003, 0.004, 0.0126); eye.add(glint);
+      // 上眼皮：一片皮壳，睁眼时卷在眼珠上沿（只盖上面三分之一），眨眼时往下合
+      const lid = new THREE.Group(); eye.add(lid);
+      const shell = new THREE.Mesh(new THREE.SphereGeometry(0.0138, 24, 10, 0, TAU, 0, PI * 0.5), M(C.skin, { side: THREE.DoubleSide })); shell.rotation.x = 0.0; lid.add(shell);
+      const lash = new THREE.Mesh(new THREE.TorusGeometry(0.0134, 0.0011, 4, 24, PI), M(0x120c08)); lash.rotation.set(PI / 2, 0, PI); lash.position.y = 0.0; lid.add(lash);
+      lid.rotation.x = -(angry ? 0.32 : 0.45); lid.userData.open = lid.rotation.x; J.lids.push(lid);   // 怒目：眼皮抬得高一点
+      const lower = new THREE.Mesh(new THREE.TorusGeometry(0.0132, 0.0018, 4, 20, PI * 0.9), M(C.skin)); lower.rotation.set(PI / 2 + 0.25, 0, PI * 0.05); lower.position.y = -0.003; eye.add(lower);
+    }
+    // 眉：一根根的短毛沿着眉弓排，眉头低、眉尾挑（怒）；第三阶段眉头往上皱
+    const B = [];
+    for (const s of [-1, 1]) for (let k = 0; k < 150; k++) {
+      const t = rnd(), x = s * (0.1 + t * 0.44), y = (angry ? 0.21 + 0.1 * t : 0.27 - 0.03 * t + 0.03 * Math.sin(t * PI)) + (rnd() - 0.5) * 0.035 * (1 - 0.6 * t);
+      const { p, n } = onFace(x, y), dir = V(s * (0.6 + 0.3 * t), angry ? 0.35 + 0.3 * t : 0.25, 0.15).normalize(), l = 0.008 + 0.006 * rnd() * (1 - 0.5 * t);
+      const b0 = p.clone().addScaledVector(n, 0.0005); B.push({ geo: taper([b0, b0.clone().addScaledVector(dir, l * 0.5).addScaledVector(n, 0.0012), b0.clone().addScaledVector(dir, l).addScaledVector(n, 0.0008)], 0.0011, 0.0003, 3, 3), color: rnd() < 0.2 ? 0x2a2018 : C.hair, m: new THREE.Matrix4() });
+    }
+    head.add(VG(B, 0));
+    // 嘴：上唇薄、下唇厚一点；下唇和颏下胡子在下巴组里，说话时下巴往下开
+    const m0 = onFace(0, -0.455), jaw = new THREE.Group(); jaw.position.copy(onFace(0, -0.1).p).add(V(0, 0, -0.06)); head.add(jaw); J.jaw = jaw;
+    const lipMat = M(0xa06450), mouth = M(0x2a120e);
+    const up = new THREE.Mesh(new THREE.CapsuleGeometry(0.0042, 0.026, 4, 12).rotateZ(PI / 2), lipMat); up.scale.set(1, 0.6, 0.7); up.position.copy(m0.p).addScaledVector(m0.n, 0.001).add(V(0, 0.003, 0)); head.add(up);
+    const gap = new THREE.Mesh(new THREE.CapsuleGeometry(0.0022, 0.028, 4, 10).rotateZ(PI / 2), mouth); gap.position.copy(m0.p).addScaledVector(m0.n, -0.002).add(V(0, -0.002, 0)); head.add(gap);
+    const lo = new THREE.Mesh(new THREE.CapsuleGeometry(0.005, 0.022, 4, 12).rotateZ(PI / 2), lipMat); lo.scale.set(1, 0.65, 0.75); const lp = m0.p.clone().addScaledVector(m0.n, 0.0005).add(V(0, -0.008, 0)); jaw.worldToLocal ? null : null; lo.position.copy(lp.clone().sub(jaw.position)); jaw.add(lo);
+  }
+  // 过场版的脸皮：不再画眼睛、眉毛、嘴线，只有肤色的冷暖、胡茬的青底、眼下的暗、发际线
+  function faceTexCG(st, C) {
+    const skin = '#' + C.skin.toString(16).padStart(6, '0');
+    return cv(2048, 1024, (g, w, h) => {
+      g.fillStyle = skin; g.fillRect(0, 0, w, h);
+      const uv = (x, y, z) => { const L = Math.hypot(x, y, z); x /= L; y /= L; z /= L; let ph = Math.atan2(z, -x); if (ph < 0) ph += TAU; return [ph / TAU * w, Math.acos(clamp(y, -1, 1)) / PI * h]; };
+      const P = (x, y) => uv(x, y, Math.sqrt(Math.max(0.05, 1 - x * x - y * y)));
+      const blob = (x, y, r, col) => { const q = P(x, y), gr = g.createRadialGradient(q[0], q[1], 0, q[0], q[1], r); gr.addColorStop(0, col); gr.addColorStop(1, 'rgba(0,0,0,0)'); g.fillStyle = gr; g.fillRect(q[0] - r, q[1] - r, r * 2, r * 2); };
+      seed = 91; for (let i = 0; i < 4000; i++) { g.fillStyle = `rgba(${rnd() < 0.5 ? '90,50,35' : '255,230,210'},${0.03 + rnd() * 0.04})`; g.fillRect(rnd() * w, rnd() * h, 2 + rnd() * 3, 2 + rnd() * 3); }   // 皮肤的细斑
+      blob(0, -0.62, 200, 'rgba(40,32,28,.42)');   // 胡茬青底
+      for (const s of [-1, 1]) { blob(s * 0.31, 0.03, 40, 'rgba(70,40,30,.35)'); blob(s * 0.5, -0.1, 70, 'rgba(160,70,50,.18)'); blob(s * 0.31, 0.16, 46, 'rgba(60,35,25,.3)'); }   // 眼下暗、颧上红、眼窝暗
+      blob(0, -0.3, 60, 'rgba(150,80,60,.15)');
+      if (st >= 3) { for (const [x, y, r] of [[0.45, -0.1, 26], [-0.35, 0.35, 20]]) blob(x, y, r, 'rgba(120,20,14,.55)'); }
+      g.fillStyle = '#' + C.hair.toString(16).padStart(6, '0'); g.fillRect(0, 0, w, h * 0.17); g.fillRect(w * 0.5, 0, w * 0.5, h * 0.56); g.fillRect(0, 0, w * 0.07, h * 0.56);
+    });
   }
   function faceTex(st, C) {
     const skin = '#' + C.skin.toString(16).padStart(6, '0');

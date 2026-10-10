@@ -136,7 +136,16 @@ const WuZhui3 = (() => {
     }
     head.add(inkedMerged(hp));
     // 耳：尖、往前竖（可转）
-    const ears = [1, -1].map(s => { const ea = new THREE.Group(); ea.position.copy(hat(0.5 + s * 0.12, 0.04).p).add(V(0, 0.02, 0)); head.add(ea); const cone = new THREE.ConeGeometry(0.035, 0.15, 10); cone.translate(0, 0.075, 0); cone.scale(1, 1, 0.7); const m = inked(cone, mats.coat); m.rotation.set(s * 0.25, 0, 0.55); ea.add(m); return ea; });
+    const earGeo = (() => { const NU = 18, NV = 14, pos = [], idx = [];
+      for (let j = 0; j <= NV; j++) for (let i = 0; i <= NU; i++) { const v = j / NV, a = PI * 0.5 + (i / NU - 0.5) * PI * 1.55, r = 0.048 * Math.pow(1 - v, 0.75) * (1 + 0.35 * Math.sin(PI * v * 0.9)) + 0.002;
+        pos.push(Math.cos(a) * r * 0.75 + 0.012 * Math.sin(PI * v), -0.035 + v * 0.215, Math.sin(a) * r * 0.62 - 0.012 * v * v); }
+      for (let j = 0; j < NV; j++) for (let i = 0; i < NU; i++) { const a = j * (NU + 1) + i, b = a + NU + 1; idx.push(a, b, a + 1, b, b + 1, a + 1); }
+      const g = new THREE.BufferGeometry(); g.setAttribute('position', new THREE.Float32BufferAttribute(pos, 3)); g.setIndex(idx); g.computeVertexNormals(); return g; })();
+    const earMat = toon(COAT, { side: THREE.DoubleSide, unique: true });
+    const ears = [1, -1].map(s => { const ea = new THREE.Group(); ea.position.copy(hat(0.5 + s * 0.13, 0.05).p).add(V(-0.01, -0.01, 0)); head.add(ea);
+      const m = new THREE.Mesh(earGeo, earMat); m.castShadow = true; m.rotation.set(s * 0.18, s * -0.35, 0.62); ea.add(m);   // 杯口朝前（+x），尖往上微微内收
+      const base = new THREE.Mesh(new THREE.SphereGeometry(0.04, 12, 10), mats.coat); base.scale.set(0.9, 0.7, 0.75); base.position.set(0.005, 0.0, 0); ea.add(base);   // 耳根鼓包，把接缝盖住
+      return ea; });
     // 额鬃一撮，扎红绳
     const flp = [P(new THREE.CylinderGeometry(0.022, 0.022, 0.02, 10), TASSEL, 0.0, 0.13, 0, 0, 0, 0.9)]; seed = 31;
     for (let i = 0; i < 40; i++) { const a = rnd() * PI * 2, r = rnd() * 0.02, l = 0.1 + rnd() * 0.06; flp.push(P(new THREE.CylinderGeometry(0.003, 0.0012, l, 3), MANE, -0.02 + l * 0.48 + Math.cos(a) * r * 0.3, 0.135 - l * 0.12, Math.sin(a) * r, Math.sin(a) * 0.15, 0, -PI / 2 + 0.22 + (rnd() - 0.5) * 0.25)); }
@@ -147,7 +156,20 @@ const WuZhui3 = (() => {
     tk.push(P(band(0, 0.05), LEATHER), P(band(0, 0.72), LEATHER));                 // 项带、鼻革
     for (const s of [1, -1]) { const pts = [hat(0.5 + s * 0.24, 0.05).p, hat(0.5 + s * 0.28, 0.4).p, hat(0.5 + s * 0.3, 0.72).p].map(p => p.add(V(0, 0, s * 0.008))); tk.push(P(new THREE.TubeGeometry(new THREE.CatmullRomCurve3(pts), 12, 0.011, 6), LEATHER)); }   // 颊革
     // 当卢：额前一片铜饰，中间一颗朱红
-    const dl = hat(0.5, 0.33).p; void dl;   // v3：当卢去掉（侧面看戳出额头一截）
+    const dl = hat(0.5, 0.33).p; void dl;
+    {
+      const pos = [], idx = [], NU = 12, NV = 22;
+      for (let j = 0; j <= NV; j++) for (let i = 0; i <= NU; i++) { const v = j / NV, w = 0.13 * Math.sin(PI * Math.pow(v, 0.8)) * (1 - 0.35 * v) + 0.01, u = 0.5 + (i / NU - 0.5) * w, s0 = hat(u, 0.1 + v * 0.36), nn = s0.p.clone().sub(s0.c).normalize(), q = s0.p.clone().addScaledVector(nn, 0.006 + 0.004 * Math.sin(PI * v)); pos.push(q.x, q.y, q.z); }
+      for (let j = 0; j < NV; j++) for (let i = 0; i < NU; i++) { const a = j * (NU + 1) + i, b = a + NU + 1; idx.push(a, b, a + 1, b, b + 1, a + 1); }
+      const g = new THREE.BufferGeometry(); g.setAttribute('position', new THREE.Float32BufferAttribute(pos, 3)); g.setIndex(idx); g.computeVertexNormals();
+      const plate = new THREE.Mesh(g, toon(0x9a7434, { side: THREE.DoubleSide, unique: true })); plate.castShadow = true; head.add(plate);
+      const rim = []; for (const t of [0.16, 0.26, 0.36]) { const s0 = hat(0.5, t), nn = s0.p.clone().sub(s0.c).normalize(); rim.push(P(new THREE.SphereGeometry(0.012, 10, 8), 0xc9a14a, ...s0.p.clone().addScaledVector(nn, 0.012).toArray())); }
+      const pl = hat(0.5, 0.03), pn = pl.p.clone().sub(pl.c).normalize(); seed = 47;
+      rim.push(P(new THREE.CylinderGeometry(0.016, 0.02, 0.03, 10), 0x9a7434, ...pl.p.clone().addScaledVector(pn, 0.02).toArray()));
+      for (let i = 0; i < 70; i++) { const a = rnd() * PI * 2, r = rnd() * 0.014, l = 0.13 + rnd() * 0.09, lean = 0.25 + rnd() * 0.35, c = pl.p.clone().addScaledVector(pn, 0.03);
+        rim.push(P(new THREE.CylinderGeometry(0.0032, 0.001, l, 3), TASSEL, c.x + Math.cos(a) * r - Math.sin(lean) * l * 0.5, c.y + Math.cos(lean) * l * 0.5, c.z + Math.sin(a) * r, Math.sin(a) * 0.25, 0, lean)); }   // 红缨往后上方翘
+      head.add(inkedMerged(rim));
+    }
     // S 形镳：嘴角两侧
     for (const s of [1, -1]) { const m0 = hat(0.5 + s * 0.3, 0.86).p; const pts = [V(-0.02, 0.06, 0), V(0.02, 0.03, 0), V(-0.015, -0.01, 0), V(0.02, -0.05, 0)].map(p => p.add(m0).add(V(0, 0, s * 0.02))); tk.push(P(new THREE.TubeGeometry(new THREE.CatmullRomCurve3(pts), 16, 0.009, 6), BRONZE)); tk.push(P(new THREE.SphereGeometry(0.014, 8, 6), BRONZE, m0.x, m0.y + 0.01, m0.z + s * 0.02)); }
     head.add(inkedMerged(tk));
@@ -158,8 +180,23 @@ const WuZhui3 = (() => {
     tas.position.set(0.38, 0.28, 0); neck.add(tas);
     // ---- 尾：尾根挽一个结、扎红绳，结下垂一截 ----
     const tail = new THREE.Group(); tail.name = 'tail'; tail.position.set(-0.86, 1.36, 0); bp.add(tail);
-    tail.add(inked(loft([[0, 0.02, 0, 0.05, 0.05, 0.05], [-0.07, -0.04, 0, 0.06, 0.06, 0.055], [-0.11, -0.14, 0, 0.065, 0.065, 0.06], [-0.1, -0.22, 0, 0.08, 0.08, 0.075], [-0.08, -0.3, 0, 0.07, 0.07, 0.065], [-0.07, -0.5, 0, 0.06, 0.06, 0.055], [-0.065, -0.62, 0, 0.065, 0.065, 0.06], [-0.06, -0.66, 0, 0.02, 0.02, 0.02]], { len: 30, rad: 18 }), mats.mane));
-    tail.add(inkedMerged([P(new THREE.TorusGeometry(0.068, 0.018, 6, 16), TASSEL, -0.1, -0.16, 0, PI / 2 + 0.2, 0, 0)]));
+    tail.add(inked(loft([[0.02, 0.03, 0, 0.045, 0.045, 0.045], [-0.05, -0.02, 0, 0.055, 0.055, 0.05], [-0.1, -0.1, 0, 0.05, 0.05, 0.045], [-0.12, -0.18, 0, 0.035, 0.035, 0.032], [-0.125, -0.22, 0, 0.012, 0.012, 0.012]], { len: 20, rad: 16 }), mats.coat));   // 尾骨（有毛皮）
+    {
+      const pos = [], idx = []; seed = 53; let k = 0;
+      for (let i = 0; i < 520; i++) {
+        const r0 = Math.sqrt(rnd()), a0 = rnd() * PI * 2, st0 = rnd() * 0.18, L = 0.75 + rnd() * 0.28 - st0 * 0.8, spread = 0.05 + 0.1 * rnd(), sw = (rnd() - 0.5) * 0.08;
+        const pts = []; for (let j = 0; j <= 8; j++) { const v = j / 8, d = st0 + v * L;
+          pts.push(V(-0.05 - (st0 + L) * (0.5 * Math.sin(v * PI * 0.55)) - 0.06 * v * v + Math.cos(a0) * r0 * 0.04, -0.02 - (st0 + L) * (0.18 * v + 0.62 * v * v) + 0.02 * Math.sin(v * PI), Math.sin(a0) * r0 * 0.05 + Math.sin(a0) * spread * v * v * 1.6 + sw * v)); }   // 先往后甩出去，再弧着垂下（Ham 截图画的样子）
+        const w0 = 0.007 + 0.005 * rnd();
+        for (let j = 0; j <= 8; j++) { const p = pts[j], t = (pts[Math.min(8, j + 1)].clone().sub(pts[Math.max(0, j - 1)])).normalize(), ax = V(0, 0, 1).cross(t).normalize().multiplyScalar(w0 * (1 - 0.7 * j / 8) + 0.0015);
+          pos.push(p.x + ax.x, p.y + ax.y, p.z + 0.004, p.x - ax.x, p.y - ax.y, p.z - 0.004); }
+        for (let j = 0; j < 8; j++) { const a = k + j * 2; idx.push(a, a + 2, a + 1, a + 1, a + 2, a + 3); }
+        k += 18;
+      }
+      const tg = new THREE.BufferGeometry(); tg.setAttribute('position', new THREE.Float32BufferAttribute(pos, 3)); tg.setIndex(idx); tg.computeVertexNormals();
+      const tm = new THREE.Mesh(tg, toon(MANE, { side: THREE.DoubleSide, unique: true })); tm.castShadow = true; tail.add(tm);
+    }
+    tail.add(inkedMerged([P(new THREE.TorusGeometry(0.05, 0.014, 6, 16), TASSEL, -0.05, -0.03, 0, PI / 2 + 0.6, 0, 0)]));   // 尾根扎红绳
     // ---- 鞍鞯 + 低鞍桥（秦汉没有马镫） ----
     const tat = torsoGeo.userData.at, felt = toon(0xffffff, { map: feltTex(mud), unique: true }); felt.side = THREE.DoubleSide;
     {
