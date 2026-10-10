@@ -144,7 +144,8 @@ details.closed summary { cursor: pointer; font-weight: 500; }
       box.innerHTML = open.map((q, i) => {
         const cur = current(q), a = state.ans[q.id];
         const changedSinceSave = a && (a.choice !== cur.choice || (a.note || '') !== (cur.note || ''));
-        const tag = !a ? '<span class="tag">还没答</span>' : changedSinceSave ? '<span class="tag edit">改了，还没提交</span>' : '<span class="tag done">已提交</span>';
+        // 回执（WORKFLOW 第 3 节第 6 条）：{{DEPT}} 读到答案后在 answers/<id>.ack 写 {at, text}，这里亮“✓ 已收到”
+        const tag = !a ? '<span class="tag">还没答</span>' : changedSinceSave ? '<span class="tag edit">改了，还没提交</span>' : a.ack ? '<span class="tag done">✓ 已收到</span>' : '<span class="tag">已提交 · 等确认收到…</span>';
         const opts = q.options.map(o => `
           <label class="opt">
             <input type="radio" name="q-${esc(q.id)}" value="${esc(o.key)}" ${o.key === cur.choice ? 'checked' : ''} data-q="${esc(q.id)}">
@@ -162,6 +163,7 @@ details.closed summary { cursor: pointer; font-weight: 500; }
           ${q.context ? `<p class="ctx">${esc(q.context)}</p>` : ''}
           <fieldset><legend class="sr">${esc(q.title)} 的选项</legend>${opts}</fieldset>
           ${q.why ? `<p class="why">{{DEPT}} 为什么这么建议：${esc(q.why)}</p>` : ''}
+          ${a && a.ack && !changedSinceSave ? `<p class="why">✓ {{DEPT}} 已收到（${esc(a.ack.at || '')}）：${esc(a.ack.text || '')}</p>` : ''}
           <div class="note-row">
             ${showNote ? '' : `<button class="linkbtn" type="button" data-note="${esc(q.id)}">补一句</button>`}
             <textarea id="note-${esc(q.id)}" data-q="${esc(q.id)}" placeholder="想补充或改条件，写在这里" ${showNote ? '' : 'hidden'}>${esc(cur.note || '')}</textarea>
@@ -177,7 +179,7 @@ details.closed summary { cursor: pointer; font-weight: 500; }
     $('closedN').textContent = closed.length;
     $('closed').innerHTML = closed.map(q => {
       const a = state.ans[q.id], o = a && q.options.find(x => x.key === a.choice);
-      return `<div class="closed-item"><b>${esc(q.title)}</b><br>${o ? '定了：' + esc(o.label) : '（没有记录答案）'}${a && a.note ? '<br>补充：' + esc(a.note) : ''}</div>`;
+      return `<div class="closed-item"><b>${esc(q.title)}</b><br>${o ? '定了：' + esc(o.label) : '（没有记录答案）'}${a && a.note ? '<br>补充：' + esc(a.note) : ''}${a && a.ack ? '<br>✓ 已收到：' + esc(a.ack.text || '') : ''}</div>`;
     }).join('');
   }
 
