@@ -1944,12 +1944,7 @@ const Board = (() => {
   })();
   return {
     root, TOP, PH, HALF, X, Z, pos, setPosition, syncPosition, pieces, piecesRoot, makePiece, faceViewer,
-<<<<<<< HEAD
     showMoves, clearMoves, flashBad, hoverMark, showZone, showBad, showStep, setGlow, showLast, pick, meshAt, get hovered() { return hovered; }, ringTex, glowTex, wakes, water, waterMat, decal, flatGeo, pine, deco, FONT, footRing,
-    viewSide: 'r', setSkin, dress, get lastGame() { return lastGame; }, skinTune, get SK() { return SK; }, pieceWood, RZ, BZ, BX, BRIDGE_X, faceTex, backTex, setFace, makeRiver, mtTex, decorate, decorateAll, reconcile, plateGeo, plateOn,
-=======
-    showMoves, clearMoves, flashBad, hoverMark, showZone, showBad, showStep, setGlow, showLast, pick, meshAt, get hovered() { return hovered; }, ringTex, glowTex, wakes, water, waterMat, decal, flatGeo, pine, deco, FONT,
     viewSide: 'r', setSkin, dress, get lastGame() { return lastGame; }, skinTune, get SK() { return SK; }, pieceWood, RZ, BZ, BX, BRIDGE_X, faceTex, backTex, setFace, makeRiver, mtTex, decorate, decorateAll, decoOpts, reconcile, plateGeo, plateOn,
->>>>>>> origin/dev
   };
 })();

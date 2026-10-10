@@ -1201,7 +1201,7 @@ const Squads = (() => {
       Fx.P.blood(att.center(0.25), 14, 0.7, d.clone().negate()); Fx.P.wood(B.clone().addScaledVector(d, -0.5).setY(TOP + 0.2), 8, d.clone().negate(), 0.6);
       jmRecoil(att);
       // 掉一滴血：头顶飘「−1」，脚下血圈少一段
-      const popH = att.troop ? 0.55 : att instanceof Elephant ? 0.95 : 0.72;
+      const popH = att.troop ? 0.48 : att instanceof Elephant ? 0.85 : 0.6;
       popAt(() => att.center(popH), '−1'); if (ring) ring.hit();
       if (counterDie) {
         await att.die('stab', d.clone().negate(), 1, att.center(0));
