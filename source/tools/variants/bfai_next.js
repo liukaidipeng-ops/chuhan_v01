@@ -7,6 +7,7 @@
 //     BFAI_ROOTATK=1：只补“升了攻击变大、能打死原来打不死的子”的（窄版：r26 宽版 47.2% 不划算；象 / 士二级、兵三级、车马炮 r6 表里升级加攻击）
 //   BFAI_RLMR=K：根上也少算——从第 K 个起，不吃子、不先升级、走完不将军、自己没被将军的走子，第 4 层起先少算一层，比门槛好才按原层数重算（只在霸王）。
 //     Ham 那局第 27 回合根上 90 个候选，10 万节点只算 2 层
+//   BFAI_UPESC=1：C63 电脑那一半（只有升级才解得了将时所有升法都试，不再给空行动）
 //   BFAI_CHKMUST=1：被将军时，相 / 象 / 兵升一级攻击变大的（象二级起攻击 2，H50；兵三级起攻击 2，r6）也算“保命的升级”（TD 在 H52 问的）
 'use strict';
 const fs = require('fs'), path = require('path'), os = require('os');
@@ -16,7 +17,7 @@ const src0 = execFileSync('git', ['show', rev + ':source/src/bfai.js'], { cwd: p
 function build(E, tag) {
   let s = src0;
   const rep = (a, b) => { const n = s.split(a).length - 1; if (n !== 1) throw new Error(`bfai_next：锚点出现 ${n} 次：${a.slice(0, 80)}`); s = s.replace(a, () => b); };
-  const LMR2 = +(E.BFAI_LMR2 || 0), NMP = +(E.BFAI_NMP || 0), CHKMUST = +(E.BFAI_CHKMUST || 0), ROOTREL = +(E.BFAI_ROOTREL || 0), ROOTATK = +(E.BFAI_ROOTATK || 0), RLMR = +(E.BFAI_RLMR || 0);
+  const LMR2 = +(E.BFAI_LMR2 || 0), NMP = +(E.BFAI_NMP || 0), CHKMUST = +(E.BFAI_CHKMUST || 0), ROOTREL = +(E.BFAI_ROOTREL || 0), ROOTATK = +(E.BFAI_ROOTATK || 0), RLMR = +(E.BFAI_RLMR || 0), UPESC = +(E.BFAI_UPESC || 0);
   if (LMR2) rep('{ v = -ab(r.S, depth - 2, -alpha - 0.01, -alpha, ply + 1, ext); if (v > alpha)', '{ v = -ab(r.S, depth - 2 - (mi > ' + LMR2 + ' && depth >= 4 ? 1 : 0), -alpha - 0.01, -alpha, ply + 1, ext); if (v > alpha)');
   if (NMP) {
     rep('    let best = -INF, legal = 0, bm = null;',
@@ -59,6 +60,17 @@ function build(E, tag) {
       "          if (k.done) k.nv = k.q;\n" +
       "          else if (lmrOn && d >= 4 && ++ri > " + RLMR + " && !chk0 && k.a.k === 'mv' && !k.up && !S.board[k.a.to[1]][k.a.to[0]] && !A.inCheck(k.S, k.S.turn)) { k.nv = -ab(k.S, d - 2, -INF, -alpha + M, 1); if (k.nv > alpha - M) k.nv = -ab(k.S, d - 1, -INF, -alpha + M, 1); }\n" +
       "          else k.nv = -ab(k.S, d - 1, -INF, -alpha + M, 1);");
+  }
+  if (UPESC) {   // C63 的电脑那一半（tools/variants/bfai_upescape.patch）：只有升级才解得了将时把所有升法都试一遍
+    rep("    if (!kids.length) {\n      // 普通着法一步都没有（被将死的样子），但背水一战还能解：就用它",
+      "    if (!kids.length && chk0 && !pofu.length && !S0.upgraded) {\n" +
+      "      if (S !== S0) { S = S0; seq.length = 0; }\n" +
+      "      const all = upgradeAll(S);\n" +
+      "      for (const c of all) for (const k of A.expand(c.S)) { k.up = c; k.base = null; k.own = false; kids.push(k); }\n" +
+      "      if (!kids.length && me === 'b') { for (const c of all) for (const k of A.pofuPairs(c.S)) { k.up = c; k.gain = score(k.S, me); pofu.push(k); } pofu.sort((x, y) => y.gain - x.gain); }\n" +
+      "      if (TR && (kids.length || pofu.length)) TR.upEscape = true;\n" +
+      "    }\n" +
+      "    if (!kids.length) {\n      // 普通着法一步都没有（被将死的样子），但背水一战还能解：就用它");
   }
   if (tag === null) return s;
   const out = path.join(os.tmpdir(), `bfai_next_${rev}_${tag || 'env'}_${process.pid}.js`);

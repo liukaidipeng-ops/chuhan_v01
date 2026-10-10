@@ -1,0 +1,38 @@
+diff --git a/source/src/bfai.js b/source/src/bfai.js
+index e6e5c38..5bab466 100644
+--- a/source/src/bfai.js
++++ b/source/src/bfai.js
+@@ -273,7 +273,7 @@
+     return false;
+   }
+   // 局面指纹（两个 32 位散列拼成 53 位的数）
+-  const TTB = new Map();
++  const TTB = new Map(), wasNull = [];
+   function fp(S) {
+     let h1 = 2166136261, h2 = 5381;
+     const mix = x => { h1 = Math.imul(h1 ^ x, 16777619); h2 = (Math.imul(h2, 33) ^ x) | 0; };
+@@ -302,6 +302,14 @@
+     // 查表——同一局面、同样剩余层数、同样的延伸次数和“这层要不要考虑对方升级 / 破釜”
+     const tkey = fp(S) + ':' + depth + ':' + ext + ':' + (upAt(S, ply) ? 1 : 0) + (ply === pfPly ? 2 : 0), tte = TTB.get(tkey), a0 = alpha;
+     if (tte) { const v = fromTT(tte.v, ply); if (tte.f === 0 || (tte.f === 1 && v >= beta) || (tte.f === 2 && v <= alpha)) return v; }
++    // 让一步试试（只在霸王，C65）：没被将军、还剩至少 3 层、自己还有车马炮时，先假装停一手让对方连走，少算 3 层；这样对方都翻不过来，这条线就不细算了。
++    //   本回合升过级、决战里不试（升级不换手、决战规则不同）；连着两手都“停”也不试
++    if (lmrOn && ply >= 1 && depth >= 3 && !inChk && !wasNull[ply] && beta < WIN / 2 && !S.upgraded && !S.final) {
++      let big = false; for (const row of S.board) for (const p of row) if (p && p.s === side && (p.t === 'r' || p.t === 'n' || p.t === 'c')) big = true;
++      if (big) { const T = BF.cloneState(S); T.turn = side === 'r' ? 'b' : 'r'; T.upgraded = false; T.freeUsed = false; T.jmLock = null;
++        wasNull[ply + 1] = true; let v; try { v = -ab(T, depth - 1 - 2, -beta, -beta + 0.01, ply + 1, ext); } finally { wasNull[ply + 1] = false; }
++        if (v >= beta) return v; }
++    }
+     let best = -INF, legal = 0, bm = null;
+     // 对方应这一步时，也可能先花军功给某枚子升一级再走（多一点血：我方本来能吃掉的子就吃不掉了，打上去还会被弹回）
+     if (upAt(S, ply)) {
+@@ -321,7 +329,8 @@
+       const w = decided(r.S, r.ev);
+       let v;   // 排在后面的安静着法先少算一层试一下
+       if (w) v = w === side ? WIN - ply : -WIN + ply;
+-      else if (lmrOn && ply >= 1 && depth >= 2 && mi > 2 && !inChk && it.a.k === 'mv' && !it.q && !A.inCheck(r.S, r.S.turn)) { v = -ab(r.S, depth - 2, -alpha - 0.01, -alpha, ply + 1, ext); if (v > alpha) v = -ab(r.S, depth - 1, -beta, -alpha, ply + 1, ext); }
++      // 排第 7 个以后、还剩至少 4 层的安静着法少算两层（C65；原来从第 3 个起少算一层）
++      else if (lmrOn && ply >= 1 && depth >= 2 && mi > 2 && !inChk && it.a.k === 'mv' && !it.q && !A.inCheck(r.S, r.S.turn)) { v = -ab(r.S, depth - 2 - (mi > 6 && depth >= 4 ? 1 : 0), -alpha - 0.01, -alpha, ply + 1, ext); if (v > alpha) v = -ab(r.S, depth - 1, -beta, -alpha, ply + 1, ext); }
+       else v = -ab(r.S, depth - 1, -beta, -alpha, ply + 1, ext);
+       if (v > best) { best = v; bm = it.a; }
+       if (v > alpha) alpha = v;
