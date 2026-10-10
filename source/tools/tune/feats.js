@@ -40,12 +40,21 @@ add('r_gap3', 0); add('skill_up', 0); add('hurt_up', 0); add('ult_ready', 0); ad
 //   heavy：有两血以上的进攻子逼到对方家门口（heavyAt，汉有 +1、楚有 −1）
 for (const t of ['r', 'n', 'c', 'p', 'a', 'e']) add('skr_' + t, 0);
 add('att2', 0); add('att4', 0); add('heavy', 0);
+// art_r_open / art_b_open：主帅兵法还没用、而且现在就能用（引擎 artOpen：背水开着时车马炮比对方少、最多剩 maxLeft 枚）——Ham g6：召回能用了还一直留着
+add('art_r_open', 0); add('art_b_open', 0);
 const NAMES = Object.keys(W0);
 const IDX = Object.fromEntries(NAMES.map((k, i) => [k, i]));
 const N = NAMES.length;
 const FIXED = new Set(['fixed']);   // 不调
 const FIT_ONLY = new Set(['bias', 'tempo']);   // 拟合用、不进电脑
 
+// 和引擎 artOpen 同一条（s 方的主帅兵法现在能不能用）
+function artOpenF(S, s, CFG) {
+  if (Math.floor((S.cnt.r + S.cnt.b) / 2) + 1 < ((CFG.generalArts && CFG.generalArts.fromRound) || 1)) return false;
+  const B = CFG.beishui && CFG.beishui.on ? CFG.beishui : null; if (!B) return true;
+  let m = 0, o = 0; for (const row of S.board) for (const p of row) if (p && (p.t === 'r' || p.t === 'n' || p.t === 'c')) { if (p.s === s) m++; else o++; }
+  return m < o && (B.maxLeft == null || m <= B.maxLeft);
+}
 const BF0 = () => (typeof global !== 'undefined' && global.BF) || require('../../src/bingfa.js');
 // A：引擎的 BF.ai（要 atk）；CFG：BF.CFG（背水开没开决定楚方兵法值几分，见 W0.art_b）
 function feats(S, A, CFG) {
@@ -108,6 +117,8 @@ function feats(S, A, CFG) {
   // 主帅兵法还没用：汉记 art_r，楚记 art_b（背水开着时线上默认值 BSV = 3，和破釜一样）
   if (!S.used.art.r) F[IDX.art_r] += 1;
   if (!S.used.art.b) F[IDX.art_b] -= 1;
+  if (!S.used.art.r && artOpenF(S, 'r', CFG)) F[IDX.art_r_open] += 1;
+  if (!S.used.art.b && artOpenF(S, 'b', CFG)) F[IDX.art_b_open] -= 1;
   const sm = Math.max(0, S.fx.sm - S.cnt.b), hm = Math.max(0, S.fx.hm - S.cnt.r);
   if (sm) { F[IDX.sm] += sm; F[IDX.sm_att] += sm * Math.min(4, attR); }
   if (hm) { F[IDX.hm] -= hm; F[IDX.hm_att] -= hm * Math.min(4, attB); }

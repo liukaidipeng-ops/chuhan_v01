@@ -23,6 +23,14 @@ function source(w) {
     if (x === undefined) { const sk = BF.SKILL_OF(t, s), C = sk && CFG.skills[sk]; x = skC[s][t] = sk && !(C && C.passive) ? ((C && C.level) || CFG.skillLevel) : 99; }
     return x;
   }
+  const EART = !!(EW.art_r_open || EW.art_b_open);
+  // 主帅兵法现在能不能用（和引擎 artOpen 同一条：背水开着时车马炮比对方少、最多剩 maxLeft 枚）
+  function artOpenW(S, s) {
+    if (Math.floor((S.cnt.r + S.cnt.b) / 2) + 1 < (CFG.generalArts.fromRound || 1)) return false;
+    const B = bsOn(); if (!B) return true;
+    let m = 0, o = 0; for (const row of S.board) for (const p of row) if (p && (p.t === 'r' || p.t === 'n' || p.t === 'c')) { if (p.s === s) m++; else o++; }
+    return m < o && (B.maxLeft == null || m <= B.maxLeft);
+  }
   const EPOT = ['up_r', 'up_n', 'up_c', 'up_p', 'up_a', 'up_e', 'r_gap3', 'skill_up', 'hurt_up', 'ult_ready', 'ult_near'].some(k => EW[k]);
   // 一枚子本身值多少（按权重表；和下面 baseVal 的结构相同。baseVal 还留给走法排序用）
   function baseValW(p, heavy) {
@@ -118,7 +126,7 @@ function source(w) {
     v += mt; if (P) P['军功'] += mt;
     if (EPOT) { const u = (me === 'r' ? 1 : -1) * potW(S); v += u; if (P) P['军功'] += u; }
     // 还没用的主帅兵法留着有价值（免得为了一个兵就把「召回良将」用掉）
-    const art = s => (S.used.art[s] ? 0 : s === 'r' ? EW.art_r : EW.art_b);
+    const art = s => (S.used.art[s] ? 0 : (s === 'r' ? EW.art_r : EW.art_b) + (EART && artOpenW(S, s) ? (s === 'r' ? EW.art_r_open : EW.art_b_open) : 0));
     const at_ = art(me) - art(other(me));
     v += at_; if (P) P['兵法'] += at_;
     const sm = Math.max(0, S.fx.sm - S.cnt.b), hm = Math.max(0, S.fx.hm - S.cnt.r);
