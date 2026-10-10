@@ -1,0 +1,127 @@
+diff --git a/source/src/board.js b/source/src/board.js
+index ead3937..82b0f2f 100644
+--- a/source/src/board.js
++++ b/source/src/board.js
+@@ -483,6 +483,9 @@ const Board = (() => {
+     g.userData.keep = true;
+     return g;
+   })();
++  // 棋子立体（美术总监原型，?relief=1 浅刻 / 2 深刻 / 3 深刻加阴影；0 = 现在）
++  const RLV = Math.max(0, Math.min(3, +(Core.DIAG.get('relief') || 0)));
++  const RL = [null, { k: 3.5, blur: 1.6, grain: 0.35, skin: 2, shade: 0 }, { k: 7, blur: 1.1, grain: 0.7, skin: 3.5, shade: 0 }, { k: 9, blur: 0.9, grain: 0.9, skin: 5, shade: 1 }][RLV];
+   const pieceWood = new THREE.MeshStandardMaterial({ map: Tex.wood, color: 0xf4dcbc, roughness: 0.45, metalness: 0.0 });
+   // 木棋子字面（美术 M21：审批台 078 宋体 + 072 年轮）：画法在 face.js。每颗子的年轮都不一样，所以按棋子 id 缓存；同一 id 换了兵种（揭棋翻出来）就在原画布上重画
+   const faceCache = {};
+@@ -493,7 +496,39 @@ const Board = (() => {
+       return hit.tex;
+     }
+     const N = Core.quality === 'low' ? 384 : 512;
+-    return (faceCache[key] = { ch, tex: canvasTex(N, N, (g, w) => Face.wood(g, w, s, ch, id)) }).tex;
++    return (faceCache[key] = { ch, tex: canvasTex(N, N, (g, w) => { Face.wood(g, w, s, ch, id); if (RL && RL.shade) carveShade(g, w, ch); }) }).tex;
++  }
++  // 字面凹凸：字、三道圈线刻下去（低），木纹按明暗带一点起伏
++  function carveShade(g, w, ch) {
++    const p = Face.path(ch, w); if (!p) return;
++    g.save(); g.clip(p); g.translate(w * 0.006, w * 0.006);
++    g.strokeStyle = 'rgba(20,10,4,.55)'; g.lineWidth = w * 0.014; g.stroke(p); g.restore();
++    const C = w / 2;
++    for (const [r, lw] of [[0.452, 10], [0.372, 5]]) { g.strokeStyle = 'rgba(20,10,4,.3)'; g.lineWidth = lw * w / 512 * 0.5; g.beginPath(); g.arc(C + w * 0.003, C + w * 0.003, w * r, 0, 7); g.stroke(); }
++  }
++  const normCache = {};
++  function faceNorm(s, t, id = 0) {
++    if (!RL) return null;
++    const ch = XQ.NAMES[s][t], key = s + (id | 0) + ch;
++    if (normCache[key]) return normCache[key];
++    const N = Core.quality === 'low' ? 384 : 512, C = N / 2;
++    const col = mkCanvas(N, N, g => Face.wood(g, N, s, ch, id)).getContext('2d').getImageData(0, 0, N, N).data;
++    const mask = mkCanvas(N, N, g => {
++      g.fillStyle = '#fff'; g.fillRect(0, 0, N, N); g.fillStyle = g.strokeStyle = '#000';
++      for (const [r, lw] of [[0.47, 14], [0.452, 10], [0.372, 5]]) { g.lineWidth = lw * N / 512; g.beginPath(); g.arc(C, C, N * r, 0, 7); g.stroke(); }
++      const p = Face.path(ch, N); if (p) g.fill(p);
++    });
++    const mb = blurred(mask, RL.blur).getContext('2d').getImageData(0, 0, N, N).data;
++    const hc = mkCanvas(N, N, g => {
++      const im = g.createImageData(N, N), d = im.data;
++      for (let i = 0; i < N * N; i++) {
++        const lum = (col[i * 4] * 0.3 + col[i * 4 + 1] * 0.59 + col[i * 4 + 2] * 0.11) / 255, m = mb[i * 4] / 255;
++        const v = 150 + (lum - 0.7) * 120 * RL.grain * m - (1 - m) * 110;
++        d[i * 4] = d[i * 4 + 1] = d[i * 4 + 2] = Math.max(0, Math.min(255, v)); d[i * 4 + 3] = 255;
++      }
++      g.putImageData(im, 0, 0);
++    });
++    return (normCache[key] = dataTex(normalFrom(hc, RL.k, false)));
+   }
+   // 揭棋暗子：漆面背（汉为朱漆、楚为黑漆），金边祥云，中间极淡地印着所在位置的兵种
+   const backCache = {};
+@@ -544,7 +579,7 @@ const Board = (() => {
+     const g = new THREE.Group();
+     const body = new THREE.Mesh(pieceGeo, pieceWood);
+     body.castShadow = true; body.receiveShadow = true;
+-    const face = new THREE.Mesh(faceGeo, new THREE.MeshStandardMaterial({ map: p.h ? backTex(p.s, p.pt) : faceTex(p.s, p.t, p.id), transparent: true, roughness: p.h ? 0.32 : 0.5, polygonOffset: true, polygonOffsetFactor: -2 }));
++    const face = new THREE.Mesh(faceGeo, new THREE.MeshStandardMaterial({ map: p.h ? backTex(p.s, p.pt) : faceTex(p.s, p.t, p.id), normalMap: p.h ? null : faceNorm(p.s, p.t, p.id), transparent: true, roughness: p.h ? 0.32 : 0.5, polygonOffset: true, polygonOffsetFactor: -2 }));
+     face.position.y = PH + 0.001;
+     const band = new THREE.Mesh(bandGeo, goldM); band.position.y = PH * 0.6;
+     g.add(body, face, band);
+@@ -558,7 +593,7 @@ const Board = (() => {
+   function setFace(m, p) {
+     const face = m.children[1]; if (!face) return;
+     const std = m.userData.faceStd || face.material;
+-    std.map = p.h ? backTex(p.s, p.pt) : faceTex(p.s, p.t, p.id);
++    std.map = p.h ? backTex(p.s, p.pt) : faceTex(p.s, p.t, p.id); std.normalMap = p.h ? null : faceNorm(p.s, p.t, p.id);
+     std.roughness = p.h ? 0.32 : 0.5;
+     std.needsUpdate = true;
+     m.userData.t = p.h ? 'h' : p.t; m.userData.h = !!p.h;
+@@ -643,7 +678,8 @@ const Board = (() => {
+   const hpSector = (R0, R1, a0, a1) => { const sh = new THREE.Shape(); sh.absarc(0, 0, R1, a0, a1, false); sh.absarc(0, 0, R0, a1, a0, true); sh.closePath(); return sh; };
+   const ringCache = new Map();
+   const ringGet = (k, mk) => { let v = ringCache.get(k); if (!v) { v = mk(); if (v.isBufferGeometry) v.userData.keep = true; ringCache.set(k, v); } return v; };
+-  function footRing(hp, max, s, W = 0.045, D = 0.013, GAP = 0.3) {
++  const HPD = [1, 2, 3][Math.max(0, Math.min(2, +(Core.DIAG.get('hpd') || 0)))];   // 血条加厚原型：?hpd=1 两倍、2 三倍
++  function footRing(hp, max, s, W = 0.045, D = 0.013 * HPD, GAP = 0.3) {
+     const g = new THREE.Group(), R0 = 0.452, R1 = R0 + W, span = (Math.PI * 2 - GAP * max) / max;
+     const baseGeo = ringGet('bg', () => { const q = new THREE.RingGeometry(R0 - 0.006, R1 + 0.006, 72); q.rotateX(-Math.PI / 2); return q; });
+     const dim = ringGet('mOff', () => new THREE.MeshStandardMaterial({ color: 0x2a221c, roughness: 0.9, transparent: true, opacity: 0.35, depthWrite: false }));
+@@ -854,7 +890,7 @@ const Board = (() => {
+       g.lineWidth = 8; g.lineCap = 'square'; g.lineJoin = 'miter'; meanderPath(g, 34, BH - 34, 28);
+     }), true);
+     const hc = mkCanvas(BW, BH, g => { g.fillStyle = '#fff'; g.fillRect(0, 0, BW, BH); g.fillStyle = g.strokeStyle = '#8a8a8a'; g.fillRect(0, 12, BW, 6); g.fillRect(0, BH - 18, BW, 6); g.lineWidth = 8; g.lineCap = 'square'; meanderPath(g, 34, BH - 34, 28); });
+-    return { map: col, orm, normal: dataTex(normalFrom(blurred(hc, 1.2), 2.2, true), true) };
++    return { map: col, orm, normal: dataTex(normalFrom(blurred(hc, 1.2), 2.2 * (RL ? RL.skin : 1), true), true) };
+   }
+   function goldBand() {
+     // 鱼子地（细密圆点錾出的哑光底）上起凸云雷纹，纹样抛光、底子哑光
+@@ -877,14 +913,14 @@ const Board = (() => {
+       for (let i = 0; i < BW * BH; i++) { const m = mk[i * 4] / 255; d[i * 4] = 255; d[i * 4 + 1] = 255 * (0.52 - 0.4 * m); d[i * 4 + 2] = 255; d[i * 4 + 3] = 255; }
+       g.putImageData(im, 0, 0);
+     }), true);
+-    return { map: col, orm, normal: dataTex(normalFrom(blurred(hc, 1.4), 3.2, true), true) };
++    return { map: col, orm, normal: dataTex(normalFrom(blurred(hc, 1.4), 3.2 * (RL ? RL.skin : 1), true), true) };
+   }
+   function jadeBand() {
+     // 金丝嵌玉：上下两道金线 + 卷草；alpha 为金丝，其余透出玉身
+     const draw = (g, c) => { g.fillStyle = g.strokeStyle = c; g.fillRect(0, 8, BW, 7); g.fillRect(0, BH - 15, BW, 7); scrollPath(g, 9, 9); };
+     const alpha = dataTex(mkCanvas(BW, BH, g => { g.fillStyle = '#000'; g.fillRect(0, 0, BW, BH); draw(g, '#fff'); }), true);
+     const hc = mkCanvas(BW, BH, g => { g.fillStyle = '#000'; g.fillRect(0, 0, BW, BH); draw(g, '#fff'); });
+-    return { alpha, normal: dataTex(normalFrom(blurred(hc, 2.2), 4.5, true), true) };
++    return { alpha, normal: dataTex(normalFrom(blurred(hc, 2.2), 4.5 * (RL ? RL.skin : 1), true), true) };
+   }
+   // ---- 顶面（叠在棋身顶盖与字之间） ----
+   const TN = 512;
+@@ -913,7 +949,7 @@ const Board = (() => {
+       else { g.fillStyle = 'rgb(255,120,255)'; g.beginPath(); g.arc(c, c, R1, 0, 7); g.arc(c, c, R0, 0, 7, true); g.fill(); for (let i = 0; i < 60; i++) { const a = i / 60 * Math.PI * 2, r = (R0 + R1) / 2; g.fillStyle = 'rgb(255,22,255)'; g.beginPath(); g.arc(c + Math.cos(a) * r, c + Math.sin(a) * r, 6, 0, 7); g.fill(); } }
+     }));
+     const aniso = dataTex(spunAniso(256)); aniso.minFilter = aniso.magFilter = THREE.NearestFilter; aniso.generateMipmaps = false;
+-    return { map, orm, normal: dataTex(normalFrom(blurred(hc, 0.8), silver ? 1.6 : 3, false, (silver ? SK.domeS : SK.domeG) ?? SK.domeM)), aniso };
++    return { map, orm, normal: dataTex(normalFrom(blurred(hc, 0.8), (silver ? 1.6 : 3) * (RL ? RL.skin : 1), false, (silver ? SK.domeS : SK.domeG) ?? SK.domeM)), aniso };
+   }
+   function meanderRing(g, c, r0, r1, n) {
+     g.lineJoin = 'miter'; g.lineCap = 'square';
+@@ -1030,7 +1066,7 @@ const Board = (() => {
+     }));
+     // 法线：浮雕 + 玉面微微隆起（像抛光的弧面）
+     const flat = mkCanvas(128, 128, g => { g.fillStyle = '#808080'; g.fillRect(0, 0, 128, 128); });
+-    const normal = dataTex(hc ? normalFrom(hc, style === 'pu' ? 4 : 5, false, 0.4) : normalFrom(flat, 0, false, 0.42));
++    const normal = dataTex(hc ? normalFrom(hc, (style === 'pu' ? 4 : 5) * (RL ? RL.skin : 1), false, 0.4) : normalFrom(flat, 0, false, 0.42));
+     return { map: sTex(col), rough, normal };
+   }
+   function jadeBodyTex(v) {
