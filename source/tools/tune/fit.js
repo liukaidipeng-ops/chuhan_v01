@@ -3,13 +3,15 @@
 //   每五局留一局（种子 % 5 == 0）不参与拟合，只用来检验：检验集上的误差也要降，才说明不是“背答案”。
 //   权重往原值拉（LAMBDA）：数据少的特征不会乱跑。
 //
-// node tools/tune/fit.js 结果1.json.gz [结果2.json.gz …] [--lambda 0.001] [--iters 3000] [--out tools/tune/w_t1.json] [--min-round 0]
+// node tools/tune/fit.js 结果1.json.gz [结果2.json.gz …] [--lambda 0.001] [--iters 3000] [--out tools/tune/w_t1.json] [--min-round 0] [--mix 0.5]
+//   --mix m：标签 = (1 − m) × 胜负 + m × sigmoid(K × 当时搜出来的分)（顾问部 A2 ①“深搜当老师”的便宜版，Ham 拍板单 ai_a2 = a）。
+//     收数据时每个局面都记了走子方搜出的分（汉方视角）。检验误差两种都报：对混合标签的、对纯胜负的（不同 m 之间只能比后者）
 'use strict';
 const fs = require('fs'), path = require('path'), zlib = require('zlib');
 require('../game_load.js');
 const BF = global.BF, T = require('./feats.js');
 
-const argv = process.argv.slice(2), files = [], opt = { lambda: 0.001, iters: 3000, out: null, lr: 0.01, minRound: 0, check: false };
+const argv = process.argv.slice(2), files = [], opt = { lambda: 0.001, iters: 3000, out: null, lr: 0.01, minRound: 0, check: false, mix: 0 };
 for (let i = 0; i < argv.length; i++) {
   const k = argv[i];
   if (k === '--lambda') opt.lambda = +argv[++i];
@@ -17,13 +19,14 @@ for (let i = 0; i < argv.length; i++) {
   else if (k === '--out') opt.out = argv[++i];
   else if (k === '--lr') opt.lr = +argv[++i];
   else if (k === '--min-round') opt.minRound = +argv[++i];
-  else if (k === '--check') opt.check = true;   // 每个局面核对：原权重的特征分 = 线上 score()
+  else if (k === '--check') opt.check = true;
+  else if (k === '--mix') opt.mix = +argv[++i];   // 每个局面核对：原权重的特征分 = 线上 score()
   else files.push(k);
 }
 if (!files.length) { console.error('用法见文件开头'); process.exit(1); }
 
 // ---- 读数据 ----
-const X = [], Y = [], VAL = [], GAME = [];
+const X = [], Y = [], VAL = [], GAME = [], SV = [];
 let games = 0, skipped = 0, chkN = 0, chkBad = 0, chkFin = 0;
 const AI = opt.check ? require('../../src/bfai.js') : null, W00 = T.vec({});
 for (const f of files) {
@@ -33,12 +36,12 @@ for (const f of files) {
     if (g.reason === 'stuck' || g.reason === 'probe') { skipped++; continue; }
     games++;
     const y = g.winner === 'r' ? 1 : g.winner === 'b' ? 0 : 0.5, val = g.seed % 5 === 0;
-    for (const [str] of g.pos) {
+    for (const [str, sv] of g.pos) {
       const S = T.unpack(str);
       if (S.cnt.r + S.cnt.b < opt.minRound * 2) continue;
       const F = T.feats(S, BF.ai, BF.CFG);
       if (AI) { chkN++; if (S.final) chkFin++; if (Math.abs(AI.score(S, 'r') - T.dot(W00, F)) > 1e-9) chkBad++; }
-      X.push(Float32Array.from(F)); Y.push(y); VAL.push(val); GAME.push(g.seed);
+      X.push(Float32Array.from(F)); Y.push(y); VAL.push(val); GAME.push(g.seed); SV.push(typeof sv === 'number' ? sv : null);
     }
   }
 }
@@ -64,6 +67,10 @@ for (let it = 0; it < 60; it++) { const a = lo + (hi - lo) * 0.382, b = lo + (hi
 const K = (lo + hi) / 2;
 const base = { train: loss(W0, K, false), val: loss(W0, K, true) };
 console.log(`K = ${K.toFixed(4)}（分数 1 分 ≈ 胜率从 50% 变到 ${(100 * sig(K)).toFixed(1)}%）；原权重 误差 拟合 ${base.train.toFixed(5)} 检验 ${base.val.toFixed(5)}`);
+// 混合标签：K 用纯胜负定好以后，再把“当时搜出来的分”按 --mix 混进去（没记分的局面只用胜负）
+const YRES = Y.slice();
+const lossRes = W => { let e = 0, c = 0; for (let t = 0; t < n; t++) { if (!VAL[t]) continue; const p = sig(K * T.dot(W, X[t])); e += (YRES[t] - p) ** 2; c++; } return e / c; };
+if (opt.mix > 0) { let c = 0; for (let t = 0; t < n; t++) if (SV[t] != null) { Y[t] = (1 - opt.mix) * Y[t] + opt.mix * sig(K * Math.max(-200, Math.min(200, SV[t]))); c++; } console.log(`混合标签 --mix ${opt.mix}：${c} / ${n} 个局面带搜出来的分`); }
 
 // ---- 调权重（Adam，全量） ----
 // 各特征的尺度差很多（xp 最多 6、merit 能到几十），按特征的标准差缩放学习率，免得大尺度特征乱跳
@@ -93,11 +100,13 @@ for (let it = 1; it <= opt.iters; it++) {
   }
 }
 console.log(`检验集最好在第 ${best.it} 轮：${best.val.toFixed(5)}（原 ${base.val.toFixed(5)}，降 ${(100 * (1 - best.val / base.val)).toFixed(2)}%）`);
+const res0 = lossRes(W0), res1 = lossRes(best.W);
+console.log(`检验（纯胜负，不同 --mix 之间比这个）：原 ${res0.toFixed(5)} → ${res1.toFixed(5)}（降 ${(100 * (1 - res1 / res0)).toFixed(2)}%）`);
 const rows = T.NAMES.map((k, i) => ({ k, w0: W0[i], w: best.W[i], seen: seen[i], free: free[i] })).filter(r => r.free).sort((a, b) => Math.abs(b.w - b.w0) * sd[T.IDX[b.k]] - Math.abs(a.w - a.w0) * sd[T.IDX[a.k]]);
 console.log('变化最大的（按对分数的影响排）：');
 for (const r of rows.slice(0, 30)) console.log(`  ${r.k.padEnd(14)} ${r.w0.toFixed(3).padStart(8)} → ${r.w.toFixed(3).padStart(8)}   出现 ${r.seen}`);
 if (opt.out) {
-  const o = { K, lambda: opt.lambda, iters: best.it, files: files.map(f => path.basename(f)), positions: n, loss: { base, best: best.val }, w: {} };
+  const o = { K, lambda: opt.lambda, mix: opt.mix, iters: best.it, files: files.map(f => path.basename(f)), positions: n, loss: { base, best: best.val, resBase: res0, resBest: res1 }, w: {} };
   T.NAMES.forEach((k, i) => { o.w[k] = T.FIT_ONLY.has(k) ? 0 : +best.W[i].toFixed(4); });
   o.fitOnly = Object.fromEntries([...T.FIT_ONLY].map(k => [k, +best.W[T.IDX[k]].toFixed(4)]));
   fs.writeFileSync(opt.out, JSON.stringify(o, null, 1));

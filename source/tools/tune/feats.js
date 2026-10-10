@@ -42,12 +42,24 @@ for (const t of ['r', 'n', 'c', 'p', 'a', 'e']) add('skr_' + t, 0);
 add('att2', 0); add('att4', 0); add('heavy', 0);
 // art_r_open / art_b_open：主帅兵法还没用、而且现在就能用（引擎 artOpen：背水开着时车马炮比对方少、最多剩 maxLeft 枚）——Ham g6：召回能用了还一直留着
 add('art_r_open', 0); add('art_b_open', 0);
+// k_free：帅 / 将上下左右四格里，在自己九宫内、而且空着的格数（顾问部 A2 ③“九宫安全”的便宜版：只看有没有子占着，不算攻击；决战不算）
+add('k_free', 0);
 const NAMES = Object.keys(W0);
 const IDX = Object.fromEntries(NAMES.map((k, i) => [k, i]));
 const N = NAMES.length;
 const FIXED = new Set(['fixed']);   // 不调
 const FIT_ONLY = new Set(['bias', 'tempo']);   // 拟合用、不进电脑
 
+// 帅 / 将上下左右四格里，在自己九宫内、而且空着的格数
+function kFreeF(b, f, r, s) {
+  let c = 0;
+  for (const [df, dr] of [[1, 0], [-1, 0], [0, 1], [0, -1]]) {
+    const F = f + df, R = r + dr;
+    if (F < 3 || F > 5 || (s === 'r' ? R < 0 || R > 2 : R < 7 || R > 9)) continue;
+    if (!b[R][F]) c++;
+  }
+  return c;
+}
 // 和引擎 artOpen 同一条（s 方的主帅兵法现在能不能用）
 function artOpenF(S, s, CFG) {
   if (Math.floor((S.cnt.r + S.cnt.b) / 2) + 1 < ((CFG.generalArts && CFG.generalArts.fromRound) || 1)) return false;
@@ -76,7 +88,7 @@ function feats(S, A, CFG) {
     const e = (k, c) => { F[IDX[k]] += sg * c; };
     if (p.t === 'k') {
       if (fin) { const inside = f >= 3 && f <= 5 && adv >= 7; e('fixed', 6); e('fk_hp', p.hp); e('fk_adv', adv); if (inside) e('fk_in', 1); e('fk_off', Math.abs(f - 4)); }
-      else { e('k_adv', adv); if (f !== 4) e('k_off', 1); }
+      else { e('k_adv', adv); if (f !== 4) e('k_off', 1); e('k_free', kFreeF(b, f, r, s)); }
       continue;
     }
     const h = Math.min(4, Math.max(1, p.hp)), heavy = s === 'r' ? hvB : hvR;

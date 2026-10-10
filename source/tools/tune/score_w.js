@@ -24,6 +24,7 @@ function source(w) {
     return x;
   }
   const EART = !!(EW.art_r_open || EW.art_b_open);
+  const KFD = [[1, 0], [-1, 0], [0, 1], [0, -1]];
   // 主帅兵法现在能不能用（和引擎 artOpen 同一条：背水开着时车马炮比对方少、最多剩 maxLeft 枚）
   function artOpenW(S, s) {
     if (Math.floor((S.cnt.r + S.cnt.b) / 2) + 1 < (CFG.generalArts.fromRound || 1)) return false;
@@ -95,7 +96,9 @@ function source(w) {
       let x, xb = 0, xp = 0;
       if (p.t === 'k') {
         if (fin) { const inside = f >= 3 && f <= 5 && adv >= 7; x = 6 + p.hp * EW.fk_hp + adv * EW.fk_adv + (inside ? EW.fk_in : 0) + Math.abs(f - 4) * EW.fk_off; }
-        else x = EW.k_adv * adv + (f !== 4 ? EW.k_off : 0);   // 平时主帅老实待在原位
+        else { x = EW.k_adv * adv + (f !== 4 ? EW.k_off : 0);   // 平时主帅老实待在原位
+          if (EW.k_free) { let c = 0; for (const [df, dr] of KFD) { const F = f + df, R = r + dr; if (F >= 3 && F <= 5 && (s === 'r' ? R >= 0 && R <= 2 : R >= 7 && R <= 9) && !b[R][F]) c++; } x += EW.k_free * c; }   // 九宫里还空几格能躲
+        }
       } else {
         x = baseValW(p, s === 'r' ? hvB : hvR);
         if (P) xb = x;
