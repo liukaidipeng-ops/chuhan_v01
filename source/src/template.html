@@ -1108,6 +1108,13 @@ html:has(#endcard:not(.hidden)),html:has(#endcard:not(.hidden)) body,html:has(#e
 #mAsk.e-stay #askNo{flex:1 1 0;background:var(--k);color:var(--c);font-size:calc(20px * var(--fs,1));letter-spacing:.24em}
 #mAsk.e-stay #askYes{flex:0 0 118px;background:none;color:var(--k);font-size:calc(16px * var(--fs,1));letter-spacing:.14em}
 #mAsk.e-stay .row{flex-direction:row}
+/* 人机被将死后的悔棋窗口（TD 10-10）：不压暗棋盘，让人看清怎么输的 */
+#mAsk.e-grace{align-items:flex-start;background:none;pointer-events:none;padding-top:max(62px,calc(env(safe-area-inset-top) + 56px))}   /* 输的是自己这边（在下面），框放上面，别挡住被将死的帅 */
+#mAsk.e-grace .wrap{pointer-events:auto;width:min(460px,100%)}
+#mAsk.e-grace .scroll{padding:20px 24px 20px}
+#mAsk.e-grace h3{margin-bottom:6px}
+#mAsk.e-grace .cd{font-family:var(--ef);font-weight:900;font-size:calc(18px * var(--fs,1));color:#a8281c;letter-spacing:.1em}
+#mAsk.e-grace .row{margin-top:14px}
 
 /* ---------- 电脑宽屏：房间设置、等待房间、加入房间撑满一屏（底部一条棋盘格，主操作的棋子落在正中） ---------- */
 @media (min-width:641px){

@@ -8,6 +8,8 @@
   // 更新说明（设置里、大厅底部点「更新」查看；最新的放最前）
   const NEWS = [
     ['第六版', '2026 年 10 月', [
+      '人机对战输了（被将死、困毙等）先不进结算：上方弹一个框，10 秒内点「悔棋」就悔回去接着下，点「认输」或等 10 秒才进结算（悔棋次数照常算；用完了就直接结算）',
+      '技能模式规则：象、相撞上拒马不挨那 1 点（践踏、齐射本来就不触发）；「飞越」改成被动——三级起冷却好了，象眼被塞住的田字落点直接能点，点了先问一句用不用，用了冷却 5 回合',
       '技能模式「拒马」有了新动作（美术画的）：几级就几个兵，压低重心、长矛斜指来敌（三级前二后一，四级金甲的斩马刀也前指），模型模式下拒马的两回合里一直摆着；敌方撞上矛尖先掉 1 点血——头顶飘「−1」、脚下血圈少一段、头马人立——然后面朝拒马倒退几步再冲。顺带修好：原来撞完是转身走回起点，再冲时背对着拒马',
       '棋子换了新字面（美术画的）：十四个字统一成一套宋体，粗细一致、炮字不再偏下；木棋子换成年轮木面，每颗子的年轮疏密、走向都不一样；银、金、玉棋子的珐琅字也换成同一套字',
       '技能模式棋子升级有了变身动画（美术画的）：棋子跳起来翻个身，翻到侧面那一刻换上新材质，落下时迸一圈光（银白 / 金 / 玉白）；脚下血圈、拒马桩留在原地不跟着翻',
@@ -350,17 +352,17 @@
   function toast(msg, ms = 2200) { const t = $('toast'); t.innerHTML = msg; t.classList.add('on'); clearTimeout(toastT); toastT = setTimeout(() => t.classList.remove('on'), ms); }
   function banner(t, s, ms = 2600) { $('banner').classList.remove('lite'); $('bannerT').textContent = t; $('bannerS').textContent = s || ''; $('banner').classList.add('on'); setTimeout(() => $('banner').classList.remove('on'), ms); }
   let askTimer = null;
-  function ask(title, text, secs = 0, yes = '同 意', no = '拒 绝', cls = '') {   // cls = 'e-stay'：退出确认，“留下”是大按钮（样式归美术）
+  function ask(title, text, secs = 0, yes = '同 意', no = '拒 绝', cls = '', cdFmt = null) {   // cls = 'e-stay'：退出确认，“留下”是大按钮（样式归美术）；'e-grace'：贴在底下、不压暗棋盘
     return new Promise(res => {
       $('askT').textContent = title; $('askP').textContent = text; $('askYes').textContent = yes; $('askNo').textContent = no;
-      $('mAsk').classList.toggle('e-stay', cls === 'e-stay');
+      $('mAsk').classList.toggle('e-stay', cls === 'e-stay'); $('mAsk').classList.toggle('e-grace', cls === 'e-grace');
       $('mAsk').classList.remove('hidden');
       let left = secs;
-      const fin = v => { clearInterval(askTimer); $('mAsk').classList.add('hidden'); $('mAsk').classList.remove('e-stay'); res(v); };
+      const fin = v => { clearInterval(askTimer); $('mAsk').classList.add('hidden'); $('mAsk').classList.remove('e-stay', 'e-grace'); res(v); };
       $('askYes').onclick = () => fin(true); $('askNo').onclick = () => fin(false);
       clearInterval(askTimer);
-      $('askCd').textContent = secs ? `${left} 秒后自动拒绝` : '';
-      if (secs) askTimer = setInterval(() => { left--; $('askCd').textContent = `${left} 秒后自动拒绝`; if (left <= 0) fin(false); }, 1000);
+      const cdt = n => cdFmt ? cdFmt(n) : `${n} 秒后自动拒绝`; $('askCd').textContent = secs ? cdt(left) : '';
+      if (secs) askTimer = setInterval(() => { left--; $('askCd').textContent = cdt(Math.max(0, left)); if (left <= 0) fin(false); }, 1000);
     });
   }
   // 带输入框的询问（房间密码）：确定返回输入的字，取消返回 null
@@ -371,7 +373,7 @@
     return ask(title, text, 0, '确 定', '取 消').then(ok => { row.classList.add('hidden'); return ok ? inp.value.trim() : null; });
   }
   const pwHash = (code, pw) => { let h = 2166136261; for (const ch of code + ':' + pw) { h ^= ch.codePointAt(0); h = Math.imul(h, 16777619); } return (h >>> 0).toString(36); };
-  const closeAsk = () => { clearInterval(askTimer); $('mAsk').classList.add('hidden'); $('mAsk').classList.remove('e-stay'); $('askInRow').classList.add('hidden'); };
+  const closeAsk = () => { clearInterval(askTimer); $('mAsk').classList.add('hidden'); $('mAsk').classList.remove('e-stay', 'e-grace'); $('askInRow').classList.add('hidden'); };
 
   // ---------- 对局状态 ----------
   let mode = null, mySide = 'r', viewSide = 'r', opts = { ...ropts }, hostSide = 'r';
@@ -1298,7 +1300,7 @@
       if (info.captured) Spect.react(info.mover);
       if (!busy && game.turn === mySide) { turnStartAt = performance.now(); slowIdx = 0; }
       updateHud();
-      if (info.result && !busy) finishGame(info.result);
+      if (info.result && !busy) endOrGrace(info.result);
       else if (!busy) localFlip();
     });
   }
@@ -1353,7 +1355,36 @@
     else await Core.sleep(0.8);
   }
   let endSkip = false, endSkipRes = null;
+  // 人机对战输了（被将死、困毙、主帅阵亡、九宫失守）：先不进结算，10 秒内还能悔棋（Ham 10-10 12:09）。悔棋次数用完、电脑对电脑、超时认输不算
+  let graceTok = 0;
+  const GRACE_T = { checkmate: '被 将 死 了', stalemate: '困 毙', kingdead: '主 帅 阵 亡', occupy: '九 宫 失 守' };
+  function graceOk(r) {
+    if (!r || !r.winner || r.winner === mySide || !GRACE_T[r.reason]) return false;
+    if (!vsAI() || aiBoth() || watching() || RP || !opts.undo) return false;
+    if (opts.undo < 99 && undoUsed[mySide] >= opts.undo) return false;
+    return game.history.length >= undoPlies(mySide);
+  }
+  async function endOrGrace(r) {
+    if (!graceOk(r)) { finishGame(r); return; }
+    const tok0 = ++graceTok;
+    // 先让「绝杀」大字放完、镜头回到棋盘上方，让人看清怎么输的，再开始倒计时
+    await Core.sleep(2.6);
+    if (tok0 !== graceTok || ended || !game.result) return;
+    try { if (Core.Cam.cine) { document.body.classList.remove('cine'); await Core.Cam.home(0.7); } } catch (e) { }
+    if (tok0 !== graceTok || ended || !game.result) return;
+    const tok = graceTok, S0 = +Core.DIAG.get('grace') || 10;   // ?grace=60：测试用，慢机器上拉长
+    const done = y => {
+      if (tok !== graceTok) return; graceTok++;
+      if (ended || !game.result) return;
+      if (y) { const plies = undoPlies(mySide); cancelAI(); applyUndo(plies, mySide); aiSay('undo'); }
+      else finishGame(r);
+    };
+    const left = opts.undo >= 99 ? '' : `（悔棋还剩 ${opts.undo - undoUsed[mySide]} 次）`;
+    ask(GRACE_T[r.reason], `${S0} 秒内还可以悔棋，悔回去接着下${left}；不悔就进结算。`, S0, '悔 棋', '认 输', 'e-grace', n => `还剩 ${n} 秒`).then(done);
+    setTimeout(() => done(false), (S0 + 1.5) * 1000);   // 提示框万一被别的关掉，也照样进结算
+  }
   function finishGame(result) {
+    graceTok++;
     if (ended) return;
     ended = true; endSkip = false;
     const skipP = new Promise(r => { endSkipRes = r; });
@@ -2810,7 +2841,7 @@
       if (game.mustPass() && canAct() && (mode === 'local' || game.turn === mySide)) toast(`${SIDE_CN[game.turn]}方无子可走，请点「停着」`, 2600);
       else if (game.upOnly && game.upOnly() && canAct() && (mode === 'local' || game.turn === mySide)) toast('被将军：直接走解不了将，先给能解将的子升一级（升了也解不了将的子不让升）', 3200);
       else if (game.mayPass() && game.fx.sm > 0 && canAct() && (mode === 'local' || game.turn === mySide)) toast('四面楚歌：楚军只能走将，或点「停着」', 2800);
-      if (info.result && !busy) finishGame(info.result);
+      if (info.result && !busy) endOrGrace(info.result);
       else if (!busy && (vsAI() || hostBot()) && isAI(game.turn)) maybeAI();
       else if (!busy) localFlip();
     });
