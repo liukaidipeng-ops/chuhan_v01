@@ -606,7 +606,7 @@ const Ending = (() => {
     const b1 = document.createElement('button'); b1.className = 'btn red'; b1.textContent = againText || '再 来 一 局'; b1.onclick = onAgain;
     const b2 = document.createElement('button'); b2.className = 'btn'; b2.textContent = '返 回 大 厅'; b2.onclick = onLobby;
     row.append(b1);
-    if (onReview) { const b3 = document.createElement('button'); b3.className = 'btn'; b3.textContent = '复 盘'; b3.onclick = onReview; row.append(b3); }
+    if (onReview) { const b3 = document.createElement('button'); b3.className = 'btn'; b3.textContent = onReview.label || '复 盘'; b3.onclick = onReview; row.append(b3); }
     for (const x of extra || []) { const bx = document.createElement('button'); bx.className = 'btn'; bx.textContent = x.text; bx.onclick = x.fn; row.append(bx); }
     row.append(b2); el.appendChild(row);
     el.classList.remove('hidden');

@@ -74,14 +74,8 @@ const BFX = (() => {
   // 场边全被震倒：两边军营里的兵、观战席上的人
   function crowdDown(c) { try { Camp.quake(c); } catch (e) { } try { Spect.quake(c); } catch (e) { } }
   // 碎石：从震源往四周崩出去
-  const rockGeo = new THREE.DodecahedronGeometry(0.06); rockGeo.userData.keep = true;
-  function rubble(c, n = 16, r = 1, power = 1) {
-    for (let i = 0; i < (Core.quality === 'low' ? Math.ceil(n / 2) : n); i++) {
-      const a = Math.random() * 6.28, o = new THREE.Mesh(rockGeo, Core.toon(i % 3 ? 0x6b6257 : 0x8a7f70));
-      o.scale.setScalar(R(0.5, 1.7)); o.position.copy(c).add(new V3(Math.cos(a) * r * R(0.2, 0.8), 0.08, Math.sin(a) * r * R(0.2, 0.8)));
-      Fx.throwObj(o, new V3(Math.cos(a) * R(1, 3.2) * power, R(2.2, 5.5) * power, Math.sin(a) * R(1, 3.2) * power), { life: R(1.2, 2.2), ink: false });
-    }
-  }
+  //   （挪到 Squads.rubble 了，战象正面踩也要崩——美术 M25）
+  const rubble = (...a) => Squads.rubble(...a);
   // 被震飞 / 炸飞：棋子模式下棋子碎成块飞出去；模型模式下换成那队兵的模型，被掀飞、断肢落地留血
   const modelKill = e => (Squads.Stand.on || Fx.level !== 'low') && e.t && e.t !== 'k';
   function blowAway(e, from, power = 1.4, burnt = false, hit) {
@@ -130,7 +124,7 @@ const BFX = (() => {
       setTimeout(() => { P.plume(q, out.clone().negate(), R(0.45, 0.7), 2); P.dust(q, 3, out.clone().negate(), R(0.4, 0.6)); if (i % 3 === 0) P.smoke(q.clone().setY(TOP + 0.1), 2, 0.9, 0x8b7e68); }, (rr - 0.7) * 160);
     }
     P.dust(c, 24, null, 0.6);
-    rubble(c.clone().setY(TOP), 22, 1.2, 1.1);
+    rubble(c.clone().setY(TOP), 44, 1.4, 1.35);   // 践踏总会崩出大量碎石（美术 M25，Ham 10-10）
     crowdDown(c);
     const hs = ev.filter(e => (e.e === 'hit' || e.e === 'kill') && e.how === 'jianta');
     await sleep(0.12);
@@ -195,22 +189,34 @@ const BFX = (() => {
     for (let v = 0; v < 3; v++) { const p = volley(v); if (v < 2) await sleep(0.26); else await p; }
     await sleep(0.1);
   }
+  // 钉在棋子头上：每一帧按当前镜头重新投影，镜头转、拉、震屏时跟着棋子走（Ham 10-10：铭牌要固定在棋子头上，不随镜头移动）
+  //   edge：离屏幕左右边至少留多少像素（题签宽，贴边时不出屏）；棋子转到镜头背后时先藏起来
+  function pin(d, at, y, ms, edge = 0) {
+    const w = Board.pos(at[0], at[1]).setY(y), v = new THREE.Vector3();
+    const place = () => {
+      v.copy(w).project(Core.camera);
+      d.style.visibility = v.z > 1 ? 'hidden' : '';
+      let x = (v.x + 1) / 2 * innerWidth, yy = (1 - v.y) / 2 * innerHeight;
+      if (edge) { x = Math.min(innerWidth - edge, Math.max(edge, x)); yy = Math.max(70, yy); }
+      d.style.left = x + 'px'; d.style.top = yy + 'px';
+    };
+    place(); document.body.appendChild(d);
+    const off = Core.onFrame(place);
+    setTimeout(() => { off(); d.remove(); }, ms);
+  }
   // 小字提示（被动技能触发等）：在棋子上方飘一下
   function labelPop(at, text, side) {
-    const p = Board.pos(at[0], at[1]).setY(TOP + 0.6).project(Core.camera);
-    if (p.z > 1) return;
+    if (Board.pos(at[0], at[1]).setY(TOP + 0.6).project(Core.camera).z > 1) return;
     const d = document.createElement('div'); d.className = 'gainpop lbl ' + (side === 'r' ? 'r' : 'b');
-    d.textContent = text; d.style.left = (p.x + 1) / 2 * innerWidth + 'px'; d.style.top = (1 - p.y) / 2 * innerHeight + 'px';
-    document.body.appendChild(d); setTimeout(() => d.remove(), 1700);
+    d.textContent = text;
+    pin(d, at, TOP + 0.6, 1700);
   }
   // 晋升题签：升级时在棋子上方亮出新的称号（四级更隆重）
   function rankPop(at, name, side, lv, max, sub) {
-    const p = Board.pos(at[0], at[1]).setY(TOP + 0.75).project(Core.camera);
-    if (p.z > 1 || !name) return;
+    if (!name || Board.pos(at[0], at[1]).setY(TOP + 0.75).project(Core.camera).z > 1) return;
     const d = document.createElement('div'); d.className = 'rankpop ' + (side === 'r' ? 'r' : 'b') + (lv >= max ? ' top' : '');
     d.innerHTML = `<small>${sub || (lv >= max ? '登峰' : '晋升')}</small><b>${name}</b>`;
-    d.style.left = Math.min(innerWidth - 90, Math.max(90, (p.x + 1) / 2 * innerWidth)) + 'px'; d.style.top = Math.max(70, (1 - p.y) / 2 * innerHeight) + 'px';
-    document.body.appendChild(d); setTimeout(() => d.remove(), 2600);
+    pin(d, at, TOP + 0.75, 2600, 90);
   }
   // 主流程挂进来的回调（气泡台词等）
   const hooks = { bubble: null };
@@ -239,6 +245,7 @@ const BFX = (() => {
     const c = { lv: P0.lv, dlv: T0 ? T0.lv : 1 };
     if (opts.onImpact) c.onImpact = opts.onImpact;
     if (T0) { c.survive = !!tHit && !tKill; c.killed = !!tKill; c.counter = died ? 'die' : counter ? 'hurt' : null; c.ranged = !!opts.ranged; }
+    if (counter && (P0.lv >= 2 || (P0.t === 'k' && P0.w))) c.hp = [P0.hp, P0.t === 'k' && P0.w ? BF.CFG.finalKingHp : BF.hpOf(P0.t, P0.lv)];   // 攻方脚下临时血圈（拒马撞上那一下少一段）
     await Fx.playMove(info, { c, noCamp: opts.noCamp });
     if (tHit) shatter(to, 1);
     if (!Fx.state.quiet) {
@@ -253,7 +260,7 @@ const BFX = (() => {
     }
   }
   // 技能台词（被动技能没有）：用的时候说一句；技能杀了对方的子，再补一句。四级名将用自己的声音，三级用兵的声音
-  const PASSIVE = new Set(['jianta', 'shensu', 'huifang', 'jinwei']);
+  const PASSIVE = new Set(['jianta', 'shensu', 'huifang', 'jinwei', 'feiyue', 'taying']);
   function skillLine(P0, sk, side, kill) {
     if (!P0 || PASSIVE.has(sk)) return 0;
     const hk = Fx.heroKey(P0);
@@ -271,12 +278,18 @@ const BFX = (() => {
     const ev = info.ev || [], side = info.side;
     const before = info.before ? info.before.board : null;
     try {
-      if (info.k === 'up') await levelUp(info);
+      if (info.k === 'up') await levelUp(info, game);
       else if (info.k === 'mv') {
         if (info.extra && info.extra.via) labelPop(info.from, BF.SKILL_CN[info.extra.via], side);
         if (info.extra && info.extra.via === 'shensu') {
           // 被动「神速营」：疾奔越子，落到空位（不走普通的行军演出）
           await dash(before[info.from[1]][info.from[0]], info.from, info.to, side);
+          if (info.result) await Fx.checkStamp(XQ.other(side), info.result.reason === 'checkmate' ? '殺' : info.result.reason === 'kingdead' ? '斬' : info.result.reason === 'occupy' ? '奪' : '困', info.mateName);
+          else if (info.check) Fx.checkStamp(XQ.other(side));
+        } else if (info.extra && (info.extra.via === 'feiyue' || info.extra.via === 'taying')) {
+          // 被动「飞越」「踏营」：腾身一跃越过塞象眼 / 蹩马腿的子（照原来主动技能的演法）
+          if (info.extra.via === 'feiyue') await feiyueLeap(before[info.from[1]][info.from[0]], info.from, info.to, before, ev, side, info);
+          else await tayingLeap(before[info.from[1]][info.from[0]], info.from, info.to, before, ev, side, info);
           if (info.result) await Fx.checkStamp(XQ.other(side), info.result.reason === 'checkmate' ? '殺' : info.result.reason === 'kingdead' ? '斬' : info.result.reason === 'occupy' ? '奪' : '困', info.mateName);
           else if (info.check) Fx.checkStamp(XQ.other(side));
         } else {
@@ -297,10 +310,10 @@ const BFX = (() => {
       for (const e of ev.filter(x => x.e === 'autoup')) {
         const B = info.after && info.after.board; let at = null;
         if (B) for (let r = 0; r < 10 && !at; r++) for (let f = 0; f < 9; f++) if (B[r][f] && B[r][f].id === e.id) { at = [f, r]; break; }
-        if (at) await levelUp({ id: e.id, t: e.t, side: e.s, at, lv: e.lv, nm: e.nm, auto: true });
+        if (at) await levelUp({ id: e.id, t: e.t, side: e.s, at, lv: e.lv, nm: e.nm, auto: true, pre: true }, game);
       }
       // 试行规则：召回后当场花军功升了一级——等它落定，再补上晋升的仪式
-      for (const e of ev.filter(x => x.e === 'reviveUp')) { const rv = ev.find(x => x.e === 'revive' && x.id === e.id); if (rv) await levelUp({ id: e.id, t: e.t, side: 'r', at: rv.at, lv: e.lv, nm: e.nm }); }
+      for (const e of ev.filter(x => x.e === 'reviveUp')) { const rv = ev.find(x => x.e === 'revive' && x.id === e.id); if (rv) await levelUp({ id: e.id, t: e.t, side: 'r', at: rv.at, lv: e.lv, nm: e.nm , pre: true }, game); }
     } catch (e) { console.error(e); }
     if (info.k !== 'mv' && info.k !== 'up') {
       if (Cam.cine) await Cam.home(0.8);
@@ -309,22 +322,22 @@ const BFX = (() => {
     }
   }
 
-  async function levelUp(info) {
+  async function levelUp(info, game) {
     const m = Board.pieces.get(info.id); if (!m) return;
-    const c = m.position.clone(), max = BF.levelInfo(info.t, info.side, 1).maxLv, top = info.lv >= max;
+    const max = BF.levelInfo(info.t, info.side, 1).maxLv, top = info.lv >= max;
     Sfx.B.bell(0, 880, 0.08); Sfx.B.bell(0.12, 1175, 0.06); Sfx.B.gong(0.05, top ? 0.6 : 0.35); Sfx.B.plate(0.1, 0.3);
     if (top) { Sfx.B.taiko(0.15, 0.7); Sfx.B.taiko(0.38, 0.8); Cam.shake(0.08); }
-    Fx.ring(c.clone().setY(TOP + 0.02), top ? 2.3 : 1.6, 0.8, 0xc9a045, 0.9);
-    if (top) Fx.ring(c.clone().setY(TOP + 0.03), 3.2, 1.1, 0xffe2a0, 0.6);
-    for (let i = 0; i < (top ? 34 : 18); i++) Fx.spawn({ pos: c.clone().add(new V3(R(-0.3, 0.3), 0.1, R(-0.3, 0.3))), vel: new V3(R(-0.2, 0.2), R(1.2, top ? 3 : 2.2), R(-0.2, 0.2)), tex: Core.Tex.spark, add: true, color: 0xffd27a, size: 0.12, size2: 0.03, life: R(0.6, top ? 1.4 : 1), drag: 1.2 });
     // 称号题签要等棋子换好新装（落回棋盘）再亮出来
     const hero = BF.heroName({ s: info.side, t: info.t, nm: info.nm }), rk = BF.rankName(info.side, info.t, info.lv);
-    setTimeout(() => rankPop(info.at, hero || rk, info.side, info.lv, max, hero ? rk : info.auto ? '战功晋升' : ''), 200);
+    setTimeout(() => rankPop(info.at, hero || rk, info.side, info.lv, max, hero ? rk : info.auto ? '战功晋升' : ''), 750);
     const said = upLine(info);
     // 四级：名将登场，题字亮名
     if (hero && (cine() || Fx.level === 'std')) { title(hero, (info.side === 'r' ? '汉' : '楚') + ' · ' + rk, 1700); Sfx.B.gong(0.1, 0.8); }
-    await tween(0.3, k => { m.position.y = TOP + Math.sin(k * Math.PI) * 0.35; m.rotation.y = (Board.viewSide === 'b' ? Math.PI : 0) + k * Math.PI * 2; }, ease.inOut);
-    m.position.y = TOP; m.rotation.y = Board.viewSide === 'b' ? Math.PI : 0;
+    // 升级变身：跳起来翻个身，翻到侧面那一刻换新装（美术 M22，Ham 审批台 076 选「翻面」）
+    const pa = game && game.board[info.at[1]] && game.board[info.at[1]][info.at[0]], ok = !!(pa && pa.id === info.id);
+    if (ok && info.pre) Board.decorate(m, { ...pa, lv: info.lv - 1, hp: Math.min(pa.hp, BF.hpOf(pa.t, info.lv - 1)) }, Board.decoOpts(game, pa));
+    await UpFx.play(m, { lv: info.lv, swap: () => { if (ok) Board.decorate(m, pa, Board.decoOpts(game, pa)); } });
+    m.position.y = TOP; m.rotation.set(0, Board.viewSide === 'b' ? Math.PI : 0, 0);
     // 升级词说完再往下走（紧接着走子的话，兵种那一路会把它截掉）
     if (said > 0) await sleep(Math.min(said + 0.3, 3.2) - 0.3);
   }
@@ -393,23 +406,39 @@ const BFX = (() => {
     try { await skillFx(info, before); } finally { Fx.state.quiet = false; }
     if (active && sk !== 'juma' && sk !== 'hujia' && (info.ev || []).some(e => e.e === 'kill' && !e.friendly && e.s !== info.side)) skillLine(P0, sk, info.side, true);
   }
+  // 飞越：腾身一跃，越过塞住象眼的子落到田字对角（老棋谱里的主动飞越、现在的被动飞越都走这里）
+  async function feiyueLeap(P0, at, to, before, ev, side, info) {
+    const m = Board.pieces.get(P0.id), A = Board.pos(at[0], at[1]);
+    Sfx.B.whoosh(0, 0.5, 0.5); if (side === 'b') { try { Sfx.unit('ele').trumpet(); } catch (e) { } }
+    P.dust(A, 10, null, 0.3);
+    await leap(m, at, to, before, ev.filter(notTrample), side, 'e', info, null, 1.25, () => trampleFx(ev, side, { m }));
+  }
+  // 踏营：马无视马腿腾跃过去（老棋谱里的主动踏营、现在的被动踏营都走这里）
+  async function tayingLeap(P0, at, to, before, ev, side, info) {
+    const m = Board.pieces.get(P0.id);
+    Sfx.B.neigh(0, 0.14, 'a'); Sfx.B.whoosh(0.1, 0.3, 0.4);
+    await leap(m, at, to, before, ev, side, 'n', info, () => { Sfx.B.hooves(0, 0.5, 3, 0.4); });
+  }
   async function skillFx(info, before) {
     const ev = info.ev, sk = info.extra.sk, side = info.side, at = info.from, to = info.to;
     const P0 = before[at[1]][at[0]];
     const name = BF.SKILL_CN[sk];
     if (cine() || Fx.level === 'std') title(name, (side === 'r' ? '汉军' : '楚军') + XQ.NAMES[side][P0.t], 1500);
     if (sk === 'juma') {
-      const A = Board.pos(at[0], at[1]);
+      // 拒马（Ham 10-09，美术 M20）：几级就几个兵，齐喝一声、压低重心、长矛斜指来敌（三级前二后一）；模型模式下立在棋盘上的那一队直接摆，拒马生效期间一直保持
+      const A = Board.pos(at[0], at[1]), m = Board.pieces.get(P0.id);
       shotAt(at, 2.4, 1.5);
-      const sq = Squads.make('p', side, A, side === 'r' ? 0 : Math.PI, 'defend', P0.lv);
-      Fx.sink(Board.pieces.get(P0.id));
-      await sq.appear(); if (sq.setPose) sq.setPose('brace');
-      for (let i = 0; i < 4; i++) Sfx.B.wood(i * 0.15, 0.4);
-      Sfx.B.shout(0.2, 6, 0.08, 0.5);
+      const stand = Squads.Stand.on && m ? Squads.Stand.sq(m) : null;
+      const sq = stand || Squads.make('p', side, A, Squads.standYaw(side), 'defend', P0.lv, P0.lv);
+      if (!stand) { Fx.sink(m); await sq.appear(); }
+      if (sq.troop) { sq.setPose('ready'); await sleep(0.2); sq.troop.actAll('thrust', 0.3, 0.12); }
+      Sfx.B.shout(0.05, 6, 0.08, 0.5);
+      await sleep(0.25);
+      if (sq.troop) Squads.jmForm(sq, true); else if (sq.setPose) sq.setPose('brace');
+      for (let i = 0; i < 4; i++) Sfx.B.wood(0.1 + i * 0.15, 0.4);
       for (let i = 0; i < 10; i++) { const a = i / 10 * 6.28; P.dust(A.clone().add(new V3(Math.cos(a) * 0.5, 0, Math.sin(a) * 0.5)), 1, null, 0.15); }
-      await sleep(1.0);
-      await sq.dissolve();
-      await Fx.rise(Board.pieces.get(P0.id), A, 0.35);
+      await sleep(1.1);
+      if (!stand) { await sq.dissolve(); await Fx.rise(m, A, 0.35); }
     } else if (sk === 'chongzhen') {
       // 冲阵：冲到跳板前狠撞一下（跳板挨 1 点），再腾空越过它，落到它身后一格；身后打不死就撞完退回原位
       const m = Board.pieces.get(P0.id), land = info.extra.land || to;
@@ -445,15 +474,9 @@ const BFX = (() => {
       if (ev.some(e => e.e === 'kill' && !e.friendly && e.s !== side) && typeof Camp !== 'undefined') Camp.onCapture(side, info.streak || 1);
       await sleep(0.25);
     } else if (sk === 'taying') {
-      const m = Board.pieces.get(P0.id);
-      Sfx.B.neigh(0, 0.14, 'a'); Sfx.B.whoosh(0.1, 0.3, 0.4);
-      await leap(m, at, to, before, ev, side, 'n', info, () => { Sfx.B.hooves(0, 0.5, 3, 0.4); });
+      await tayingLeap(P0, at, to, before, ev, side, info);
     } else if (sk === 'feiyue') {
-      // 飞越：腾身一跃，越过塞住象眼的子落到田字对角
-      const m = Board.pieces.get(P0.id), A = Board.pos(at[0], at[1]), B = Board.pos(to[0], to[1]), mid = A.clone().lerp(B, 0.5);
-      Sfx.B.whoosh(0, 0.5, 0.5); if (side === 'b') { try { Sfx.unit('ele').trumpet(); } catch (e) { } }
-      P.dust(A, 10, null, 0.3);
-      await leap(m, at, to, before, ev.filter(notTrample), side, 'e', info, null, 1.25, () => trampleFx(ev, side, { m }));
+      await feiyueLeap(P0, at, to, before, ev, side, info);
     } else if (sk === 'pili') {
       // 雷霆炮击：一开炮就齐射覆盖目标和前后左右四格（炸成焦土），落弹之后才结算目标，炮最后再落位
       const T0 = before[to[1]][to[0]], m = Board.pieces.get(P0.id), A = Board.pos(at[0], at[1]), B = Board.pos(to[0], to[1]);

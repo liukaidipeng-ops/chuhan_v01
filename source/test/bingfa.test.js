@@ -193,6 +193,63 @@ const ok = (x, msg) => { assert(x, msg); };
   ok(!g.jmActive(g.at(0, 6)) && g.legalFrom(0, 6).length > 0, '两回合过后拒马消失，卒又能走');
   console.log('拒马不能动 / 炮不挨反伤 / 冷却 4 OK');
 }
+{
+  // Ham 10-10：象、相无视拒马（撞上来不挨那 1 点）
+  ok(!BF.CFG.skills.juma.counterElephant, '象相不挨拒马反伤');
+  const g = setup([[4, 0, K('r')], [3, 9, K('b')], [4, 2, P('b', 'p', 3)], [5, 9, P('b', 'a')], [2, 0, P('r', 'e', 2)]], { turn: 'b' });
+  ok(g.apply({ k: 'sk', at: [4, 2] }) && g.apply({ k: 'mv', from: [5, 9], to: [4, 8] }), '黑卒（过河）拒马，再走一步士');
+  const hpE = g.at(2, 0).hp, i = g.apply({ k: 'mv', from: [2, 0], to: [4, 2] });
+  ok(i && !i.ev.some(e => e.e === 'counter'), '相撞拒马：没有反伤事件');
+  const e = g.board.flat().find(x => x && x.t === 'e' && x.s === 'r');
+  ok(e && e.hp === hpE, '相不掉血');
+  console.log('象相无视拒马 OK');
+}
+{
+  // Ham 10-10：飞跃改被动——三级起、冷却好了，塞象眼的田字落点直接能走（记作普通走子，带 via），走完进冷却
+  ok(BF.CFG.skills.feiyue.passive && BF.CFG.skills.feiyue.cooldown === 5, '飞跃被动、冷却 5');
+  const mk = lv => setup([[4, 0, K('r')], [3, 9, K('b')], [2, 9, P('b', 'e', lv)], [3, 8, P('b', 'a')], [0, 0, P('r', 'r')]], { turn: 'b' });
+  const g2 = mk(2);
+  ok(!g2.legalFrom(2, 9).some(m => m.to[0] === 4 && m.to[1] === 7), '二级象：象眼塞住就走不了');
+  const g = mk(3);
+  ok(!g.skillTargets(2, 9).length, '技能栏里没有飞跃了');
+  const m = g.legalFrom(2, 9).find(m => m.to[0] === 4 && m.to[1] === 7);
+  ok(m && m.via === 'feiyue', '三级象：塞象眼的落点能走，标着飞跃');
+  ok(!g.legalFrom(2, 9).some(m => m.to[0] === 4 && m.to[1] === 5), '仍不能过河');
+  const i = g.apply({ k: 'mv', from: [2, 9], to: [4, 7] });
+  ok(i && i.ev.some(e => e.e === 'passive' && e.sk === 'feiyue') && g.at(4, 7).t === 'e', '飞跃走过去，记一次被动');
+  const g4 = mk(3);
+  ok(g4.apply({ k: 'sk', sk: 'feiyue', at: [2, 9], to: [4, 7] }), '老棋谱里的主动飞跃照旧认');
+  console.log('飞跃被动 OK');
+}
+{
+  // 飞跃冷却中：塞象眼的落点又走不了
+  const g = setup([[4, 0, K('r')], [3, 9, K('b')], [4, 7, P('b', 'e', 3)], [3, 6, P('b', 'p')], [0, 0, P('r', 'r')]], { turn: 'b' });
+  ok(g.apply({ k: 'mv', from: [4, 7], to: [2, 5] }) && g.at(2, 5), '飞跃（象眼 3,6 塞住）到 2,5');
+  ok(g.apply({ k: 'mv', from: [0, 0], to: [0, 1] }), '红走');
+  ok(g.apply({ k: 'mv', from: [3, 9], to: [3, 8] }), '黑将挪一下');
+  ok(g.apply({ k: 'mv', from: [0, 1], to: [0, 0] }), '红走');
+  ok(!g.legalFrom(2, 5).some(m => m.to[0] === 4 && m.to[1] === 7), '冷却中：象眼（3,6）塞着就飞不回去');
+  ok(g.legalFrom(2, 5).some(m => m.to[0] === 0 && m.to[1] === 7), '不塞的田字照走');
+  console.log('飞跃冷却 OK');
+}
+{
+  // Ham 10-10：踏营改被动——三级马在敌方半场、冷却好了，蹩马腿的日字落点能走（via taying），走完冷却 2；自家半场不行
+  ok(BF.CFG.skills.taying.passive && BF.CFG.skills.taying.cooldown === 2, '踏营被动、冷却 2');
+  const mk = (lv, r) => setup([[4, 0, K('r')], [5, 9, K('b')], [4, r, P('r', 'n', lv)], [4, r + 1, P('b', 'p')], [0, 9, P('b', 'r')]]);
+  const g = mk(3, 6);   // 红马在 4,6（敌方半场），马腿 4,7 被卒蹩住
+  ok(!g.skillTargets(4, 6).length, '技能栏里没有踏营了');
+  const m = g.legalFrom(4, 6).find(m => m.to[0] === 5 && m.to[1] === 8);
+  ok(m && m.via === 'taying', '蹩腿的落点 5,8 能走，标着踏营');
+  ok(!mk(2, 6).legalFrom(4, 6).some(m => m.to[0] === 5 && m.to[1] === 8), '二级马：蹩腿就走不了');
+  ok(!mk(3, 2).legalFrom(4, 2).some(m => m.to[0] === 5 && m.to[1] === 4), '自家半场：踏营不能用');
+  const i = g.apply({ k: 'mv', from: [4, 6], to: [5, 8] });
+  ok(i && i.ev.some(e => e.e === 'passive' && e.sk === 'taying'), '踏营走过去，记一次被动');
+  ok(g.apply({ k: 'mv', from: [0, 9], to: [0, 8] }), '黑走');
+  ok(!g.legalFrom(5, 8).some(m => m.via === 'taying'), '冷却中没有踏营走法');
+  const g4 = mk(3, 6);
+  ok(g4.apply({ k: 'sk', sk: 'taying', at: [4, 6], to: [5, 8] }), '老棋谱里的主动踏营照旧认');
+  console.log('踏营被动 OK');
+}
 // 7. 冲阵
 {
   const g = setup([[4, 0, K('r')], [3, 9, K('b')], [0, 0, P('r', 'r', 3)], [0, 5, P('b', 'p')], [0, 6, P('b', 'n')], [0, 8, P('b', 'c', 2)]]);

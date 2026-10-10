@@ -484,26 +484,16 @@ const Board = (() => {
     return g;
   })();
   const pieceWood = new THREE.MeshStandardMaterial({ map: Tex.wood, color: 0xf4dcbc, roughness: 0.45, metalness: 0.0 });
+  // 木棋子字面（美术 M21：审批台 078 宋体 + 072 年轮）：画法在 face.js。每颗子的年轮都不一样，所以按棋子 id 缓存；同一 id 换了兵种（揭棋翻出来）就在原画布上重画
   const faceCache = {};
-  // 木棋子字面（美术 M13，Ham 14:30「木棋子颜色太深了，移动端汉方看不清楚」→ 选「牙黄面加色边」）：牙黄面铺满，外粗内细两道色边，字粗楷不描边
-  function faceTex(s, t) {
-    const key = s + t;
-    if (faceCache[key]) return faceCache[key];
-    const ch = XQ.NAMES[s][t];
-    const col = s === 'r' ? '#b3241a' : '#1a1714';   // 汉朱、楚墨
-    return (faceCache[key] = canvasTex(512, 512, (g, w) => {
-      g.clearRect(0, 0, w, w);
-      const c = w / 2;
-      const ring = (r, lw, color) => { g.strokeStyle = color; g.lineWidth = lw; g.beginPath(); g.arc(c, c, r, 0, 7); g.stroke(); };
-      // 牙黄面：左上略亮，往外渐深
-      const gr = g.createRadialGradient(c * 0.8, c * 0.75, 10, c, c, w * 0.48);
-      gr.addColorStop(0, '#f1e4c0'); gr.addColorStop(1, '#e6d3a4');
-      g.fillStyle = gr; g.beginPath(); g.arc(c, c, w * 0.47, 0, 7); g.fill();
-      // 色边：外圈一道粗边 + 里面一道细圈，和字同色
-      ring(w * 0.47, 14, col); ring(w * 0.452, 10, col); ring(w * 0.372, 5, col);
-      g.font = `bold 310px ${FONT}`; g.textAlign = 'center'; g.textBaseline = 'middle';
-      g.fillStyle = col; g.fillText(ch, c, c + 16);
-    }));
+  function faceTex(s, t, id = 0) {
+    const key = s + (id | 0), ch = XQ.NAMES[s][t], hit = faceCache[key];
+    if (hit) {
+      if (hit.ch !== ch) { const cv = hit.tex.image; Face.wood(cv.getContext('2d'), cv.width, s, ch, id); hit.ch = ch; hit.tex.needsUpdate = true; }
+      return hit.tex;
+    }
+    const N = Core.quality === 'low' ? 384 : 512;
+    return (faceCache[key] = { ch, tex: canvasTex(N, N, (g, w) => Face.wood(g, w, s, ch, id)) }).tex;
   }
   // 揭棋暗子：漆面背（汉为朱漆、楚为黑漆），金边祥云，中间极淡地印着所在位置的兵种
   const backCache = {};
@@ -545,8 +535,7 @@ const Board = (() => {
         g.restore();
       }
       // 位置兵种：非常淡
-      g.font = `bold 250px ${FONT}`; g.textAlign = 'center'; g.textBaseline = 'middle';
-      g.fillStyle = red ? 'rgba(236,206,140,.075)' : 'rgba(236,206,140,.065)'; g.fillText(XQ.NAMES[s][pt], c, c + 14);
+      g.fillStyle = red ? 'rgba(236,206,140,.075)' : 'rgba(236,206,140,.065)'; g.fill(Face.path(XQ.NAMES[s][pt], w * 0.81, c, c));   // 和字面同一套宋体，小一圈
     }));
   }
   const faceGeo = new THREE.CircleGeometry(0.4, 40); faceGeo.rotateX(-Math.PI / 2); faceGeo.userData.keep = true;
@@ -555,7 +544,7 @@ const Board = (() => {
     const g = new THREE.Group();
     const body = new THREE.Mesh(pieceGeo, pieceWood);
     body.castShadow = true; body.receiveShadow = true;
-    const face = new THREE.Mesh(faceGeo, new THREE.MeshStandardMaterial({ map: p.h ? backTex(p.s, p.pt) : faceTex(p.s, p.t), transparent: true, roughness: p.h ? 0.32 : 0.5, polygonOffset: true, polygonOffsetFactor: -2 }));
+    const face = new THREE.Mesh(faceGeo, new THREE.MeshStandardMaterial({ map: p.h ? backTex(p.s, p.pt) : faceTex(p.s, p.t, p.id), transparent: true, roughness: p.h ? 0.32 : 0.5, polygonOffset: true, polygonOffsetFactor: -2 }));
     face.position.y = PH + 0.001;
     const band = new THREE.Mesh(bandGeo, goldM); band.position.y = PH * 0.6;
     g.add(body, face, band);
@@ -569,7 +558,7 @@ const Board = (() => {
   function setFace(m, p) {
     const face = m.children[1]; if (!face) return;
     const std = m.userData.faceStd || face.material;
-    std.map = p.h ? backTex(p.s, p.pt) : faceTex(p.s, p.t);
+    std.map = p.h ? backTex(p.s, p.pt) : faceTex(p.s, p.t, p.id);
     std.roughness = p.h ? 0.32 : 0.5;
     std.needsUpdate = true;
     m.userData.t = p.h ? 'h' : p.t; m.userData.h = !!p.h;
@@ -1110,12 +1099,13 @@ const Board = (() => {
   function enamelFace(s, t, wire) {
     const ch = XQ.NAMES[s][t], key = s + ch + wire;
     if (enamelCache.has(key)) return enamelCache.get(key);
-    const N = LOWQ() ? 256 : 384, c = N / 2, fs = Math.round(N * 0.6), dy = N * 0.03;
-    const font = `bold ${fs}px ${FONT}`, lw = N * 0.028;
+    const N = LOWQ() ? 256 : 384, c = N / 2, lw = N * 0.028, gp = new Path2D(); gp.addPath(Face.path(ch, N));   // 字形和木棋子同一套宋体、同一大小同一位置（face.js，美术 M21）
+    // 汉楚色圈（美术 M23，审批台 081 选甲）：字外一道细珐琅圈，和字同一套丝、同一种釉
+    gp.moveTo(c + N * 0.394, c); gp.arc(c, c, N * 0.394, 0, Math.PI * 2); gp.moveTo(c + N * 0.374, c); gp.arc(c, c, N * 0.374, 0, Math.PI * 2, true);
     const shape = (g, strokeCol, fillCol) => {
-      g.font = font; g.textAlign = 'center'; g.textBaseline = 'middle'; g.lineJoin = 'round';
-      if (strokeCol) { g.strokeStyle = strokeCol; g.lineWidth = lw; g.strokeText(ch, c, c + dy); }
-      if (fillCol) { g.fillStyle = fillCol; g.fillText(ch, c, c + dy); }
+      g.lineJoin = 'round';
+      if (strokeCol) { g.strokeStyle = strokeCol; g.lineWidth = lw; g.stroke(gp); }
+      if (fillCol) { g.fillStyle = fillCol; g.fill(gp); }
     };
     const map = sTex(mkCanvas(N, N, g => {
       g.clearRect(0, 0, N, N);
@@ -1123,7 +1113,7 @@ const Board = (() => {
       g.save(); g.translate(N * 0.006, N * 0.01); shape(g, 'rgba(30,18,8,.55)', 'rgba(30,18,8,.55)'); g.restore();
       shape(g, wire === 'silver' ? '#e9ebf0' : '#ffd987', null);
       // 釉面：上亮下深的渐变（像微微下凹的釉）
-      const gr = g.createLinearGradient(0, c - fs * 0.5, 0, c + fs * 0.5);
+      const gr = g.createLinearGradient(0, c - N * 0.47, 0, c + N * 0.47);   // 范围放大到圈（M23）
       if (s === 'r') { gr.addColorStop(0, '#c42a17'); gr.addColorStop(0.5, '#951709'); gr.addColorStop(1, '#640c04'); }
       else { gr.addColorStop(0, '#2c2826'); gr.addColorStop(0.5, '#121010'); gr.addColorStop(1, '#060505'); }
       shape(g, null, gr);
@@ -1516,8 +1506,9 @@ const Board = (() => {
     for (let i = 0; i < n; i++) {
       const a = pts[Math.max(0, i - 1)], b = pts[Math.min(n - 1, i + 1)];
       let tx = b[0] - a[0], tz = b[1] - a[1]; const tl = Math.hypot(tx, tz) || 1; tx /= tl; tz /= tl;
-      const nx = -tz * width / 2, nz = tx * width / 2, al = sm(L[i] / 0.32) * sm((tot - L[i]) / 0.3);
-      pos.set([pts[i][0] + nx, y, pts[i][1] + nz, pts[i][0] - nx, y, pts[i][1] - nz], i * 6);
+      const w = typeof width === 'function' ? width(L[i] / tot) : width, nx = -tz * w / 2, nz = tx * w / 2, al = sm(L[i] / 0.32) * sm((tot - L[i]) / 0.3);
+      const yy = y + (pts[i][2] || 0);   // 第三个数：抬高多少（跳过去的走法画成抛物线）
+      pos.set([pts[i][0] + nx, yy, pts[i][1] + nz, pts[i][0] - nx, yy, pts[i][1] - nz], i * 6);
       uv.set([L[i] / tile, 0, L[i] / tile, 1], i * 4);
       col.set([1, 1, 1, al, 1, 1, 1, al], i * 8);
       if (i) { const k = i * 2; idx.push(k - 2, k - 1, k, k - 1, k + 1, k); }
@@ -1529,9 +1520,23 @@ const Board = (() => {
   // 一组走法 → 若干条墨带的路径：直线走法按方向合并（只铺到最远的落点），马走“日”拐个弯
   function beltPaths(sel, moves, occ) {
     const out = [], straight = new Map(), [sf, sr] = sel, A = [X(sf), Z(sr)];
+    const selT = (meshAt(sf, sr) || { userData: {} }).userData.t;
     for (const m of moves) {
       const df = m.to[0] - sf, dr = m.to[1] - sr, af = Math.abs(df), ar = Math.abs(dr), B = [X(m.to[0]), Z(m.to[1])];
       const endGap = occ(m.to[0], m.to[1]) ? 0.5 : 0.17;
+      // 跳过去的走法画成一道抛物线（Ham 审批台 td-021）：飞越、炮隔子打（普通攻击和霹雳）、踏营、冲阵、齐射——调用方标 arc，或者这里认出来
+      if (m.arc || m.via === 'feiyue' || m.via === 'taying' || (selT === 'c' && occ(m.to[0], m.to[1]) && !m.bad)) {
+        // Ham 审批台 td-024：从这枚子的顶上起、落到目标子的顶上（空格就落到地上），弧要有实打实的高度
+        const D = Math.hypot(B[0] - A[0], B[1] - A[1]), H = Math.min(2.1, 0.8 + 0.28 * D), n = Math.max(16, Math.ceil(D / 0.08)), pts = [];
+        const y0 = PH + 0.02, y1 = occ(m.to[0], m.to[1]) ? PH + 0.02 : 0.02;
+        for (let i = 0; i <= n; i++) { const t = i / n; pts.push([A[0] + (B[0] - A[0]) * t, A[1] + (B[1] - A[1]) * t]); }
+        const ux = (B[0] - A[0]) / (D || 1), uz = (B[1] - A[1]) / (D || 1), cr = new THREE.Vector3().setFromMatrixColumn(Core.camera.matrixWorld, 0);
+        // 竖直的一道弧，从上往下看是直的（Ham 16:24：直着过去，不要往旁边斜）
+        const lx = 0, lz = 0, LEAN = 0, UP = 1;
+        const tp = trimPath(pts, 0.2, occ(m.to[0], m.to[1]) ? 0.22 : 0.12).map(p => { const t = Math.hypot(p[0] - A[0], p[1] - A[1]) / (D || 1), h = H * 4 * t * (1 - t); return [p[0] + lx * h * LEAN, p[1] + lz * h * LEAN, y0 * (1 - t) + y1 * t + h * UP]; });
+        out.push({ pts: tp, via: m.via || (m.skill ? 'skill' : ''), arc: true });
+        continue;
+      }
       if ((af === 1 && ar === 2) || (af === 2 && ar === 1)) {
         // 马：先直走一格（马腿），再斜出去
         const leg = af === 2 ? [X(sf + Math.sign(df)), Z(sr)] : [X(sf), Z(sr + Math.sign(dr))], pts = [];
@@ -1563,6 +1568,47 @@ const Board = (() => {
     };
     const p1 = cut(pts, a); if (p1.length < 2) return [];
     return cut(p1.slice().reverse(), b).reverse();
+  }
+  // ---- 抛物线的五种动态样子（Ham 10-10 15:12：原来那条「有点丑」，出五个选；美术忙，TD 来做）。网址 ?arcv=1～5 预览，0 = 原来那条 ----
+  // 默认「三 画线」（Ham 10-10 审批台 td-024 选的）；网址 ?arcv=1～5 还能预览别的方案，?arcv=0 是原来的飘带
+  const ARCV = (() => { const v = Core.DIAG.get('arcv'); return v == null || v === '' ? 3 : Math.max(0, Math.min(5, +v || 0)); })();
+  let arcs = [];
+  const arcEnv = u => Math.max(0, Math.min(1, u / 0.12, (1 - u) / 0.12));   // 两头淡入淡出
+  function arcFx(pts, col, style) {
+    const curve = new THREE.CatmullRomCurve3(pts.map(p => new THREE.Vector3(p[0], TOP + 0.0042 + (p[2] || 0), p[1]))), L = curve.getLength();
+    const g = new THREE.Group(), C = new THREE.Color(col), hi = C.clone().lerp(new THREE.Color(0xfff6d8), 0.55), upd = [];
+    const own = o => { o.userData.own = true; o.renderOrder = 7; g.add(o); return o; };
+    const tube = (r, op, c = col) => own(new THREE.Mesh(new THREE.TubeGeometry(curve, 64, r, 6, false), new THREE.MeshBasicMaterial({ color: c, transparent: true, opacity: op, depthWrite: false })));
+    const spr = (size, c, op = 1) => { const sp = own(new THREE.Sprite(new THREE.SpriteMaterial({ map: glowTex, color: c, transparent: true, opacity: op, depthWrite: false, blending: THREE.AdditiveBlending }))); sp.scale.setScalar(size); return sp; };
+    // 五个都是极简的：一道细线打底，只有一处在动（Ham 16:31：轮廓简单、极简风格）
+    const line = (op = 0.7) => tube(0.022, Math.min(1, op + 0.2));
+    if (style === 1) {
+      // 一、光点：细线上一颗小光点从起点跑到落点
+      line(0.6); const dot = spr(0.2, hi);
+      upd.push(t => { const u = (t * 0.6) % 1; dot.position.copy(curve.getPointAt(u)); dot.material.opacity = arcEnv(u); });
+    } else if (style === 2) {
+      // 二、流动点线：一串小点等距排开，整串往落点方向缓缓流
+      const n = Math.max(10, Math.round(L / 0.13)), ds = [];
+      for (let i = 0; i < n; i++) ds.push(spr(0.085, col, 0.9));
+      upd.push(t => ds.forEach((d, i) => { const u = (i / n + t * 0.12) % 1; d.position.copy(curve.getPointAt(u)); d.material.opacity = 0.95 * arcEnv(u); }));
+    } else if (style === 3) {
+      // 三、画线：一道细线从起点一笔画到落点，停一下淡掉，再画
+      const m = line(0.85), cnt = m.geometry.index.count;
+      upd.push(t => { const k = (t % 1.8) / 1.8, d = Math.min(1, k / 0.55); m.geometry.setDrawRange(0, Math.floor(cnt * d / 6) * 6); m.material.opacity = 0.85 * (k > 0.8 ? Math.max(0, 1 - (k - 0.8) / 0.2) : 1); });
+    } else if (style === 4) {
+      // 四、细线 + 箭头：一道细线，落点一个小箭头，整条轻轻一明一暗
+      const m = line(0.7), tip = own(new THREE.Mesh(new THREE.ConeGeometry(0.06, 0.18, 12), new THREE.MeshBasicMaterial({ color: col, transparent: true, depthWrite: false })));
+      const e = curve.getPointAt(0.985); tip.position.copy(e); tip.quaternion.setFromUnitVectors(new THREE.Vector3(0, 1, 0), curve.getTangentAt(0.985));
+      upd.push(t => { const b = 0.55 + 0.35 * (0.5 + 0.5 * Math.sin(t * 3)); m.material.opacity = b; tip.material.opacity = Math.min(1, b + 0.2); });
+    } else {
+      // 五、细线 + 落点涟漪：一道细线，落点荡开一圈细圈
+      line(0.65);
+      const end = curve.getPointAt(1), ring = own(new THREE.Mesh(new THREE.RingGeometry(0.15, 0.175, 48), new THREE.MeshBasicMaterial({ color: col, transparent: true, depthWrite: false, side: THREE.DoubleSide })));
+      ring.rotation.x = -Math.PI / 2; ring.position.copy(end); ring.position.y += 0.004;
+      upd.push(t => { const k = (t % 1.4) / 1.4; ring.scale.setScalar(1 + k * 1.6); ring.material.opacity = 0.9 * (1 - k); });
+    }
+    g.userData.upd = t => upd.forEach(f => f(t));
+    return g;
   }
   let moveDots = [], belts = [];
   const DOT_E = 0.92, DOT_C = 0.56;
@@ -1643,8 +1689,18 @@ const Board = (() => {
       const occ = (f, r) => !!meshAt(f, r), good = moves.filter(m => !m.bad), bad = moves.filter(m => m.bad);
       // 送将的方向也画出来，只是标红（画在下面，能走的那一段照常盖在上面）
       for (const [list, isBad] of [[bad, true], [good, false]]) for (const b of beltPaths(sel, list, occ)) {
-        const mesh = new THREE.Mesh(ribbonGeo(b.pts, 0.4, TOP + (isBad ? 0.0040 : 0.0042)), new THREE.MeshBasicMaterial({ map: flowTex, color: isBad ? HINT.beltB : b.via ? HINT.beltV : HINT.belt, transparent: true, opacity: 0.5, depthWrite: false, vertexColors: true, side: THREE.DoubleSide }));
-        mesh.userData.own = true; mesh.renderOrder = 3; markRoot.add(mesh); belts.push(mesh);
+        if (b.arc && ARCV && !isBad) {
+          const fx = arcFx(b.pts, b.via ? HINT.beltV : HINT.belt, ARCV); markRoot.add(fx); arcs.push(fx);
+          const sh = new THREE.Mesh(ribbonGeo(b.pts.map(p => [p[0], p[1]]), 0.22, TOP + 0.0039), new THREE.MeshBasicMaterial({ color: 0x1b1a19, transparent: true, opacity: 0.14, depthWrite: false, vertexColors: true }));
+          sh.userData.own = true; sh.renderOrder = 2; markRoot.add(sh);
+          continue;
+        }
+        const mesh = new THREE.Mesh(ribbonGeo(b.pts, b.arc ? 0.3 : 0.4, TOP + (isBad ? 0.0040 : 0.0042)), new THREE.MeshBasicMaterial({ map: flowTex, color: isBad ? HINT.beltB : b.via ? HINT.beltV : HINT.belt, transparent: true, opacity: 0.5, depthWrite: false, vertexColors: true, side: THREE.DoubleSide }));
+        mesh.userData.own = true; mesh.userData.k = b.arc ? 1.35 : 1; mesh.renderOrder = b.arc ? 6 : 3; markRoot.add(mesh); belts.push(mesh);
+        if (b.arc) {   // 抛物线在棋盘上投一道淡影，看得出是从上面跳过去的
+          const sh = new THREE.Mesh(ribbonGeo(b.pts.map(p => [p[0], p[1]]), 0.22, TOP + 0.0039), new THREE.MeshBasicMaterial({ color: 0x1b1a19, transparent: true, opacity: 0.16, depthWrite: false, vertexColors: true }));
+          sh.renderOrder = 2; markRoot.add(sh);
+        }
       }
     }
   }
@@ -1849,11 +1905,12 @@ const Board = (() => {
     }
     if (immediate) { for (const m of dropping) { m.position.y = TOP; m.rotation.x = m.rotation.z = 0; } dropping.clear(); }
     markRoot.traverse(o => { if (o.material && o.material !== goldM) o.material.dispose(); if (o.userData.own && o.geometry) o.geometry.dispose(); });
-    markRoot.clear(); selRing = selGlow = selShade = selCol = selHalo = selDrop = null; kills = []; killRings = []; moveDots = []; belts = []; brackets = []; aimMark = aimGlow = null;
+    markRoot.clear(); selRing = selGlow = selShade = selCol = selHalo = selDrop = null; kills = []; killRings = []; moveDots = []; belts = []; arcs = []; brackets = []; aimMark = aimGlow = null;
   }
   Core.onFrame(dt => {
     hoverT += dt;
     // 落点墨点呼吸；墨带顺着走向流动、明暗起伏
+    if (arcs.length) { const t = performance.now() / 1000; for (const a of arcs) a.userData.upd(t); }
     if (moveDots.length || belts.length) {
       const t = performance.now() / 1000;
       flowTex.offset.x = -(t * 0.55) % 1;
@@ -1862,7 +1919,7 @@ const Board = (() => {
         d.scale.set(s, 1, s); d.material.opacity = core ? 0.7 + 0.3 * b : 0.62 + 0.3 * b;
       }
       const bb = 0.5 + 0.5 * Math.sin(t * 2.6);
-      for (const m of belts) m.material.opacity = 0.5 + 0.3 * bb;
+      for (const m of belts) m.material.opacity = Math.min(1, (0.5 + 0.3 * bb) * (m.userData.k || 1));
     }
     if (selRing) {
       selRing.rotation.y += dt * 0.6; selShade.rotation.y = selRing.rotation.y;
@@ -1956,7 +2013,7 @@ const Board = (() => {
   })();
   return {
     root, TOP, PH, HALF, X, Z, pos, setPosition, syncPosition, pieces, piecesRoot, makePiece, faceViewer,
-    showMoves, clearMoves, flashBad, hoverMark, showZone, showBad, showStep, setGlow, showLast, pick, meshAt, get hovered() { return hovered; }, ringTex, glowTex, wakes, water, waterMat, decal, flatGeo, pine, deco, FONT,
-    viewSide: 'r', setSkin, dress, get lastGame() { return lastGame; }, skinTune, get SK() { return SK; }, pieceWood, RZ, BZ, BX, BRIDGE_X, faceTex, backTex, setFace, makeRiver, mtTex, decorate, decorateAll, reconcile, plateGeo, plateOn,
+    showMoves, clearMoves, flashBad, hoverMark, showZone, showBad, showStep, setGlow, showLast, pick, meshAt, get hovered() { return hovered; }, ringTex, glowTex, wakes, water, waterMat, decal, flatGeo, pine, deco, FONT, footRing,
+    viewSide: 'r', setSkin, dress, get lastGame() { return lastGame; }, skinTune, get SK() { return SK; }, pieceWood, RZ, BZ, BX, BRIDGE_X, faceTex, backTex, setFace, makeRiver, mtTex, decorate, decorateAll, decoOpts, reconcile, plateGeo, plateOn,
   };
 })();

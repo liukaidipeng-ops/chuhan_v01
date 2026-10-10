@@ -17,6 +17,11 @@ const Core = (() => {
   if (softGL && !userQ) quality = 'low';
   // 排查用的开关（网址后面加，例如 ?noaa&lowp）：noaa 关多重采样抗锯齿，lowp 不点名要独立显卡。10-09 查 Ham 电脑上窗口卡死用
   const DIAG = new URLSearchParams(location.search);
+  // 省电（Ham 10-10：手机发烫）：画面没在动的时候每秒只画 30 帧（高刷手机原来跟着屏幕 90 / 120 帧在画）；影子不再每帧重算，有东西在动时才算；
+  //   （Ham 审批台 td-025 选 B：手机默认开、保留抗锯齿；设置里有「省电」开关。网址 ?eco=1 / ?eco=0 强制开 / 关）
+  let ECO = DIAG.get('eco') === '1';
+  let activeUntil = 0;
+  const poke = (ms = 1500) => { const t = performance.now() + ms; if (t > activeUntil) activeUntil = t; };
   const renderer = new THREE.WebGLRenderer({ canvas, antialias: quality !== 'low' && !DIAG.has('noaa'), powerPreference: DIAG.has('lowp') ? 'default' : 'high-performance' });
   // 像素比：按画质封顶，再按“整张画布最多多少像素”封顶。大屏、高分屏全屏时画布能有上千万像素（还带多重采样），
   //   显卡（尤其集成显卡）吃不消，会拖累整台电脑（10-09 Ham：高配电脑卡、拖成独立窗口时所有软件都卡住）
@@ -29,6 +34,7 @@ const Core = (() => {
   renderer.debug.checkShaderErrors = false;   // 线上不查着色器报错：查一次要同步等显卡编完，第一次画东西时会卡
   renderer.shadowMap.enabled = quality !== 'low';
   renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+  if (ECO) renderer.shadowMap.autoUpdate = false;
   renderer.toneMapping = THREE.ACESFilmicToneMapping;
   renderer.toneMappingExposure = 1.0;
 
@@ -60,7 +66,7 @@ const Core = (() => {
     camera.aspect = w / h;
     camera.fov = w / h < 0.8 ? 58 : 42;
     camera.updateProjectionMatrix(); applyShift();
-    try { if (!Cam.cine) Cam.radius = Cam.view ? Cam.fitTop() : Cam.fitRadius(); } catch (e) { /* 初始化时 Cam 尚未定义 */ }
+    try { if (!Cam.cine) Cam.radius = Cam.homeRad(); } catch (e) { /* 初始化时 Cam 尚未定义 */ }
   }
   // 画面整体挪一挪（对局分析的面板挡住一边时，把棋盘往另一边让）：fx、fy 是画面宽、高的几分之几，正数 = 内容往左 / 往上
   let shiftF = [0, 0, 1];
@@ -123,20 +129,36 @@ const Core = (() => {
     //   转的时候 spinning = true，棋子的朝向跟着 theta 一起转（Board.faceViewer 第二个参数），字一直是正的
     setSide(side, snap = true, dur = 1.4) {
       this.homeTheta = side === 'b' ? Math.PI : 0;
-      const th = this.homeTheta, phi = this.view ? 0.001 : 0.72;   // 正上方时 phi 不能是 0（lookAt 会翻）
-      const rad = this.view ? this.fitTop() : this.fitRadius();
+      const th = this.homeTheta, phi = this.homePhi();   // 正上方时 phi 不能是 0（lookAt 会翻）
+      const rad = this.homeRad(), home = this.homeT(side);
       const id = this.spinId = (this.spinId || 0) + 1;
-      if (snap) { this.spinning = false; this.theta = th; this.phi = phi; this.target.copy(this.home0); this.radius = rad; this.pos.copy(this.orbitPos()); this.look.copy(this.target); this.upTh = this.theta; return Promise.resolve(); }
+      if (snap) { this.spinning = false; this.theta = th; this.phi = phi; this.target.copy(home); this.radius = rad; this.pos.copy(this.orbitPos()); this.look.copy(this.target); this.upTh = this.theta; return Promise.resolve(); }
       const th0 = this.theta, ph0 = this.phi, r0 = this.radius, t0 = this.target.clone();
       let d = th - th0; d = Math.atan2(Math.sin(d), Math.cos(d));
       this.spinning = Math.abs(d) > 0.01;
       return tween(this.spinning ? dur : 0.6, k => {
         if (this.spinId !== id) return;
         this.theta = th0 + d * k; this.upTh = this.theta;
-        this.phi = ph0 + (phi - ph0) * k; this.radius = r0 + (rad - r0) * k; this.target.lerpVectors(t0, this.home0, k);
+        this.phi = ph0 + (phi - ph0) * k; this.radius = r0 + (rad - r0) * k; this.target.lerpVectors(t0, home, k);
       }, ease.sine).then(() => { if (this.spinId === id) { this.theta = th; this.upTh = th; this.spinning = false; } });
     },
     setView(v, side) { this.view = v; this.setSide(side, false); },
+    // 手机竖屏的沙盘档（美术总监 V1，Ham 10-10 点头）：镜头压低（phi 0.72 → 0.45）、拉近到 0.86 倍、注视点往自己这边挪 0.15。
+    //   缩放上限 7～30 不动（Ham 的条件：能手动缩回原来的远度，还能更远）；俯瞰、定盘和电脑不变
+    portrait() { return window.innerWidth / window.innerHeight < 0.8; },
+    homePhi() { return this.view ? 0.001 : this.portrait() ? 0.45 : 0.72; },
+    // 电脑宽屏的沙盘档（美术总监 V3，Ham 10-10 审批台 ad-001）：注视点往自己这边挪 0.45、按屏幕高度拉远一点，左下名牌不再盖住俥
+    wide() { return window.innerWidth / window.innerHeight >= 1; },
+    wideK() { const H = window.innerHeight; return H >= 1000 ? 1 : H >= 880 ? 1.06 : H >= 760 ? 1.1 : 1.14; },
+    homeRad() { return this.view ? this.fitTop() : this.fitRadius() * (this.portrait() ? 0.86 : this.wide() ? this.wideK() : 1); },
+    homeT(side) {
+      const t = this.home0.clone(); if (this.view) return t;
+      const sg = (side || (this.homeTheta ? 'b' : 'r')) === 'b' ? -1 : 1;
+      if (!this.portrait() && !this.wide()) return t;
+      // 执黑时镜头在另一头：注视点按棋盘中线镜像过去（home0 的 0.2 也镜像），两边看到的构图一样
+      t.z = sg * (this.home0.z + (this.portrait() ? 0.15 : 0.45));
+      return t;
+    },
     homeDir() { return new THREE.Vector3(Math.sin(this.homeTheta), 0, Math.cos(this.homeTheta)); },
     // 按屏幕宽高比算出能完整看到棋盘宽度的距离（竖屏手机会自动拉远）
     fitRadius() {
@@ -171,13 +193,14 @@ const Core = (() => {
       this.target.x += (-dx * c - dy * s) * k; this.target.z += (dx * s - dy * c) * k;
       this.target.x = Math.max(-9, Math.min(9, this.target.x)); this.target.z = Math.max(-10, Math.min(10.4, this.target.z));
     },
-    get panned() { return Math.hypot(this.target.x - this.home0.x, this.target.z - this.home0.z) > 0.12; },
+    get panned() { const h = this.homeT(); return Math.hypot(this.target.x - h.x, this.target.z - h.z) > 0.12; },
     update(dt) {
       if (!this.cine) {
         const p = this.orbitPos();
         this.pos.lerp(p, 1 - Math.exp(-dt * 10));
         this.look.lerp(this.target, 1 - Math.exp(-dt * 10));
       }
+      if (ECO && (this.cine || this.shakeAmp > 0.001 || this.pos.distanceToSquared(camera.position) > 1e-6)) poke(250);   // 镜头还在动：照常帧率
       camera.position.copy(this.pos);
       const lk = this.lk || (this.lk = new THREE.Vector3()); lk.copy(this.look);
       if (this.shakeAmp > 0.001) {
@@ -250,8 +273,15 @@ const Core = (() => {
   // 帧时间（真实的，不封顶）：自动降画质和 ?perf 面板用
   const ft = { n: 0, sum: 0, slow: 0, last: performance.now() };
   let nap = 0;
+  let lastDraw = 0, shT = 0;
+  for (const ev of ['pointerdown', 'pointermove', 'wheel', 'touchstart', 'touchmove', 'keydown']) addEventListener(ev, () => { if (ECO) poke(1500); }, { passive: true, capture: true });   // 手一碰就恢复满帧
   function loop() {
     requestAnimationFrame(loop);
+    if (ECO) {   // 省电：没在动就 30 帧（跳过的这一帧什么都不做，时间留到下一帧一起推）
+      const t = performance.now();
+      if (t > activeUntil && t - lastDraw < 31) return;
+      lastDraw = t;
+    }
     { const t = performance.now(), d = t - ft.last; ft.last = t; if (Core.render && d < 1000) { ft.n++; ft.sum += d; if (d > 40) ft.slow++; } }
     let raw = Math.min(clock.getDelta(), 0.05);
     // 大厅整屏盖着、场景不画的时候（main.js 设 sleepy）：动画每 0.1 秒才推一次——兵营里的小兵、旗子照样在动，
@@ -260,6 +290,7 @@ const Core = (() => {
     const dt = Time.hold ? 0 : raw * (Time.skip ? 14 : Time.scale) * Time.boost;   // hold：暂停，演出全部定住
     Time.t += dt;
     for (const u of Array.from(updaters)) u(dt);
+    if (ECO && renderer.shadowMap.enabled && (performance.now() < activeUntil || (shT += raw) > 0.5)) { renderer.shadowMap.needsUpdate = true; shT = 0; }
     for (const h of frameHooks) h(dt, raw);
     Cam.update(raw);
     if (Core.render && !held) renderer.render(scene, camera);   // held：换影子开关后，新着色器还在后台编，先停画（不然当场同步编、卡住）
@@ -465,7 +496,8 @@ const Core = (() => {
     setQuality(q, keep = true) { quality = q; if (keep) try { localStorage.setItem('xq3d-quality', JSON.stringify(q)); } catch (e) { } const sh = q !== 'low'; if (sh) renderer.shadowMap.enabled = true; if (sun.castShadow !== sh) { sun.castShadow = sh; held++; const un = () => { held--; }; compileBg(scene, camera, 600).then(un); } resize(); },   // keep=false：只这一次打开页面有效（自动降画质用）。
     // 影子用太阳的 castShadow 开关：三维库会发现灯光变了、自动重编着色器，当场生效（原来改 shadowMap.enabled 要下次打开才生效）
     gpu: GPU, softGL, DIAG, get parallelGL() { return parallelGL; }, get userQ() { return userQ; },
-    isMobile,
+    isMobile, poke, get ECO() { return ECO; },
+    setEco(on) { if (DIAG.has('eco')) return; ECO = !!on; renderer.shadowMap.autoUpdate = !ECO; if (!ECO) renderer.shadowMap.needsUpdate = true; },
     renderer, scene, camera, sun, hemi, Time, onFrame, tween, sleep, ease, Cam, canvasTex, Tex, rnd, inkBlot,
     toon, outlineMat, outlineShared, inked, merge, M4, disposeTree, compileBg, viewShift, get shiftNow() { return shiftF.slice(); },
     start() { clock.start(); loop(); },

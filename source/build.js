@@ -2,7 +2,7 @@
 const fs = require('fs');
 const path = require('path');
 const D = __dirname;
-const order = ['rules', 'bingfa', 'bfai', 'engine', 'core', 'board', 'turnglow', 'models', 'tiger', 'audio', 'endtunes', 'fx', 'squads', 'camp', 'spect', 'ending', 'net', 'ui', 'jq', 'bfx', 'merit', 'main'];
+const order = ['rules', 'bingfa', 'bfai', 'engine', 'core', 'face', 'board', 'turnglow', 'models', 'tiger', 'juma', 'audio', 'endtunes', 'fx', 'upfx', 'squads', 'camp', 'spect', 'ending', 'net', 'ui', 'jq', 'bfx', 'merit', 'luozi', 'main'];
 const tpl = fs.readFileSync(path.join(D, 'src/template.html'), 'utf8');
 const three = fs.readFileSync(path.join(D, 'node_modules/three/build/three.min.js'), 'utf8');
 const qr = fs.readFileSync(path.join(D, 'node_modules/qrcode-generator/dist/qrcode.js'), 'utf8');

@@ -25,14 +25,14 @@
     attack: { a: [1, 2, 2, 2], e: [1, 2, 2, 2] }, // 按等级的攻击力（一次攻击扣的血）；没列出的兵种都是 1。相 / 象二级起攻击 2（Ham 10-09 20:34：象二级 2 攻 2 血）
     skillLevel: 3, // 几级解锁兵种技能（单个技能可用 level 另定）
     skills: {
-      juma: { level: 2, cooldown: 4, duration: 2, damage: 1, free: true, rooted: true, counterCannon: false }, // 二级可用、管两回合（Ham 10-09 审批台 td-006）。free：不占行动，架完还要再走一步棋（这枚兵本回合不能动）  Ham 10-10：冷却 2→4；rooted：拒马生效期间这枚兵不能走（含回防、神速营）；counterCannon=false：炮（含霹雳）隔子打它不挨反伤
+      juma: { level: 2, cooldown: 4, duration: 2, damage: 1, free: true, rooted: true, counterCannon: false, counterElephant: false }, // 二级可用、管两回合（Ham 10-09 审批台 td-006）。free：不占行动，架完还要再走一步棋（这枚兵本回合不能动）  Ham 10-10：冷却 2→4；rooted：拒马生效期间这枚兵不能走（含回防、神速营）；counterCannon=false：炮（含霹雳）隔子打它不挨反伤
       shensu: { level: 4, passive: true, move: true, cooldown: 5, range: 2 }, // 兵四级被动：八方向直线 1～2 格，可越子，只能落空格
       huifang: { level: 4, passive: true, move: true, cooldown: 2 }, // 兵四级被动：可后退一格
       jinwei: { level: 4, passive: true, move: true, cooldown: 2 }, // 士四级被动「铁甲禁卫」：九宫内上下左右走一格
       chongzhen: { cooldown: 3, springDamage: 1 }, // 车：前方第一枚子当跳板（挨 1 点），落到它身后一格
-      taying: { cooldown: 2, enemyHalfOnly: true }, // 马：只能在敌方半场用
+      taying: { cooldown: 2, enemyHalfOnly: true, passive: true, move: true }, // 马三级被动（Ham 10-10 由主动改被动，同飞越）：在敌方半场、冷却好了，蹩马腿的日字落点也能走
       pili: { cooldown: 4, splashDamage: 1, splashMinLevel: 2 },
-      feiyue: { cooldown: 5 }, // 相 / 象三级主动：这一步无视塞象眼
+      feiyue: { cooldown: 5, passive: true, move: true }, // 相 / 象三级被动（Ham 10-10 由主动改被动）：冷却好了，塞象眼的田字落点也能走，走了进冷却
       qishe: { level: 4, cooldown: 3, range: 2, damage: 1 }, // 汉相四级
       jianta: { level: 4, passive: true, splashDamage: 1, splashMinLevel: 1, ring8: true }, // 楚象四级被动：攻击 / 吃子后踩那一格周围一圈，各扣 1 点（残血的直接踩死），走空格不踩，无冷却
       hujia: { cooldown: 4 },
@@ -93,8 +93,8 @@
     shensu: '八个方向疾行 1～2 格，可以越子，只能落在空格。',
     huifang: '可以后退一格。',
     jinwei: '士在田字格内获得自由移动的能力：可上下左右走一格。',
-    taying: '这一步无视蹩马腿。只能在敌方半场用。',
-    feiyue: '这一步无视塞象眼（仍不能过河）。',
+    taying: '被动：在敌方半场、冷却好了，马腿被蹩住也能跳过去（会先问你用不用）。',
+    feiyue: '被动：冷却好了，象眼被塞住也能走田字（会先问你用不用；仍不能过河）。',
     pili: '炮击一个敌子，落点四周二级以上的敌子各扣 1 点。',
     qishe: '不动身，射斜线 1～2 格内的一个敌子，扣 1 点。',
     jianta: '攻击或吃子后，落点周围一圈的敌子各扣 1 点。',
@@ -157,6 +157,8 @@
   const inCheckF = (S, s) => !S.final && inCheck(S.board, s);
   const jmActive = (S, p) => p && p.t === 'p' && p.jm > S.cnt[other(p.s)];
   const jmRooted = (S, p) => !!(CFG_CUR.skills.juma.rooted && jmActive(S, p));
+  // 撞上拒马会不会先挨那 1 点：帅将不挨；炮隔子打不挨；象、相不挨（Ham 10-10：象相无视拒马）
+  const jmHits = P => P.t !== 'k' && !(P.t === 'c' && !CFG_CUR.skills.juma.counterCannon) && !(P.t === 'e' && !CFG_CUR.skills.juma.counterElephant);
   const maxLv = t => (t === 'k' ? 1 : CFG_CUR.upgrade.maxLevel[t] || CFG_CUR.upgrade.defaultMaxLevel);
   // 召回：这一兵种阵亡的子里最高的等级 / 等级最高的那一枚（并列取先阵亡的）
   const bestDeadLv = (S, t) => { let m = 1; for (const d of S.dead.r) if (d.t === t && (d.lv || 1) > m) m = d.lv || 1; return m; };
@@ -240,7 +242,7 @@
   function strike(S, from, to, side, ev, how) {
     const P = S.board[from[1]][from[0]], T = S.board[to[1]][to[0]];
     if (!T) { moveTo(S, from, to, ev); return 'move'; }
-    if (jmActive(S, T) && P.t !== 'k' && T.s !== P.s && !(P.t === 'c' && !CFG_CUR.skills.juma.counterCannon)) {   // 炮是隔子打的，拒马的矛够不着
+    if (jmActive(S, T) && jmHits(P) && T.s !== P.s) {   // 炮是隔子打的，拒马的矛够不着；象、相无视拒马（Ham 10-10）
       ev.push({ e: 'counter', id: P.id, at: from.slice(), by: T.id, target: to.slice() });
       P.hp -= CFG_CUR.skills.juma.damage;
       if (P.hp <= 0) { kill(S, from[0], from[1], T.s, ev, 'juma', T); return 'died'; }
@@ -302,6 +304,14 @@
       const q = S.board[tr][tf]; if (q && (q.s === p.s || emptyOnly)) return;
       seen.add(tf + ',' + tr); ms.push({ from: [f, r], to: [tf, tr], via: sk });
     };
+    // 踏营（被动，Ham 10-10）：在敌方半场、冷却好了，马腿被蹩住的日字落点也能走
+    if (!ignoreLeg && p.t === 'n' && hasSkill(p, 'taying') && cdReady(S, p, 'taying') && !(CFG_CUR.skills.taying.enemyHalfOnly && ownHalf(p.s, r)))
+      for (const [df, dr] of [[1, 2], [-1, 2], [1, -2], [-1, -2], [2, 1], [2, -1], [-2, 1], [-2, -1]]) {
+        const lf = Math.abs(df) === 2 ? f + Math.sign(df) : f, lr = Math.abs(dr) === 2 ? r + Math.sign(dr) : r;
+        if (inBoard(lf, lr) && S.board[lr][lf]) extra('taying', f + df, r + dr);
+      }
+    // 飞跃（被动）：冷却好了，象眼被塞住的田字落点也能走（仍不能过河）
+    if (!ignoreLeg && p.t === 'e' && hasSkill(p, 'feiyue') && cdReady(S, p, 'feiyue')) for (const [df, dr] of [[2, 2], [2, -2], [-2, 2], [-2, -2]]) if (p.j || ownHalf(p.s, r + dr)) extra('feiyue', f + df, r + dr);
     if (!ignoreLeg && p.t === 'p') {
       extra('huifang', f, r + (p.s === 'r' ? -1 : 1));
       if (hasSkill(p, 'shensu') && cdReady(S, p, 'shensu')) for (const m of dashTargets(S, f, r)) extra('shensu', m.to[0], m.to[1], true);
@@ -387,7 +397,10 @@
       trample(S, p, a.to, extra.res, side, ev);
     } else if (a.k === 'sk') {
       const p = own(a.at[0], a.at[1]); if (!p) return null;
-      const sk = a.sk || SKILL_OF(p.t, p.s); if (!sk || !skillOk(S, p, sk)) return null;
+      const sk = a.sk || SKILL_OF(p.t, p.s);
+      // 老棋谱里的「飞跃」是主动技能：照旧认（现在是被动，新走法记作普通走子）
+      const legacyFy = (sk === 'feiyue' || sk === 'taying') && isPassive(sk) && hasSkill(p, sk) && cdReady(S, p, sk) && !S.freeUsed;
+      if (!sk || !(skillOk(S, p, sk) || legacyFy)) return null;
       if (frozen(S, p) && sk !== 'juma' && sk !== 'qishe') return null;   // 冻结的子只能用原地的技能
       extra.sk = sk;
       const cd = () => { const q = S.board.flat().find(x => x && x.id === p.id); if (q) setCd(S, q, sk); };

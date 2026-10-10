@@ -1,0 +1,173 @@
+<!doctype html>
+<html lang="zh">
+<head>
+<meta charset="utf-8">
+<title>落子入局 · 手机</title>
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link href="https://fonts.googleapis.com/css2?family=Noto+Serif+SC:wght@900&amp;display=swap" rel="stylesheet">
+<style>
+body{margin:0}
+a{color:#f0e7d2}a:hover{color:#fff}
+@keyframes zmHint{0%{box-shadow:0 0 0 0 rgba(240,231,210,.85)}100%{box-shadow:0 0 0 12px rgba(240,231,210,0)}}
+.zm-hot{position:absolute;border:0;background:transparent;padding:0;cursor:pointer}
+.zm-hot.hint{animation:zmHint 1.6s ease-out infinite}
+.zm-hot:focus-visible{outline:3px solid #f0e7d2;outline-offset:3px}
+.zm-skip{position:absolute;left:0;top:0;width:100%;height:100%;border:0;padding:0;background:transparent;cursor:pointer;display:flex;align-items:flex-end;justify-content:flex-end}
+.zm-skip span{margin:0 20px 18px 0;font-size:13px;letter-spacing:3px;color:rgba(240,231,210,.7);font-family:system-ui,sans-serif}
+.zm-btn{height:44px;padding:0 16px;background:#f0e7d2;color:#141311;border:2px solid #141311;font-family:'Noto Serif SC',serif;font-weight:900;font-size:15px;letter-spacing:3px;cursor:pointer}
+.zm-btn.k{background:#141311;color:#f0e7d2;border-color:#f0e7d2}
+</style>
+</helmet>
+<div style="width: 390px; height: 844px; position: relative; overflow: hidden; background: #a8281c; font-family: system-ui, sans-serif; color: #f0e7d2;">
+  <img src="/_blob/423b959b0d710d1727c0d56d4eaf2a4c" alt="主界面" style="{{v.pages.main}}">
+  <img src="/_blob/af4222409ae991fd66652a6135d5a37a" alt="人机对战" style="{{v.pages.ai}}">
+  <img src="/_blob/e42f2c07dba99ccb8d1e4279e3a07f3e" alt="本地对战" style="{{v.pages.local}}">
+  <img src="/_blob/cf4c7e5d1e10fd05391eeb3afe8e3899" alt="联机大厅" style="{{v.pages.hall}}">
+  <img src="/_blob/0a0c5a99d6971c3040a03b873eac027b" alt="房间" style="{{v.pages.wait}}">
+  <sc-for list="{{v.lines}}" as="l" hint-placeholder-count="36">
+    <div style="{{l.style}}"></div>
+  </sc-for>
+  <sc-for list="{{v.river}}" as="rv" hint-placeholder-count="4">
+    <div style="{{rv.style}}">{{rv.tx}}</div>
+  </sc-for>
+  <sc-for list="{{v.fly}}" as="f" hint-placeholder-count="2">
+    <div style="{{f.style}}"><span style="{{f.aStyle}}">{{f.a}}</span><span style="{{f.bStyle}}">{{f.b}}</span></div>
+  </sc-for>
+  <img src="/_blob/5383e2082fecbb64ac389143f5096471" alt="对局 · 正上方" style="{{v.top}}">
+  <img src="/_blob/176ac58178401f27cab5191ca449e6b5" alt="对局 · 建议镜头" style="{{v.end}}">
+  <sc-for list="{{hots}}" as="h" hint-placeholder-count="3">
+    <button type="button" class="{{h.cls}}" aria-label="{{h.label}}" onClick="{{h.go}}" style="{{h.style}}"></button>
+  </sc-for>
+  <sc-if value="{{v.playing}}" hint-placeholder-val="{{ false }}">
+    <button type="button" class="zm-skip" aria-label="跳过过场" onClick="{{skip}}"><span>点一下跳过</span></button>
+  </sc-if>
+  <sc-if value="{{v.done}}" hint-placeholder-val="{{ false }}">
+    <div style="position: absolute; left: 0; right: 0; top: 116px; display: flex; gap: 10px; justify-content: center;">
+      <button type="button" class="zm-btn" onClick="{{replay}}">再走一遍</button>
+      <button type="button" class="zm-btn k" onClick="{{home}}">回主界面</button>
+    </div>
+  </sc-if>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"$preview":{"width":390,"height":844}}'>
+function zmView(st, C) {
+  var scr = st.scr, s = st.s, tr = C.TRMAP[scr] || null, T = tr ? C.TR[tr] : null;
+  var E = 'cubic-bezier(.65,0,.35,1)', still = s === 0;
+  var W = C.W, H = C.H, B = C.B, LW = C.LW, ys = C.RANKS;
+  var imgBase = 'position:absolute;left:0;top:0;width:' + W + 'px;height:' + H + 'px;pointer-events:none;';
+  var pages = {};
+  ['main', 'ai', 'local', 'hall', 'wait'].forEach(function (k) {
+    pages[k] = imgBase + 'opacity:' + (k === scr && s === 0 ? 1 : 0) + ';transition:opacity 350ms ease;';
+  });
+  // 画盘：两颗子各自生出半张盘。时间都从 s2 开始算（毫秒）
+  var SP = C.SPEED;                 // 竖线生长速度：像素 / 毫秒
+  var x0 = B[0], x8 = B[0] + B[2], dx = B[2] / 8, cx = (x0 + x8) / 2;
+  var riverMid = (ys[4] + ys[5]) / 2;
+  var drawn = s === 2, gone = s >= 3;
+  var lines = [];
+  function seg(css, from, to, delay, dur, ease) {
+    var o = drawn ? 1 : 0;
+    var tf = drawn ? to : from;
+    var t = still ? 'none' : 'transform ' + dur + 'ms ' + ease + ' ' + delay + 'ms,opacity ' + (gone ? '450ms ease' : '80ms linear ' + delay + 'ms');
+    lines.push({ style: 'position:absolute;background:#f0e7d2;pointer-events:none;' + css + 'transform:' + tf + ';opacity:' + o + ';transition:' + t + ';' });
+  }
+  var V0 = 200;                     // 竖线开始生长
+  function rankDelay(k) { return k === 0 ? 0 : V0 + (ys[k] - ys[0]) / SP; }
+  if (T) {
+    for (var r = 0; r < 10; r++) {
+      var k = r <= 4 ? r : 9 - r;   // 离自家底线第几行
+      var d = r <= 4 ? rankDelay(r) : V0 + (ys[9] - ys[r]) / SP;
+      if (k === 0) d = 0;
+      seg('left:' + x0 + 'px;top:' + (ys[r] - LW / 2) + 'px;width:' + B[2] + 'px;height:' + LW + 'px;transform-origin:50% 50%;', 'scaleX(0)', 'scaleX(1)', Math.round(d), k === 0 ? 320 : 300, 'cubic-bezier(.2,.7,.3,1)');
+    }
+    for (var f = 0; f < 9; f++) {
+      var x = x0 + f * dx - LW / 2, edge = f === 0 || f === 8;
+      var topEnd = edge ? riverMid : ys[4], botEnd = edge ? riverMid : ys[5];
+      seg('left:' + x + 'px;top:' + ys[0] + 'px;width:' + LW + 'px;height:' + (topEnd - ys[0]) + 'px;transform-origin:50% 0;', 'scaleY(0)', 'scaleY(1)', V0, Math.round((topEnd - ys[0]) / SP), 'linear');
+      seg('left:' + x + 'px;top:' + botEnd + 'px;width:' + LW + 'px;height:' + (ys[9] - botEnd) + 'px;transform-origin:50% 100%;', 'scaleY(0)', 'scaleY(1)', V0, Math.round((ys[9] - botEnd) / SP), 'linear');
+    }
+    // 九宫斜线：从九宫中心往四角画
+    [[ys[1], ys[0], ys[2]], [ys[8], ys[7], ys[9]]].forEach(function (pal) {
+      var pcx = cx, pcy = pal[0];
+      [[-1, -1], [1, -1], [-1, 1], [1, 1]].forEach(function (q) {
+        var ex = cx + q[0] * dx, ey = q[1] < 0 ? pal[1] : pal[2];
+        var len = Math.hypot(ex - pcx, ey - pcy), ang = Math.atan2(ey - pcy, ex - pcx) * 180 / Math.PI;
+        seg('left:' + pcx + 'px;top:' + (pcy - LW / 2) + 'px;width:' + len + 'px;height:' + LW + 'px;transform-origin:0 50%;', 'rotate(' + ang + 'deg) scaleX(0)', 'rotate(' + ang + 'deg) scaleX(1)', 120, 320, 'cubic-bezier(.2,.7,.3,1)');
+      });
+    });
+  }
+  var meet = V0 + (riverMid - ys[0]) / SP;           // 两边的边线在河界会合
+  var river = (C.RIVER || []).map(function (c) {
+    return { tx: c[0], style: 'position:absolute;left:' + c[1] + 'px;top:' + riverMid + 'px;transform:translate(-50%,-50%);font-family:\'Noto Serif SC\',serif;font-weight:900;font-size:' + C.RFS + 'px;color:#f0e7d2;pointer-events:none;opacity:' + (drawn ? 1 : 0) + ';transition:' + (still ? 'none' : 'opacity ' + (gone ? 450 : 350) + 'ms ease ' + (drawn ? Math.round(meet) : 0) + 'ms') + ';' };
+  });
+  var fly = (T ? T.p : []).map(function (p) {
+    var end = s >= 1, P = C.PIECE[p.to], tgt = p.to === 'K' ? C.K : C.J, D = C.D;
+    var x = end ? tgt[0] : p.r[0] + p.r[2] / 2, y = end ? tgt[1] : p.r[1] + p.r[3] / 2;
+    var w = end ? D : p.r[2], h = end ? D : p.r[3];
+    var bg = end ? P.bg : p.bg, bd = end ? P.bd : p.bd;
+    var o = (s === 1 || s === 2) ? 1 : 0, bw = end ? C.PBW : 3;
+    var rad = p.round ? '50%' : (end ? D / 2 : 0) + 'px';
+    var t = still ? 'none' : 'left 600ms ' + E + ',top 600ms ' + E + ',width 600ms ' + E + ',height 600ms ' + E + ',border-radius 600ms ' + E + ',background-color 160ms ease 480ms,border-color 160ms ease 480ms,opacity ' + (s >= 3 ? 500 : 200) + 'ms ease';
+    var span = 'position:absolute;left:0;top:0;right:0;bottom:0;display:flex;align-items:center;justify-content:center;white-space:nowrap;';
+    return {
+      a: p.tx, b: P.tx,
+      style: 'position:absolute;left:' + x + 'px;top:' + y + 'px;width:' + w + 'px;height:' + h + 'px;transform:translate(-50%,-50%);box-sizing:border-box;border-radius:' + rad + ';background:' + bg + ';border:' + bw + 'px solid ' + bd + ';font-family:\'Noto Serif SC\',serif;font-weight:900;overflow:hidden;opacity:' + o + ';pointer-events:none;transition:' + t + ';',
+      aStyle: span + 'color:' + p.fg + ';font-size:' + p.fs + 'px;letter-spacing:' + (p.ls || 0) + 'px;padding-bottom:' + (p.pb || 0) + 'px;opacity:' + (end ? 0 : 1) + ';transition:' + (still ? 'none' : 'opacity 160ms ease') + ';',
+      bStyle: span + 'color:' + P.fg + ';font-size:' + C.PFS + 'px;opacity:' + (end ? 1 : 0) + ';transition:' + (still ? 'none' : 'opacity 160ms ease ' + (end ? 480 : 0) + 'ms') + ';'
+    };
+  });
+  var top = imgBase + 'opacity:' + (s >= 3 ? 1 : 0) + ';transition:' + (still ? 'none' : 'opacity 700ms ease') + ';';
+  var endS = imgBase + 'opacity:' + (s >= 4 ? 1 : 0) + ';transform:scale(' + (s >= 4 ? 1 : 1.08) + ');transform-origin:50% 42%;transition:' + (still ? 'none' : 'opacity 1100ms ease,transform 1400ms cubic-bezier(.2,.7,.2,1)') + ';';
+  var hots = s === 0 ? C.HOTS[scr].map(function (h) {
+    return { h: h, label: h.label, cls: 'zm-hot' + (h.hint ? ' hint' : ''), style: 'left:' + h.r[0] + 'px;top:' + h.r[1] + 'px;width:' + h.r[2] + 'px;height:' + h.r[3] + 'px;border-radius:' + (h.round ? '50%' : '0') + ';' };
+  }) : [];
+  return { pages: pages, lines: lines, river: river, fly: fly, top: top, end: endS, hots: hots, playing: s >= 1 && s <= 3, done: s === 4, drawEnd: Math.round(meet + 350) };
+}
+var INK = '#141311', CRM = '#f0e7d2', RED = '#a8281c';
+var CFG = {
+  W: 390, H: 844, B: [52.5, 250, 285, 328.5], RANKS: [250, 285.6, 321, 356.5, 392, 436, 471.5, 507, 543, 578.5],
+  K: [195, 578.5], J: [195, 250], D: 32, PFS: 16, PBW: 2, LW: 1.5, SPEED: 0.18, RFS: 15, RIVER: [['楚', 97], ['河', 140], ['漢', 250], ['界', 295]],
+  TRMAP: { ai: 'ai', local: 'local', wait: 'wait' },
+  TR: {
+    ai: { mode: 'frame', src: [24, 60, 342, 632], p: [{ r: [24, 768, 342, 60], bg: INK, fg: CRM, bd: CRM, tx: '开战', fs: 28, ls: 8, to: 'K' }, { r: [175, 62, 95, 110], bg: INK, fg: CRM, bd: INK, tx: '校尉', fs: 24, ls: 2, pb: 22, to: 'J' }] },
+    local: { mode: 'frame', src: [24, 60, 342, 632], p: [{ r: [24, 768, 342, 60], bg: INK, fg: CRM, bd: CRM, tx: '开始', fs: 28, ls: 8, to: 'K' }, { r: [179, -50, 32, 32], round: 1, bg: CRM, fg: INK, bd: INK, tx: '將', fs: 16, to: 'J' }] },
+    wait: { mode: 'frame', src: [24, 60, 342, 760], p: [{ r: [94, 88, 256, 100], bg: RED, fg: CRM, bd: INK, tx: '你', fs: 22, to: 'K' }, { r: [94, 200, 256, 100], bg: RED, fg: CRM, bd: CRM, tx: '樵夫', fs: 22, ls: 4, to: 'J' }] }
+  },
+  PIECE: { K: { bg: CRM, fg: RED, bd: RED, tx: '帥' }, J: { bg: CRM, fg: INK, bd: INK, tx: '將' } },
+  HOTS: {
+    main: [{ r: [121, 60, 245, 255], to: 'hall', hint: 1, label: '联机' }, { r: [121, 313, 245, 255], to: 'ai', hint: 1, label: '人机' }, { r: [121, 567, 245, 253], to: 'local', hint: 1, label: '本地' }],
+    ai: [{ r: [24, 768, 342, 60], go: 1, hint: 1, label: '开战' }, { r: [322, 4, 54, 52], to: 'main', label: '返回' }],
+    local: [{ r: [24, 768, 342, 60], go: 1, hint: 1, label: '开始' }, { r: [322, 4, 54, 52], to: 'main', label: '返回' }],
+    hall: [{ r: [24, 732, 165, 96], to: 'wait', hint: 1, label: '创建房间' }, { r: [322, 4, 54, 52], to: 'main', label: '返回' }],
+    wait: [{ r: [176, 452, 91, 48], go: 1, hint: 1, label: '开始' }, { r: [292, 4, 82, 52], to: 'hall', label: '离开房间' }]
+  }
+};
+class Component extends DCLogic {
+  constructor(p) { super(p); this.state = { scr: 'main', s: 0 }; this.timers = []; }
+  componentWillUnmount() { this.timers.forEach(clearTimeout); }
+  clear() { this.timers.forEach(clearTimeout); this.timers = []; }
+  nav(to) { this.clear(); this.setState({ scr: to, s: 0 }); }
+  run() {
+    this.clear();
+    this.setState({ s: 1 });
+    const t3 = 650 + zmView({ scr: this.state.scr, s: 2 }, CFG).drawEnd + 150;
+    [[650, 2], [t3, 3], [t3 + 1150, 4]].forEach(a => this.timers.push(setTimeout(() => this.setState({ s: a[1] }), a[0])));
+  }
+  renderVals() {
+    const v = zmView(this.state, CFG);
+    return {
+      v,
+      hots: v.hots.map(h => ({ cls: h.cls, label: h.label, style: h.style, go: () => (h.h.go ? this.run() : this.nav(h.h.to)) })),
+      replay: () => { this.clear(); this.setState({ s: 0 }); this.timers.push(setTimeout(() => this.run(), 500)); },
+      home: () => this.nav('main'),
+      skip: () => { this.clear(); this.setState({ s: 4 }); },
+    };
+  }
+}
+</script>
+</body>
+</html>

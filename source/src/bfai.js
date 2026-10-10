@@ -273,7 +273,7 @@
     return false;
   }
   // 局面指纹（两个 32 位散列拼成 53 位的数）
-  const TTB = new Map();
+  const TTB = new Map(), wasNull = [];
   function fp(S) {
     let h1 = 2166136261, h2 = 5381;
     const mix = x => { h1 = Math.imul(h1 ^ x, 16777619); h2 = (Math.imul(h2, 33) ^ x) | 0; };
@@ -302,6 +302,14 @@
     // 查表——同一局面、同样剩余层数、同样的延伸次数和“这层要不要考虑对方升级 / 破釜”
     const tkey = fp(S) + ':' + depth + ':' + ext + ':' + (upAt(S, ply) ? 1 : 0) + (ply === pfPly ? 2 : 0), tte = TTB.get(tkey), a0 = alpha;
     if (tte) { const v = fromTT(tte.v, ply); if (tte.f === 0 || (tte.f === 1 && v >= beta) || (tte.f === 2 && v <= alpha)) return v; }
+    // 让一步试试（只在霸王，C65）：没被将军、还剩至少 3 层、自己还有车马炮时，先假装停一手让对方连走，少算 3 层；这样对方都翻不过来，这条线就不细算了。
+    //   本回合升过级、决战里不试（升级不换手、决战规则不同）；连着两手都“停”也不试
+    if (lmrOn && ply >= 1 && depth >= 3 && !inChk && !wasNull[ply] && beta < WIN / 2 && !S.upgraded && !S.final) {
+      let big = false; for (const row of S.board) for (const p of row) if (p && p.s === side && (p.t === 'r' || p.t === 'n' || p.t === 'c')) big = true;
+      if (big) { const T = BF.cloneState(S); T.turn = side === 'r' ? 'b' : 'r'; T.upgraded = false; T.freeUsed = false; T.jmLock = null;
+        wasNull[ply + 1] = true; let v; try { v = -ab(T, depth - 1 - 2, -beta, -beta + 0.01, ply + 1, ext); } finally { wasNull[ply + 1] = false; }
+        if (v >= beta) return v; }
+    }
     let best = -INF, legal = 0, bm = null;
     // 对方应这一步时，也可能先花军功给某枚子升一级再走（多一点血：我方本来能吃掉的子就吃不掉了，打上去还会被弹回）
     if (upAt(S, ply)) {
@@ -321,7 +329,8 @@
       const w = decided(r.S, r.ev);
       let v;   // 排在后面的安静着法先少算一层试一下
       if (w) v = w === side ? WIN - ply : -WIN + ply;
-      else if (lmrOn && ply >= 1 && depth >= 2 && mi > 2 && !inChk && it.a.k === 'mv' && !it.q && !A.inCheck(r.S, r.S.turn)) { v = -ab(r.S, depth - 2, -alpha - 0.01, -alpha, ply + 1, ext); if (v > alpha) v = -ab(r.S, depth - 1, -beta, -alpha, ply + 1, ext); }
+      // 排第 7 个以后、还剩至少 4 层的安静着法少算两层（C65；原来从第 3 个起少算一层）
+      else if (lmrOn && ply >= 1 && depth >= 2 && mi > 2 && !inChk && it.a.k === 'mv' && !it.q && !A.inCheck(r.S, r.S.turn)) { v = -ab(r.S, depth - 2 - (mi > 6 && depth >= 4 ? 1 : 0), -alpha - 0.01, -alpha, ply + 1, ext); if (v > alpha) v = -ab(r.S, depth - 1, -beta, -alpha, ply + 1, ext); }
       else v = -ab(r.S, depth - 1, -beta, -alpha, ply + 1, ext);
       if (v > best) { best = v; bm = it.a; }
       if (v > alpha) alpha = v;
@@ -369,7 +378,7 @@
   const LEVELS = {
     easy: { depth: 1, q: 2, noise: 1.3, top: 3, up: 0.5, budget: 500 },
     mid: { depth: 3, q: 3, noise: 0.3, top: 1, up: 1, budget: 2500 },
-    hard: { depth: 7, q: 4, noise: 0.05, top: 1, up: 1, budget: 3000, minNodes: 20000 },
+    hard: { depth: 7, q: 4, noise: 0.05, top: 1, up: 1, budget: 3000, minNodes: 20000, dyn: 2.7 },   // dyn：难走的局面最多放宽到几倍预算（C66，Ham 拍板单 ai_time1 = a：平时不变、关键时刻多想）
     ana: { depth: 3, q: 3, noise: 0, top: 1, up: 1, budget: 1200 },   // 对局分析用（TD，Ham 10-09）：不加噪声，每个局面限时 1.2 秒
   };
 
@@ -578,18 +587,24 @@
     kids.sort((x, y) => y.q - x.q);
     let depthDone = 0, why = 'depth';
     const n0 = nodes;
+    // 难走的局面多想（LEVELS.<档>.dyn，只有霸王设了）：基础预算用完一大半时还没算过 3 层，或者最后一层最好的那步换了 / 分数掉了 1 分以上，
+    //   预算放宽到 dyn 倍（只放宽一次）。按时间：霸王平时 3 秒，难走时最多约 8 秒（兜底 9 秒）；按节点数（对打、考卷）：节点上限 ×dyn
+    let dynB = L.budget, dynN = L.nodes, dynOn = false, crit = false, prevBK = null, prevV = null;
+    const dynX = L.depth > 3 && L.dyn > 1 ? L.dyn : 0;
     // 逐层加深：每一层都把上一层最好的着法排在最前面先算
     for (let d = 1; d <= L.depth; d++) {
-      const soft = t0 + L.budget;
+      let soft = t0 + dynB;
       if (L.fixedDepth) { deadline = Infinity; nodeCap = Infinity; }
       else if (byNodes) {
         // 前两层一定算完（保证有着可走）；再往下每一层开始前看剩下的搜索量够不够，算到上限就停
-        if (d > 2 && nodes - n0 > L.nodes * 0.5) { why = 'nodes'; break; }
-        nodeCap = d <= 2 ? Infinity : n0 + L.nodes;
+        if (dynX && !dynOn && d > 2 && nodes - n0 > L.nodes * 0.5 && (crit || depthDone <= 3)) { dynOn = true; dynN = Math.round(L.nodes * dynX); if (TR) TR.dyn = d; }
+        if (d > 2 && nodes - n0 > dynN * 0.5) { why = 'nodes'; break; }
+        nodeCap = d <= 2 ? Infinity : n0 + dynN;
       } else {
         // 慢的设备上按时间收手会算得太浅：没搜够 minNodes 之前不因为时间到了就停（最多拖到 1.5 倍时间）
         const thin = L.minNodes > 0 && nodes - n0 < L.minNodes;
-        if (d > 3 && !thin && now() - t0 > L.budget * 0.3) { why = 'time'; break; }       // 剩下的时间不够再深一层了
+        if (dynX && !dynOn && d > 3 && now() - t0 > L.budget * 0.3 && (crit || depthDone <= 3)) { dynOn = true; dynB = L.budget * dynX; soft = t0 + dynB; if (TR) TR.dyn = d; }   // 难走：放宽预算
+        if (d > 3 && !thin && now() - t0 > dynB * 0.3) { why = 'time'; break; }       // 剩下的时间不够再深一层了
         deadline = d < 3 ? Infinity : d === 3 ? t0 + L.budget * 2 : thin ? t0 + L.budget * 1.5 : soft + L.budget * 0.3;   // 第 3 层也设个兜底（两倍预算）：个别局面枚举破釜组合特别慢，慢手机上别让一步拖到十秒
       }
       let alpha = -INF, n = 0, cut = false;
@@ -639,6 +654,7 @@
         kids.sort((x, y) => y.v - x.v);
       }
       depthDone = d;
+      { const bk = JSON.stringify(actOf(kids[0])); if (d >= 3 && ((prevBK && bk !== prevBK) || (prevV != null && kids[0].v < prevV - 1))) crit = true; prevBK = bk; prevV = kids[0].v; }   // 最好的那步换了、分数掉了 1 分以上 → 难走
       if (TR) TR.iter.push({ d, best: actOf(kids[0]), v: +kids[0].v.toFixed(3), nodes: nodes - n0, ms: Math.round(now() - t0) });
       if (kids[0].v > WIN / 2 || kids[0].v < -WIN / 2) { why = 'mate'; break; } // 已经看到杀棋 / 必败，不用再深
     }
@@ -704,7 +720,7 @@
           const p = S.board[r][f]; if (!p || p.s !== me || p.t !== 'p' || p.lv < ((CFG.skills.juma && CFG.skills.juma.level) || CFG.skillLevel)) continue;
           const q = T.board[r][f]; if (!q || q.id !== p.id) continue;                 // 这一步动的就是它
           let hit = false;
-          for (let r2 = 0; r2 < 10 && !hit; r2++) for (let f2 = 0; f2 < 9; f2++) { const e = T.board[r2][f2]; if (e && e.s !== me && e.t !== 'k' && (e.t !== 'c' || CFG.skills.juma.counterCannon) && A.moveTargets(T, f2, r2).some(m => m.to[0] === f && m.to[1] === r)) { hit = true; break; } }
+          for (let r2 = 0; r2 < 10 && !hit; r2++) for (let f2 = 0; f2 < 9; f2++) { const e = T.board[r2][f2]; if (e && e.s !== me && e.t !== 'k' && (e.t !== 'c' || CFG.skills.juma.counterCannon) && (e.t !== 'e' || CFG.skills.juma.counterElephant) && A.moveTargets(T, f2, r2).some(m => m.to[0] === f && m.to[1] === r)) { hit = true; break; } }
           if (!hit) continue;
           const J = A.jumaState(S, [f, r]);
           if (J && BF.attempt(J, pick.a)) { jm = { k: 'sk', at: [f, r] }; break; }

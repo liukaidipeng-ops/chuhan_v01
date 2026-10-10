@@ -20,12 +20,13 @@ Ham 10-10 11:53 原话（项目前台转达）：“所有需要我拍板的内�
 
 | 部门 | 管什么 | 会话 | 分支 | 自己管的文件 | 审核页面 |
 |---|---|---|---|---|---|
-| TD（技术总监） | 整合、上线、测试（声音这块正在交接给声音部） | session_01RKuN4E66BetRaUCS8BJyti | `dev` / `main` | 除下面各部门以外的所有文件 | 审批台（td-编号，看的）https://claude.ai/artifact/79HGpeuQGk3jehJmHsJsfn ；配音试听台（听的）https://claude.ai/artifact/DGdGe1guoi1pB8UUNDfkS5 |
+| TD（技术总监） | 整合、上线、测试、规则引擎和游戏代码；性能由优化部测量、出补丁，TD 合并上线 | session_01LeSA918yjPExad28VrQqob（10-10 从聊天窗口搬进 Code；老 TD session_01RKuN4E66BetRaUCS8BJyti 只答疑） | `dev` / `main` | 除下面各部门以外的所有文件 | 审批台（td-编号，看的）https://claude.ai/artifact/79HGpeuQGk3jehJmHsJsfn （声音的试听归声音部） |
 | 数值部（Balance） | 规则数值、平衡、电脑（AI）训练 | session_01Gtcra5Sh6u7nQHPfESA3Sb | `claude/gallant-planck-rwr5az` | `source/tools/`（模拟、调权重、复盘）、`source/docs/collab/code-to-chat.md`、`decisions.md`、`advisors/handoff.md`、`advisors/numbers-to-advisors.md` | Balance拍板单 https://claude.ai/artifact/QaxqVmNF1p2XQiAx8MygEM |
-| 美术（Art，忙完结算动画后改名角色部） | 角色设计、建模、绑定、动画 | session_01NcqhjTJxdTrUxQtViN2iri | `model-lab` | 见 `MODEL-WORKFLOW.md` 第 1 节 | 审批台 https://claude.ai/artifact/79HGpeuQGk3jehJmHsJsfn |
-| 美术总监 | 界面（UI）、棋盘、整体视觉方向 | session_01U1d5RrViuCEaT74h7UkG2M | `claude/art-director` | 分工草案经 Ham 点头、TD 同意后再填 | 待建 |
+| 角色部（原美术，10-10 搬进 Code） | 局内动画：角色设计、建模、绑定、动画、局内特效（过场 CG 不归它） | session_01GuBe9baix3jAfoLh1pmiRY（老美术 session_01NcqhjTJxdTrUxQtViN2iri） | `model-lab` | 见 `HANDOVER-美术.md` 第 3 节（Ham 点「对」、TD 同意） | 角色部审批台（char-编号）https://claude.ai/artifact/K53z6a8Gpk8JYooX7zTesz ；旧楚汉审批台以后只放 TD 条目 |
+| 美术总监（朱墨） | 界面（UI）、棋盘、整体视觉方向 | session_01U1d5RrViuCEaT74h7UkG2M | `claude/art-director` | 交接后：`template.html` 的样式和页面结构（不动 `id`、`data-*`、`main.js`）、`face.js`、`merit.js`、`luozi.js`、`upfx.js`、`fonts/songhei-*`、`tools/songhei.py`、`tools/uishot*.py`、`docs/UI-DESIGN.md`（Ham 10-10 拍板单 ad-01、ad-02；正式接手等美术交完结算动画） | 美术总监审批台 https://claude.ai/artifact/Udu7Ry4mBdWbyHFb64DvAu |
 | 顾问部 | 技能设计和方向建议（只写方案，不碰代码） | session_01PArjH8NToP8HANDN6f4JxG | `claude/advisors` | `source/docs/collab/advisors/advice.md`、`source/docs/collab/decisions-顾问部.md` | 顾问部拍板单 https://claude.ai/artifact/G3AvboWSGdEgqRYePb6Uer |
-| 声音部 | 配音、音效、音乐 | session_01VsbsKR759MUraiT41MaEAU（10-10 开） | `claude/sound`（另用 `voice-lab` 合成配音） | 草案见 `SOUND-WORKFLOW.md` 第 1 节，Ham 点头、TD 同意后生效 | 声音部试听台 https://claude.ai/artifact/YNHGM8JvrMtytH9HjZRRT2 （旧的配音试听台 https://claude.ai/artifact/DGdGe1guoi1pB8UUNDfkS5 ） |
+| 声音部 | 配音、音效、音乐 | session_01VsbsKR759MUraiT41MaEAU（10-10 开） | `claude/sound`（MiniMax 合成用 `voice-lab`） | `source/voice/`、`source/sfx/`、`source/music/`、`source/src/audio.js`、`source/src/endtunes.js`、`source/tools/tunes.py`、`source/tools/sound/`、`decisions-sound.md`、`sound-to-main.md`（S1，Ham 10-10 点头、TD 同意）；什么时候响（`fx.js`、`squads.js`、`bfx.js`、`main.js`）和 `build.js`、`template.html` 仍归 TD | 声音部试听台 https://claude.ai/artifact/YNHGM8JvrMtytH9HjZRRT2 |
+| 优化部 | 卡顿、手机发热、加载慢（量、出改法和补丁，不直接改 dev / main） | session_01QkUQvrXgDJbxcwbWdMc7sU（10-10 开） | `claude/perf` | 交付单 `perf-to-main.md`（P 号），TD 回 `main-to-perf.md`；会改画面的优化先过 Ham（分工 Ham 10-10 优化部拍板单 p-01 通过） | 优化部拍板单 https://claude.ai/artifact/GoHBXwa2Y7cjTuqvpZR1K3 |
 | 只读数值部 | 旁观，不推分支、不排模拟 | session_01Qxpa47Er1bd8ntv9aw5DgN | — | — | — |
 
 以后开新部门（CG 组等），在这张表里加一行。
