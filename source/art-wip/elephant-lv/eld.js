@@ -67,12 +67,12 @@ window.ElephantLV = (() => {
   function rump(el, lv) {
     const sk = lv >= 4 ? GOLD : 0x6f6a64, sk2 = lv >= 4 ? 0xc4922e : 0x5d5853;
     add(el.body, [...[1, -1].flatMap(s => [P(G.sph(0.55, 12), sk, -1.3, 2.12, 0.3 * s, 0, 0, 0, 0.72, 1.1, 0.78), P(G.sph(0.42, 10), sk2, -1.0, 1.68, 0.5 * s, 0, 0, 0, 1, 1.15, 0.85)]), P(G.box(0.04, 0.9, 0.02), 0x3a3633, -1.66, 2.05, 0)], 0.025);
-    el.tail.children[0].visible = false; el.tail.position.set(-1.72, 2.7, 0); el.tail.rotation.z = 0.32;
+    el.tail.children[0].visible = false; el.tail.position.set(-1.74, 2.72, 0); el.tail.rotation.z = -0.12;   // 往身后垂，别插进屁股里（原来往前偏，整条藏在臀里）
     const segs = [];
-    for (let i = 0; i < 5; i++) segs.push(P(G.cyl(0.08 - i * 0.01, 0.07 - i * 0.01, 0.24, 8), sk2, 0, -0.12 - i * 0.23, 0));
-    segs.push(P(G.cone(0.1, 0.32, 8), 0x1d1c1b, 0, -1.3, 0, PI));   // 尾尖一簇毛
+    for (let i = 0; i < 7; i++) segs.push(P(G.cyl(0.085 - i * 0.008, 0.077 - i * 0.008, 0.25, 8), 0x3a3633, 0, -0.12 - i * 0.24, 0));   // 尾巴垂到后腿弯，深色，金象身上也看得清
+    segs.push(P(G.cone(0.11, 0.36, 8), 0x1d1c1b, 0, -1.84, 0, PI));   // 尾尖一簇毛
     add(el.tail, segs, 0.015);
-    el.torch.position.y = -1.15;
+    el.torch.position.y = -1.6;
   }
   // 四级金甲鳞片（Ham char-007：鳞片、黑线接缝、少量红点缀；Ham 10-10：「鳞甲最好用贴图来表现，不要用模型」）
   // 一张画布贴图：一排排压叠的鳞片，鳞与鳞之间露黑缝，每隔几排有一片暗红。贴在身子、两瓣臀、四条腿外面的一层薄壳上。
