@@ -1,3 +1,4 @@
+<meta name="viewport" content="width=device-width, initial-scale=1">
 <title>复盘令牌条试手</title>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Noto+Serif+SC:wght@900&family=Noto+Sans+SC:wght@400;500&display=swap">
 <style>
@@ -16,7 +17,7 @@ h1 { margin: 0; font-family: var(--f-display); font-weight: 900; font-size: 26px
 .ph { display: flex; align-items: baseline; gap: 10px; flex-wrap: wrap; }
 .ph b { font-family: var(--f-display); font-weight: 900; letter-spacing: .2em; }
 .ph span { font-size: 12px; color: rgba(240,231,210,.7); }
-.ph .cur { margin-left: auto; font-size: 14px; color: var(--c); font-variant-numeric: tabular-nums; }
+.ph { align-items: center; } .ph .cur { margin-left: auto; font-size: 14px; color: var(--c); font-variant-numeric: tabular-nums; }
 /* 令牌条：不再横向滚动；放不下时，没选中的令牌自动收窄、再不够就叠起来；选中的那枚始终全宽 */
 .strip { position: relative; height: 46px; display: flex; align-items: flex-end; touch-action: none; user-select: none; -webkit-user-select: none; cursor: grab; padding: 0 2px; }
 .strip.drag { cursor: grabbing; }
@@ -39,6 +40,23 @@ h1 { margin: 0; font-family: var(--f-display); font-weight: 900; font-size: 26px
 .tk.h2 { flex: 0 0 13px; max-width: 13px; height: 24px; z-index: 1; }
 .tip { position: absolute; bottom: 52px; transform: translateX(-50%); background: var(--c); color: var(--k); padding: 3px 8px; font-size: 12px; white-space: nowrap; pointer-events: none; }
 .tip[hidden] { display: none !important; }
+/* 手机：手指按住时，手指上方浮出一条放大镜，前后各 4 步全尺寸、带字；两头各一个单步按钮 */
+.navs { display: flex; gap: 6px; }
+.nav { flex: 0 0 auto; width: 40px; height: 40px; border: 2px solid rgba(240,231,210,.55); background: none; color: var(--c); font: 900 20px/1 var(--f-display); display: grid; place-items: center; touch-action: manipulation; }
+.nav:active { background: rgba(240,231,210,.12); }
+@media (pointer: coarse) { .strip { height: 56px; } }
+.loupe { position: absolute; bottom: 60px; transform: translateX(-50%); background: var(--k); border: 2px solid var(--c); padding: 6px 8px 5px; display: flex; flex-direction: column; align-items: center; gap: 4px; pointer-events: none; z-index: 5; box-shadow: 0 6px 18px rgba(0,0,0,.5); }
+.loupe[hidden] { display: none !important; }
+.loupe .row { display: flex; align-items: flex-end; gap: 3px; }
+.loupe .tk { flex: 0 0 22px; max-width: 22px; height: 28px; margin: 0; transition: none; }
+.loupe .tk i { font-size: 13px; } .loupe .tk i:empty::after { content: attr(data-c); }
+.loupe .tk.on { flex-basis: 28px; max-width: 28px; height: 36px; outline-offset: 1px; }
+.loupe .tk.on i { font-size: 16px; }
+.loupe .tk.no { visibility: hidden; }
+.loupe .lb { font-size: 12px; color: var(--c); white-space: nowrap; font-variant-numeric: tabular-nums; }
+.mode { display: flex; gap: 8px; align-items: center; font-size: 13px; color: rgba(240,231,210,.8); flex-wrap: wrap; }
+.mode button { min-height: 40px; padding: 0 12px; border: 2px solid rgba(240,231,210,.55); background: none; color: var(--c); font: 500 14px var(--f-body); }
+.mode button[aria-pressed="true"] { background: var(--c); color: var(--k); border-color: var(--c); }
 .how { display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 10px; font-size: 13px; line-height: 1.6; color: rgba(240,231,210,.8); }
 .how div { border-top: 2px solid rgba(240,231,210,.4); padding-top: 6px; }
 .how b { color: var(--c); font-family: var(--f-display); font-weight: 900; letter-spacing: .1em; }
@@ -47,18 +65,20 @@ h1 { margin: 0; font-family: var(--f-display); font-weight: 900; font-size: 26px
 
 <main>
   <h1>复盘令牌条</h1>
-  <p class="lede">按你的补话做的手感原型，样子和游戏里现在的复盘分析面板一样。手机：按住令牌条任意处左右滑，选中的那一步跟着手指走。电脑：按住鼠标拖着走；鼠标悬在哪，哪一枚就和点选时一样放大、显出字，两边几枚依次过渡。步数多到放不下时，没选中的令牌自动收窄、叠起来，选中的那枚始终全宽。</p>
+  <p class="lede">按你的补话做的手感原型，样子和游戏里现在的复盘分析面板一样。手机：按住令牌条任意处左右滑，选中的那一步跟着手指走，手指上方浮出放大镜看清前后几步；右上角 ‹ › 一下走一步。电脑：按住鼠标拖着走；鼠标悬在哪，哪一枚就和点选时一样放大、显出字，两边几枚依次过渡。步数多到放不下时，没选中的令牌自动收窄、叠起来，选中的那枚始终全宽。</p>
   <section class="panel" aria-label="24 步的一局">
-    <div class="ph"><b>对局分析</b><span>少的一局 · 24 步</span><span class="cur" id="cur0"></span></div>
+    <div class="ph"><b>对局分析</b><span>少的一局 · 24 步</span><span class="cur" id="cur0"></span><span class="navs"><button class="nav" type="button" data-s="0" data-d="-1" aria-label="上一步">‹</button><button class="nav" type="button" data-s="0" data-d="1" aria-label="下一步">›</button></span></div>
     <div class="strip" id="s0" role="slider" aria-label="选择第几步" tabindex="0"></div>
   </section>
   <section class="panel" aria-label="160 步的一局">
-    <div class="ph"><b>对局分析</b><span>长的一局 · 160 步</span><span class="cur" id="cur1"></span></div>
+    <div class="ph"><b>对局分析</b><span>长的一局 · 160 步</span><span class="cur" id="cur1"></span><span class="navs"><button class="nav" type="button" data-s="1" data-d="-1" aria-label="上一步">‹</button><button class="nav" type="button" data-s="1" data-d="1" aria-label="下一步">›</button></span></div>
     <div class="strip" id="s1" role="slider" aria-label="选择第几步" tabindex="0"></div>
   </section>
+  <div class="mode">手指拖动方式：<button type="button" id="mAbs" aria-pressed="true">甲 · 跟着手指走</button><button type="button" id="mFine" aria-pressed="false">乙 · 按下跳到、拖动细调</button></div>
   <div class="how">
     <div><b>滑动定位</b><br>按下就跳到按住的那一步，不松手左右滑，一步一步跟着走；松手停在最后那一步。键盘左右键也能走。</div>
     <div><b>悬停放大</b><br>只在电脑上：鼠标所在那枚和点选的一样变宽、变高、显出字（没有选中的白框），左右各两枚依次过渡，像桌面程序坞。</div>
+    <div><b>手机放大镜</b><br>手指按住时，手指上方浮出一条放大镜：选中的那步居中，前后各 4 步全尺寸、带字，手指挡不住。右上角 ‹ › 一下走一步。乙方式：按下先跳到手指处，之后每拖 10 像素走一步，长局也能一步不差。</div>
     <div><b>自动收窄、叠起</b><br>每枚令牌最宽 22 像素；放不下就一起收窄；窄到 4 像素以下时彼此叠压一点。选中的那枚不收。</div>
   </div>
   <p class="foot">原型里的好坏是随机生成的示例。颜色和形状跟游戏一致：佳 米白实心，好 米白空心，缓 深暖灰，失 朱色空心，错 朱色实心；顶上一条线 朱 = 汉，米白 = 楚。</p>
@@ -70,14 +90,15 @@ h1 { margin: 0; font-family: var(--f-display); font-weight: 900; font-size: 26px
   const rnd = (s => () => (s = (s * 16807) % 2147483647) / 2147483647)(7);
   function make(el, curEl, n) {
     const steps = Array.from({ length: n }, (_, i) => { const r = rnd(); return { side: i % 2 ? 'b' : 'r', g: r < .3 ? 0 : r < .62 ? 1 : r < .8 ? 2 : r < .93 ? 3 : 4 }; });
-    el.innerHTML = steps.map((s, i) => `<div class="tk ${s.side}" data-i="${i}"><i class="g${s.g}" data-c="${TAG[s.g]}">${s.g >= 3 ? TAG[s.g] : ''}</i></div>`).join('') + '<div class="tip" hidden></div>';
-    const tks = [...el.querySelectorAll('.tk')], tip = el.querySelector('.tip');
+    el.innerHTML = steps.map((s, i) => `<div class="tk ${s.side}" data-i="${i}"><i class="g${s.g}" data-c="${TAG[s.g]}">${s.g >= 3 ? TAG[s.g] : ''}</i></div>`).join('') + '<div class="tip" hidden></div><div class="loupe" hidden><div class="row"></div><div class="lb"></div></div>';
+    const tks = [...el.querySelectorAll('.tk')], tip = el.querySelector('.tip'), lp = el.querySelector('.loupe');
+    let touch = false, anchor = null;
     let sel = Math.min(n - 1, 5), hover = -1, down = false;
     // 放不下就收窄、再不够就叠：算出每枚的宽和间距，交给 CSS 变量
     function fit() {
       const W = el.clientWidth - 4 - 28, per = W / (n - 1);
       el.style.setProperty('--gap', per >= 6 ? '2px' : per >= 4 ? '1px' : (per - 4).toFixed(2) + 'px');
-      el.classList.toggle('dense', per < 12);
+      el.classList.toggle('dense', per < 16);
     }
     function paint() {
       tks.forEach((t, i) => {
@@ -99,21 +120,41 @@ h1 { margin: 0; font-family: var(--f-display); font-weight: 900; font-size: 26px
       else i = sel + 1 + Math.floor((u - sel * step - 26 - g) / step);
       return Math.max(0, Math.min(n - 1, i));
     }
-    function idxAt(x) { let best = 0, bd = 1e9; tks.forEach((t, i) => { const r = t.getBoundingClientRect(), d = Math.abs(r.left + r.width / 2 - x); if (d < bd) { bd = d; best = i; } }); return best; }
+    function idxAt(x) {
+      if (el.classList.contains('dense')) { const r = el.getBoundingClientRect(), u = (x - r.left - 2 - 13) / (el.clientWidth - 4 - 26); return Math.max(0, Math.min(n - 1, Math.round(u * (n - 1)))); }
+      return idxNear(x); }
+    function idxNear(x) { let best = 0, bd = 1e9; tks.forEach((t, i) => { const r = t.getBoundingClientRect(), d = Math.abs(r.left + r.width / 2 - x); if (d < bd) { bd = d; best = i; } }); return best; }
+    // 放大镜：选中那步居中，前后各 4 步；位置跟着手指，贴边时收在条内
+    function showLoupe(x) {
+      const r = el.getBoundingClientRect(); let h = '';
+      for (let i = sel - 4; i <= sel + 4; i++) { const st = steps[i]; h += st ? `<div class="tk ${st.side}${i === sel ? ' on' : ''}"><i class="g${st.g}" data-c="${TAG[st.g]}">${st.g >= 3 ? TAG[st.g] : ''}</i></div>` : '<div class="tk no"><i></i></div>'; }
+      lp.querySelector('.row').innerHTML = h; lp.querySelector('.lb').textContent = `第 ${sel + 1} / ${n} 步 · ${steps[sel].side === 'r' ? '汉' : '楚'} · ${NM[steps[sel].g]}`;
+      lp.hidden = false; const half = lp.offsetWidth / 2; lp.style.left = Math.max(half, Math.min(r.width - half, x - r.left)) + 'px';
+    }
+    function go(i) { i = Math.max(0, Math.min(n - 1, i)); if (i !== sel) { sel = i; paint(); try { navigator.vibrate && navigator.vibrate(4); } catch (e) {} } }
     function showTip(i, x) { const r = el.getBoundingClientRect(); tip.hidden = false; tip.textContent = `第 ${i + 1} 步 · ${NM[steps[i].g]}`; tip.style.left = Math.max(40, Math.min(r.width - 40, x - r.left)) + 'px'; }
-    el.addEventListener('pointerdown', e => { down = true; el.setPointerCapture(e.pointerId); el.classList.add('drag'); sel = idxAt(e.clientX); hover = -1; paint(); showTip(sel, e.clientX); });   // 按住拖动时不放大，只跟着走
+    el.addEventListener('pointerdown', e => { down = true; touch = e.pointerType !== 'mouse'; try { el.setPointerCapture(e.pointerId); } catch (er) {} el.classList.add('drag'); sel = idxAt(e.clientX); anchor = { x: e.clientX, sel }; hover = -1; paint();
+      if (touch) showLoupe(e.clientX); else showTip(sel, e.clientX); });   // 按住拖动时不放大令牌条本身；手机改为浮出放大镜
     el.addEventListener('pointermove', e => {
-      const i = idxAt(e.clientX);
-      if (down) { if (i !== sel) { sel = i; paint(); } showTip(i, e.clientX); }
+      if (down) {
+        if (touch && window.scrubFine) go(anchor.sel + Math.round((e.clientX - anchor.x) / 10));   // 乙：拖 10 像素走一步
+        else go(idxAt(e.clientX));
+        if (touch) showLoupe(e.clientX); else showTip(sel, e.clientX);
+      }
       else if (e.pointerType === 'mouse') { const j = baseIdx(e.clientX); hover = j; paint(); showTip(j, e.clientX); }
     });
-    const up = () => { down = false; el.classList.remove('drag'); tip.hidden = true; };
+    const up = () => { down = false; el.classList.remove('drag'); tip.hidden = true; lp.hidden = true; };
     el.addEventListener('pointerup', up); el.addEventListener('pointercancel', up);
     el.addEventListener('pointerleave', () => { if (!down) { hover = -1; tip.hidden = true; paint(); } });
     el.addEventListener('keydown', e => { if (e.key === 'ArrowLeft' || e.key === 'ArrowRight') { sel = Math.max(0, Math.min(n - 1, sel + (e.key === 'ArrowRight' ? 1 : -1))); paint(); e.preventDefault(); } });
     new ResizeObserver(fit).observe(el); fit(); paint();
-    return { el, get sel() { return sel; }, idxAt };
+    return { el, get sel() { return sel; }, idxAt, step: d => go(sel + d) };
   }
   window.strips = [make(document.getElementById('s0'), document.getElementById('cur0'), 24), make(document.getElementById('s1'), document.getElementById('cur1'), 160)];
+  document.querySelectorAll('.nav').forEach(b => b.addEventListener('click', () => strips[+b.dataset.s].step(+b.dataset.d)));
+  window.scrubFine = false;
+  const mA = document.getElementById('mAbs'), mF = document.getElementById('mFine');
+  const setM = f => { window.scrubFine = f; mA.setAttribute('aria-pressed', !f); mF.setAttribute('aria-pressed', f); };
+  mA.addEventListener('click', () => setM(false)); mF.addEventListener('click', () => setM(true));
 })();
 </script>
