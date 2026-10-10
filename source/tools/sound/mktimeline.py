@@ -75,8 +75,30 @@ juma_ele_kill = [(0.0, S('elecry'), -8), *[(t, S('stomp'), -6, 0.8) for t in (0.
   (0.80, S('punch'), -2, 0.8), (0.80, S('boom'), -10), (0.84, S('death'), -4), (0.9, S('sgrunt'), -6),
   (1.2, S('stones'), -8), (1.4, S('plank'), -8), (1.6, S('soft'), -4, 0.8), (1.62, S('wood'), -8),
   *[(t, S('stomp'), -6, 0.8) for t in (1.2, 1.5)], (1.8, S('elecry'), -6, 0.92)]
+# 第四十三批（b46）：“放箭声音来个一两声就好了……确保每支箭的动画和声音能匹配上”→ 两箭（0.70、0.95），一箭一声；“再多点木头断裂声”
+SHOTS = (0.70, 0.95)
+def volley2():
+    c = [(0.0, S('twirl'), -14), (0.45, S('creak'), -12), (0.55, S('chain'), -16)]
+    for j, t in enumerate(SHOTS): c += xbow(t, j)
+    c += [(0.90, A('impact/shield_wood_05'), -3), (0.90, A('impact/arrow_metal_04'), -12),
+          (1.15, A('impact/fleshimp_11'), -2), (1.17, S('pain'), -5), (1.6, S('twirl'), -16)]
+    return c
+def morewood(t0, n, base=0):
+    return [(t0 + 0.05 * k + 0.02 * (k % 2), S('woodbreak', k), base - 1.2 * k, (0.8, 1.15, 0.9, 1.25, 0.75)[k % 5]) for k in range(n)]
 import sys as _s
 OUTS = _s.argv[4:] or ['all']
+if 'b46' in OUTS:
+    MODE = 'bow'
+    V.save(render(volley2(), 2.4), O + '/juma_xiang_hit_2.mp3', '64k')
+    tail = [(1.36, LION(2), -1), (1.42, S('paws'), -8), (1.70, S('boom'), -12), (1.70, S('punch'), -4), (1.75, S('death'), -5), (1.8, S('stones'), -10), (1.9, S('plank'), -8), (2.05, S('wood'), -8), (2.2, LION(1), -2)]
+    V.save(render(volley2() + tail + morewood(1.70, 3, 2), 3.0), O + '/juma_xiang_kill_2.mp3', '64k')
+    V.save(render(volley2() + tail + morewood(1.70, 7, 3), 3.0), O + '/juma_xiang_kill_2w.mp3', '64k')
+    ek = [(0.0, S('elecry'), -4), *[(t, S('stomp'), -6, 0.8) for t in (0.1, 0.35, 0.6)], (0.0, S('elerun'), -10),
+      *morewood(0.80, 11, 4), (0.80, S('boom'), -8), (0.80, S('rumble'), -10), (0.84, S('death'), -4), (0.9, S('sgrunt'), -6),
+      (1.1, S('plank'), -4), (1.25, S('wood'), -4), (1.4, S('plank'), -6), (1.5, S('wood'), -8), (1.62, S('soft'), -4, 0.8), (1.62, S('stones'), -8),
+      *[(t, S('stomp'), -6, 0.8) for t in (1.2, 1.5)], (1.8, S('elecry'), -2, 0.92)]
+    V.save(render(ek, 2.6), O + '/juma_ele_kill_w.mp3', '64k'); print('b46 ok')
+    raise SystemExit
 if 'b45' in OUTS:
     for m in ('bow', 'bowthunk', 'oga'):
         MODE = m; V.save(render(xbow_volley(), 2.4), O + f'/juma_xiang_hit_{m}.mp3', '64k'); print('xiang_hit', m)
