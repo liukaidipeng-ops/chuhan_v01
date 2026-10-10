@@ -78,7 +78,7 @@ Ham 10-10 19:27：「你开始准备局内动画（角色设计，建模，绑�
 ## 8. 联系人
 | 部门 | 会话 | 正文写哪里 |
 |---|---|---|
-| TD | session_01RKuN4E66BetRaUCS8BJyti | 角色部 → TD：`model-to-main.md`（M 号）；TD → 角色部：`main-to-model.md`（H 号） |
+| TD | session_01LeSA918yjPExad28VrQqob（10-10 起新 TD；旧号 01RKuN… 已交接停用） | 角色部 → TD：`model-to-main.md`（M 号）；TD → 角色部：`main-to-model.md`（H 号） |
 | 美术总监朱墨 | session_01U1d5RrViuCEaT74h7UkG2M | 它的分支 `claude/art-director` |
 | 声音部 | session_01VsbsKR759MUraiT41MaEAU | 交付单里写时间点（M27 那样） |
 | 数值部 | session_01Gtcra5Sh6u7nQHPfESA3Sb | — |
