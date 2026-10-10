@@ -132,6 +132,9 @@ window.ElephantLV = (() => {
   function goldHead(el) {
     const mat = scaleTex(), sh = (geo, rep, grp, pos, sc) => { const m = Core.inked(geo, mat(rep), 0.012); m.position.copy(pos); if (sc) m.scale.copy(sc); grp.add(m); };
     sh(new THREE.SphereGeometry(0.75, 28, 18, PI - 1.15, 2.3, 0, 1.75), [4, 2.5], el.head, V(0.36, -0.04, 0), V(0.96, 1.01, 0.87));
+    // 身上披一件黄金鳞甲（char-012：「大象身上的黄金鳞甲呢？你至少得披甲呀！」）：背和两肋盖住，耳朵、腿、肚底、屁股露原色
+    for (const [ps, pl] of [[0.55, PI - 1.05], [PI + 0.5, PI - 1.05]]) sh(new THREE.SphereGeometry(1, 36, 20, ps, pl, 0, 1.95), [5, 3], el.body, V(-0.05, 2.25, 0), V(1.58, 1.08, 0.98));
+    add(el.body, [...[1, -1].flatMap(s => [0, 1, 2, 3, 4, 5].map(i => P(G.cone(0.05, 0.2, 6), 0x9e2418, -0.95 + i * 0.36, 1.86, 1.02 * s, PI))), ...[1, -1].map(s => P(G.box(2.3, 0.05, 0.05), GOLD2, -0.05, 1.98, 0.99 * s))], 0.01);   // 甲边一道金线、一排红缨
     sh(new THREE.SphereGeometry(0.52, 22, 14, PI - 1.2, 2.4, 0, 1.6), [3, 2], el.head, V(0.56, 0.29, 0), V(0.81, 0.81, 1.01));
     el.trunk.slice(0, 3).forEach((sg, i) => add(sg, [P(G.cyl(0.235 - i * 0.022, 0.235 - i * 0.022, 0.1, 10), GOLD, 0, -0.15, 0), P(G.cyl(0.24 - i * 0.022, 0.24 - i * 0.022, 0.02, 10), 0x9e2418, 0, -0.09, 0)]));
     for (const s of [1, -1]) {   // 大象牙：比原来粗一倍、长三成，牙根金箍
@@ -147,13 +150,13 @@ window.ElephantLV = (() => {
     add(el.head, [P(G.box(0.02, 0.04, 0.42), 0x6a1a12, 0.86, 0.32, 0, 0, 0, 0.2)]);
     if (lv >= 2) {
       legRings(el, 0x2a1210, 1);
-      add(el.body, [1, -1].flatMap(s => [P(G.box(2.3, 1.22, 0.05), 0x1c1b1d, -0.1, 2.3, 1.0 * s), P(G.box(2.34, 0.035, 0.07), 0x7a2418, -0.1, 1.7, 1.02 * s), P(G.box(2.34, 0.035, 0.07), lv >= 4 ? GOLD2 : 0x7a2418, -0.1, 2.9, 1.02 * s)]), 0.02);
+      if (lv < 4) add(el.body, [1, -1].flatMap(s => [P(G.box(2.3, 1.22, 0.05), 0x1c1b1d, -0.1, 2.3, 1.0 * s), P(G.box(2.34, 0.035, 0.07), 0x7a2418, -0.1, 1.7, 1.02 * s), P(G.box(2.34, 0.035, 0.07), lv >= 4 ? GOLD2 : 0x7a2418, -0.1, 2.9, 1.02 * s)]), 0.02);
     }
     if (lv >= 3) {   // 青铜兽面：两只弯角 + 獠牙口
       const mk = lv >= 4 ? GOLD : BR;
       add(el.head, [P(G.box(0.12, 0.7, 0.72), mk, 0.94, 0.18, 0, 0, 0, 0.35), ...[1, -1].flatMap(s => [P(G.cone(0.09, 0.62, 6), lv >= 4 ? GOLD2 : BR2, 0.85, 0.82, 0.3 * s, 0.35 * s, 0, -0.55), P(G.sph(0.08, 6), 0xff5a1a, 0.98, 0.25, 0.22 * s)])]);
       for (const [x, y, z] of tuskTips) flame(el.head, x + 0.05, y + 0.05, z, 0.45);
-      barding(el, 0x1c1b1d, 0x2e2c2e, 3);
+      if (lv < 4) barding(el, 0x1c1b1d, 0x2e2c2e, 3);
     }
     if (lv >= 4) {   // 背上一道火鬃
       for (let i = 0; i < 6; i++) flame(el.body, -1.0 + i * 0.38, 3.32, 0, 0.6 + Math.sin(i * 1.7) * 0.15);
