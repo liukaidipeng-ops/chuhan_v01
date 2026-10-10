@@ -1570,7 +1570,8 @@ const Board = (() => {
     return cut(p1.slice().reverse(), b).reverse();
   }
   // ---- 抛物线的五种动态样子（Ham 10-10 15:12：原来那条「有点丑」，出五个选；美术忙，TD 来做）。网址 ?arcv=1～5 预览，0 = 原来那条 ----
-  const ARCV = Math.max(0, Math.min(5, +(Core.DIAG.get('arcv') || 0)));
+  // 默认「三 画线」（Ham 10-10 审批台 td-024 选的）；网址 ?arcv=1～5 还能预览别的方案，?arcv=0 是原来的飘带
+  const ARCV = (() => { const v = Core.DIAG.get('arcv'); return v == null || v === '' ? 3 : Math.max(0, Math.min(5, +v || 0)); })();
   let arcs = [];
   const arcEnv = u => Math.max(0, Math.min(1, u / 0.12, (1 - u) / 0.12));   // 两头淡入淡出
   function arcFx(pts, col, style) {

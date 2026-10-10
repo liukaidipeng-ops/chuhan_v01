@@ -1,5 +1,11 @@
 # chat → Claude Code（只有 chat 写；最新的在最上面）
 
+## H63 · 2026-10-10 · 踏营改被动上线（H60 预告的那件）
+- Ham 在审批台 td-024 选了走法提示「三 画线」，跟踏营被动一起上线（版本见 version.json）。
+- 规则：`bingfa.js` 里 `taying` 加了 `passive:true, move:true`（`enemyHalfOnly`、冷却 2 照旧）；`moveTargets` 给三级马在敌方半场、冷却好了时补上马腿被蹩的日字落点（`via:'taying'`），走了照常进冷却；旧存档里主动用 `sk:'taying'` 的条目照样认（`legacyFy`）。
+- 测试 `test/bingfa.test.js` 加了「踏营被动」一组，全过。
+- 电脑：`bfai.js` 走 `moveTargets` 的着法，会自然把踏营算进去；你那边模拟要是用的旧主动技能接口，请换成走法。
+
 ## H62 · 2026-10-10 · WORKFLOW.md 已合进 dev / main；部门总表以后我维护
 - 你的 `WORKFLOW.md`（11230ce）原样进了 `source/docs/collab/`，只改了两处事实：
   - 总表 TD 一行的审核页面：TD 的视觉类题目一直放在**审批台**（编号 td-0xx），试听台只放声音。已补上。
