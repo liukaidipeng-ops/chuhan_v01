@@ -1050,6 +1050,36 @@ html:has(#endcard:not(.hidden)),html:has(#endcard:not(.hidden)) body,html:has(#e
 #lobby #pWait #roomSpecs i.open:hover{background:rgba(240,231,210,.12)}
 #lobby #pWait #roomSpecs i.open:focus-visible{outline:3px solid var(--c);outline-offset:3px}
 #lobby #pWait .seat.back{cursor:pointer}#lobby #pWait .seat.back:hover{filter:brightness(1.06)}#lobby #pWait .seat.back:focus-visible{outline:3px solid var(--c);outline-offset:3px}
+/* 保存棋局 / 我的棋局 / 令牌 / 标这步笨（Ham 10-10：在游戏里直接把对局发给数值部）。弹窗是朱底米字（.modal.e-c） */
+#mSave .svsum,#mFlag .svsum{font-size:calc(14px * var(--fs,1));line-height:1.7;margin-bottom:12px;opacity:.92}
+#mSave .svl,#mFlag .svl{display:block;font-size:calc(13px * var(--fs,1));margin-bottom:5px;opacity:.85}
+#mSave textarea,#mFlag textarea{display:block;box-sizing:border-box;width:100%;height:6.5em;font:inherit;font-size:calc(15px * var(--fs,1));line-height:1.55;color:var(--c);background:rgba(20,19,17,.24);border:1px solid rgba(240,231,210,.6);border-radius:0;padding:8px 10px;resize:vertical;user-select:text;-webkit-user-select:text}
+#mFlag textarea{height:4.6em}
+#mSave textarea::placeholder,#mFlag textarea::placeholder{color:rgba(240,231,210,.5)}
+#mSave textarea:focus,#mFlag textarea:focus{outline:2px solid var(--c);outline-offset:1px}
+#mSave .svflags{margin-top:10px;font-size:calc(13px * var(--fs,1));line-height:1.65;opacity:.9}#mSave .svflags b{font-weight:900}
+.svmsg{margin-top:10px;font-size:calc(13px * var(--fs,1));line-height:1.65;min-height:1.2em}
+.svmsg.err{background:var(--k);color:#ffcfb8;padding:6px 9px}.svmsg.ok{background:rgba(20,19,17,.3);padding:6px 9px}.svmsg.ok::before{content:'✓ ';font-weight:900}
+#mGames .wrap{width:min(560px,100%)}
+#mSave .e-bar,#mFlag .e-bar{flex-wrap:wrap}#mSave .e-bar .btn,#mFlag .e-bar .btn{flex:1 1 auto;padding:0 12px}#mSave #bSaveSend{flex-basis:100%}
+@media (min-width:520px){#mSave #bSaveSend{flex-basis:auto}}
+#gamesList{display:flex;flex-direction:column;gap:10px;max-height:58dvh;overflow-y:auto;margin-top:6px;padding-right:2px}
+#gamesList .gm{border:1px solid rgba(240,231,210,.55);padding:9px 11px;background:rgba(20,19,17,.16)}
+#gamesList .gm .t1{font-family:var(--ef);font-weight:900;font-size:calc(15px * var(--fs,1));line-height:1.5}
+#gamesList .gm .t2{font-size:calc(12px * var(--fs,1));opacity:.8;margin-top:2px;line-height:1.5}
+#gamesList .gm .st{display:inline-block;font-family:var(--es);font-size:calc(12px * var(--fs,1));font-weight:normal;line-height:1.5;padding:0 6px;margin-left:8px;border:1px solid currentColor;vertical-align:1px;opacity:.85}
+#gamesList .gm .st.sent{color:#ffe39a;opacity:1}#gamesList .gm .st.reply{color:var(--k);background:#ffe39a;border-color:#ffe39a;opacity:1}#gamesList .gm .st.done{color:#c9f2cf;opacity:1}#gamesList .gm .st.err{color:#ffcfb8;background:var(--k);opacity:1}
+#gamesList .gm .nt{font-size:calc(13px * var(--fs,1));margin-top:5px;line-height:1.55;padding-left:8px;border-left:2px solid rgba(240,231,210,.55);white-space:pre-wrap;word-break:break-word}
+#gamesList .gm .bt{display:flex;gap:6px;flex-wrap:wrap;margin-top:8px}
+.modal.e-c #gamesList .gm .bt .btn{min-height:32px;padding:0 11px;font-size:calc(13px * var(--fs,1));border-width:1px}
+#gamesList .empty{text-align:center;padding:26px 0;line-height:1.8;opacity:.85}
+#optGh .ghrow{display:flex;flex-wrap:wrap;gap:8px;align-items:center;min-width:0}#optGh .ghrow .btn{flex:1 1 auto}
+#optGh input{flex:1 1 100%;min-width:0;height:40px;box-sizing:border-box;font-size:14px;padding:6px;border:1px solid #bba;background:rgba(255,255,255,.5)}
+#optGh .ghmsg{font-family:var(--es);font-weight:400;letter-spacing:.02em;font-size:calc(12px * var(--fs,1));line-height:1.65;opacity:.9}#optGh .ghmsg b{font-weight:900}#optGh .ghmsg.err{color:#ffcfb8}#optGh .ghmsg.ok::before{content:'✓ ';font-weight:900}
+#logList span.flag{text-decoration:underline wavy #e8553f;text-decoration-thickness:1.5px;text-underline-offset:4px}
+#logList span.flag::after{content:'笨';display:inline-block;margin-left:3px;padding:0 3px;font-size:10px;line-height:1.4;color:#fff;background:#b0301f;border-radius:2px;vertical-align:1px;text-decoration:none}
+#logList span[data-i]{cursor:pointer}
+
 #pWait .specs .tip{flex-basis:100%;text-align:center;font-size:calc(13px * var(--fs,1));letter-spacing:.06em;opacity:.75}
 
 /* 房间里选电脑档位的下拉：和旁边的方框按钮一个样子（方角、2px 米色边、粗宋），展开的列表是墨底米字、选中的朱红 */
@@ -1216,7 +1246,7 @@ html:has(#endcard:not(.hidden)),html:has(#endcard:not(.hidden)) body,html:has(#e
   <div class="scroll">
 
     <div id="pMain" class="pane">
-      <div class="e-top"><div class="e-name">技能新象棋 · 逐鹿中原</div><div class="row mini"><button class="link" id="bSetL">设置</button><button class="link" id="bHelpL">玩法</button><button class="link" id="bNewsL">更新</button></div></div>
+      <div class="e-top"><div class="e-name">技能新象棋 · 逐鹿中原</div><div class="row mini"><button class="link" id="bMyGames">我的棋局</button><button class="link" id="bSetL">设置</button><button class="link" id="bHelpL">玩法</button><button class="link" id="bNewsL">更新</button></div></div>
       <div class="e-board">
         <div class="e-grid e-gt"></div>
         <div class="e-river"><span>楚河</span><span>漢界</span></div>
@@ -1327,6 +1357,7 @@ html:has(#endcard:not(.hidden)),html:has(#endcard:not(.hidden)) body,html:has(#e
   </div>
   <div class="tabp hidden" data-t="etc">
   <div class="opt"><div class="lbl">落子确认<small>点了落点要再点一次才走，防误触</small></div><div class="seg" data-s="confirm"><button data-v="1">开</button><button data-v="0">关</button></div></div>
+  <div class="opt" id="optGh"><div class="lbl">发给数值部<small>GitHub 令牌（只存在这台设备的浏览器里）</small></div><div class="ghrow"><input id="ghTok" type="password" placeholder="github_pat_…" autocomplete="off" spellcheck="false"><button class="btn small" id="ghTest">保存并测试</button><button class="btn small hidden" id="ghDel">删除</button></div><div id="ghMsg" class="ghmsg"></div></div>
   <div class="opt" id="optServer"><div class="lbl">自定义线路<small>一般不用填</small></div><input id="oServer" placeholder="wss://…/mqtt" style="flex:1;min-width:0;font-size:14px;padding:6px;border:1px solid #bba;background:rgba(255,255,255,.5)"></div>
   <div class="row hidden" id="setGame"><button class="btn small hidden" id="tDebug">调试摆子</button><button class="btn small" id="tExport">导出本局</button><button class="btn small red" id="tResign">认 输</button></div>
   <div class="row"><button class="btn small" id="bHelp">玩法说明</button><button class="btn small" id="bNews">更新说明</button></div>
@@ -1356,6 +1387,34 @@ html:has(#endcard:not(.hidden)),html:has(#endcard:not(.hidden)) body,html:has(#e
   <div class="row"><button class="btn red solid" id="askYes">同 意</button><button class="btn" id="askNo">拒 绝</button></div>
 </div></div></div>
 
+<!-- 保存棋局 / 发给数值部（Ham 10-10） -->
+<div id="mSave" class="modal e-c hidden"><div class="wrap"><div class="rod t"></div><div class="rod b"></div><div class="scroll">
+  <h3>保存棋局</h3>
+  <div class="e-body">
+  <div id="saveSum" class="svsum"></div>
+  <label class="svl" for="saveNote">哪里不对、想让数值部看什么（可以不填）</label>
+  <textarea id="saveNote" maxlength="500" placeholder="比如：第 17 回合电脑白送一个车"></textarea>
+  <div id="saveFlags" class="svflags"></div>
+  <div id="saveMsg" class="svmsg"></div>
+  </div>
+  <div class="e-bar"><button class="btn small" id="bSaveCancel">取消</button><button class="btn small" id="bSaveLocal">存到我的棋局</button><button class="btn small solid" id="bSaveSend">存并发给数值部</button></div>
+</div></div></div>
+<!-- 我的棋局 -->
+<div id="mGames" class="modal e-c hidden"><div class="wrap"><div class="rod t"></div><div class="rod b"></div><div class="scroll">
+  <h3>我的棋局</h3>
+  <div class="e-body"><div id="gamesNote" class="svmsg"></div><div id="gamesList"></div></div>
+  <div class="e-bar"><button class="btn small" id="bGamesClose">关闭</button></div>
+</div></div></div>
+<!-- 标“这步笨”（点棋谱上的某一步） -->
+<div id="mFlag" class="modal e-c hidden"><div class="wrap"><div class="rod t"></div><div class="rod b"></div><div class="scroll">
+  <h3>这步笨？</h3>
+  <div class="e-body">
+  <div id="flagWhat" class="svsum"></div>
+  <label class="svl" for="flagNote">哪里笨（可以不填）</label>
+  <textarea id="flagNote" maxlength="200" placeholder="比如：白送一个车；该吃炮不吃"></textarea>
+  </div>
+  <div class="e-bar"><button class="btn small hidden" id="bFlagOff">取消标记</button><button class="btn small" id="bFlagClose">关闭</button><button class="btn small solid" id="bFlagOn">标为这步笨</button></div>
+</div></div></div>
 <!-- 更新说明 -->
 <div id="mExport" class="modal e-c hidden"><div class="wrap"><div class="rod t"></div><div class="rod b"></div><div class="scroll">
   <h3>导出本局</h3>

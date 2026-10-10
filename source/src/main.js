@@ -464,12 +464,25 @@
     for (const h of game.history) { notes.push(noteOf(g.board, h, h.rv)); g.play({ from: h.from, to: h.to, rv: h.rv }); }
     renderLog();
   }
+  function escH(t) { return String(t == null ? '' : t).replace(/&/g, '&amp;').replace(/"/g, '&quot;').replace(/</g, '&lt;').replace(/>/g, '&gt;'); }
+  // 标了“这步笨”的那几步：ply → { ply, at, turn, side, move, note }。正在下的局先把悔掉的步上的标记去掉（棋谱对不上的）
+  function flagMap() {
+    const m = new Map();
+    try {
+      const G = RP ? RP.real : game; if (!G || !G.__flags) return m;
+      if (!RP) G.__flags = G.__flags.filter(f => f.ply < notes.length && f.move === noteText(notes[f.ply]));
+      for (const f of G.__flags) m.set(f.ply, f);
+    } catch (e) { }
+    return m;
+  }
   const noteHtml = n => { if (!n) return ''; const [a, b] = n.split('='); return b ? `${a}<em class="rv">${b}</em>` : a; };
   function renderLog() {
     let html = '';
+    const fl = flagMap();
+    const sp = (i, cls) => notes[i] == null ? `<span class="${cls}"></span>` : `<span class="${cls}${fl.has(i) ? ' flag' : ''}" data-i="${i}"${fl.has(i) && fl.get(i).note ? ` title="${escH(fl.get(i).note)}"` : ''}>${noteHtml(notes[i])}</span>`;
     for (let i = 0; i < notes.length; i += 2) {
       const last = notes.length - 1;
-      html += `<li><i>${i / 2 + 1}</i><span class="r${i === last ? ' last' : ''}">${noteHtml(notes[i])}</span><span class="${i + 1 === last ? 'last' : ''}">${noteHtml(notes[i + 1])}</span></li>`;
+      html += `<li><i>${i / 2 + 1}</i>${sp(i, 'r' + (i === last ? ' last' : ''))}${sp(i + 1, i + 1 === last ? 'last' : '')}</li>`;
     }
     const L = $('logList'); L.innerHTML = html || '<li style="display:block;text-align:center;color:#8a8580;font-size:calc(13px * var(--fs,1))">尚未落子</li>'; L.scrollTop = L.scrollHeight;
   }
@@ -1354,7 +1367,7 @@
       const tune = (mode === 'host' || mode === 'guest' || mode === 'ai' || W) && result.winner ? { side: persp === 'win' ? result.winner : mySide } : null;
       await Ending.play(result, {
         again: W ? () => { Ending.hideCard(); toast('等待棋手开新局…'); } : requestAgain, againText: W ? '继 续 观 战' : '',
-        lobby: toLobby, persp, tune, instant: endSkip || slain, review: startReplay,
+        lobby: toLobby, persp, tune, instant: endSkip || slain, review: startReplay, extra: watching() ? [] : [{ text: '保 存', fn: () => openSave() }],
         mine: mode === 'local' || W || aiBoth() || !result.winner ? '' : (persp === 'win' ? '你 胜 了' : '你 败 了'),
       });
       if (pendingRestart) { const st = pendingRestart; pendingRestart = null; restart(st === true ? undefined : st); if (mode === 'host') Net.send({ t: 'restart', state: snapshot() }); }
@@ -1439,6 +1452,7 @@
     while (RP && RP.busy) await new Promise(r => setTimeout(r, 100));
     RP = null; $('rpBar').classList.add('hidden');
     game = real; Fx.clearMarks(); Board.setPosition(game); Board.faceViewer(viewSide); rebuildNotes(); updateHud();
+    if (savedView) { toLobby(); return; }   // 「我的棋局」进来的复盘：退出就回大厅
     if (!silent) $('endcard').classList.remove('hidden');
   }
   $('rpBar').addEventListener('click', e => {
@@ -3350,7 +3364,7 @@
   const RESUME_TTL = { local: 3 * 864e5, ai: 3 * 864e5, host: 6 * 3600e3, guest: 6 * 3600e3 };
   let resumeKey = '';
   function saveResume(force) {
-    if (!mode || watching() || !started) return;
+    if (!mode || watching() || !started || savedView) return;   // 复盘「我的棋局」时不动「回到对局」
     const G = RP ? RP.real : game;
     const n = G.bf ? G.entries.length : G.history.length, round = G.bf ? G.round : Math.floor(n / 2) + 1;
     const key = [mode, Net.code, n, G.result ? 1 : 0, undoUsed.r, undoUsed.b].join('|');
@@ -3428,9 +3442,13 @@
   };
   $('bNewsClose').onclick = () => $('mNews').classList.add('hidden');
   // ---------- 导出本局：整局行动 + 模式、双方、电脑档位、结果，导成一段文本（贴给别人复盘，或贴给 Claude 分析哪一步走错了） ----------
-  function exportGame() {
+  function exportGame(raw) {
     const G = RP ? RP.real : game;
-    if (!G) return '';
+    if (!G) return raw ? null : '';
+    if (savedView) {   // 正在复盘「我的棋局」里的一局：导出存着的那份（标记按现在的）
+      const o = { ...savedView.data }; if (G.__flags && G.__flags.length) o.flags = G.__flags; else delete o.flags;
+      return raw ? o : mgText({ ...savedView, data: o });
+    }
     const kind = G.bf ? 'bf' : G.jq ? 'jq' : 'xq', KIND = { bf: '技能模式', jq: '揭棋', xq: '象棋' };
     const o = { app: 'chuhan3d', ver: APPV, when: new Date().toISOString(), kind, mode, me: mode === 'local' ? null : mySide };
     if (vsAI()) o.ai = aiBoth() ? { r: aiLevel('r'), b: aiLevel('b') } : { [aiSide()]: opts.level };
@@ -3455,10 +3473,11 @@
     const res = G.result ? (G.result.winner ? `${SIDE_CN[G.result.winner]}胜 · ${REASON[G.result.reason] || G.result.reason}` : `和棋 · ${REASON[G.result.reason] || ''}`) : '未分胜负';
     const lines = [`技能新象棋 · 对局导出（版本 ${APPV}）`, `玩法：${KIND[kind]} · ${who} · 共 ${notes.length} 步 · ${res}`, '棋谱：'];
     for (let i = 0; i < notes.length; i += 2) lines.push(`${i / 2 + 1}. ${noteText(notes[i])}${notes[i + 1] ? '  ' + noteText(notes[i + 1]) : ''}`);
+    if (raw) return o;
     lines.push('---DATA---', JSON.stringify(o));
     return lines.join('\n');
   }
-  const noteText = n => { const d = document.createElement('div'); d.innerHTML = noteHtml(n); return d.textContent.replace(/\s+/g, ' ').trim(); };
+  function noteText(n) { const d = document.createElement('div'); d.innerHTML = noteHtml(n); return d.textContent.replace(/\s+/g, ' ').trim(); }
   async function doExport() {
     const text = exportGame(); if (!text) { toast('还没有对局'); return; }
     $('mSet').classList.add('hidden');
@@ -3476,6 +3495,317 @@
     try { await navigator.clipboard.writeText(t.value); ok = true; } catch (e) { try { ok = document.execCommand('copy'); } catch (e2) { } }
     toast(ok ? '已复制' : '复制失败，请手动全选复制');
   };
+
+  // ---------- 保存棋局 · 我的棋局 · 发给数值部（Ham 10-10：在游戏里直接把对局传给数值部） ----------
+  //   结算卡「保 存」→ 存进这台设备的「我的棋局」；可以顺手发给数值部：在游戏仓库开一条带「对局」标签的工单
+  //   工单格式按数值部 C62 / tools/review/decode_issue.js：正文第一段是 Ham 的话，下面 ```json 是导出数据（note、flags、ver 都在里面）；
+  //   超过 6 万字改成 gzip + base64 放进 ```bfgz；还超就拆成几块，后面的块放评论，每块开头写「第 i/n 块」
+  //   GitHub 令牌只存在这台设备的浏览器里（设置 → 对局与其他），代码和存档里都没有
+  const GH_REPO = 'liukaidipeng-ops/chuhan_v01', GH_API = 'https://api.github.com', GH_MAX = 60000, GH_LABEL = '对局';
+  const MG_KEY = 'xq3d-mygames', MG_MAX = 40;
+  const KIND_CN = { bf: '技能', jq: '揭棋', xq: '象棋' };
+  let savedView = null;   // 正在复盘「我的棋局」里的哪一局（这时不动「回到对局」的存档，退出回大厅）
+  const ghTok = () => String(store.get('ghToken', '') || '').trim();
+  const pad2 = n => String(n).padStart(2, '0');
+  const stampOf = t => { const d = new Date(t); return `${pad2(d.getMonth() + 1)}-${pad2(d.getDate())} ${pad2(d.getHours())}:${pad2(d.getMinutes())}`; };
+  function mgLoad() { try { const v = JSON.parse(localStorage.getItem(MG_KEY) || '[]'); return Array.isArray(v) ? v : []; } catch (e) { return []; } }
+  function mgSave(list) {
+    list = list.slice(0, MG_MAX);
+    for (let pass = 0; pass < 200; pass++) {
+      try { localStorage.setItem(MG_KEY, JSON.stringify(list)); return true; } catch (e) { }
+      // 放不下：从最旧的开始去掉电脑思考记录和悔棋分支（发出去的那份工单里还有），还不行就删最旧的
+      const old = [...list].reverse().find(r => r.data && (r.data.think || r.data.branches));
+      if (old) { delete old.data.think; delete old.data.branches; old.slim = 1; continue; }
+      if (list.length <= 1) return false;
+      list.pop();
+    }
+    return false;
+  }
+  function mgPut(rec) { const list = mgLoad().filter(r => r.id !== rec.id); list.unshift(rec); return mgSave(list); }
+  // 标题里的几项：技能 · 霸王 · 电脑执楚 · 汉胜 · 36 回合
+  function mgHead(o, rounds) {
+    const ai = o.ai || null, ks = ai ? Object.keys(ai) : [];
+    const vs = o.mode === 'ai' && ks.length === 2 ? `电脑对电脑 · 汉${LV[ai.r] || ''} 楚${LV[ai.b] || ''}` : o.mode === 'ai' && ks.length ? `${LV[ai[ks[0]]] || ''} · 电脑执${SIDE_CN[ks[0]]}` : o.mode === 'local' ? '本地' : '联机';
+    const res = o.result ? (o.result.winner ? SIDE_CN[o.result.winner] + '胜' : '和棋') : '未分胜负';
+    return [KIND_CN[o.kind] || o.kind, vs, res, `${rounds} 回合`].join(' · ');
+  }
+  const mgTitle = rec => ['对局', rec.head, rec.data.ver, stampOf(rec.t)].join(' · ');
+  const reasonOf = r => (r ? (r.winner ? `${SIDE_CN[r.winner]}胜 · ${REASON[r.reason] || r.reason}` : `和棋 · ${REASON[r.reason] || r.reason || ''}`) : '未分胜负');
+  // 「复制」用的文字：和「导出本局」同一个样子（---DATA--- 下面一行 JSON），数值部的工具都能读
+  function mgText(rec) {
+    const o = rec.data;
+    return [`技能新象棋 · 对局导出（版本 ${o.ver || '?'}）`, `${rec.head} · ${reasonOf(o.result)} · ${stampOf(rec.t)}`, o.note ? 'Ham 的话：' + o.note : '', '---DATA---', JSON.stringify(o)].filter(Boolean).join('\n');
+  }
+  function flagsHtml(fl) {
+    if (!fl || !fl.length) return '想标出电脑哪步笨：点「复盘」或打开棋谱（譜），点那一步。';
+    return `标了 ${fl.length} 步「这步笨」：` + fl.map(f => `<b>第 ${f.turn} 回合 ${SIDE_CN[f.side] || ''} ${escH(f.move)}</b>${f.note ? '（' + escH(f.note) + '）' : ''}`).join('；');
+  }
+  // —— 结算卡「保 存」 ——
+  let saveCur = null;   // 这一局存成的那一条（同一局再点「保 存」就更新它，不重复存）
+  function openSave() {
+    const G = RP ? RP.real : game; if (!G) return;
+    const o = exportGame(true); if (!o) return;
+    if (savedView) { saveCur = { g: G, id: savedView.id, t: savedView.t, rounds: savedView.rounds, note: savedView.note }; }
+    else if (!saveCur || saveCur.g !== G) saveCur = { g: G, id: 'g' + Date.now().toString(36), t: Date.now(), rounds: Math.ceil((G.bf ? G.ends.filter(Boolean).length : G.history.length) / 2), note: '' };   // 下了几个回合（双方各走一步算一回合）
+    const old = mgLoad().find(r => r.id === saveCur.id);
+    $('saveSum').innerHTML = `${escH(mgHead(o, saveCur.rounds))}<br>${escH(reasonOf(o.result))} · ${stampOf(saveCur.t)} · 版本 ${escH(o.ver)}`;
+    $('saveNote').value = old ? old.note || '' : saveCur.note || '';
+    $('saveFlags').innerHTML = flagsHtml(G.__flags);
+    const sent = old && old.issue && old.issue.n && old.issue.sent >= old.issue.chunks;
+    saveMsg(sent ? `这局已经发给数值部了（工单 #${old.issue.n}）。改了话再存，只改这台设备上的那份。` : ghTok() ? '' : '还没设置 GitHub 令牌：「存并发给数值部」要先在 设置 → 对局与其他 里粘贴令牌（那里有步骤）。', '');
+    $('bSaveSend').disabled = !!sent;
+    $('mSave').classList.remove('hidden');
+    setTimeout(() => { try { $('saveNote').focus({ preventScroll: true }); } catch (e) { } }, 60);
+  }
+  function saveMsg(t, cls) { const m = $('saveMsg'); m.className = 'svmsg' + (cls ? ' ' + cls : ''); m.innerHTML = t || ''; }
+  function saveNow() {
+    const G = saveCur.g, o = exportGame(true); if (!o) return null;
+    o.note = $('saveNote').value.trim().replace(/`{3,}/g, '``');
+    saveCur.note = o.note;
+    const old = mgLoad().find(r => r.id === saveCur.id);
+    const rec = { id: saveCur.id, t: saveCur.t, rounds: saveCur.rounds, head: mgHead(o, saveCur.rounds), note: o.note, data: o, issue: old ? old.issue || null : null };
+    if (savedView && savedView.id === rec.id) savedView = rec;
+    return mgPut(rec) ? rec : null;
+  }
+  $('bSaveCancel').onclick = () => $('mSave').classList.add('hidden');
+  $('bSaveLocal').onclick = () => {
+    const rec = saveNow();
+    if (!rec) { saveMsg('这台设备的浏览器存储满了，存不下。到「我的棋局」删几局再试。', 'err'); return; }
+    $('mSave').classList.add('hidden'); toast('已存到「我的棋局」（大厅右上角）', 2400);
+  };
+  let sending = false;
+  $('bSaveSend').onclick = async () => {
+    if (sending) return;
+    if (!ghTok()) { saveMsg('还没设置 GitHub 令牌：设置 → 对局与其他 → 发给数值部，粘贴令牌（那里有步骤）。这局可以先点「存到我的棋局」，设好令牌后在「我的棋局」里发。', 'err'); return; }
+    const rec = saveNow();
+    if (!rec) { saveMsg('这台设备的浏览器存储满了，存不下。到「我的棋局」删几局再试。', 'err'); return; }
+    sending = true; $('bSaveSend').disabled = true; saveMsg('正在发给数值部…', '');
+    try {
+      const iss = await mgSend(rec);
+      saveMsg(`已发出：工单 #${iss.n}${iss.chunks > 1 ? `（分成 ${iss.chunks} 块）` : ''}。数值部看完会在工单里回复、处理完会关掉，「我的棋局」里能看到。`, 'ok');
+      setTimeout(() => $('mSave').classList.add('hidden'), 2600);
+    } catch (e) {
+      saveMsg('没发出去：' + escH(e.message || e) + '<br>这局已经存在「我的棋局」，可以稍后在那里重发。', 'err');
+      $('bSaveSend').disabled = false;
+    }
+    sending = false;
+  };
+  // —— GitHub 工单 ——
+  function ghErr(st, j) {
+    const m = (j && j.message) || '';
+    if (st === 401) return '令牌无效或已过期，到「设置 → 对局与其他」重新粘贴';
+    if (st === 403) return /rate limit/i.test(m) ? 'GitHub 暂时限流，过一会儿再试' : '令牌没有写工单的权限：令牌设置里 Permissions → Issues 要选 Read and write';
+    if (st === 404) return '令牌访问不到 chuhan_v01：令牌设置里 Repository access 要选上这个仓库';
+    if (st === 410) return '这个仓库关掉了工单功能';
+    if (st === 422) return '内容格式不对' + (m ? '（' + m + '）' : '');
+    return `GitHub 返回 ${st}` + (m ? '：' + m : '');
+  }
+  async function ghReq(path, method, body, noTok) {
+    const tok = noTok ? '' : ghTok(), h = { Accept: 'application/vnd.github+json' };
+    if (tok) h.Authorization = 'Bearer ' + tok;
+    if (body) h['Content-Type'] = 'application/json';
+    let r;
+    try { r = await fetch(GH_API + path, { method: method || 'GET', headers: h, body: body ? JSON.stringify(body) : undefined, cache: 'no-store' }); }
+    catch (e) { throw new Error('连不上 GitHub（网络问题）'); }
+    let j = null; try { j = await r.json(); } catch (e) { }
+    if (!r.ok) { const e = new Error(ghErr(r.status, j)); e.status = r.status; throw e; }
+    return j;
+  }
+  async function gzip64(s) {
+    if (typeof CompressionStream === 'undefined') return null;
+    try {
+      const buf = new Uint8Array(await new Response(new Blob([s]).stream().pipeThrough(new CompressionStream('gzip'))).arrayBuffer());
+      let bin = ''; for (let i = 0; i < buf.length; i += 0x8000) bin += String.fromCharCode.apply(null, buf.subarray(i, i + 0x8000));
+      return btoa(bin);
+    } catch (e) { return null; }
+  }
+  // 不压缩的 JSON 拆块：只在字符串外面的逗号后面断开（数值部拼块时每块末尾的换行落在值和值之间，不会改坏字符串）
+  function cutJson(s, size) {
+    const out = []; let from = 0;
+    while (s.length - from > size) {
+      let inStr = false, esc = false, cut = -1;
+      for (let i = from; i < from + size; i++) {
+        const c = s[i];
+        if (inStr) { if (esc) esc = false; else if (c === '\\') esc = true; else if (c === '"') inStr = false; }
+        else if (c === '"') inStr = true; else if (c === ',') cut = i + 1;
+      }
+      if (cut <= from) cut = from + size;   // 一个值本身就超长（不会发生），硬切
+      out.push(s.slice(from, cut)); from = cut;
+    }
+    out.push(s.slice(from));
+    return out;
+  }
+  // 工单正文和后面几条评论
+  async function issueParts(note, data) {
+    const json = JSON.stringify(data), head = note ? note + '\n\n' : '';
+    if (head.length + json.length + 16 <= GH_MAX) return ['' + head + '```json\n' + json + '\n```'];
+    const gz = await gzip64(json), kind = gz ? 'bfgz' : 'json';
+    const lines = gz ? gz.replace(/.{1,76}/g, '$&\n') : null;
+    if (gz && head.length + lines.length + 16 <= GH_MAX) return [head + '```bfgz\n' + lines + '```'];
+    const size = GH_MAX - 600 - head.length;
+    let chunks;
+    if (gz) { chunks = []; const per = Math.floor(size / 77) * 76; for (let i = 0; i < gz.length; i += per) chunks.push(gz.slice(i, i + per).replace(/.{1,76}/g, '$&\n')); }
+    else chunks = cutJson(json, size).map(c => c + '\n');
+    const n = chunks.length;
+    return chunks.map((c, i) => (i ? '' : head) + '```' + kind + '\n第 ' + (i + 1) + '/' + n + ' 块\n' + c + '```');
+  }
+  const mgParts = new Map();   // 发了一半断掉的：这次打开网页期间记着没发完的块，重发时接着发
+  async function mgSend(rec) {
+    if (!ghTok()) throw new Error('还没设置 GitHub 令牌（设置 → 对局与其他）');
+    let iss = rec.issue;
+    if (iss && iss.n && iss.sent < iss.chunks && !mgParts.has(rec.id)) iss = null;   // 上次发了一半、块已经找不回来：重开一条
+    const parts = mgParts.get(rec.id) || await issueParts(rec.note, rec.data);
+    mgParts.set(rec.id, parts);
+    if (!iss || !iss.n) {
+      const j = await ghReq(`/repos/${GH_REPO}/issues`, 'POST', { title: mgTitle(rec), body: parts[0], labels: [GH_LABEL] });
+      iss = rec.issue = { n: j.number, url: j.html_url, chunks: parts.length, sent: 1, state: 'open', replies: 0, at: Date.now() };
+      mgPut(rec);
+    }
+    for (let i = iss.sent; i < parts.length; i++) {
+      await ghReq(`/repos/${GH_REPO}/issues/${iss.n}/comments`, 'POST', { body: parts[i] });
+      iss.sent = i + 1; mgPut(rec);
+    }
+    mgParts.delete(rec.id);
+    return iss;
+  }
+  // 工单现在的样子：开着 / 数值部回复了几条 / 关了（评论里减掉我们自己拆出去的块）
+  async function mgStatus(rec) {
+    const j = await ghReq(`/repos/${GH_REPO}/issues/${rec.issue.n}`);
+    rec.issue.state = j.state; rec.issue.replies = Math.max(0, (j.comments || 0) - Math.max(0, (rec.issue.sent || 1) - 1)); rec.issue.chk = Date.now();
+    if (j.html_url) rec.issue.url = j.html_url;
+  }
+  function stTag(r) {
+    const i = r.issue;
+    if (!i || !i.n) return '<span class="st">只在本机</span>';
+    if (i.sent < i.chunks) return `<span class="st err">没发完 #${i.n}</span>`;
+    if (i.state === 'closed') return `<span class="st done">数值部已处理 #${i.n}</span>`;
+    if (i.replies > 0) return `<span class="st reply">数值部回复了 ${i.replies} 条 #${i.n}</span>`;
+    return `<span class="st sent">已发 #${i.n} · 等数值部看</span>`;
+  }
+  // —— 我的棋局 ——
+  function paintGames() {
+    const list = mgLoad();
+    $('gamesNote').innerHTML = list.length ? `存在这台设备的浏览器里，最多 ${MG_MAX} 局${ghTok() ? '' : ' · 还没设置 GitHub 令牌，发不了数值部（设置 → 对局与其他）'}` : '';
+    $('gamesList').innerHTML = list.length ? list.map(r => {
+      const sent = r.issue && r.issue.n && r.issue.sent >= r.issue.chunks;
+      const fl = r.data && r.data.flags && r.data.flags.length ? ` · 标了 ${r.data.flags.length} 步笨` : '';
+      return `<div class="gm" data-id="${escH(r.id)}"><div class="t1">${escH(r.head)}${stTag(r)}</div>`
+        + `<div class="t2">${stampOf(r.t)} · ${escH(reasonOf(r.data && r.data.result))} · 版本 ${escH(r.data && r.data.ver)}${fl}${r.slim ? ' · 思考记录已省掉' : ''}</div>`
+        + (r.note ? `<div class="nt">${escH(r.note)}</div>` : '')
+        + `<div class="bt"><button class="btn" data-g="view">复盘</button>${sent ? '<button class="btn" data-g="open">看工单</button>' : '<button class="btn" data-g="send">发给数值部</button>'}<button class="btn" data-g="copy">复制</button><button class="btn" data-g="del">删除</button></div></div>`;
+    }).join('') : '<div class="empty">还没有存过棋局。<br>下完一局，在结算画面点「保 存」。</div>';
+  }
+  async function mgRefresh() {
+    const list = mgLoad().filter(r => r.issue && r.issue.n && r.issue.sent >= r.issue.chunks && r.issue.state !== 'closed').slice(0, 12);
+    let changed = false;
+    for (const r of list) {
+      if (r.issue.chk && Date.now() - r.issue.chk < 60000) continue;
+      try { await mgStatus(r); changed = true; const all = mgLoad(), k = all.findIndex(x => x.id === r.id); if (k >= 0) { all[k].issue = r.issue; mgSave(all); } } catch (e) { break; }
+    }
+    if (changed && !$('mGames').classList.contains('hidden')) paintGames();
+  }
+  $('bMyGames').onclick = () => { paintGames(); $('mGames').classList.remove('hidden'); mgRefresh(); };
+  $('bGamesClose').onclick = () => $('mGames').classList.add('hidden');
+  $('gamesList').addEventListener('click', async e => {
+    const b = e.target.closest('[data-g]'); if (!b) return;
+    const id = b.closest('.gm').dataset.id, rec = mgLoad().find(r => r.id === id); if (!rec) { paintGames(); return; }
+    const a = b.dataset.g;
+    if (a === 'view') openSaved(rec);
+    else if (a === 'open') { if (rec.issue && rec.issue.url) window.open(rec.issue.url, '_blank', 'noopener'); }
+    else if (a === 'copy') {
+      let ok = false; try { await navigator.clipboard.writeText(mgText(rec)); ok = true; } catch (err) { }
+      toast(ok ? '已复制（和「导出本局」一样的格式）' : '没能复制：浏览器不让', 2000);
+    } else if (a === 'del') {
+      if (b.dataset.sure !== '1') { b.dataset.sure = '1'; b.textContent = '再点一次删除'; setTimeout(() => { if (b.isConnected) { b.dataset.sure = ''; b.textContent = '删除'; } }, 3000); return; }
+      mgSave(mgLoad().filter(r => r.id !== id)); paintGames();
+    } else if (a === 'send') {
+      if (!ghTok()) { $('gamesNote').innerHTML = '<b>还没设置 GitHub 令牌</b>：设置 → 对局与其他 → 发给数值部，粘贴令牌（那里有步骤）。'; return; }
+      b.disabled = true; b.textContent = '发送中…';
+      try { const iss = await mgSend(rec); toast(`已发给数值部：工单 #${iss.n}`, 2400); }
+      catch (err) { $('gamesNote').innerHTML = '没发出去：' + escH(err.message || err); }
+      paintGames();
+    }
+  });
+  // 复盘「我的棋局」里的一局：按本地对局摆出来（不计时、没有电脑），直接进复盘；退出回大厅
+  async function openSaved(rec) {
+    const o = rec.data || {}, kind = o.kind;
+    if (kind === 'jq' && !o.layout) { toast('这局揭棋没存布局，复盘不了'); return; }
+    $('mGames').classList.add('hidden');
+    savedView = rec; saveCur = null;
+    const op = { undo: 0, total: 0, step: 0, hints: 1, bf: kind === 'bf' ? 1 : 0, jq: kind === 'jq' ? 1 : 0 };
+    if (kind === 'bf') { op.bs = o.opts && o.opts.bs != null ? o.opts.bs : 1; op.r6 = o.opts && o.opts.r6 != null ? o.opts.r6 : 0; }
+    Sfx.init(); applySettings();
+    await startGame('local', o.me || 'r', op, { state: { bfe: o.entries, bfbase: o.base, moves: o.moves, layout: o.layout, result: o.result }, intro: false });
+    if (o.result && !game.result) game.result = o.result;
+    game.__flags = (o.flags || []).map(f => ({ ...f }));
+    if (o.think) game.__think = o.think;
+    if (o.branches) game.__branches = o.branches;
+    ended = true;
+    startReplay();
+    toast(`复盘：${rec.head} · ${stampOf(rec.t)}`, 2600);
+  }
+  // —— 标“这步笨”：点棋谱上的某一步 ——
+  let flagPly = -1;
+  // 第 i 条棋谱：这一回合第一条行动在 entries（技能模式）/ history 里的序号，和哪一方走的（技能模式一条棋谱可能含升级、拒马几条行动）
+  function noteMeta(i) {
+    const G = RP ? RP.real : game;
+    if (G.bf) { let t = 0, st = 0; for (let k = 0; k < G.entries.length; k++) if (G.ends[k]) { if (t === i) return { at: st, side: G.sides[k] }; t++; st = k + 1; } return { at: st, side: G.turn }; }
+    return { at: i, side: i % 2 ? 'b' : 'r' };
+  }
+  $('logList').addEventListener('click', e => {
+    const sp = e.target.closest('span[data-i]'); if (!sp || watching() || !game) return;
+    flagPly = +sp.dataset.i; if (!(flagPly >= 0 && notes[flagPly] != null)) return;
+    const G = RP ? RP.real : game, f = (G.__flags || []).find(x => x.ply === flagPly);
+    $('flagWhat').innerHTML = `第 ${Math.floor(flagPly / 2) + 1} 回合 · ${SIDE_CN[noteMeta(flagPly).side] || ''}方 · <b>${escH(noteText(notes[flagPly]))}</b>`;
+    $('flagNote').value = f ? f.note || '' : '';
+    $('bFlagOff').classList.toggle('hidden', !f);
+    $('bFlagOn').textContent = f ? '改 好' : '标为这步笨';
+    $('mFlag').classList.remove('hidden');
+  });
+  function flagSet(on) {
+    const G = RP ? RP.real : game; if (!G || flagPly < 0) return;
+    G.__flags = (G.__flags || []).filter(x => x.ply !== flagPly);
+    if (on) {
+      const mt = noteMeta(flagPly);
+      G.__flags.push({ ply: flagPly, at: mt.at, turn: Math.floor(flagPly / 2) + 1, side: mt.side, move: noteText(notes[flagPly]), note: $('flagNote').value.trim().replace(/`{3,}/g, '``') });
+      G.__flags.sort((a, b) => a.ply - b.ply);
+    }
+    if (savedView) {   // 复盘存着的局时改的标记，存回那一条
+      const all = mgLoad(), k = all.findIndex(r => r.id === savedView.id);
+      if (k >= 0) { if (G.__flags.length) all[k].data.flags = G.__flags.map(f => ({ ...f })); else delete all[k].data.flags; mgSave(all); savedView = all[k]; }
+    }
+    $('mFlag').classList.add('hidden'); renderLog();
+    toast(on ? '已标「这步笨」，保存或发给数值部时一起带上' : '已取消标记', 1800);
+  }
+  $('bFlagOn').onclick = () => flagSet(true);
+  $('bFlagOff').onclick = () => flagSet(false);
+  $('bFlagClose').onclick = () => $('mFlag').classList.add('hidden');
+  // —— 设置里的 GitHub 令牌 ——
+  const GH_HOW = '怎么拿令牌：GitHub 网页右上角头像 → Settings → 左边最下面 Developer settings → Personal access tokens → Fine-grained tokens → Generate new token。'
+    + 'Repository access 选 Only select repositories，选上 chuhan_v01；<b>选好仓库之后</b>下面 Permissions 里才会出现 Issues，把它改成 Read and write。生成后复制，粘贴到上面，点「保存并测试」。';
+  function paintGh(msg, cls) {
+    const t = ghTok();
+    $('ghTok').value = '';
+    $('ghTok').placeholder = t ? `已保存（末四位 ${t.slice(-4)}）· 粘贴新的可替换` : 'github_pat_…';
+    $('ghDel').classList.toggle('hidden', !t);
+    $('ghMsg').className = 'ghmsg' + (cls ? ' ' + cls : '');
+    $('ghMsg').innerHTML = msg || (t ? '令牌只存在这台设备的浏览器里，不会上传到别处。' : GH_HOW);
+  }
+  $('ghTest').onclick = async () => {
+    const v = $('ghTok').value.trim();
+    if (v) { if (!/^(github_pat_|ghp_|gho_|ghu_)[A-Za-z0-9_]{20,}$/.test(v)) { paintGh('这不像 GitHub 令牌（应该以 github_pat_ 开头）。<br>' + GH_HOW, 'err'); return; } store.set('ghToken', v); }
+    if (!ghTok()) { paintGh(GH_HOW); return; }
+    paintGh('正在测试…');
+    try {
+      const u = await ghReq('/user');
+      // 写权限：把「对局」标签按它现在的颜色原样存一次（不改任何东西），没有 Issues 写权限会被拒
+      const lb = await ghReq(`/repos/${GH_REPO}/labels/${encodeURIComponent(GH_LABEL)}`);
+      await ghReq(`/repos/${GH_REPO}/labels/${encodeURIComponent(GH_LABEL)}`, 'PATCH', { color: lb.color });
+      paintGh(`令牌可用：账号 ${escH(u.login)}，能在 chuhan_v01 开工单。`, 'ok');
+    } catch (e) { paintGh('测试没通过：' + escH(e.message || e) + '<br>' + GH_HOW, 'err'); }
+  };
+  $('ghDel').onclick = () => { store.del('ghToken'); paintGh('已从这台设备删除令牌。'); };
+  paintGh();
 
   // ---------- 对局按钮 ----------
   $('tUndo').onclick = requestUndo;
