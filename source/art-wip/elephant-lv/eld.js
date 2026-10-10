@@ -205,6 +205,7 @@ window.ElephantLV = (() => {
     PLANS[plan](el, lv);
     el.lvScale = SCALE[lv - 1];
     if (plan === 'b') { const k = (lv >= 4 ? 1.12 : 1) / el.lvScale; el.tower.scale.setScalar(k); el.mahout.scale.multiplyScalar(k); }   // 人不跟着象放大；四级的人稍大一点（char-010）   // Ham char-005：象变大，人不要变大
+    el.group.updateMatrixWorld(true); el.topY = new THREE.Box3().setFromObject(el.group).max.y;   // 整只象最高点（group 自己的坐标，没乘缩放）：棋子标牌放在它上面，别穿进塔里（char-020）
     return el;
   }
   return { make, SCALE };
