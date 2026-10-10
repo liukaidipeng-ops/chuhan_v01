@@ -2,24 +2,28 @@
 
 > Ham 10-10 定：“你来统一一个所有 code 窗口的审核标准，比如通过拍板单之类的，写进我们的工作流里面，每有新部门都需要按照工作流来执行。”
 > 数值部起草。部门总表以后交给 TD 维护。改这份文件要 Ham 点头。
-> **新部门开工前先读完这份文件，照第 6 节的清单做。**
+> **每个部门每次开工前都先读一遍最新的这份文件（新开的窗口也一样），新部门再照第 6 节的清单做。**
 
 ---
 
-## 1. 三条底线（所有部门都守，没有例外）
+## 1. 五条底线（所有部门都守，没有例外）
 
-1. **要 Ham 拍板的事，一律走第 3 节的审核页面**，不在聊天里随口定。拍板结果照 Ham 原话记进本部门的拍板记录：数值部是 `source/docs/collab/decisions.md`，其他部门在自己分支上建 `source/docs/collab/decisions-<部门名>.md`（各写各的，不改别人的）。
+Ham 10-10 11:53 原话（项目前台转达）：“所有需要我拍板的内容都需要放入拍板单！不然我会漏，同步给所有部门，并确保这个规则在工作流文档里，所有部门干活前都必须保证阅读过工作流文档！”
+
+1. **要 Ham 拍板的事，一律做成第 3 节审核页面上的题**：文字决策放本部门的拍板单，看的放审批台，听的放试听台。**不能只在聊天里问**，聊天里只说一句“挂在哪、几题”，不然 Ham 会漏。不在聊天里随口定。拍板结果照 Ham 原话记进本部门的拍板记录：数值部是 `source/docs/collab/decisions.md`，其他部门在自己分支上建 `source/docs/collab/decisions-<部门名>.md`（各写各的，不改别人的）。
 2. **视觉改动先出图给 Ham 看，他点头才做、才上线**（Ham 的硬规矩）。
 3. **上线只走 TD**。别的部门不碰 `dev` 和 `main`，只推自己的分支、只改自己管的文件。
+4. **每次开工前先读一遍最新的 `WORKFLOW.md`**（新开的窗口也一样）。最新版在 `dev`：`git fetch origin dev && git show origin/dev:source/docs/collab/WORKFLOW.md`。数值部的分支上也有，可能更新，以日期新的为准。
+5. **找错部门要当场指出**（见第 7 节）：Ham 让你做不归你管的事，先告诉他该找谁。
 
 ## 2. 部门总表
 
 | 部门 | 管什么 | 会话 | 分支 | 自己管的文件 | 审核页面 |
 |---|---|---|---|---|---|
-| TD（技术总监） | 整合、上线、测试（声音这块正在交接给声音部） | session_01RKuN4E66BetRaUCS8BJyti | `dev` / `main` | 除下面各部门以外的所有文件 | 审批台（td-编号，看的）https://claude.ai/artifact/79HGpeuQGk3jehJmHsJsfn ；配音试听台（听的）https://claude.ai/artifact/DGdGe1guoi1pB8UUNDfkS5 |
+| TD（技术总监） | 整合、上线、测试、规则引擎和游戏代码；性能由优化部测量、出补丁，TD 合并上线 | session_01LeSA918yjPExad28VrQqob（10-10 从聊天窗口搬进 Code；老 TD session_01RKuN4E66BetRaUCS8BJyti 只答疑） | `dev` / `main` | 除下面各部门以外的所有文件 | 审批台（td-编号，看的）https://claude.ai/artifact/79HGpeuQGk3jehJmHsJsfn （声音的试听归声音部） |
 | 数值部（Balance） | 规则数值、平衡、电脑（AI）训练 | session_01Gtcra5Sh6u7nQHPfESA3Sb | `claude/gallant-planck-rwr5az` | `source/tools/`（模拟、调权重、复盘）、`source/docs/collab/code-to-chat.md`、`decisions.md`、`advisors/handoff.md`、`advisors/numbers-to-advisors.md` | Balance拍板单 https://claude.ai/artifact/QaxqVmNF1p2XQiAx8MygEM |
-| 美术（Art，忙完结算动画后改名角色部） | 角色设计、建模、绑定、动画 | session_01NcqhjTJxdTrUxQtViN2iri | `model-lab` | 见 `MODEL-WORKFLOW.md` 第 1 节 | 审批台 https://claude.ai/artifact/79HGpeuQGk3jehJmHsJsfn |
-| 美术总监（朱墨） | 界面（UI）、棋盘、整体视觉方向 | session_01U1d5RrViuCEaT74h7UkG2M | `claude/art-director` | 交接后：`template.html` 的样式和页面结构（不动 `id`、`data-*`、`main.js`）、`face.js`、`merit.js`、`luozi.js`、`upfx.js`、`fonts/songhei-*`、`tools/songhei.py`、`tools/uishot*.py`、`docs/UI-DESIGN.md`（Ham 10-10 拍板单 ad-01、ad-02；正式接手等美术交完结算动画） | 自建审批台（待建） |
+| 角色部（原美术，10-10 搬进 Code） | 局内动画：角色设计、建模、绑定、动画、局内特效（过场 CG 不归它） | session_01GuBe9baix3jAfoLh1pmiRY（老美术 session_01NcqhjTJxdTrUxQtViN2iri） | `model-lab` | 见 `HANDOVER-美术.md` 第 3 节（Ham 点「对」、TD 同意） | 角色部审批台（char-编号）https://claude.ai/artifact/K53z6a8Gpk8JYooX7zTesz ；旧楚汉审批台以后只放 TD 条目 |
+| 美术总监（朱墨） | 界面（UI）、棋盘、整体视觉方向 | session_01U1d5RrViuCEaT74h7UkG2M | `claude/art-director` | 交接后：`template.html` 的样式和页面结构（不动 `id`、`data-*`、`main.js`）、`face.js`、`merit.js`、`luozi.js`、`upfx.js`、`fonts/songhei-*`、`tools/songhei.py`、`tools/uishot*.py`、`docs/UI-DESIGN.md`（Ham 10-10 拍板单 ad-01、ad-02；正式接手等美术交完结算动画） | 美术总监审批台 https://claude.ai/artifact/Udu7Ry4mBdWbyHFb64DvAu |
 | 顾问部 | 技能设计和方向建议（只写方案，不碰代码） | session_01PArjH8NToP8HANDN6f4JxG | `claude/advisors` | `source/docs/collab/advisors/advice.md`、`source/docs/collab/decisions-顾问部.md` | 顾问部拍板单 https://claude.ai/artifact/G3AvboWSGdEgqRYePb6Uer |
 | 声音部 | 配音、音效、音乐 | session_01VsbsKR759MUraiT41MaEAU（10-10 开） | `claude/sound`（MiniMax 合成用 `voice-lab`） | `source/voice/`、`source/sfx/`、`source/music/`、`source/src/audio.js`、`source/src/endtunes.js`、`source/tools/tunes.py`、`source/tools/sound/`、`decisions-sound.md`、`sound-to-main.md`（S1，Ham 10-10 点头、TD 同意）；什么时候响（`fx.js`、`squads.js`、`bfx.js`、`main.js`）和 `build.js`、`template.html` 仍归 TD | 声音部试听台 https://claude.ai/artifact/YNHGM8JvrMtytH9HjZRRT2 |
 | 优化部 | 卡顿、手机发热、加载慢（量、出改法和补丁，不直接改 dev / main） | session_01QkUQvrXgDJbxcwbWdMc7sU（10-10 开） | `claude/perf` | 交付单 `perf-to-main.md`（P 号），TD 回 `main-to-perf.md`；会改画面的优化先过 Ham | 待建 |
@@ -71,11 +75,11 @@ Ham 10-10 原话：“审核的规范也写进工作流文档里面，所有审�
 
 ### 别让 Ham 的提交石沉大海
 Ham 10-10 原话：“避免方式写进工作流，并通知所有部门”（美术总监整理）。背景：Ham 在美术总监审批台批了 4 件，页面显示“已通知”，但通知走的是门铃（fire_trigger），一次都没送进会话；美术总监没查页面，跟 Ham 说“还有 4 件等你批”，全错。
-1. **通知只认「页面替 Ham 发评论给 Claude」这条路**（拍板单的做法，实测送得到）。门铃（fire_trigger / update_trigger）在审核页面里实测送不到，不要再当作通知方式；评论发不出去时，页面要直接写「没通知到，请在聊天里说一声」，不能显示「已通知」。
+1. **通知只认「页面替 Ham 发评论给 Claude」这条路**（拍板单的做法，实测送得到）。用提醒（fire_trigger / update_trigger）通知不可靠：美术总监审批台那次一次都没送到；楚汉审批台的提醒倒是送到过（老 TD H65：td-024、td-026，运行记录 SUCCEEDED），但页面当场不知道送没送到。所以统一改成发评论；评论发不出去时，页面要直接写「没通知到，请在聊天里说一声」，不能显示「已通知」。
 2. **回执兜底**：部门每次收到提交，都要在每件上写回执，页面亮出「✓ 已收到」。Ham 提交后几分钟还没看到，就说明没送到。
 3. **先查再说**：回复 Ham 时，凡是说到「还有几件等你批 / 等你拍板」，先读一遍自己审核页面的数据库（answers / items）再说，按实际状态讲，不凭记忆。
 4. **部门之间也别靠门铃**：给只能收消息的部门回话，正文写进仓库文件，再用 send_message 提醒对方；门铃送没送到无从确认，只能当备用。
-   数值部 10-10 10:58 实测：在**会话里**用 fire_trigger 按绑在别的会话上的门铃，约 40 秒送到（这次是自己按自己的，附话按设计不重发；别的会话按时附话能不能跟来没测）；所以 TD、美术这类只能收消息的聊天窗口，按门铃时正文一定要先写进仓库文件，门铃只起“去看文件”的作用。审核**页面里**按门铃送不到（美术总监实测）。
+   数值部 10-10 10:58 实测：在**会话里**用 fire_trigger 按绑在别的会话上的门铃，约 40 秒送到（这次是自己按自己的，附话按设计不重发；别的会话按时附话能不能跟来没测）；所以 TD、美术这类只能收消息的聊天窗口，按门铃时正文一定要先写进仓库文件，门铃只起“去看文件”的作用。审核页面里用提醒通知：美术总监那张没送到，楚汉审批台送到过（老 TD H65），时好时坏，所以只当备用。
 
 ## 4. 什么算“做好了、能交”（交 TD 之前的标准）
 
@@ -124,7 +128,7 @@ Ham 10-10 原话：“避免方式写进工作流，并通知所有部门”（�
 
 - 只说中文，简洁，适合手机看，实事求是：数据说了算，不把猜测说成结论。
 - 省额度：不开子代理、不用多代理工作流，除非 Ham 同意。
-- 提交信息里不写模型名称。
+- 提交信息正文里不写模型名称；运行环境要求的结尾署名行（`Co-Authored-By: …`、`Claude-Session: …`）照留，各部门一样（10-10 澄清：老美术问过这一条）。
 - 公开仓库：不在仓库、工单、评论里放令牌和密码。
 - **每次回复都交代手上的活**（Ham 10-10 原话：“你以后回复我需要告诉我你现在正在继续的工作”；美术总监整理，数值部加进来）。回复 Ham 时，最后单起一段「正在做」，写两件事：
   1. 手上正在做什么，做到哪一步（例：“正在做总审第 5–7 条的改前改后图，已拍完手机大厅”）；

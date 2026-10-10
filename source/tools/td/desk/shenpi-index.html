@@ -90,7 +90,7 @@ textarea:focus { border-color: var(--ink); }
   <section class="list" id="pending" aria-label="等你审批"></section>
   <div class="empty" id="empty" hidden><b>都批完了</b>现在没有等你批的事。各部门有新东西要你点头时，会出现在这里。</div>
   <section class="done-wrap" id="doneWrap" hidden><h2>已处理</h2><div id="done"></div></section>
-  <p class="foot"><span id="notifyState"></span> <button class="b quiet" id="notifyTest" type="button" hidden>发一条测试通知</button></p>
+  <p class="foot"><span id="notifyState"></span> <button class="b quiet" id="notifyTest" type="button" hidden>发一条测试通知（给 TD）</button></p>
   <p class="foot" id="foot"></p>
 </div>
 <div class="lightbox" id="lb" hidden><img id="lbImg" alt=""></div>
@@ -105,20 +105,21 @@ textarea:focus { border-color: var(--ink); }
   const when = iso => { const d = new Date(iso); return isNaN(d) ? '' : pad(d.getMonth() + 1) + '-' + pad(d.getDate()) + ' ' + pad(d.getHours()) + ':' + pad(d.getMinutes()); };
   const SEAL = { approved: '准', changes: '改', chosen: '选' }, WORD = { approved: '通过', changes: '要改', chosen: '已选' };
 
-  // 提交后自动告诉对应部门的对话（通过 Claude Code Remote 连接器触发那个对话里预先设好的提醒）。没有对应提醒的部门就只存不通知。
-  const NOTIFY = { '美术': 'trig_01FF1yaK8ZRBKWk3osCQKoAP', 'TD': 'trig_01Go7ZszLJ61ybdE1vBuCKLw' };
+  // 提交后自动告诉对应部门。TD：页面替 Ham 发一条评论「发给 Claude」，送进发布这张页面的 TD 会话（WORKFLOW 第 3 节，10-10 起）。
+  // 美术的条目 10-10 起挂角色部自己的审批台（char-编号），这里不再通知美术。没有对应的部门就只存不通知。
+  const NOTIFY = { 'TD': 'comment' };
   let mcp = null, mcpState = 'wait'; const told = {};
   const mcpWhy = () => mcpState === 'wait' ? '页面还在连 Claude，稍等几秒再提交。' : '这个打开方式用不了自动通知（试试在电脑上用 claude.ai 网页打开审批台）。';
   function showMcp() {
     const f = $('notifyState'); if (!f) return;
-    f.textContent = mcpState === 'ok' ? '自动通知：已就绪（美术、TD 的条目提交后会自动发给对应的人）。' : mcpState === 'wait' ? '自动通知：正在连接…' : '自动通知：这个打开方式用不了。批完请在聊天里说一声；也可以在电脑上用 claude.ai 网页打开审批台再试。';
-    const b = $('notifyTest'); if (b) b.hidden = mcpState !== 'ok';
+    f.textContent = 'TD 的条目提交后，页面替你发评论给 TD。美术（角色部）的新条目在角色部审批台。';
+    const b = $('notifyTest'); if (b) b.hidden = false;
   }
   async function testNotify() {
     const b = $('notifyTest'); b.disabled = true; b.textContent = '正在发…';
-    try { await wake(NOTIFY['美术'], '【审批台】这是一条测试通知，不用处理。'); b.textContent = '测试通知已安排（约一两分钟送到）'; }
-    catch (e) { b.textContent = '没发出去（' + ((e && e.code) || '出错') + '）'; }
-    setTimeout(() => { b.disabled = false; b.textContent = '发一条测试通知'; }, 4000);
+    const r = await viaComments('【审批台】这是一条给 TD 的测试通知，不用处理。', b);
+    b.textContent = r.ok ? '测试通知已发给 TD' : '没发出去（' + [r.code, r.msg].filter(Boolean).join(' / ') + '）';
+    setTimeout(() => { b.disabled = false; b.textContent = '发一条测试通知（给 TD）'; }, 4000);
   }   // told[id]：最近一次通知的结果，显示在已处理那一行下面
   async function wake(trig, text) {
     const at = new Date(Date.now() + 60000).toISOString();
@@ -128,9 +129,27 @@ textarea:focus { border-color: var(--ink); }
       catch (e2) { e2.first = e1 && (e1.code + ': ' + String(e1.message || '').slice(0, 200)); throw e2; }
     }
   }
+  // 和拍板单、美术总监审批台同一套：页面替 Ham 发一条评论「发给 Claude」
+  async function viaComments(text, anchorEl) {
+    let c = null; try { c = await window.claude.use('comments'); } catch (e) { c = null; }
+    if (!c) return { ok: false, code: 'no_comments' };
+    let can = 'off'; try { can = await c.canSendToClaude(); } catch (e) { can = 'off'; }
+    if (can !== 'available') return { ok: false, code: 'cannot_' + can };
+    try { const anchor = await c.anchorFor(anchorEl || $('pending')); await c.sendToClaude({ anchor, text }); return { ok: true, code: '' }; }
+    catch (e) { return { ok: false, code: (e && e.code) || 'unknown', msg: String((e && e.message) || '').slice(0, 300) }; }
+  }
   function logNotify(id, r) { try { db && db.doc('items/' + id).update({ notify: Object.assign({ at: new Date().toISOString() }, r) }).catch(() => {}); } catch (e) {} }
   async function notify(id, it, patch) {
     const trig = NOTIFY[it.dept]; if (!trig) { told[id] = ''; render(); return; }
+    if (trig === 'comment') {
+      const o = (it.options || []).find(x => String(x.key) === String(patch.choice));
+      const res = patch.status === 'approved' ? '通过' : patch.status === 'chosen' ? '选了「' + (o ? o.label || o.key : patch.choice) + '」' : '要改';
+      told[id] = '正在通知' + it.dept + '…'; render();
+      const r = await viaComments('【审批台】' + id + '「' + (it.title || '') + '」：' + res + (patch.note ? '。备注：' + patch.note : '') + '。请去审批台读这一条，接着做。', $('done'));
+      logNotify(id, r.ok ? { ok: true, how: 'comment' } : { ok: false, code: r.code, msg: r.msg || '' });
+      told[id] = r.ok ? '已通知' + it.dept + '。' : '没通知到' + it.dept + '（' + r.code + '），请在聊天里说一声。';
+      render(); return;
+    }
     if (!mcp) { told[id] = '没能自动通知' + it.dept + '：' + mcpWhy() + '请在聊天里跟它说一声。'; render(); return; }
     const o = (it.options || []).find(x => String(x.key) === String(patch.choice));
     const res = patch.status === 'approved' ? '通过' : patch.status === 'chosen' ? '选了「' + (o ? o.label || o.key : patch.choice) + '」' : '要改';
@@ -238,6 +257,9 @@ textarea:focus { border-color: var(--ink); }
     else if (it.note) res += '\n备注：' + it.note;
     mid.append(el('p', 't', (it.dept ? it.dept + ' · ' : '') + (it.title || '')), el('p', 'r', res));
     if (told[id]) mid.appendChild(el('p', 'r told', told[id]));
+    // 回执：部门读到后在这一条写回 ack（时间 + 一句话）；写回之前显示「等确认收到…」
+    if (it.ack && it.ack.at && (!it.decidedAt || it.ack.at >= it.decidedAt)) mid.appendChild(el('p', 'r told', '✓ ' + (it.dept || '') + '已收到 · ' + when(it.ack.at) + (it.ack.text ? '：' + it.ack.text : '')));
+    else if (it.notify && it.notify.how === 'comment') mid.appendChild(el('p', 'r', '等确认收到…'));
     if (st.err) mid.appendChild(el('p', 'err', st.err));
     const undo = el('button', 'b quiet', '撤回'); undo.type = 'button'; undo.disabled = st.busy; undo.addEventListener('click', () => reopen(id));
     side.append(el('span', 'when', when(it.decidedAt)), undo); r.append(mid, side);
@@ -265,7 +287,6 @@ textarea:focus { border-color: var(--ink); }
   (async () => {
     try { db = window.claude && window.claude.use ? await window.claude.use('db') : null; } catch (e) { db = null; }
     showMcp();
-    try { window.claude.use('mcp').then(m => { mcp = m; mcpState = m ? 'ok' : 'no'; showMcp(); }, () => { mcp = null; mcpState = 'no'; showMcp(); }); } catch (e) { mcp = null; mcpState = 'no'; showMcp(); }
     if (!db) { $('n').textContent = '–'; $('nl').textContent = '读不到审批记录'; $('foot').textContent = '请登录后在 Claude 里打开这个页面。'; return; }
     db.collection('items').onSnapshot(snap => {
       docs = snap.docs.map(d => ({ id: d.id, it: d.data() || {} })); loaded = true; render();
