@@ -74,14 +74,8 @@ const BFX = (() => {
   // 场边全被震倒：两边军营里的兵、观战席上的人
   function crowdDown(c) { try { Camp.quake(c); } catch (e) { } try { Spect.quake(c); } catch (e) { } }
   // 碎石：从震源往四周崩出去
-  const rockGeo = new THREE.DodecahedronGeometry(0.06); rockGeo.userData.keep = true;
-  function rubble(c, n = 16, r = 1, power = 1) {
-    for (let i = 0; i < (Core.quality === 'low' ? Math.ceil(n / 2) : n); i++) {
-      const a = Math.random() * 6.28, o = new THREE.Mesh(rockGeo, Core.toon(i % 3 ? 0x6b6257 : 0x8a7f70));
-      o.scale.setScalar(R(0.5, 1.7)); o.position.copy(c).add(new V3(Math.cos(a) * r * R(0.2, 0.8), 0.08, Math.sin(a) * r * R(0.2, 0.8)));
-      Fx.throwObj(o, new V3(Math.cos(a) * R(1, 3.2) * power, R(2.2, 5.5) * power, Math.sin(a) * R(1, 3.2) * power), { life: R(1.2, 2.2), ink: false });
-    }
-  }
+  //   （挪到 Squads.rubble 了，战象正面踩也要崩——美术 M25）
+  const rubble = (...a) => Squads.rubble(...a);
   // 被震飞 / 炸飞：棋子模式下棋子碎成块飞出去；模型模式下换成那队兵的模型，被掀飞、断肢落地留血
   const modelKill = e => (Squads.Stand.on || Fx.level !== 'low') && e.t && e.t !== 'k';
   function blowAway(e, from, power = 1.4, burnt = false, hit) {
@@ -130,7 +124,7 @@ const BFX = (() => {
       setTimeout(() => { P.plume(q, out.clone().negate(), R(0.45, 0.7), 2); P.dust(q, 3, out.clone().negate(), R(0.4, 0.6)); if (i % 3 === 0) P.smoke(q.clone().setY(TOP + 0.1), 2, 0.9, 0x8b7e68); }, (rr - 0.7) * 160);
     }
     P.dust(c, 24, null, 0.6);
-    rubble(c.clone().setY(TOP), 22, 1.2, 1.1);
+    rubble(c.clone().setY(TOP), 44, 1.4, 1.35);   // 践踏总会崩出大量碎石（美术 M25，Ham 10-10）
     crowdDown(c);
     const hs = ev.filter(e => (e.e === 'hit' || e.e === 'kill') && e.how === 'jianta');
     await sleep(0.12);
@@ -254,7 +248,7 @@ const BFX = (() => {
     }
   }
   // 技能台词（被动技能没有）：用的时候说一句；技能杀了对方的子，再补一句。四级名将用自己的声音，三级用兵的声音
-  const PASSIVE = new Set(['jianta', 'shensu', 'huifang', 'jinwei', 'feiyue']);
+  const PASSIVE = new Set(['jianta', 'shensu', 'huifang', 'jinwei', 'feiyue', 'taying']);
   function skillLine(P0, sk, side, kill) {
     if (!P0 || PASSIVE.has(sk)) return 0;
     const hk = Fx.heroKey(P0);
@@ -280,9 +274,10 @@ const BFX = (() => {
           await dash(before[info.from[1]][info.from[0]], info.from, info.to, side);
           if (info.result) await Fx.checkStamp(XQ.other(side), info.result.reason === 'checkmate' ? '殺' : info.result.reason === 'kingdead' ? '斬' : info.result.reason === 'occupy' ? '奪' : '困', info.mateName);
           else if (info.check) Fx.checkStamp(XQ.other(side));
-        } else if (info.extra && info.extra.via === 'feiyue') {
-          // 被动「飞越」：腾身一跃越过塞象眼的子（照原来主动技能的演法）
-          await feiyueLeap(before[info.from[1]][info.from[0]], info.from, info.to, before, ev, side, info);
+        } else if (info.extra && (info.extra.via === 'feiyue' || info.extra.via === 'taying')) {
+          // 被动「飞越」「踏营」：腾身一跃越过塞象眼 / 蹩马腿的子（照原来主动技能的演法）
+          if (info.extra.via === 'feiyue') await feiyueLeap(before[info.from[1]][info.from[0]], info.from, info.to, before, ev, side, info);
+          else await tayingLeap(before[info.from[1]][info.from[0]], info.from, info.to, before, ev, side, info);
           if (info.result) await Fx.checkStamp(XQ.other(side), info.result.reason === 'checkmate' ? '殺' : info.result.reason === 'kingdead' ? '斬' : info.result.reason === 'occupy' ? '奪' : '困', info.mateName);
           else if (info.check) Fx.checkStamp(XQ.other(side));
         } else {
@@ -406,6 +401,12 @@ const BFX = (() => {
     P.dust(A, 10, null, 0.3);
     await leap(m, at, to, before, ev.filter(notTrample), side, 'e', info, null, 1.25, () => trampleFx(ev, side, { m }));
   }
+  // 踏营：马无视马腿腾跃过去（老棋谱里的主动踏营、现在的被动踏营都走这里）
+  async function tayingLeap(P0, at, to, before, ev, side, info) {
+    const m = Board.pieces.get(P0.id);
+    Sfx.B.neigh(0, 0.14, 'a'); Sfx.B.whoosh(0.1, 0.3, 0.4);
+    await leap(m, at, to, before, ev, side, 'n', info, () => { Sfx.B.hooves(0, 0.5, 3, 0.4); });
+  }
   async function skillFx(info, before) {
     const ev = info.ev, sk = info.extra.sk, side = info.side, at = info.from, to = info.to;
     const P0 = before[at[1]][at[0]];
@@ -461,9 +462,7 @@ const BFX = (() => {
       if (ev.some(e => e.e === 'kill' && !e.friendly && e.s !== side) && typeof Camp !== 'undefined') Camp.onCapture(side, info.streak || 1);
       await sleep(0.25);
     } else if (sk === 'taying') {
-      const m = Board.pieces.get(P0.id);
-      Sfx.B.neigh(0, 0.14, 'a'); Sfx.B.whoosh(0.1, 0.3, 0.4);
-      await leap(m, at, to, before, ev, side, 'n', info, () => { Sfx.B.hooves(0, 0.5, 3, 0.4); });
+      await tayingLeap(P0, at, to, before, ev, side, info);
     } else if (sk === 'feiyue') {
       await feiyueLeap(P0, at, to, before, ev, side, info);
     } else if (sk === 'pili') {

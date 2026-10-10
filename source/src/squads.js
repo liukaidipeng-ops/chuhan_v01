@@ -10,6 +10,15 @@ const Squads = (() => {
   const LOW = () => Core.quality === 'low';
   const gore = () => Fx.gore;
   const fwd = yaw => new V3(Math.sin(yaw), 0, Math.cos(yaw));
+  // 碎石：从震源往四周崩出去（原在 bfx.js；美术 M25 加大：石头 0.6～2.2 倍、多留一会儿）。低画质减半
+  const rockGeo = new THREE.DodecahedronGeometry(0.06); rockGeo.userData.keep = true;
+  function rubble(c, n = 16, r = 1, power = 1) {
+    for (let i = 0; i < (Core.quality === 'low' ? Math.ceil(n / 2) : n); i++) {
+      const a = Math.random() * 6.28, o = new THREE.Mesh(rockGeo, Core.toon(i % 3 ? 0x6b6257 : 0x8a7f70));
+      o.scale.setScalar(R(0.6, 2.2)); o.position.copy(c).add(new V3(Math.cos(a) * r * R(0.2, 0.8), 0.08, Math.sin(a) * r * R(0.2, 0.8)));
+      Fx.throwObj(o, new V3(Math.cos(a) * R(1, 3.2) * power, R(2.2, 5.5) * power, Math.sin(a) * R(1, 3.2) * power), { life: R(1.4, 2.6), ink: false });
+    }
+  }
   const rightOf = yaw => new V3(Math.cos(yaw), 0, -Math.sin(yaw));
   const yawOf = d => Math.atan2(d.x, d.z);
   const at = (anchor, yaw, x, z) => anchor.clone().addScaledVector(rightOf(yaw), x).addScaledVector(fwd(yaw), z);
@@ -212,11 +221,26 @@ const Squads = (() => {
         if (G >= 1) bleed(8, 0.7, away);
         break;
       }
-      case 'ram': case 'trample': {
+      case 'ram': {
         const v = dir.clone().multiplyScalar(R(1.5, 3) * power).add(away.clone().multiplyScalar(0.8)).add(new V3(0, R(0.8, 2) * power, 0));
         troop.kill(i, { dir: dirAng + R(-0.5, 0.5), speed: 3.5, fly: { v, g: 9, w: R(-6, 6), floor: 0 } });
         bleed(12, 0.8);
         if (G >= 3 && Math.random() < 0.35) dismember(troop, i, Math.random() < 0.5 ? 'armS' : 'legR', dir);
+        break;
+      }
+      case 'trample': {   // 战象踩死（美术 M25，Ham 10-10）：整个人被踩散、顺着象冲的方向冲飞——断肢飞出、一大团血雾
+        const v = dir.clone().multiplyScalar(R(2.4, 4) * power).add(away.clone().multiplyScalar(1.3)).add(new V3(0, R(1.8, 3.4) * power, 0));
+        troop.kill(i, { dir: dirAng + R(-0.8, 0.8), speed: 4, fly: { v, g: 9, w: R(-12, 12), floor: 0 } });
+        bleed(22, 1.1, away);
+        P.smoke(pos, 3, 0.9, Math.random() < 0.5 ? 0x8e1408 : 0x6e0f06);   // 血雾
+        if (G >= 2) { dismember(troop, i, ['head', 'armW', 'armS'][Math.floor(Math.random() * 3)], dir.clone().add(away)); if (Math.random() < 0.6) dismember(troop, i, Math.random() < 0.5 ? 'legL' : 'legR', dir); }
+        break;
+      }
+      case 'crush': {   // 践踏震死（美术 M25，Ham 10-10）：整个人被掀上天，翻着跟头落下来
+        const v = away.clone().multiplyScalar(R(0.4, 1.2)).add(new V3(0, R(5, 7.5) * Math.min(1.6, power / 1.5), 0));
+        troop.kill(i, { dir: awayAng, speed: 3, fly: { v, g: 9, w: R(-16, 16), floor: 0 } });
+        bleed(14, 0.9, away);
+        if (G >= 3 && Math.random() < 0.4) dismember(troop, i, Math.random() < 0.5 ? 'armW' : 'legL', away);
         break;
       }
       case 'bolts': {
@@ -558,6 +582,7 @@ const Squads = (() => {
       await tween(0.14, k => { this.m.rearK = 1 - k; }, ease.in);
       s.stomp(); Cam.shake(0.35); Fx.slowmo(0.3, 0.14);
       Fx.ring(B, 2.4, 0.7, 0x5a4a38); P.dust(B, 14, null, 0.35); Fx.Marks.crack(B, 1.4);
+      rubble(B.clone().setY(TOP), 30, 0.9, 1.2);   // 正面踩也崩碎石（美术 M25）
       await target.die('trample', d, 1.3, B);
       this.m.trumpetK = 0; this.m.fire = 0.4;
       await sleep(0.4);
@@ -1521,5 +1546,5 @@ const Squads = (() => {
     };
   })();
 
-  return { get finalMode() { return finalMode; }, set finalMode(v) { finalMode = !!v; }, Stand, move, capture, pieceBoat, heroDefeat, make, jmForm, standYaw, charge, retreat, hurtSquad, yawOf, knightCorner, Shade, Infantry, Guards, Crossbow, TigerRider, Elephant, Chariot, Cavalry, Cannon, General, killUnit, walkPath, turnTo, TroopSquad };
+  return { get finalMode() { return finalMode; }, set finalMode(v) { finalMode = !!v; }, rubble, Stand, move, capture, pieceBoat, heroDefeat, make, jmForm, standYaw, charge, retreat, hurtSquad, yawOf, knightCorner, Shade, Infantry, Guards, Crossbow, TigerRider, Elephant, Chariot, Cavalry, Cannon, General, killUnit, walkPath, turnTo, TroopSquad };
 })();

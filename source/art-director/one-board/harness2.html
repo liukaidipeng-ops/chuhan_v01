@@ -1,0 +1,40 @@
+<!doctype html>
+<html><head><meta charset="utf-8">
+<style>body{margin:0;background:#a8281c}#root{position:relative;overflow:hidden;background:#a8281c}
+.zm-hot{position:absolute;border:0;background:transparent;padding:0;cursor:pointer}</style>
+<script src="cfg2.js"></script><script src="zmview2.js"></script>
+</head><body><div id="root"></div>
+<template id="dg-pc"><svg width="1440" height="900" viewBox="0 0 1440 900"><g stroke="#f0e7d2" stroke-width="2"><line x1="653" y1="127" x2="787" y2="261"></line><line x1="787" y1="127" x2="653" y2="261"></line><line x1="653" y1="612" x2="787" y2="745"></line><line x1="787" y1="612" x2="653" y2="745"></line></g></svg></template>
+<template id="dg-m"><svg width="390" height="844" viewBox="0 0 390 844"><g stroke="#f0e7d2" stroke-width="1.5"><line x1="159.4" y1="250" x2="230.6" y2="321"></line><line x1="230.6" y1="250" x2="159.4" y2="321"></line><line x1="159.4" y1="507" x2="230.6" y2="578.5"></line><line x1="230.6" y1="507" x2="159.4" y2="578.5"></line></g></svg></template>
+
+<script>
+var dev = location.hash.slice(1) || 'pc', C = dev === 'pc' ? CFG_PC : CFG_M;
+var IMG = dev === 'pc'
+  ? { main: '../cv/img/pc_lobby.jpg', ai: '../flow/pc_ai.jpg', local: '../flow/pc_local.jpg', hall: '../flow/pc_hall.jpg', wait: '../flow/pc_wait.jpg', top: '../flow/pc_top2.jpg', end: '../cv/img/pc_sand.jpg' }
+  : { main: '../flow2/m_main.jpg', ai: '../flow/m_ai.jpg', local: '../flow/m_local.jpg', hall: '../flow2/m_hall.jpg', wait: '../flow/m_wait.jpg', top: '../flow/m_top2.jpg', end: '../cv/img/m_after.jpg' };
+var root = document.getElementById('root'); root.style.width = C.W + 'px'; root.style.height = C.H + 'px';
+var st = { scr: 'main', s: 0 }, timers = [];
+function mk(tag, src) { var e = document.createElement(tag); if (src) e.src = src; root.appendChild(e); return e; }
+var pg = {}; ['main', 'ai', 'local', 'hall', 'wait'].forEach(function (k) { pg[k] = mk('img', IMG[k]); });
+var lineEls = []; for (var i = 0; i < 36; i++) lineEls.push(mk('div')); var rivEls = []; for (var i = 0; i < 4; i++) rivEls.push(mk('div'));
+
+var flyEls = [mk('div'), mk('div')]; flyEls.forEach(function(e){e.appendChild(document.createElement('span'));e.appendChild(document.createElement('span'));});
+var topEl = mk('img', IMG.top), endEl = mk('img', IMG.end);
+var hotBox = mk('div');
+function render() {
+  var v = zmView(st, C);
+  for (var k in pg) pg[k].style.cssText = v.pages[k];
+  lineEls.forEach(function (e, i) { e.style.cssText = v.lines[i] ? v.lines[i].style : 'display:none'; });
+  rivEls.forEach(function (e, i) { var r = v.river[i]; e.style.cssText = r ? r.style : 'display:none'; e.textContent = r ? r.tx : ''; });
+  flyEls.forEach(function (e, i) { var f = v.fly[i]; e.style.cssText = f ? f.style : 'display:none'; if (f) { e.children[0].style.cssText = f.aStyle; e.children[0].textContent = f.a; e.children[1].style.cssText = f.bStyle; e.children[1].textContent = f.b; } });
+  topEl.style.cssText = v.top; endEl.style.cssText = v.end;
+  hotBox.innerHTML = '';
+  v.hots.forEach(function (h) { var b = document.createElement('button'); b.className = h.cls; b.style.cssText = h.style; b.onclick = function () { if (h.h.go) run(); else nav(h.h.to); }; hotBox.appendChild(b); });
+}
+function set(o) { for (var k in o) st[k] = o[k]; render(); }
+function clear() { timers.forEach(clearTimeout); timers = []; }
+function nav(to) { clear(); set({ scr: to, s: 0 }); }
+function run() { clear(); set({ s: 1 }); var de = zmView({scr:st.scr,s:2}, C).drawEnd, t3 = 650 + de + 150; [[650, 2], [t3, 3], [t3 + 1150, 4]].forEach(function (a) { timers.push(setTimeout(function () { set({ s: a[1] }); }, a[0])); }); }
+render();
+</script>
+</body></html>

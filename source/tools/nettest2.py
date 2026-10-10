@@ -54,7 +54,7 @@ try:
         check(wait(lambda: ev(A, "!document.getElementById('hud').classList.contains('hidden')"), 20), '房主进入对局')
         check(ev(B, "JSON.stringify(window.__xq.opts)") == ev(A, "JSON.stringify(window.__xq.opts)"), '双方房间选项一致 ' + ev(B, "JSON.stringify(window.__xq.opts)"))
         for pg in (A, B): ev(pg, "window.__xq.Fx.full=false; window.__xq.Core.Time.boost=6")
-        wait(lambda: ev(A, "document.getElementById('status').textContent.includes('轮到你')"), 30)
+        wait(lambda: ev(A, "document.getElementById('status').textContent.includes('轮到你')"), 75)   # 开局有落子入局过场（实时动画，无头浏览器里要多十来秒）
         check('轮到你' in ev(A, "document.getElementById('status').textContent"), '房主（红）先行')
         B.evaluate("window.__xq.doMove({from:[7,6],to:[7,5]})")
         time.sleep(1)
@@ -64,7 +64,7 @@ try:
         wait(lambda: ev(B, "document.getElementById('status').textContent.includes('轮到你')") and ev(B, "window.__xq.busy===0"), 40)
         ev(B, "window.__xq.doMove({from:[7,9],to:[6,7]})")
         check(wait(lambda: ev(A, 'window.__xq.game.history.length') == 2, 20), '房主收到黑方走子')
-        wait(lambda: ev(A, "document.getElementById('status').textContent.includes('轮到你')"), 30)
+        wait(lambda: ev(A, "document.getElementById('status').textContent.includes('轮到你')"), 75)   # 开局有落子入局过场（实时动画，无头浏览器里要多十来秒）
         # 悔棋：房主请求，加入方同意
         IDLE = "window.__xq.busy===0 && window.__xq.started"
         wait(lambda: ev(A, IDLE) and ev(B, IDLE), 40)
@@ -73,7 +73,7 @@ try:
         B.evaluate("document.querySelector('#askYes').click()")
         check(wait(lambda: ev(A, 'window.__xq.game.history.length') == 0 and ev(B, 'window.__xq.game.history.length') == 0, 30), '同意后双方都退回 2 步')
         time.sleep(1.5)
-        wait(lambda: ev(A, "document.getElementById('status').textContent.includes('轮到你')"), 30)
+        wait(lambda: ev(A, "document.getElementById('status').textContent.includes('轮到你')"), 75)   # 开局有落子入局过场（实时动画，无头浏览器里要多十来秒）
         check(ev(A, "document.getElementById('tUndo').disabled") == True, '悔棋次数（1 次）用完后按钮禁用')
         wait(lambda: ev(A, IDLE) and ev(B, IDLE), 40)
         # 喊话：加入方发送，房主在"对手"气泡看到
