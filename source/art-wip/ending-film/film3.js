@@ -167,7 +167,7 @@
       R.H.earK = 0.5; R.step(dt); R.X.pose({ headRx: 0.28, headRy: -0.35, chestRy: -0.15 });
       const want = t < 1.2 ? 'bow' : 'offer'; if (F.pose !== want) F.setPose(want, 0.8); F.look(0, 0.3); F.update(dt); T.aimElder();
       const h = T.face(), e = T.eface(), back = h.clone().sub(e).setY(0).normalize(), side = V(-back.z, 0, back.x);
-      cam.position.copy(e).addScaledVector(back, 3.3).addScaledVector(side, 1.05).setY(e.y + 0.1); cam.lookAt(e.clone().add(V(0, -0.08, 0)));   // 机位放低到亭长眼平，前景是乌骓的肩和项王的腿（虚）
+      cam.position.copy(e).addScaledVector(back, 3.6).addScaledVector(side, 1.9).setY(e.y + 0.15); cam.lookAt(e.clone().add(V(0, -0.08, 0)));   // 机位放低到亭长眼平，前景是乌骓的肩和项王的腿（虚）
       post.focus = cam.position.distanceTo(e); } };
   };
   // W6 反打：亭长身后低机位往上看项王；他不说话，眼神往江东（画左）飘
@@ -225,13 +225,17 @@
       F.group.position.y = 0.012 * beat; F.group.updateMatrixWorld(true);
       cam.position.copy(c0).add(V(0, 0.004 * beat * Math.sin(t * 90), 0)); cam.lookAt(lamp.clone().add(V(0, -0.6, 0))); } };
   };
-  // W7 插入：来路方向，尘线高了一截，旗尖在尘里一闪
+  // W7 插入：来路方向，地平线上一排骑兵的剪影从尘里冒出来（旗子在雾里读成广告牌，换成人马）
   FILM.W7 = () => {
     const ctx = stage({ seed: 29, sun: [-0.25, 0.08, -1] });
-    hanDust(ctx, 0.75, [0, -110]); SB.dust(ctx, { n: 120, box: [-40, 40, 0, 6, -100, -80], s: [6, 14], op: [0.08, 0.18], col: 0xe0b890 });
-    const flags = []; for (let i = 0; i < 9; i++) { const g = new THREE.Group(), pole = new THREE.Mesh(new THREE.CylinderGeometry(0.06, 0.07, 9, 6), new THREE.MeshStandardMaterial({ color: 0x2a2018 })); pole.position.y = 4.5; g.add(pole);
-      const f = new THREE.Mesh(new THREE.PlaneGeometry(1.3, 3.6, 4, 8), new THREE.MeshBasicMaterial({ color: 0x4a2418, side: THREE.DoubleSide, fog: false, transparent: true, opacity: 0.75 })); f.position.set(1.1, 7.2, 0); f.rotation.y = 0.5; g.add(f); g.position.set(-24 + i * 6 + SB.rr(-2, 2), -4.5, -70 + SB.rr(-5, 5)); ctx.add(g); flags.push(g); }
-    const cam = SB.cam([0, 1.6, 20], [0, 3.5, -70], 7), post = { focus: 90, ap: 0.3, maxR: 8, exp: 1.0, gain: [1.06, 0.97, 0.88], sat: 0.88, vign: 0.5, grain: 0.06 };
-    return { ctx, cam, post, dur: 2.5, update(t) { for (const [i, g] of flags.entries()) g.position.y = -4.5 + 2.2 * sm((t - 0.3 - i * 0.12) / 1.5); } };   // 旗子一面面从地平线后升起来
+    hanDust(ctx, 0.75, [0, -110]);
+    const geo = Models.cavalryStaticGeo('r'), N = 46, inst = new THREE.InstancedMesh(geo, new THREE.MeshBasicMaterial({ color: 0x3a2a22, fog: true }), N); inst.frustumCulled = false; ctx.add(inst);
+    const pts = []; for (let i = 0; i < N; i++) pts.push({ x: -36 + i * 1.6 + SB.rr(-0.5, 0.5), z: -55 + SB.rr(-3, 3), d: SB.rr(0, 0.6), s: SB.rr(1.0, 1.1) });
+    const poles = []; for (let i = 0; i < 7; i++) { const g = new THREE.Mesh(new THREE.CylinderGeometry(0.05, 0.05, 6, 4), new THREE.MeshBasicMaterial({ color: 0x2a1e18, fog: true })); const f = new THREE.Mesh(new THREE.PlaneGeometry(1.1, 2.4), new THREE.MeshBasicMaterial({ color: 0x5a2014, side: THREE.DoubleSide, fog: true })); f.position.set(0.55, 1.8, 0); g.add(f); ctx.add(g); poles.push({ g, x: -30 + i * 10 + SB.rr(-2, 2), z: -56 }); }
+    const M4 = new THREE.Matrix4(), q = new THREE.Quaternion().setFromAxisAngle(V(0, 1, 0), PI / 2);
+    const cam = SB.cam([0, 1.5, 20], [0, 1.4, -55], 9), post = { focus: 75, ap: 0.3, maxR: 8, exp: 1.0, gain: [1.06, 0.97, 0.88], sat: 0.88, vign: 0.5, grain: 0.06 };
+    return { ctx, cam, post, dur: 2.5, update(t) {
+      pts.forEach((p, i) => { const y = -3.2 + 3.2 * sm((t - 0.2 - p.d) / 1.4); M4.compose(V(p.x, y, p.z), q, V(p.s, p.s, p.s)); inst.setMatrixAt(i, M4); }); inst.instanceMatrix.needsUpdate = true;
+      for (const P of poles) P.g.position.set(P.x, -3 + 6.2 * sm((t - 0.5) / 1.5), P.z); } };   // 人马先冒出来，旗随后立起
   };
 })();
