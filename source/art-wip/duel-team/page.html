@@ -379,6 +379,11 @@ h2{margin:0 0 6px;font:900 18px/1.3 var(--ef);letter-spacing:.1em}
       sever(def, cut.l.k, v, V(rng() * 16 - 8, rng() * 16 - 8, rng() * 16 - 8), { bk: cut.l.j, floor: 0.06 });
       spray(cut.q, 60, 1.5, d); puff(cut.q, 8, 0.7, 0x9e180c, d.clone().multiplyScalar(0.5)); def.stump = { p: cut.q, until: t + 0.7 };
     }
+    if (!def.gone.has('weapon')) {   // 兵器脱手，自己翻倒平躺在地上（跟着人飞会竖在尸体上）
+      const sw = def.wdir.clone().transformDirection(def.root.matrixWorld), hz = sw.clone().setY(0).normalize(), ang = Math.acos(Math.min(1, sw.dot(hz))), ax = new THREE.Vector3().crossVectors(sw, hz);
+      const w = ax.lengthSq() > 1e-6 ? ax.normalize().multiplyScalar(ang / 0.45) : V(0, 0, 0);
+      sever(def, ['weapon'], d.clone().multiplyScalar(0.6 + rng() * 0.6).add(V((rng() - 0.5) * 0.6, 1.2 + rng() * 0.6, 0)), w, { bk: 'weapon', floor: 0.04, maxAng: ang });
+    }
     // 整个人被击飞：顺着矛的方向往后仰倒，力度带一点随机
     const rest = Object.keys(def.p).filter(k => !def.gone.has(k)), axis = new THREE.Vector3().crossVectors(V(0, 1, 0), d).normalize();
     sever(def, rest, d.clone().multiplyScalar((1.0 + rng() * 0.6) * power).add(V((rng() - 0.5) * 0.4, 1.1 + rng() * 0.7, 0)), axis.multiplyScalar(5 + rng() * 2.5).add(V(0, (rng() - 0.5) * 2.5, 0)), { bk: 'pelvis', floor: 0.16, maxAng: 1.45 + rng() * 0.2 });
