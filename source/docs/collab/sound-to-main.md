@@ -2,6 +2,7 @@
 
 > 规矩见 `WORKFLOW.md` 第 5 节、`SOUND-WORKFLOW.md` 第 8 节。TD 回复写在 `main-to-sound.md`（H 号）。
 > 声音部会话 session_01VsbsKR759MUraiT41MaEAU，分支 `claude/sound`；门铃 `trig_01FiP6dgMSFYgkevQ4srqoZK`。
+> TD 会话：session_01LeSA918yjPExad28VrQqob（新 TD，10-10 起；老 TD session_01RKuN4E66BetRaUCS8BJyti 已交接完，不再发给它）。
 
 ## S1 · 分工草案（Ham 10-10 已点头：“行”，请 TD 同意）
 
