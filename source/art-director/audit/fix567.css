@@ -1,0 +1,26 @@
+/* 第 5 条：一页只留一个墨色主操作 */
+#lobby #hallList li .btn.solid{background:none!important;color:var(--c)!important;border:2px solid var(--c)!important;box-shadow:none!important}
+#bShare{background:none!important;color:var(--c)!important;border:2px solid var(--c)!important;box-shadow:none!important}
+/* 第 6 条：去掉第四、五种颜色和表情符号 */
+#lobby #hallList li.play{opacity:1}
+#lobby #hallList li.play .hi,#lobby #hallList li.play .hi b{color:var(--c)}
+#lobby #hallList li .hv.jq{background:none;color:var(--c);border-color:var(--c)}
+#roomLock{font-size:0!important}
+#roomLock:after{content:"锁";display:inline-block;font-size:calc(14px * var(--fs,1));line-height:1;padding:3px 4px;border:2px solid var(--c);color:var(--c);vertical-align:middle;font-family:var(--ef);font-weight:900;letter-spacing:0}
+#ana{background:var(--k)!important;border-radius:0!important;box-shadow:inset 0 0 0 3px var(--k),inset 0 0 0 4px var(--c),0 8px 24px rgba(0,0,0,.35)!important}
+#ana .anaH b{color:var(--c)!important}
+#anaSum .as{border-radius:0!important}
+#anaSum .as.r{border-left-color:var(--g)!important}#anaSum .as.b{border-left-color:var(--c)!important}
+#anaChart{border-radius:0!important}
+#anaChart .bgR{fill:rgba(168,40,28,.10)!important}#anaChart .bgB{fill:rgba(240,231,210,.05)!important}
+#anaChart .aR{fill:rgba(168,40,28,.55)!important}#anaChart .aB{fill:rgba(240,231,210,.35)!important}
+#anaChart .lbR{fill:#e0654f!important}#anaChart .lbB{fill:var(--c)!important}
+#anaChart .d4{fill:var(--g)!important;stroke:var(--c)!important}#anaChart .d3{fill:var(--k)!important;stroke:var(--c)!important}
+#rpBar,#rpBar button{border-radius:0!important}
+#rpBar button{background:none!important;box-shadow:inset 0 0 0 1px var(--c)!important;color:var(--c)!important}
+#rpBar button.pl{background:var(--g)!important;box-shadow:none!important}
+/* 第 7 条：手机上喊话、召回这类一秒钟的弹窗改成从底部升起的一条，棋盘露出上半 */
+@media (max-width:640px){
+  .modal.e-c{align-items:flex-end!important;padding:0!important;background:rgba(20,19,17,.25)!important}
+  .modal.e-c>*{width:100%!important;max-width:none!important;max-height:62vh;overflow:auto;margin:0!important;padding-bottom:calc(14px + var(--safe-b))!important}
+}
