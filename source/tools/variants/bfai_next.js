@@ -15,6 +15,8 @@
 //   BFAI_TUNE_W=文件（相对 source/）：换上自动调出来的估值权重（fit.js --out 写的）；r30：对同底版霸王 83%、校尉 84%（f998d98 底版，bfai_tuned.js）
 //     BFAI_TUNE_FAST=1：权重写回原公式（tools/tune/score_w.js，和特征版逐个局面相等、不慢；上线用这个）
 //   BFAI_NODEX=x：节点上限 ×x（比“慢 12% 的打分”时给 0.88，和不慢的公平比）
+//   BFAI_REVALL=1|2：召回不按“车还在只救车”筛（1 车马炮都行，2 什么子都行）（g6）
+//   BFAI_ARTOPEN=汉,楚：主帅兵法现在就能用时，留着值几分（原来不管能不能用：汉 4、楚 3）
 //   BFAI_CHKMUST=1：被将军时，相 / 象 / 兵升一级攻击变大的（象二级起攻击 2，H50；兵三级起攻击 2，r6）也算“保命的升级”（TD 在 H52 问的）
 'use strict';
 const fs = require('fs'), path = require('path'), os = require('os');
@@ -24,7 +26,7 @@ const src0 = execFileSync('git', ['show', rev + ':source/src/bfai.js'], { cwd: p
 function build(E, tag) {
   let s = src0;
   const rep = (a, b) => { const n = s.split(a).length - 1; if (n !== 1) throw new Error(`bfai_next：锚点出现 ${n} 次：${a.slice(0, 80)}`); s = s.replace(a, () => b); };
-  const LMR2 = +(E.BFAI_LMR2 || 0), NMP = +(E.BFAI_NMP || 0), CHKMUST = +(E.BFAI_CHKMUST || 0), ROOTREL = +(E.BFAI_ROOTREL || 0), ROOTATK = +(E.BFAI_ROOTATK || 0), RLMR = +(E.BFAI_RLMR || 0), UPESC = +(E.BFAI_UPESC || 0), DYN = +(E.BFAI_DYN || 0), UP3K = +(E.BFAI_UP3K || 0), FASTFP = +(E.BFAI_FASTFP || 0), PSPLIT = +(E.BFAI_PSPLIT || 0), TUNEW = E.BFAI_TUNE_W || '', TUNEFAST = +(E.BFAI_TUNE_FAST || 0);
+  const LMR2 = +(E.BFAI_LMR2 || 0), NMP = +(E.BFAI_NMP || 0), CHKMUST = +(E.BFAI_CHKMUST || 0), ROOTREL = +(E.BFAI_ROOTREL || 0), ROOTATK = +(E.BFAI_ROOTATK || 0), RLMR = +(E.BFAI_RLMR || 0), UPESC = +(E.BFAI_UPESC || 0), DYN = +(E.BFAI_DYN || 0), UP3K = +(E.BFAI_UP3K || 0), FASTFP = +(E.BFAI_FASTFP || 0), PSPLIT = +(E.BFAI_PSPLIT || 0), TUNEW = E.BFAI_TUNE_W || '', TUNEFAST = +(E.BFAI_TUNE_FAST || 0), REVALL = +(E.BFAI_REVALL || 0), ARTOPEN = E.BFAI_ARTOPEN || '';
   if (LMR2) rep('{ v = -ab(r.S, depth - 2, -alpha - 0.01, -alpha, ply + 1, ext); if (v > alpha)', '{ v = -ab(r.S, depth - 2 - (mi > ' + LMR2 + ' && depth >= 4 ? 1 : 0), -alpha - 0.01, -alpha, ply + 1, ext); if (v > alpha)');
   if (NMP) {
     rep('    let best = -INF, legal = 0, bm = null;',
@@ -147,6 +149,21 @@ function build(E, tag) {
       '  const TUNE = require(' + feats + '), TW = TUNE.vec(' + wtxt + ');\n' +
       "  function score(S, me, P) { if (P) return scoreOrig(S, me, P); const v = TUNE.dot(TW, TUNE.feats(S, A, CFG)); return me === 'r' ? v : -v; }\n" +
       '  function scoreOrig(S, me, P) {');
+  }
+  if (ARTOPEN) {   // 主帅兵法“现在就能用”时，留着它值几分（汉,楚）：背水开着时召回 / 背水都要车马炮丢一半、比对方少才开（g6：召回能用了还一直留着，到 −15 分才用）
+    const [vr, vb] = ARTOPEN.split(',').map(Number);
+    const helper = "  // 变体 next：主帅兵法现在能不能用（和引擎 artOpen 同一条：背水开着时，车马炮比对方少、最多剩 maxLeft 枚）\n" +
+      "  function artOpenFor(S, s) { const B = bsOn(); if (!B) return true; let m = 0, o = 0; for (const row of S.board) for (const p of row) if (p && (p.t === 'r' || p.t === 'n' || p.t === 'c')) { if (p.s === s) m++; else o++; } return m < o && (B.maxLeft == null || m <= B.maxLeft); }\n";
+    if (s.includes("const art = s => (S.used.art[s] ? 0 : s === 'r' ? EW.art_r : EW.art_b);")) {
+      rep("const art = s => (S.used.art[s] ? 0 : s === 'r' ? EW.art_r : EW.art_b);", "const art = s => (S.used.art[s] ? 0 : artOpenFor(S, s) ? (s === 'r' ? " + vr + " : " + vb + ") : s === 'r' ? EW.art_r : EW.art_b);   // 变体 next：能用时留着值多少另算");
+    } else {
+      rep("const art = s => (S.used.art[s] ? 0 : s === 'r' ? 4 : bsOn() ? BSV : 3);", "const art = s => (S.used.art[s] ? 0 : artOpenFor(S, s) ? (s === 'r' ? " + vr + " : " + vb + ") : s === 'r' ? 4 : bsOn() ? BSV : 3);   // 变体 next：能用时留着值多少另算");
+    }
+    rep("  function baseVal(p, heavy) {", helper + "  function baseVal(p, heavy) {");
+  }
+  if (REVALL) {   // 召回不按兵种筛（g6：车还在时不肯召回三级炮；背水开着时召回本来就只有落后一半大子才能用）。1：车马炮都行；2：什么子都行
+    rep("const ok = k => { const t = tOf(k.a.id); return t === 'r' || ((!rook || S.used.art.b > 0) && (t === 'c' || t === 'n')); };",
+      "const ok = k => { const t = tOf(k.a.id); return " + (REVALL >= 2 ? "true" : "t === 'r' || t === 'c' || t === 'n'") + "; };   // 变体 next：召回不按“车还在只救车”筛");
   }
   if (tag === null) return s;
   const out = path.join(os.tmpdir(), `bfai_next_${rev}_${tag || 'env'}_${process.pid}.js`);
