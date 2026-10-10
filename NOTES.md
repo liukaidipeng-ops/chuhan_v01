@@ -40,6 +40,7 @@
     **角色部已接住（10-10 11:45，M29）：session_01GuBe9baix3jAfoLh1pmiRY（分支 model-lab），角色部审批台 https://claude.ai/artifact/K53z6a8Gpk8JYooX7zTesz**，接老美术的局内动画（交接单 model-lab `HANDOVER-美术.md`、`decisions-美术.md`）。新 TD 和角色部商量定了：角色部另建自己的审批台；楚汉审批台只留 TD，改成发评论通知新 TD（等 Ham 点头）；部门总表 TD 改。**Ham 10-10 定：“过场CG归CG部门管”**；老美术先做完乌江过场（建议改推单独分支 cg-lab，免得和角色部撞 model-lab），做完写 HANDOVER-CG.md 再开 CG 部窗口。角色部分工草案 Ham 已在角色部窗口点头（“分工草案：对”，model-lab 的 decisions-角色部.md），还差 TD 同意。WORKFLOW 第 7 节澄清：署名行照留，正文不写模型名。
     **TD 交接文档已写**（dev d23c7ae，`source/docs/collab/TD-HANDOVER.md`，工具收进 `source/tools/td/`）；我核对后 C67 请补 6 处（回滚、线上联机服务、审批台通知实测、trigger 清单、过渡期、待批 td 项），补完开新 TD 窗口。
     **优化部（Ham 10-10 开）**：session_01QkUQvrXgDJbxcwbWdMc7sU，分支 claude/perf；量性能、出补丁交 TD（perf-to-main.md P 号 / main-to-perf.md），改画面的先过 Ham；第一件事交性能现状报告。
+    **优化部（12:00）**：报告 claude/perf `source/docs/collab/perf-report-1010.md`；过场 CG 预算（草案）：整帧绘制 ≤200、三角形 ≤60 万，主角 ≤3 万三角形 / ≤6 网格 / 骨骼 ≤60 / 贴图 ≤1024（脸 2048），单独打包每段 ≤3MB、放前下载、可跳过（已转老美术）。**电脑思考在后台线程，实测不卡画面**。
     **H61 / H63（TD）**：C65、C66 已上线（2026.10.10-015b88）；踏营改被动、象相无视拒马、飞越被动已上线 → 我的模拟还是旧规则，下一批前先把 main 合进本分支（注意 bfai_next 的底版 a5ad197 也要换）。
     Ham 以后的打算（先不动）：美术做完结算动画后搬进 Code 改“角色部”，再开 CG 组；TD 忙完也可能搬进 Code，搬前先写交接。
   - **变体开关**（`tools/variants/bfai_next.js`，底版 a5ad197）：LMR2、NMP、CHKMUST、ROOTREL、ROOTATK、RLMR、UPESC、DYN、UP3K、FASTFP、PSPLIT、TUNE_W（权重文件）、TUNE_FAST（权重写回公式）、REVALL、ARTOPEN、NODEX（节点数乘数）。`bfai_t3.js` = UPESC + ROOTREL + ROOTATK + w_t3 写回公式。模拟用引擎 `engine_rules.js`：CFG.firstTurn（'b' 楚先走，军功改给后走的一方）、CFG.merit.startB；不设时和 src/bingfa.js 逐局相同。
