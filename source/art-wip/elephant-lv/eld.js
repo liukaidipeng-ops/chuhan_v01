@@ -65,8 +65,13 @@ window.ElephantLV = (() => {
 
   // 象屁股重做 + 尾巴（Ham char-007：「象需要有尾巴！象屁股那块重做一下」）：两瓣臀、后腿根鼓出来；尾巴一节节往下、尾尖一簇毛，火把绑在尾尖
   function rump(el, lv) {
-    const sk = lv >= 4 ? GOLD : 0x6f6a64, sk2 = lv >= 4 ? 0xc4922e : 0x5d5853;
+    const sk = 0x6f6a64, sk2 = 0x5d5853;
     add(el.body, [...[1, -1].flatMap(s => [P(G.sph(0.55, 12), sk, -1.3, 2.12, 0.3 * s, 0, 0, 0, 0.72, 1.1, 0.78), P(G.sph(0.42, 10), sk2, -1.0, 1.68, 0.5 * s, 0, 0, 0, 1, 1.15, 0.85)]), P(G.box(0.04, 0.9, 0.02), 0x3a3633, -1.66, 2.05, 0)], 0.025);
+    // 皮肤褶皱（char-010：屁股太光滑）：每瓣臀上几道弯的深色皱纹，后腿根一圈横纹
+    const wr = [];
+    for (const s of [1, -1]) for (let i = 0; i < 5; i++) { const y = 1.72 + i * 0.17, a = 0.35 + i * 0.12; wr.push(P(new THREE.TorusGeometry(0.42 - Math.abs(i - 2) * 0.05, 0.012, 4, 14, a * 2.4), 0x4a4643, -1.56 + Math.abs(i - 2) * 0.04, y, 0.3 * s, 0, PI / 2 + 0.25 * s, -a * 1.2)); }
+    for (const s of [1, -1]) for (let i = 0; i < 3; i++) wr.push(P(new THREE.TorusGeometry(0.36, 0.011, 4, 16, 2.2), 0x4a4643, -1.05, 1.42 + i * 0.1, 0.5 * s, PI / 2, 0, 2.2 + i * 0.1));
+    add(el.body, wr, 0.004);
     el.tail.children[0].visible = false; el.tail.position.set(-1.74, 2.72, 0); el.tail.rotation.z = -0.12;   // 往身后垂，别插进屁股里（原来往前偏，整条藏在臀里）
     const segs = [];
     for (let i = 0; i < 7; i++) segs.push(P(G.cyl(0.085 - i * 0.008, 0.077 - i * 0.008, 0.25, 8), 0x3a3633, 0, -0.12 - i * 0.24, 0));   // 尾巴垂到后腿弯，深色，金象身上也看得清
@@ -103,6 +108,39 @@ window.ElephantLV = (() => {
     for (const L of el.legs) { shell(new THREE.CylinderGeometry(0.31, 0.28, 0.85, 20, 1, true), [3, 1.4], L.hip, V(0, -0.4, 0)); shell(new THREE.CylinderGeometry(0.28, 0.31, 0.72, 20, 1, true), [3, 1.2], L.knee, V(0, -0.36, 0)); }
     add(el.body, [1, -1].flatMap(s => [0, 1, 2, 3, 4].map(i => P(G.cone(0.05, 0.2, 6), 0x9e2418, -0.95 + i * 0.42, 1.6, 1.03 * s, PI))), 0.01);   // 披挂下缘一排红缨
   }
+
+  // 象耳（char-010：正面要能看到巨大象耳，不能是黄金的，各级都要）
+  function ears(el, lv) {
+    el.ears.forEach((ear, i) => { const s = i ? -1 : 1, m = ear.children[0]; ear.scale.set(1.55, 1.45, 1.55); ear.rotation.y = s * 0.75; ear.rotation.x = s * 0.12; if (m && m.material) { m.material = m.material.clone(); m.material.color.setHex(0x5d5853); } });
+    if (lv >= 3) for (const [i, ear] of el.ears.entries()) add(ear, [P(G.box(0.02, 0.9, 0.03), 0x3a3633, -0.32, -0.1, 0.02 * (i ? -1 : 1), 0, 0, 0.2), P(G.box(0.02, 0.7, 0.03), 0x3a3633, -0.5, -0.1, 0.02 * (i ? -1 : 1), 0, 0, 0.5)], 0.004);   // 耳上的筋
+  }
+  // 亭子的支撑（char-010：「需要再加个支撑，不然感觉很容易掉下来」）：四根斜撑落到象背两侧 + 一条肚带
+  function brace(el, lv) {
+    const T = el.tower, big = lv >= 4, W = big ? 1.75 : 1.2, D = big ? 2.05 : 1.0, col = 0x2a2420, ps = [];
+    for (const [x, z] of [[1, 1], [1, -1], [-1, 1], [-1, -1]]) { const x0 = x * (W / 2 - 0.08), z0 = z * (D / 2 - 0.05), x1 = x * 0.35, z1 = z * 0.95, y1 = -0.75, len = Math.hypot(x1 - x0, y1, z1 - z0), mid = V((x0 + x1) / 2, y1 / 2, (z0 + z1) / 2), dir = V(x1 - x0, y1, z1 - z0).normalize(), e = new THREE.Euler().setFromQuaternion(new THREE.Quaternion().setFromUnitVectors(V(0, 1, 0), dir)); ps.push(P(G.cyl(0.035, 0.035, len, 6), col, mid.x, mid.y, mid.z, e.x, e.y, e.z)); }
+    ps.push(P(G.box(W + 0.1, 0.08, 0.1), col, 0, -0.04, D / 2), P(G.box(W + 0.1, 0.08, 0.1), col, 0, -0.04, -D / 2));
+    add(T, ps, 0.015);
+    add(el.body, [P(new THREE.TorusGeometry(1.0, 0.05, 6, 32), 0x1c1b1d, -0.15, 2.25, 0, 0, PI / 2, 0, 1, 1.08, 0.99), P(new THREE.TorusGeometry(1.0, 0.018, 4, 32), lv >= 4 ? GOLD2 : 0x7a2418, -0.09, 2.25, 0, 0, PI / 2, 0, 1.01, 1.09, 1.0)], 0.015);   // 肚带
+  }
+  // 顶饰（char-010：「顶盖上再加个更高的装饰物」）：宝顶 + 红缨，四级更高
+  function finial(el, lv) {
+    if (lv < 2) return;
+    const big = lv >= 4, H = big ? 1.95 : 1.8, top = H + (big ? 0.95 : 0.5), mt = big ? GOLD : BR;
+    add(el.tower, [P(G.cyl(0.025, 0.03, big ? 0.9 : 0.5, 6), mt, 0, top - (big ? 0.42 : 0.22), 0), ...[0, 1, 2].map(i => P(G.sph(0.07 - i * 0.012, 8), mt, 0, top - 0.45 + i * 0.22 * (big ? 1.4 : 0.8), 0, 0, 0, 0, 1, 0.6, 1)), P(G.cone(0.06, 0.24, 7), 0x9e2418, 0, top + 0.05, 0, PI), P(G.cone(0.04, big ? 0.32 : 0.22, 6), mt, 0, top + 0.2, 0)]);
+  }
+  // 四级：金甲只护象头和鼻根（char-010：「象头部分黄金作为防护，该露出象原色的地方还是要露出来」）；象牙加粗加长（「四级象的象牙再大一点」）
+  function goldHead(el) {
+    const mat = scaleTex(), sh = (geo, rep, grp, pos, sc) => { const m = Core.inked(geo, mat(rep), 0.012); m.position.copy(pos); if (sc) m.scale.copy(sc); grp.add(m); };
+    sh(new THREE.SphereGeometry(0.75, 28, 18, PI - 1.15, 2.3, 0, 1.75), [4, 2.5], el.head, V(0.36, -0.04, 0), V(0.96, 1.01, 0.87));
+    sh(new THREE.SphereGeometry(0.52, 22, 14, PI - 1.2, 2.4, 0, 1.6), [3, 2], el.head, V(0.56, 0.29, 0), V(0.81, 0.81, 1.01));
+    el.trunk.slice(0, 3).forEach((sg, i) => add(sg, [P(G.cyl(0.235 - i * 0.022, 0.235 - i * 0.022, 0.1, 10), GOLD, 0, -0.15, 0), P(G.cyl(0.24 - i * 0.022, 0.24 - i * 0.022, 0.02, 10), 0x9e2418, 0, -0.09, 0)]));
+    for (const s of [1, -1]) {   // 大象牙：比原来粗一倍、长三成，牙根金箍
+      const curve = new THREE.CatmullRomCurve3([V(0.72, -0.32, 0.22 * s), V(1.05, -0.72, 0.34 * s), V(1.55, -0.78, 0.42 * s), V(1.95, -0.42, 0.42 * s), V(2.08, -0.1, 0.38 * s)]);
+      el.head.add(Core.inked(new THREE.TubeGeometry(curve, 16, 0.095, 8), Core.toon(C.ivory), 0.015));
+      add(el.head, [P(G.cyl(0.13, 0.13, 0.12, 10), GOLD2, 0.86, -0.48, 0.27 * s, 0.35, 0, 0.7), P(G.cyl(0.115, 0.115, 0.05, 10), 0x9e2418, 0.95, -0.56, 0.3 * s, 0.35, 0, 0.75)]);
+    }
+    for (const L of el.legs) add(L.knee, [P(G.cyl(0.345, 0.35, 0.09, 12), GOLD, 0, -0.62, 0), P(G.cyl(0.35, 0.355, 0.025, 12), 0x9e2418, 0, -0.56, 0)]);   // 脚腕金箍
+  }
   function planB(el, lv) {
     flame(el.torch, 0, -0.05, 0, 0.7 + lv * 0.18);
     // Ham char-005：象身上红色少一点，主要是黑色——额上只留一道暗红细纹；二级起披挂一律黑底、红只做细边
@@ -120,7 +158,7 @@ window.ElephantLV = (() => {
     if (lv >= 4) {   // 背上一道火鬃
       for (let i = 0; i < 6; i++) flame(el.body, -1.0 + i * 0.38, 3.32, 0, 0.6 + Math.sin(i * 1.7) * 0.15);
     }
-    howdah(el, lv); rump(el, lv); if (lv >= 4) scales(el);
+    howdah(el, lv); rump(el, lv); ears(el, lv); brace(el, lv); finial(el, lv); if (lv >= 4) goldHead(el);
     if (lv >= 4) {   // 四级驾象人：黑金相间的铠甲 + 金权杖（Ham char-006）
       add(el.mahout, [P(G.box(0.46, 0.42, 0.36), 0x1c1b1d, 0, 1.12, 0), ...[0, 1, 2].map(i => P(G.box(0.47, 0.035, 0.37), GOLD2, 0, 0.95 + i * 0.14, 0)), ...[1, -1].map(s => P(G.sph(0.12, 7), GOLD, 0, 1.36, 0.24 * s, 0, 0, 0, 1, 0.7, 1)), P(G.cyl(0.13, 0.14, 0.1, 8), GOLD, 0, 1.62, 0)]);
       add(el.mahout, [P(G.cyl(0.03, 0.03, 1.3, 6), GOLD, 0.05, 1.35, 0.42, 0.15, 0, 0), P(G.sph(0.1, 8), GOLD2, 0.05, 2.02, 0.52), P(G.cone(0.05, 0.2, 6), GOLD2, 0.05, 2.18, 0.55, 0.15, 0, 0)]);
@@ -150,10 +188,10 @@ window.ElephantLV = (() => {
   const PLANS = { a: planA, b: planB, c: planC };
   function make(side = 'b', o = {}) {
     const lv = o.lv || 1, plan = o.plan || 'a';
-    const el = Models.makeElephant(side, { gold: lv >= 4 && plan !== 'c' });
+    const el = Models.makeElephant(side, { gold: lv >= 4 && plan === 'a' });   // Ham char-010：火象四级不整头镀金，金甲只护象头
     PLANS[plan](el, lv);
     el.lvScale = SCALE[lv - 1];
-    if (plan === 'b') { const k = 1 / el.lvScale; el.tower.scale.setScalar(k); el.mahout.scale.multiplyScalar(k); }   // Ham char-005：象变大，人不要变大
+    if (plan === 'b') { const k = (lv >= 4 ? 1.12 : 1) / el.lvScale; el.tower.scale.setScalar(k); el.mahout.scale.multiplyScalar(k); }   // 人不跟着象放大；四级的人稍大一点（char-010）   // Ham char-005：象变大，人不要变大
     return el;
   }
   return { make, SCALE };
