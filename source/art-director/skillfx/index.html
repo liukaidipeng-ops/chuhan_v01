@@ -53,7 +53,7 @@ const SK = {
            ['丙 · 墨印踏地', '一枚巨大的象足墨印从天而降盖在落点，墨花溅开，周围一圈一格格亮红。']] },
   qishe: { name: '齐射', who: '汉 · 相（四级）', rule: '不动身，射斜线 1～2 格内的一个敌子，扣 1 点。',
     opts: [['甲 · 箭雨（保底）', '七支箭从相身上划弧线飞出，错落落在目标周围，最后一支正中。'],
-           ['乙 · 乱箭点落', '七八支箭乱着冲天、飞出画面；静一拍后一支支从天上直直扎下来，嗒、嗒嗒、嗒……时疏时密，全钉在目标身上。'],
+           ['乙 · 乱箭点落', '七八支箭错开时刻、几乎垂直地冲天、飞出画面；静一拍后一支支从天上直直扎下来，嗒、嗒嗒、嗒……时疏时密，全钉在目标身上。'],
            ['丙 · 箭如骤雨', '三拨乱箭冲天消失；静一拍后先零星、再越落越密地直坠，落点先现小黑影，全扎在目标身上，最后一支粗箭正中。']] },
   hujia: { name: '护驾', who: '士（三级）', rule: '与帅（将）互换位置，可解将。',
     opts: [['甲 · 金盾换位', '士和帅一起腾起、交叉换位，帅的新位置前立起一面半透明金盾，一声铮响。'],
@@ -263,7 +263,7 @@ const FX = {
       if (o === 1) for (let i = 0; i < nUp; i++) launch.push(.25 + R() * .55);
       else for (let b = 0; b < 3; b++) for (let i = 0; i < 4; i++) launch.push([.2, .45, .66][b] + R() * .12);
       launch.sort((x, y) => x - y);
-      launch.forEach(t0 => { const az = R() * 6.283, tilt = .08 + R() * .35; ups.push({ a: arrow(.9), t0, v: 16 + R() * 10, dir: new THREE.Vector3(Math.cos(az) * Math.sin(tilt), Math.cos(tilt), Math.sin(az) * Math.sin(tilt)) }); });
+      launch.forEach(t0 => { const az = R() * 6.283, tilt = o === 1 ? .015 + R() * .06 : .08 + R() * .35; /* 乙：Ham 要几乎垂直向上冲（1～4 度） */ ups.push({ a: arrow(.9), t0, v: 16 + R() * 10, dir: new THREE.Vector3(Math.cos(az) * Math.sin(tilt), Math.cos(tilt), Math.sin(az) * Math.sin(tilt)) }); });
       // 落下的节奏：乙 有疏有密的固定拍子；丙 由疏到密，最后停一拍落一支粗箭
       const gaps = o === 1 ? [0, .26, .09, .3, .22, .08, .08, .34] : (() => { const g = [0]; for (let i = 1; i < 15; i++) g.push(Math.max(.035, .2 - i * .012) * (.7 + R() * .6)); g.push(.3); return g; })();
       let tl = 2.0; gaps.forEach((g, i) => { tl += g; const last = i === gaps.length - 1, rr = last ? 0 : (o === 1 ? .08 + R() * .24 : .05 + R() * .3), an = R() * 6.283, ox = Math.cos(an) * rr, oz = Math.sin(an) * rr;
