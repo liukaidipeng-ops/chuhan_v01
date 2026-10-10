@@ -15,6 +15,7 @@
 //   BFAI_TUNE_W=文件（相对 source/）：换上自动调出来的估值权重（fit.js --out 写的）；r30：对同底版霸王 83%、校尉 84%（f998d98 底版，bfai_tuned.js）
 //     BFAI_TUNE_FAST=1：权重写回原公式（tools/tune/score_w.js，和特征版逐个局面相等、不慢；上线用这个）
 //   BFAI_NODEX=x：节点上限 ×x（比“慢 12% 的打分”时给 0.88，和不慢的公平比）
+//   BFAI_PVS=1：主变搜索（排第 2 个起的着法先零窗口快试，落进窗口才全窗口重算）
 //   BFAI_REVALL=1|2：召回不按“车还在只救车”筛（1 车马炮都行，2 什么子都行）（g6）
 //   BFAI_ARTOPEN=汉,楚：主帅兵法现在就能用时，留着值几分（原来不管能不能用：汉 4、楚 3）
 //   BFAI_CHKMUST=1：被将军时，相 / 象 / 兵升一级攻击变大的（象二级起攻击 2，H50；兵三级起攻击 2，r6）也算“保命的升级”（TD 在 H52 问的）
@@ -26,7 +27,7 @@ const src0 = execFileSync('git', ['show', rev + ':source/src/bfai.js'], { cwd: p
 function build(E, tag) {
   let s = src0;
   const rep = (a, b) => { const n = s.split(a).length - 1; if (n !== 1) throw new Error(`bfai_next：锚点出现 ${n} 次：${a.slice(0, 80)}`); s = s.replace(a, () => b); };
-  const LMR2 = +(E.BFAI_LMR2 || 0), NMP = +(E.BFAI_NMP || 0), CHKMUST = +(E.BFAI_CHKMUST || 0), ROOTREL = +(E.BFAI_ROOTREL || 0), ROOTATK = +(E.BFAI_ROOTATK || 0), RLMR = +(E.BFAI_RLMR || 0), UPESC = +(E.BFAI_UPESC || 0), DYN = +(E.BFAI_DYN || 0), UP3K = +(E.BFAI_UP3K || 0), FASTFP = +(E.BFAI_FASTFP || 0), PSPLIT = +(E.BFAI_PSPLIT || 0), TUNEW = E.BFAI_TUNE_W || '', TUNEFAST = +(E.BFAI_TUNE_FAST || 0), REVALL = +(E.BFAI_REVALL || 0), ARTOPEN = E.BFAI_ARTOPEN || '';
+  const LMR2 = +(E.BFAI_LMR2 || 0), NMP = +(E.BFAI_NMP || 0), CHKMUST = +(E.BFAI_CHKMUST || 0), ROOTREL = +(E.BFAI_ROOTREL || 0), ROOTATK = +(E.BFAI_ROOTATK || 0), RLMR = +(E.BFAI_RLMR || 0), UPESC = +(E.BFAI_UPESC || 0), DYN = +(E.BFAI_DYN || 0), UP3K = +(E.BFAI_UP3K || 0), FASTFP = +(E.BFAI_FASTFP || 0), PSPLIT = +(E.BFAI_PSPLIT || 0), TUNEW = E.BFAI_TUNE_W || '', TUNEFAST = +(E.BFAI_TUNE_FAST || 0), REVALL = +(E.BFAI_REVALL || 0), ARTOPEN = E.BFAI_ARTOPEN || '', PVS = +(E.BFAI_PVS || 0);
   if (LMR2) rep('{ v = -ab(r.S, depth - 2, -alpha - 0.01, -alpha, ply + 1, ext); if (v > alpha)', '{ v = -ab(r.S, depth - 2 - (mi > ' + LMR2 + ' && depth >= 4 ? 1 : 0), -alpha - 0.01, -alpha, ply + 1, ext); if (v > alpha)');
   if (NMP) {
     rep('    let best = -INF, legal = 0, bm = null;',
@@ -160,6 +161,11 @@ function build(E, tag) {
       rep("const art = s => (S.used.art[s] ? 0 : s === 'r' ? 4 : bsOn() ? BSV : 3);", "const art = s => (S.used.art[s] ? 0 : artOpenFor(S, s) ? (s === 'r' ? " + vr + " : " + vb + ") : s === 'r' ? 4 : bsOn() ? BSV : 3);   // 变体 next：能用时留着值多少另算");
     }
     rep("  function baseVal(p, heavy) {", helper + "  function baseVal(p, heavy) {");
+  }
+  if (PVS) {   // 主变搜索：排第 2 个起、没走少算那条路的着法，先用零窗口快试，分数落进窗口里才按全窗口重算（理论上结果不变、节点更少）
+    rep('      else v = -ab(r.S, depth - 1, -beta, -alpha, ply + 1, ext);',
+      '      else if (mi > 1 && beta - alpha > 0.02) { v = -ab(r.S, depth - 1, -alpha - 0.01, -alpha, ply + 1, ext); if (v > alpha && v < beta) v = -ab(r.S, depth - 1, -beta, -alpha, ply + 1, ext); }   // 变体 next：主变搜索\n' +
+      '      else v = -ab(r.S, depth - 1, -beta, -alpha, ply + 1, ext);');
   }
   if (REVALL) {   // 召回不按兵种筛（g6：车还在时不肯召回三级炮；背水开着时召回本来就只有落后一半大子才能用）。1：车马炮都行；2：什么子都行
     rep("const ok = k => { const t = tOf(k.a.id); return t === 'r' || ((!rook || S.used.art.b > 0) && (t === 'c' || t === 'n')); };",
