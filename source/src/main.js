@@ -8,6 +8,7 @@
   // 更新说明（设置里、大厅底部点「更新」查看；最新的放最前）
   const NEWS = [
     ['第六版', '2026 年 10 月', [
+      '技能模式「拒马」有了新动作（美术画的）：几级就几个兵，压低重心、长矛斜指来敌（三级前二后一，四级金甲的斩马刀也前指），模型模式下拒马的两回合里一直摆着；敌方撞上矛尖先掉 1 点血——头顶飘「−1」、脚下血圈少一段、头马人立——然后面朝拒马倒退几步再冲。顺带修好：原来撞完是转身走回起点，再冲时背对着拒马',
       '联机、人机对局楚军获胜时的结算曲换成新写的两首，随机放一首：「乌骓」（马嘶、马蹄、古筝往上扬）、「楚凯」（编钟奏的庄重楚调，最后一声钟余音拉长）',
       '技能模式电脑会想到「先升级、攻击变大、再吃子」了（比如升象吃炮），原来这种升级被它的筛子挡掉（数值部改的，对原来的霸王不吃亏）',
       '结算画面多了「分 析」：电脑把整局每一步评一遍（佳 / 好 / 缓 / 失 / 错），底下一条兵势河看谁占优，点一枚兵符看这步该怎么走；「详解」结合前后几步讲清楚这步为什么错、应该怎么走、两条路走下去差多少，还能在棋盘上演示（Ham 选的方案三「沙盘兵势」）',
@@ -444,8 +445,8 @@
     if (e.k === 'mv') {
       const q = g.at(e.to[0], e.to[1]); let n = notation(g.board, e);
       // 被动走法（神速营 / 回防 / 铁甲禁卫）前面标出技能名
-      const mv = p && p.lv >= 4 ? g.legalFrom(e.from[0], e.from[1]).find(m => m.to[0] === e.to[0] && m.to[1] === e.to[1]) : null;
-      if (mv && mv.via) n = { shensu: '神速', huifang: '回防', jinwei: '禁衛' }[mv.via] + '·' + n;
+      const mv = p && p.lv >= 3 ? g.legalFrom(e.from[0], e.from[1]).find(m => m.to[0] === e.to[0] && m.to[1] === e.to[1]) : null;
+      if (mv && mv.via) n = { shensu: '神速', huifang: '回防', jinwei: '禁衛', feiyue: '飛越' }[mv.via] + '·' + n;
       return q && p && q.hp > g.atkOf(p) ? n + '·攻' : n;
     }
     if (e.k === 'sk' && p) {
@@ -2151,6 +2152,15 @@
     return null;
   }
   function bfAsk(a, from) {
+    // 飞越（Ham 10-10 改被动）：点了象眼被塞住的落点，先问一句用不用飞越
+    if (a.k === 'mv' && !a.fy) {
+      const m = selMoves.find(x => x.to[0] === a.to[0] && x.to[1] === a.to[1]), me = game.at(from[0], from[1]);
+      if (m && m.via === 'feiyue' && me) {
+        const cd = BF.CFG.skills.feiyue.cooldown;
+        ask('飞 越', `${XQ.NAMES[me.s].e}眼被塞住了，要用「飞越」强行跳过去吗？用了之后冷却 ${cd} 回合。`, 0, '飞 越', '不 用').then(y => { if (y && sel && sel[0] === from[0] && sel[1] === from[1]) bfAsk({ ...a, fy: 1 }, from); });
+        return;
+      }
+    }
     // 点了目标的技能一律先“瞄准”：目标被瞄准圈框住，下方出现「确定」，点了才发动（会伤到谁照旧先标出来）
     const aimed = a.k === 'sk' && !!a.to;
     const h = bfNeedConfirm(a) || (aimed ? (bfHarm(a) || { list: [], ev: [] }) : null);
@@ -2830,6 +2840,7 @@
     else if (info.k === 'ult') line = s === 'b' ? `鸿门宴：汉王 ${BF.CFG.ultimates.hongmen.rounds} 回合不得移动` : '四面楚歌：楚军军心涣散，动弹不得';
     else if (info.k === 'pass') line = `${SIDE_ARMY[s]}按兵不动`;
     if (info.k === 'mv' && info.extra && info.extra.via === 'shensu') line = `${nm(s, 'p')}神速营疾行` + (info.check ? '，将军！' : '');
+    if (info.k === 'mv' && info.extra && info.extra.via === 'feiyue') line = line ? line.replace(nm(s, 'e'), nm(s, 'e') + '飞越，') : `${nm(s, 'e')}飞越`;   // 被动飞越：在原句里标出来
     if (ev.some(x => x.e === 'final')) { line = (line ? line + '；' : '') + '决战：双方车马兵炮尽没，象、士、帅将皆可过河'; }
     const oc = ev.find(x => x.e === 'occupy');
     if (oc) line = (line ? line + '；' : '') + `${oc.s === 'r' ? '汉帅' : '楚将'}占住${oc.s === 'r' ? '楚' : '汉'}营九宫 ${oc.n}/${BF.CFG.finalOccupyRounds}` + (oc.n >= BF.CFG.finalOccupyRounds ? '，夺营！' : '');

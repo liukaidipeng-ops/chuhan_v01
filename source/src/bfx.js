@@ -254,7 +254,7 @@ const BFX = (() => {
     }
   }
   // 技能台词（被动技能没有）：用的时候说一句；技能杀了对方的子，再补一句。四级名将用自己的声音，三级用兵的声音
-  const PASSIVE = new Set(['jianta', 'shensu', 'huifang', 'jinwei']);
+  const PASSIVE = new Set(['jianta', 'shensu', 'huifang', 'jinwei', 'feiyue']);
   function skillLine(P0, sk, side, kill) {
     if (!P0 || PASSIVE.has(sk)) return 0;
     const hk = Fx.heroKey(P0);
@@ -278,6 +278,11 @@ const BFX = (() => {
         if (info.extra && info.extra.via === 'shensu') {
           // 被动「神速营」：疾奔越子，落到空位（不走普通的行军演出）
           await dash(before[info.from[1]][info.from[0]], info.from, info.to, side);
+          if (info.result) await Fx.checkStamp(XQ.other(side), info.result.reason === 'checkmate' ? '殺' : info.result.reason === 'kingdead' ? '斬' : info.result.reason === 'occupy' ? '奪' : '困', info.mateName);
+          else if (info.check) Fx.checkStamp(XQ.other(side));
+        } else if (info.extra && info.extra.via === 'feiyue') {
+          // 被动「飞越」：腾身一跃越过塞象眼的子（照原来主动技能的演法）
+          await feiyueLeap(before[info.from[1]][info.from[0]], info.from, info.to, before, ev, side, info);
           if (info.result) await Fx.checkStamp(XQ.other(side), info.result.reason === 'checkmate' ? '殺' : info.result.reason === 'kingdead' ? '斬' : info.result.reason === 'occupy' ? '奪' : '困', info.mateName);
           else if (info.check) Fx.checkStamp(XQ.other(side));
         } else {
@@ -394,6 +399,13 @@ const BFX = (() => {
     try { await skillFx(info, before); } finally { Fx.state.quiet = false; }
     if (active && sk !== 'juma' && sk !== 'hujia' && (info.ev || []).some(e => e.e === 'kill' && !e.friendly && e.s !== info.side)) skillLine(P0, sk, info.side, true);
   }
+  // 飞越：腾身一跃，越过塞住象眼的子落到田字对角（老棋谱里的主动飞越、现在的被动飞越都走这里）
+  async function feiyueLeap(P0, at, to, before, ev, side, info) {
+    const m = Board.pieces.get(P0.id), A = Board.pos(at[0], at[1]);
+    Sfx.B.whoosh(0, 0.5, 0.5); if (side === 'b') { try { Sfx.unit('ele').trumpet(); } catch (e) { } }
+    P.dust(A, 10, null, 0.3);
+    await leap(m, at, to, before, ev.filter(notTrample), side, 'e', info, null, 1.25, () => trampleFx(ev, side, { m }));
+  }
   async function skillFx(info, before) {
     const ev = info.ev, sk = info.extra.sk, side = info.side, at = info.from, to = info.to;
     const P0 = before[at[1]][at[0]];
@@ -453,11 +465,7 @@ const BFX = (() => {
       Sfx.B.neigh(0, 0.14, 'a'); Sfx.B.whoosh(0.1, 0.3, 0.4);
       await leap(m, at, to, before, ev, side, 'n', info, () => { Sfx.B.hooves(0, 0.5, 3, 0.4); });
     } else if (sk === 'feiyue') {
-      // 飞越：腾身一跃，越过塞住象眼的子落到田字对角
-      const m = Board.pieces.get(P0.id), A = Board.pos(at[0], at[1]), B = Board.pos(to[0], to[1]), mid = A.clone().lerp(B, 0.5);
-      Sfx.B.whoosh(0, 0.5, 0.5); if (side === 'b') { try { Sfx.unit('ele').trumpet(); } catch (e) { } }
-      P.dust(A, 10, null, 0.3);
-      await leap(m, at, to, before, ev.filter(notTrample), side, 'e', info, null, 1.25, () => trampleFx(ev, side, { m }));
+      await feiyueLeap(P0, at, to, before, ev, side, info);
     } else if (sk === 'pili') {
       // 雷霆炮击：一开炮就齐射覆盖目标和前后左右四格（炸成焦土），落弹之后才结算目标，炮最后再落位
       const T0 = before[to[1]][to[0]], m = Board.pieces.get(P0.id), A = Board.pos(at[0], at[1]), B = Board.pos(to[0], to[1]);
