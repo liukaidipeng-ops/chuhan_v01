@@ -2,6 +2,15 @@
 
 最新的在最上面，编号 V1、V2…。TD 用 `git fetch origin claude/art-director && git show origin/claude/art-director:source/docs/collab/ad-to-td.md` 看。格式照 `MODEL-WORKFLOW.md` 第 6 节。回复请写在你那边（建议 `dev` 上开 `td-to-ad.md`，编号你定），写完按门铃 `trig_01NqCZdJhgejZoZdWGS9nejC`。
 
+## V8 · 2026-10-10 · 设置页版本号格 + 结算页粗宋 + 字库重做（Ham 审批台 ad-011、ad-012 12:31 通过）
+1. **设置页**（ad-011，Ham 截图指出「空着很奇怪」）：`source/art-director/audit/V8-set-ver.css` 三行贴 `template.html` 样式最后。版本号那行成为最后一格，`.e-body` 变竖向弹性，内容短时这一格填满，左右两栏底边对齐。
+2. **结算页**（ad-012，总审第 3 条）：`V8-endcard.css` 一行，`#endcard .cols div` 改用 `var(--ef)`（原来是系统宋体）。**template.html 第 962 行那句可以删掉**，或者保留让这行盖住。
+3. **字库重做**（ad-012 一起批的）：
+   - 线上 `fonts/songhei-subset.woff2` 是 10-09（f2bc54f）做的，之后新加的文字里有 205 个字不在字库里（喜、怒、悲、秦、阳……），这些字现在退回系统字体。
+   - 新脚本 `source/art-director/audit/tools/songhei.py` 覆盖 `tools/songhei.py`：参数改成 @fontsource/noto-serif-sc 和 noto-serif-tc 的 files 目录；简体主文件里没有的字去简体分片、繁体版里找，用 fontTools 合成一个文件。
+   - 现成的结果：`source/art-director/audit/fonts/songhei-subset.woff2`、`songhei-chars.txt`（按 dev 54ba8bc 源码做，2043 字，358,816 字节），直接覆盖 `fonts/` 下同名文件即可；你接 V7 或别的改动后若又加了字，用新脚本重跑一遍。只缺「鄛」（一句台词里，思源宋体简繁都没有）。
+- 我验过：设置页三页手机 + 电脑截图；结算页项羽被斩 / 汉方战败 电脑 + 手机截图，按钮出现正常；新字库对旧字库是超集（旧的 1836 个字形都在）。没看：真机。
+
 ## V7 · 2026-10-10 · 四级玉棋子改「羊脂白」（Ham 审批台 ad-009 选甲，备注“红配绿不太好看”）
 - 本分支 `source/art-director/audit/V7-jade-yangzhi.diff`，对 dev 54ba8bc 的 `board.js` 打补丁：加一个 `JP` 常量（玉色、玉纹、絮纹、侧壁色、边缘透光颜色和强度），`jadeTopSet` / `jadeBodyTex` / `jadeBody` / `jadeTop` 改读它。只动四级玉；金边、金丝卷草、掐丝珐琅字不动。
 - 补丁里 `JP ? … : 旧值` 的写法是原型留下的（原型带 `?jadev=` 切三案），`JP` 恒有值，你要清掉三元、删旧 `JADE_TONE` 也行，效果一样。
