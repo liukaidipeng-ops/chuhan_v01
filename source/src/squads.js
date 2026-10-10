@@ -310,6 +310,8 @@ const Squads = (() => {
     async attack(target, c) {
       const { B, d } = c;
       this.setPose('ready'); snd('p', this.side).charge(real(1.4), this.sndN);
+      // 对上之前一群人吼一嗓子嘲讽（声音部 S2）：同一方 20 秒最多一次，免得吵
+      { const now = performance.now() / 1000, k = this.side; if (!(now - (tauntAt[k] || -99) < 20)) { tauntAt[k] = now; Sfx.B.taunt(0, 0.5); } }
       await sleep(0.25);
       this.setPose('charge');
       const start = this.anchor.clone(), end = B.clone().addScaledVector(d, -0.45);
@@ -321,6 +323,7 @@ const Squads = (() => {
         if (Math.random() < 0.4) { const u = this.units[Math.floor(Math.random() * this.units.length)]; if (Fx.onWater(u.p)) P.splash(u.p.clone().setY(0.05), 1, 0.4); else P.dust(u.p.clone(), 1, d, 0.16); }
       }, ease.in);
       this.units.forEach((u, i) => { if (i < 8) this.troop.act(i, 'thrust', 0.28, Math.random() * 0.1); });
+      if (Math.random() < 0.3) Sfx.B.sgrunt(0, 0.5);   // 出手的气声，三成概率（声音部 S2）
       snd('p', this.side).impact();
       Fx.slowmo(0.35, 0.12);
       Cam.shake(0.12);
@@ -329,11 +332,12 @@ const Squads = (() => {
       await sleep(0.3);
       this.units.forEach((u, i) => { if (i < 8) this.troop.act(i, 'thrust', 0.28, 0.1 + Math.random() * 0.15); });
       await dead;
-      this.setPose('wave'); Sfx.cheer(0, 0.5);
+      this.setPose('wave'); if (c.survive) Sfx.cheer(0, 0.5); else Sfx.B.victory(0, 0.55);   // 打倒对方：得胜齐吼（声音部 S2）
       await sleep(0.8);
     }
     brace() { this.setPose('brace'); }
   }
+  const tauntAt = {};
   // 刀盾近卫（士）
   class Guards extends TroopSquad {
     constructor(side, anchor, yaw, n = 0) {
@@ -1397,7 +1401,8 @@ const Squads = (() => {
   function hurtSquad(sq, hit, dir, power = 1, center) {
     const c = sq.center(0.3);
     if (sq.troop) {
-      if (sq.wall) sq.wall.shake(dir, 1.2);   // 只掉血：路障不碎，往后一挫晃两晃（M28）
+      if (sq.wall) sq.wall.shake(dir, 1.2);
+      if (sq instanceof Guards || sq.elite) Sfx.B.block(0, 0.6);   // 持盾的（士、四级金甲兵）挡下一击：盾挡声（声音部 S2，Ham：“所有盾牌格挡都会有音效”）   // 只掉血：路障不碎，往后一挫晃两晃（M28）
       const alive = sq.alive(), n = Math.max(1, Math.round(alive.length / 3));
       alive.slice(0, n).forEach(u => killUnit(sq.troop, u.i, hit === 'bolts' ? 'bolts' : hit === 'blast' ? 'blast' : 'stab', dir, power * 0.8, center || c));
       alive.slice(n).forEach(u => sq.troop.act(u.i, 'hit', 0.35, Math.random() * 0.2));

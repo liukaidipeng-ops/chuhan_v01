@@ -93,6 +93,7 @@ h1{font:600 26px/1.25 var(--serif);margin:0;letter-spacing:.06em;text-wrap:balan
 (() => {
   const $ = id => document.getElementById(id);
   const esc = s => String(s).replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
+  const link = s => esc(s).replace(/https:\/\/claude\.ai\/[A-Za-z0-9\/_\-]+/g, u => `<a href="${u}" target="_blank" rel="noopener">${u}</a>`);   // 说明里的网址能直接点开
   const V = [['yes', '就它'], ['ok', '还行'], ['no', '不行']];
   let clips = [], state = {}, db = null, canSave = false; const bulk = new Set();   // bulk：走量的台词，只标不满意的，不计入“已评”
 
@@ -156,8 +157,8 @@ h1{font:600 26px/1.25 var(--serif);margin:0;letter-spacing:.06em;text-wrap:balan
   // ---------- 画 ----------
   function render(data) {
     clips = []; bulk.clear();
-    const html = (data.batches || []).map((b, bi) => `<details class="batch"${bi ? '' : ' open'}><summary>${esc(b.title)} · ${esc(b.date || '')}</summary><p>${esc(b.note || '')}</p>` +
-      b.groups.map(g => `<div class="group"><h3><i>${esc(g.who)}</i>${esc(g.title)}</h3><p class="hint">${esc(g.hint || '')}</p>` +
+    const html = (data.batches || []).map((b, bi) => `<details class="batch"${bi ? '' : ' open'}><summary>${esc(b.title)} · ${esc(b.date || '')}</summary><p>${link(b.note || '')}</p>` +
+      b.groups.map(g => `<div class="group"><h3><i>${esc(g.who)}</i>${esc(g.title)}</h3><p class="hint">${link(g.hint || '')}</p>` +
         g.clips.map(c => { clips.push(c.id); if (g.bulk) bulk.add(c.id); return `<div class="clip" id="c-${c.id}" data-id="${c.id}">
           <button class="play" type="button" data-src="${esc(c.src)}" aria-label="播放：${esc(c.text)}">▶</button>
           <div class="what"><div class="lab">${esc(c.label)}<span class="dur"></span></div><div class="txt">${esc(c.text)}</div></div>
@@ -321,7 +322,7 @@ h1{font:600 26px/1.25 var(--serif);margin:0;letter-spacing:.06em;text-wrap:balan
     try {
       const how = await sendP;
       showAck(null); watchAck();
-      sendSt(how === 'comment' ? '✓ 已通知声音部（发了一条评论）。声音部会在这条评论下回你，上面也会亮绿色回执。' : '✓ 已通知声音部（按了门铃）。收到后上面会亮绿色回执。', 'ok');
+      sendSt(how === 'comment' ? '✓ 已通知声音部（发了一条评论）。声音部会在这条评论下回你，上面也会亮绿色回执。' : '评论没发出去，只按了门铃（门铃从页面按可能送不到），所以不算已通知。1 分钟内上面没亮绿色回执，请在聊天里叫我一声。评分已经存好了。', how === 'comment' ? 'ok' : 'bad');
       setBtns('再提交一次', false, true);
     } catch (e) { sentAt = 0; sendSt(why(e), 'bad'); setBtns('提 交'); }
     await saveP;
@@ -330,7 +331,7 @@ h1{font:600 26px/1.25 var(--serif);margin:0;letter-spacing:.06em;text-wrap:balan
   $('send').addEventListener('click', submit);
   $('ntest').addEventListener('click', async () => {
     $('ntest').disabled = true; sendSt('正在试发…');
-    try { const how = await notify('【声音部试听台】试发通知（Ham 点了“试发一条”）。收到请回执。', $('ntest'), 'test'); sentAt = Date.now(); showAck(null); sendSt(how === 'comment' ? '✓ 试发出去了（评论）。声音部会在评论下回你。' : '✓ 试发出去了（门铃）。', 'ok'); }
+    try { const how = await notify('【声音部试听台】试发通知（Ham 点了“试发一条”）。收到请回执。', $('ntest'), 'test'); sentAt = Date.now(); showAck(null); sendSt(how === 'comment' ? '✓ 试发出去了（评论）。声音部会在评论下回你。' : '评论没发出去，只按了门铃，可能送不到。看看上面的提示里写的原因。', how === 'comment' ? 'ok' : 'bad'); }
     catch (e) { sendSt(why(e), 'bad'); }
     $('ntest').disabled = false;
   });

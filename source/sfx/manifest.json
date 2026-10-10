@@ -1157,5 +1157,200 @@
    "dur": 0.243,
    "src": "试听台 b32 jade_1：CC0 录音"
   }
+ ],
+ "block": [
+  {
+   "f": "block_0.mp3",
+   "dur": 0.37,
+   "src": "0ad (CC BY-SA 3.0) shield_wood/shield_metal + CC0 (Kenney impact, lavenderdotpet wood-metal)；试听台 b37"
+  },
+  {
+   "f": "block_1.mp3",
+   "dur": 0.37,
+   "src": "0ad (CC BY-SA 3.0) shield_wood/shield_metal + CC0 (Kenney impact, lavenderdotpet wood-metal)；试听台 b37"
+  },
+  {
+   "f": "block_2.mp3",
+   "dur": 0.37,
+   "src": "0ad (CC BY-SA 3.0) shield_wood/shield_metal + CC0 (Kenney impact, lavenderdotpet wood-metal)；试听台 b37"
+  },
+  {
+   "f": "block_3.mp3",
+   "dur": 0.37,
+   "src": "0ad (CC BY-SA 3.0) shield_wood/shield_metal + CC0 (Kenney impact, lavenderdotpet wood-metal)；试听台 b37"
+  },
+  {
+   "f": "block_4.mp3",
+   "dur": 0.39,
+   "src": "0ad (CC BY-SA 3.0) shield_wood/shield_metal + CC0 (Kenney impact, lavenderdotpet wood-metal)；试听台 b37"
+  },
+  {
+   "f": "block_5.mp3",
+   "dur": 0.37,
+   "src": "0ad (CC BY-SA 3.0) shield_wood/shield_metal + CC0 (Kenney impact, lavenderdotpet wood-metal)；试听台 b37"
+  },
+  {
+   "f": "block_6.mp3",
+   "dur": 0.37,
+   "src": "0ad (CC BY-SA 3.0) shield_wood/shield_metal + CC0 (Kenney impact, lavenderdotpet wood-metal)；试听台 b37"
+  },
+  {
+   "f": "block_7.mp3",
+   "dur": 0.39,
+   "src": "0ad (CC BY-SA 3.0) shield_wood/shield_metal + CC0 (Kenney impact, lavenderdotpet wood-metal)；试听台 b37"
+  },
+  {
+   "f": "block_8.mp3",
+   "dur": 0.37,
+   "src": "0ad (CC BY-SA 3.0) shield_wood/shield_metal + CC0 (Kenney impact, lavenderdotpet wood-metal)；试听台 b37"
+  },
+  {
+   "f": "block_9.mp3",
+   "dur": 0.39,
+   "src": "0ad (CC BY-SA 3.0) shield_wood/shield_metal + CC0 (Kenney impact, lavenderdotpet wood-metal)；试听台 b37"
+  },
+  {
+   "f": "block_10.mp3",
+   "dur": 0.39,
+   "src": "0ad (CC BY-SA 3.0) shield_wood/shield_metal + CC0 (Kenney impact, lavenderdotpet wood-metal)；试听台 b37"
+  },
+  {
+   "f": "block_11.mp3",
+   "dur": 0.39,
+   "src": "0ad (CC BY-SA 3.0) shield_wood/shield_metal + CC0 (Kenney impact, lavenderdotpet wood-metal)；试听台 b37"
+  }
+ ],
+ "blockw": [
+  {
+   "f": "blockw_0.mp3",
+   "dur": 0.6,
+   "src": "0ad (CC BY-SA 3.0) shield_wood/shield_metal + CC0 (Kenney impact, lavenderdotpet wood-metal)；试听台 b37；带 0ad spear_attack"
+  },
+  {
+   "f": "blockw_1.mp3",
+   "dur": 0.6,
+   "src": "0ad (CC BY-SA 3.0) shield_wood/shield_metal + CC0 (Kenney impact, lavenderdotpet wood-metal)；试听台 b37；带 0ad spear_attack"
+  },
+  {
+   "f": "blockw_2.mp3",
+   "dur": 0.57,
+   "src": "0ad (CC BY-SA 3.0) shield_wood/shield_metal + CC0 (Kenney impact, lavenderdotpet wood-metal)；试听台 b37；带 0ad spear_attack"
+  }
+ ],
+ "sgrunt": [
+  {
+   "f": "sgrunt_0.mp3",
+   "dur": 0.73,
+   "src": "MegaGlest (CC BY-SA 3.0) guard_attack2；试听台 b40"
+  },
+  {
+   "f": "sgrunt_1.mp3",
+   "dur": 0.65,
+   "src": "MegaGlest (CC BY-SA 3.0) guard_attack5；试听台 b40"
+  },
+  {
+   "f": "sgrunt_2.mp3",
+   "dur": 0.89,
+   "src": "MegaGlest (CC BY-SA 3.0) guard_attack9；试听台 b40"
+  },
+  {
+   "f": "sgrunt_3.mp3",
+   "dur": 0.89,
+   "src": "MegaGlest (CC BY-SA 3.0) guard_attack13；试听台 b40"
+  },
+  {
+   "f": "sgrunt_4.mp3",
+   "dur": 0.73,
+   "src": "MegaGlest (CC BY-SA 3.0) guard_attack14；试听台 b40"
+  },
+  {
+   "f": "sgrunt_5.mp3",
+   "dur": 0.89,
+   "src": "MegaGlest (CC BY-SA 3.0) swordman_attack1；试听台 b40"
+  },
+  {
+   "f": "sgrunt_6.mp3",
+   "dur": 0.73,
+   "src": "MegaGlest (CC BY-SA 3.0) swordman_attack2；试听台 b40"
+  },
+  {
+   "f": "sgrunt_7.mp3",
+   "dur": 0.71,
+   "src": "MegaGlest (CC BY-SA 3.0) swordman_attack3；试听台 b40"
+  },
+  {
+   "f": "sgrunt_8.mp3",
+   "dur": 0.68,
+   "src": "MegaGlest (CC BY-SA 3.0) swordman_attack8；试听台 b40"
+  },
+  {
+   "f": "sgrunt_9.mp3",
+   "dur": 0.55,
+   "src": "MegaGlest (CC BY-SA 3.0) horseman_attack2；试听台 b40"
+  },
+  {
+   "f": "sgrunt_10.mp3",
+   "dur": 0.44,
+   "src": "MegaGlest (CC BY-SA 3.0) horseman_attack11；试听台 b40"
+  },
+  {
+   "f": "sgrunt_11.mp3",
+   "dur": 0.71,
+   "src": "MegaGlest (CC BY-SA 3.0) horseman_attack12；试听台 b40"
+  },
+  {
+   "f": "sgrunt_12.mp3",
+   "dur": 0.76,
+   "src": "MegaGlest (CC BY-SA 3.0) stickfighter_attack2；试听台 b40"
+  },
+  {
+   "f": "sgrunt_13.mp3",
+   "dur": 0.71,
+   "src": "MegaGlest (CC BY-SA 3.0) stickfighter_attack7；试听台 b40"
+  },
+  {
+   "f": "sgrunt_14.mp3",
+   "dur": 0.81,
+   "src": "MegaGlest (CC BY-SA 3.0) stickfighter_attack8；试听台 b40"
+  }
+ ],
+ "taunt": [
+  {
+   "f": "taunt_0.mp3",
+   "dur": 1.57,
+   "src": "MegaGlest (CC BY-SA 3.0) 多条 *_attack 叠成群吼；试听台 b40"
+  },
+  {
+   "f": "taunt_1.mp3",
+   "dur": 1.83,
+   "src": "MegaGlest (CC BY-SA 3.0) 多条 *_attack 叠成群吼；试听台 b40"
+  },
+  {
+   "f": "taunt_2.mp3",
+   "dur": 2.12,
+   "src": "MegaGlest (CC BY-SA 3.0) 多条 *_attack 叠成群吼；试听台 b40"
+  }
+ ],
+ "victory": [
+  {
+   "f": "victory_0.mp3",
+   "dur": 2.61,
+   "src": "MiniMax 合成（voicelab b42）+ 盾挡声；试听台 b42"
+  },
+  {
+   "f": "victory_1.mp3",
+   "dur": 1.83,
+   "src": "MiniMax 合成（voicelab b42）+ 盾挡声；试听台 b42"
+  },
+  {
+   "f": "victory_2.mp3",
+   "dur": 1.78,
+   "src": "MiniMax 合成（voicelab b42）+ 盾挡声；试听台 b42"
+  },
+  {
+   "f": "victory_3.mp3",
+   "dur": 1.88,
+   "src": "MiniMax 合成（voicelab b42）+ 盾挡声；试听台 b42"
+  }
  ]
 }

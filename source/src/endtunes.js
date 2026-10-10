@@ -58,6 +58,22 @@ const EndTunes = (() => {
           for (let i = 0; i < 8; i++) x.taiko(0.4 + i * b * 2, i % 2 ? 0.35 : 0.55, 0.85);
           x.pad(end - b * 4, ['D3', 'A3', 'Fs4'], 3.6, 0.035); x.gong(end - 0.6, 0.5);
         } },
+        // 声音部 10-10 试听台第三十六批：Ham 选「未央」，和「礼乐」随机放（“这俩随机放”）
+        { name: '未央', desc: '两声建鼓、一声锣开场；编钟和笛子齐奏一段明亮的宫调，古筝一串串往上拨，鼓点稳稳两下两下，最后一声长钟慢慢收', play(k) {
+        const x = I(k, 1.8); const S = (id, t, vol, rate = 1, i) => k.smp(id, { t, vol, rate, rj: 0, pan: 0, dest: x.D, i }); const b = 0.42;
+        x.taiko(0, 0.85, 0.8); x.taiko(0.42, 0.85, 0.8); S('gong', 0.84, 0.4, 0.8, 1);
+        const mel = [['A4', b], ['B4', b], ['D5', b * 2], ['E5', b], ['Fs5', b], ['E5', b * 2], ['D5', b], ['B4', b], ['A4', b * 2], ['B4', b], ['D5', b], ['E5', b], ['Fs5', b], ['A5', b * 2], ['Fs5', b], ['E5', b], ['D5', b * 4]];
+        const t0 = 1.3, end = seq(mel, t0, (t, f, d) => x.bell(t, f, 0.1, d >= b * 4 ? 6.5 : Math.max(1.5, d * 1.5)));
+        seq(mel, t0, (t, f, d) => x.flute(t, f, d, 0.05));
+        const last = end - b * 4;
+        for (let i = 0; i < 6; i++) { const tt = t0 + i * b * 4; ['D4', 'Fs4', 'A4', 'D5'].forEach((n, j) => x.zheng(tt + j * 0.07, hz(n), 0.3, 0.14 + j * 0.02)); }
+        for (let i = 0; i < 12; i++) { const tt = t0 + i * b * 2; x.taiko(tt, i % 2 ? 0.32 : 0.5, 0.85); x.shime(tt + b, 0.08); }
+        x.qin(t0, hz('D2'), 1, 0.3); x.qin(t0 + b * 8, hz('A2'), 1, 0.28); x.qin(last, hz('D2'), 1, 0.32);
+        x.taiko(last, 0.9, 0.75); S('gong', last + 0.02, 0.5, 0.75, 0);
+        x.bell(last + 0.04, hz('D4'), 0.06, 7); x.bell(last + 0.06, hz('A4'), 0.04, 6);
+        x.zheng(last + 0.8, hz('Fs5'), 1, 0.07); x.zheng(last + 1.15, hz('A5'), 1, 0.06);
+        x.pad(last, ['D3', 'A3', 'Fs4'], 7, 0.026);
+      } },
       ],
       lose: [
         { name: '残阳', desc: '二胡慢慢拉一段往下走的旋律，底下低低的心跳鼓，最后一声轻锣', play(k) {
@@ -78,6 +94,17 @@ const EndTunes = (() => {
           const end = seq([['D4', 1.0], ['A3', 1.0], ['B3', 0.6], ['A3', 0.6], ['Fs3', 1.4], ['E3', 0.8], ['D3', 2.2], ['Fs3', 0.8], ['A3', 0.8], ['B3', 0.6], ['D4', 1.2], ['A3', 0.9], ['D3', 3.0]], 0.6, (t, f, d) => { x.qin(t, f, d, 0.32); if (d > 1) x.qin(t + 0.02, f * 2, d, 0.06); }, 1.08);
           x.wind(0.2, end + 1, 0.05); x.pad(end - 4, ['D3', 'A3'], 5, 0.025);
         } },
+        // 声音部 10-10 试听台第三十六批：Ham 选「荥阳」，和原曲随机放（“这俩随机放”）
+        { name: '荥阳', desc: '风声里一支洞箫低低地吹一段往下走的宫调，古琴隔一会儿拨一声低音，远处闷鼓像心跳，最后一声轻锣，余音很长', play(k) {
+        const x = I(k, 1.0); const S = (id, t, vol, rate = 1, i) => k.smp(id, { t, vol, rate, rj: 0, pan: 0, dest: x.D, i }); const b = 0.8;
+        x.wind(0, 16, 0.045);
+        const mel = [['A4', b * 2], ['Fs4', b], ['E4', b], ['D4', b * 2.5], [null, b * 0.5], ['E4', b], ['Fs4', b], ['A4', b * 1.5], ['B4', b * 0.5], ['A4', b], ['Fs4', b], ['E4', b * 2], ['D4', b * 4]];
+        const end = seq(mel, 0.6, (t, f, d) => x.flute(t, f / 2, d, 0.11));
+        const last = end - b * 4;
+        [['D2', 0.3], ['A2', 3.5], ['Fs2', 6.6], ['D2', last]].forEach(([n, t]) => x.qin(t, hz(n), 1, 0.3));
+        for (let i = 0; i < 9; i++) { const tt = 1.0 + i * 1.5; x.taiko(tt, 0.22, 0.7); x.taiko(tt + 0.28, 0.14, 0.72); }
+        S('gong', last + 0.1, 0.22, 0.7, 1); x.pad(last, ['D3', 'A3'], 6, 0.022);
+      } },
       ],
     },
     b: {   // 楚
@@ -176,7 +203,8 @@ const EndTunes = (() => {
   // 挑定之前用原来那两首（Music.stinger 的老曲子）；PICK.r.win = 1 表示汉胜用第二个方案，以此类推
   //   Ham 10-09 21:38 试听台第二十八批：汉胜用方案三「礼乐」、楚败用方案三「乌江」；汉败留原曲，楚胜三个都没过，也先用原曲
   //   Ham 10-10 试听台第三十批：楚胜挑了「乌骓」「楚凯」两首，随机放（数组 = 从里面随机挑一首）
-  const PICK = { r: { win: 2, lose: null }, b: { win: [4, 5], lose: 2 } };
+  //   声音部 10-10 试听台第三十六批：汉胜「礼乐」「未央」随机；汉败原曲（null = 老曲子）和「荥阳」随机
+  const PICK = { r: { win: [2, 3], lose: [null, 3] }, b: { win: [4, 5], lose: 2 } };
   return {
     T, PICK,
     // 放一首：side 'r' / 'b'，kind 'win' / 'lose'；n 不给就用挑定的那个。挑定之前返回 false（调用的地方照旧放老曲子）
