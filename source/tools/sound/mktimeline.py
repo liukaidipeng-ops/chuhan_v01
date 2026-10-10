@@ -85,8 +85,40 @@ def volley2():
     return c
 def morewood(t0, n, base=0):
     return [(t0 + 0.05 * k + 0.02 * (k % 2), S('woodbreak', k), base - 1.2 * k, (0.8, 1.15, 0.9, 1.25, 0.75)[k % 5]) for k in range(n)]
+# 第四十四批（b47）：“箭飞行的声音要干脆一点，为什么老找这种想回旋镖的音效啊？”
+#   查出来：弩手现身 / 化烟用的 twirl（旋转呼呼风声）最像回旋镖，四批都在 → 去掉；放箭只留 0.12 秒，不要任何拖尾
+def snap(n):   # 放箭“嘣”：0.12 秒，快速收尾
+    y, off = release(n); y = y[:int(0.12 * SR)]; return y * np.minimum(1, (len(y) - np.arange(len(y))) / (0.04 * SR)), off
+def zip_(k):   # 箭飞：极短很尖的“咻”（挥空声加速 2.2 倍、只留高频、0.12 秒）
+    x = rate(S('swing', k), 2.2); x = x[:int(0.12 * SR)]
+    from scipy.signal import butter, sosfilt
+    x = sosfilt(butter(4, 2500, 'hp', fs=SR, output='sos'), x)
+    return x * np.minimum(1, np.minimum(np.arange(len(x)) / (0.01 * SR), (len(x) - np.arange(len(x))) / (0.05 * SR)))
+ARROW = 'snap'
+def volley3():
+    c = [(0.45, S('creak'), -12), (0.55, S('chain'), -16)]
+    for j, t in enumerate(SHOTS):
+        y, off = snap(1 + j); c.append((t - off, y, -2))
+        if ARROW == 'zip': c.append((t + 0.02, zip_(j), -6))
+        if ARROW == 'thunk': c.append((t, S('thunk', j), -6))
+    c += [(0.90, A('impact/shield_wood_05'), -3), (0.90, A('impact/arrow_metal_04'), -12),
+          (1.15, A('impact/fleshimp_11'), -2), (1.17, S('pain'), -5)]
+    return c
 import sys as _s
 OUTS = _s.argv[4:] or ['all']
+if 'b47' in OUTS:
+    for m in ('snap', 'zip', 'thunk'):
+        ARROW = m; V.save(render(volley3(), 2.4), O + f'/juma_xiang_hit_{m}.mp3', '64k')
+    ARROW = 'snap'
+    tail = [(1.36, LION(2), -1), (1.42, S('paws'), -8), (1.70, S('boom'), -12), (1.70, S('punch'), -4), (1.75, S('death'), -5), (1.8, S('stones'), -10), (1.9, S('plank'), -8), (2.05, S('wood'), -8), (2.2, LION(1), -2)]
+    V.save(render(volley3() + tail + morewood(1.70, 7, 3), 3.0), O + '/juma_xiang_kill.mp3', '64k')
+    ek = [(0.0, S('elecry'), -4), *[(t, S('stomp'), -6, 0.8) for t in (0.1, 0.35, 0.6)], (0.0, S('elerun'), -10),
+      *morewood(0.80, 16, 5), (0.80, S('boom'), -8), (0.80, S('rumble'), -10), (0.84, S('death'), -4), (0.9, S('sgrunt'), -6),
+      (1.0, S('rockfall'), -10), (1.1, S('plank'), -2), (1.2, S('plank'), -4, 1.2), (1.25, S('wood'), -3), (1.35, S('wood'), -5, 1.3), (1.4, S('plank'), -5, 0.8), (1.5, S('wood'), -6),
+      (1.62, S('soft'), -4, 0.8), (1.62, S('stones'), -6), (1.75, S('plank'), -8),
+      *[(t, S('stomp'), -6, 0.8) for t in (1.2, 1.5)], (1.8, S('elecry'), -2, 0.92)]
+    V.save(render(ek, 2.6), O + '/juma_ele_kill.mp3', '64k'); print('b47 ok')
+    raise SystemExit
 if 'b46' in OUTS:
     MODE = 'bow'
     V.save(render(volley2(), 2.4), O + '/juma_xiang_hit_2.mp3', '64k')
