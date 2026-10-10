@@ -17,7 +17,12 @@ const Core = (() => {
   if (softGL && !userQ) quality = 'low';
   // 排查用的开关（网址后面加，例如 ?noaa&lowp）：noaa 关多重采样抗锯齿，lowp 不点名要独立显卡。10-09 查 Ham 电脑上窗口卡死用
   const DIAG = new URLSearchParams(location.search);
-  const renderer = new THREE.WebGLRenderer({ canvas, antialias: quality !== 'low' && !DIAG.has('noaa'), powerPreference: DIAG.has('lowp') ? 'default' : 'high-performance' });
+  // 省电（Ham 10-10：手机发烫）：画面没在动的时候每秒只画 30 帧（高刷手机原来跟着屏幕 90 / 120 帧在画）；影子不再每帧重算，有东西在动时才算；
+  //   手机上关多重采样抗锯齿。现在先用网址 ?eco=1 打开试；?eco=0 强制关
+  const ECO = DIAG.get('eco') === '1';
+  let activeUntil = 0;
+  const poke = (ms = 1500) => { const t = performance.now() + ms; if (t > activeUntil) activeUntil = t; };
+  const renderer = new THREE.WebGLRenderer({ canvas, antialias: quality !== 'low' && !DIAG.has('noaa') && !(ECO && isMobile), powerPreference: DIAG.has('lowp') ? 'default' : 'high-performance' });
   // 像素比：按画质封顶，再按“整张画布最多多少像素”封顶。大屏、高分屏全屏时画布能有上千万像素（还带多重采样），
   //   显卡（尤其集成显卡）吃不消，会拖累整台电脑（10-09 Ham：高配电脑卡、拖成独立窗口时所有软件都卡住）
   const PX_BUDGET = { high: 3.7e6, mid: 2.4e6, low: 1.4e6 };
@@ -29,6 +34,7 @@ const Core = (() => {
   renderer.debug.checkShaderErrors = false;   // 线上不查着色器报错：查一次要同步等显卡编完，第一次画东西时会卡
   renderer.shadowMap.enabled = quality !== 'low';
   renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+  if (ECO) renderer.shadowMap.autoUpdate = false;
   renderer.toneMapping = THREE.ACESFilmicToneMapping;
   renderer.toneMappingExposure = 1.0;
 
@@ -178,6 +184,7 @@ const Core = (() => {
         this.pos.lerp(p, 1 - Math.exp(-dt * 10));
         this.look.lerp(this.target, 1 - Math.exp(-dt * 10));
       }
+      if (ECO && (this.cine || this.shakeAmp > 0.001 || this.pos.distanceToSquared(camera.position) > 1e-6)) poke(250);   // 镜头还在动：照常帧率
       camera.position.copy(this.pos);
       const lk = this.lk || (this.lk = new THREE.Vector3()); lk.copy(this.look);
       if (this.shakeAmp > 0.001) {
@@ -250,8 +257,15 @@ const Core = (() => {
   // 帧时间（真实的，不封顶）：自动降画质和 ?perf 面板用
   const ft = { n: 0, sum: 0, slow: 0, last: performance.now() };
   let nap = 0;
+  let lastDraw = 0, shT = 0;
+  if (ECO) for (const ev of ['pointerdown', 'pointermove', 'wheel', 'touchstart', 'touchmove', 'keydown']) addEventListener(ev, () => poke(1500), { passive: true, capture: true });   // 手一碰就恢复满帧
   function loop() {
     requestAnimationFrame(loop);
+    if (ECO) {   // 省电：没在动就 30 帧（跳过的这一帧什么都不做，时间留到下一帧一起推）
+      const t = performance.now();
+      if (t > activeUntil && t - lastDraw < 31) return;
+      lastDraw = t;
+    }
     { const t = performance.now(), d = t - ft.last; ft.last = t; if (Core.render && d < 1000) { ft.n++; ft.sum += d; if (d > 40) ft.slow++; } }
     let raw = Math.min(clock.getDelta(), 0.05);
     // 大厅整屏盖着、场景不画的时候（main.js 设 sleepy）：动画每 0.1 秒才推一次——兵营里的小兵、旗子照样在动，
@@ -260,6 +274,7 @@ const Core = (() => {
     const dt = Time.hold ? 0 : raw * (Time.skip ? 14 : Time.scale) * Time.boost;   // hold：暂停，演出全部定住
     Time.t += dt;
     for (const u of Array.from(updaters)) u(dt);
+    if (ECO && renderer.shadowMap.enabled && (performance.now() < activeUntil || (shT += raw) > 0.5)) { renderer.shadowMap.needsUpdate = true; shT = 0; }
     for (const h of frameHooks) h(dt, raw);
     Cam.update(raw);
     if (Core.render && !held) renderer.render(scene, camera);   // held：换影子开关后，新着色器还在后台编，先停画（不然当场同步编、卡住）
@@ -465,7 +480,7 @@ const Core = (() => {
     setQuality(q, keep = true) { quality = q; if (keep) try { localStorage.setItem('xq3d-quality', JSON.stringify(q)); } catch (e) { } const sh = q !== 'low'; if (sh) renderer.shadowMap.enabled = true; if (sun.castShadow !== sh) { sun.castShadow = sh; held++; const un = () => { held--; }; compileBg(scene, camera, 600).then(un); } resize(); },   // keep=false：只这一次打开页面有效（自动降画质用）。
     // 影子用太阳的 castShadow 开关：三维库会发现灯光变了、自动重编着色器，当场生效（原来改 shadowMap.enabled 要下次打开才生效）
     gpu: GPU, softGL, DIAG, get parallelGL() { return parallelGL; }, get userQ() { return userQ; },
-    isMobile,
+    isMobile, ECO, poke,
     renderer, scene, camera, sun, hemi, Time, onFrame, tween, sleep, ease, Cam, canvasTex, Tex, rnd, inkBlot,
     toon, outlineMat, outlineShared, inked, merge, M4, disposeTree, compileBg, viewShift, get shiftNow() { return shiftF.slice(); },
     start() { clock.start(); loop(); },

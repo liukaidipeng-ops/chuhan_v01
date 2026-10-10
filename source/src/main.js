@@ -4393,6 +4393,8 @@
   const urlRoom = (q.get('room') || '').toUpperCase();
   const hostRec = store.get('host', null);
   // （主帅兵法用哪一套由每一局的 opts.bs 决定，见 startGame；网址带 ?beishui=0 时，这台机器新开的局回到破釜沉舟）
+  // 省电（?eco=1）：演出、结算、自动复盘、电脑在走的时候照常满帧
+  if (Core.ECO) Core.onFrame(() => { if (busy || Ending.running || (RP && RP.playing) || document.body.classList.contains('cine')) Core.poke(300); });
   window.__xq = {
     get busy() { return busy; }, get started() { return started; }, get game() { return game; }, get mode() { return mode; }, get aiThinking() { return aiThinking; },
     doMove, startGame, finishGame, Ending, Fx, Board, Core, Camp, Squads, Spect, setView, onData, Net, requestUndo, sendEmote, get clock() { return clock; }, get opts() { return opts; }, joinRoom, notation, get notes() { return notes; }, aiSay,
