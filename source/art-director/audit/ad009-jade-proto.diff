@@ -1,0 +1,73 @@
+diff --git a/source/src/board.js b/source/src/board.js
+index ead3937..6995bf6 100644
+--- a/source/src/board.js
++++ b/source/src/board.js
+@@ -983,23 +983,30 @@ const Board = (() => {
+   // 玉色：比先前压暗一档的暖白（不发灰、不偏绿），中心略亮；顺着同一走向的几团“棉絮”；细密的毡状结构（每枚子走向不同）
+   //   素面另加几缕流云状的青灰水线
+   const JADE_TONE = [['#e2dccb', '#d6ceb9', '#c8bea4', '#b4a784'], ['#e4dfd0', '#d9d2be', '#cbc2a9', '#b7ab8a'], ['#dfd8c4', '#d3cab2', '#c4b99c', '#b0a27d']];
++  // 玉色三案（美术总监总审第 10 条，?jadev=1 羊脂白 / 2 青白 / 3 碧玉；0 = 现在）
++  const JV = Math.max(0, Math.min(3, +(Core.DIAG.get('jadev') || 0)));
++  const JP = [null,
++    { tone: ['#efe2c4', '#e2d0aa', '#d0b88c', '#b59a6a'], vein: ['#d4b98a', '#e9dcc2', '#cdb48a'], fluff: '#fffdf6', body: ['#e2d2b0', '#d6c29c', '#ecdfc2', '#c2a87c'], fleck: '#c8aa78', glow: 0xffc070, k: [0.1, 1.1], em: 0x30220a, fl: 3 },
++    { tone: ['#cfe0cc', '#bad0b6', '#a0bb9c', '#80a07d'], vein: ['#7f9d86', '#e8efe4', '#6f8e78'], fluff: '#f2f8ee', body: ['#c9d8c4', '#b9cbb4', '#d7e3d3', '#9fb59a'], fleck: '#8aa38a', glow: 0xbfe8c8, k: [0.06, 0.7], em: 0x142a1a, fl: 2 },
++    { tone: ['#5a8a69', '#477657', '#355f44', '#22432f'], vein: ['#86b58d', '#1e2c22', '#9ccaa3'], fluff: '#a6d6ae', body: ['#3f6e50', '#345b42', '#4d7e5d', '#264631'], fleck: '#101a13', glow: 0x86e2a6, k: [0.05, 0.52], em: 0x0c1a10 },
++  ][JV];
+   function jadeTopSet(v, style) {
+     const c = TN / 2, relief = jadeRelief(style), hc = relief && blurred(relief, 1.2);
+     const col = mkCanvas(TN, TN, g => {
+-      const gr = g.createRadialGradient(c * (0.78 + 0.08 * v), c * 0.8, 10, c, c, c), W3 = JADE_TONE[v];
++      const gr = g.createRadialGradient(c * (0.78 + 0.08 * v), c * 0.8, 10, c, c, c), W3 = JP ? JP.tone : JADE_TONE[v];
+       gr.addColorStop(0, W3[0]); gr.addColorStop(0.5, W3[1]); gr.addColorStop(0.86, W3[2]); gr.addColorStop(1, W3[3]);
+       g.fillStyle = gr; g.fillRect(0, 0, TN, TN);
+       const ang = rnd() * Math.PI;
+       for (let k = 0; k < 5; k++) {
+         const cx = c + (rnd() - 0.5) * TN * 0.7, cy = c + (rnd() - 0.5) * TN * 0.7;
+-        for (let i = 0; i < 24; i++) { g.globalAlpha = 0.03 + rnd() * 0.07; g.fillStyle = '#fbf8ef'; g.beginPath(); g.ellipse(cx + (rnd() - 0.5) * 130, cy + (rnd() - 0.5) * 60, 10 + rnd() * 50, 3 + rnd() * 12, ang + (rnd() - 0.5) * 0.7, 0, 7); g.fill(); }
++        for (let i = 0; i < 24; i++) { g.globalAlpha = (0.03 + rnd() * 0.07) * (JP && JP.fl || 1); g.fillStyle = JP ? JP.fluff : '#fbf8ef'; g.beginPath(); g.ellipse(cx + (rnd() - 0.5) * 130, cy + (rnd() - 0.5) * 60, 10 + rnd() * 50, 3 + rnd() * 12, ang + (rnd() - 0.5) * 0.7, 0, 7); g.fill(); }
+       }
+       {
+         // 天然玉理：几缕宽而淡的青灰 / 蜜黄流云带，两三道细白筋（素面明显些，有雕纹的只留一点）
+         const K = style === 'su' ? 1 : 0.45;
+         g.lineCap = 'round';
+         for (let k = 0; k < 7; k++) {
+-          g.globalAlpha = (0.1 + rnd() * 0.1) * K; g.strokeStyle = k % 3 === 0 ? '#c2a160' : k % 3 === 1 ? '#8f9a82' : '#a39c84'; g.lineWidth = 8 + rnd() * 30;
++          g.globalAlpha = (0.1 + rnd() * 0.1) * K * (JP && JP.fl || 1); g.strokeStyle = JP ? JP.vein[k % 3] : k % 3 === 0 ? '#c2a160' : k % 3 === 1 ? '#8f9a82' : '#a39c84'; g.lineWidth = 8 + rnd() * 30;
+           let x = -40, y = rnd() * TN; g.beginPath(); g.moveTo(x, y);
+           for (let i = 0; i < 6; i++) { const nx = x + 90 + rnd() * 50, ny = y + (rnd() - 0.5) * 120; g.bezierCurveTo(x + 40, y + (rnd() - 0.5) * 80, nx - 40, ny + (rnd() - 0.5) * 80, nx, ny); x = nx; y = ny; }
+           g.save(); g.translate(c, c); g.rotate(ang); g.translate(-c, -c); g.filter = 'blur(5px)'; g.stroke(); g.filter = 'none'; g.restore();
+@@ -1011,7 +1018,7 @@ const Board = (() => {
+           g.filter = 'blur(0.6px)'; g.stroke(); g.filter = 'none';
+         }
+       }
+-      for (let i = 0; i < 3000; i++) { g.globalAlpha = 0.025 + rnd() * 0.04; g.fillStyle = rnd() < 0.5 ? '#ffffff' : '#c9b78e'; g.fillRect(rnd() * TN, rnd() * TN, 1 + rnd() * 2, 1); }
++      for (let i = 0; i < 3000; i++) { g.globalAlpha = 0.025 + rnd() * 0.04; g.fillStyle = rnd() < 0.5 ? (JP ? JP.fluff : '#ffffff') : (JP ? JP.fleck : '#c9b78e'); g.fillRect(rnd() * TN, rnd() * TN, 1 + rnd() * 2, 1); }
+       g.globalAlpha = 1;
+       if (hc) {
+         // 刻线里积色略深、略暖；凸起处磨得发亮
+@@ -1036,11 +1043,11 @@ const Board = (() => {
+   function jadeBodyTex(v) {
+     return sTex(mkCanvas(1024, 256, (g, w, h) => {
+       // 车削体 UV：侧壁只占 v 0.5~0.6（画布 0.4h~0.5h 两行之间）
+-      g.fillStyle = '#d6cdb7'; g.fillRect(0, 0, w, h);
++      g.fillStyle = JP ? JP.body[1] : '#d6cdb7'; g.fillRect(0, 0, w, h);
+       const y0 = h * 0.39, y1 = h * 0.51;
+-      const gr = g.createLinearGradient(0, y0, 0, y1); gr.addColorStop(0, '#d0c5aa'); gr.addColorStop(0.45, '#dfd8c6'); gr.addColorStop(1, '#c4b693');
++      const gr = g.createLinearGradient(0, y0, 0, y1); gr.addColorStop(0, JP ? JP.body[0] : '#d0c5aa'); gr.addColorStop(0.45, JP ? JP.body[2] : '#dfd8c6'); gr.addColorStop(1, JP ? JP.body[3] : '#c4b693');
+       g.fillStyle = gr; g.fillRect(0, y0, w, y1 - y0);
+-      for (let i = 0; i < 90; i++) { g.globalAlpha = 0.04 + rnd() * 0.08; g.fillStyle = rnd() < 0.75 ? '#faf6ec' : '#cdb98a'; g.beginPath(); g.ellipse(rnd() * w, y0 + rnd() * (y1 - y0), 14 + rnd() * 70, 2 + rnd() * 6, (rnd() - 0.5) * 0.3, 0, 7); g.fill(); }
++      for (let i = 0; i < 90; i++) { g.globalAlpha = 0.04 + rnd() * 0.08; g.fillStyle = rnd() < 0.75 ? (JP ? JP.fluff : '#faf6ec') : (JP ? JP.fleck : '#cdb98a'); g.beginPath(); g.ellipse(rnd() * w, y0 + rnd() * (y1 - y0), 14 + rnd() * 70, 2 + rnd() * 6, (rnd() - 0.5) * 0.3, 0, 7); g.fill(); }
+       g.globalAlpha = 1;
+     }), true);
+   }
+@@ -1070,8 +1077,8 @@ const Board = (() => {
+     const metal = (color, rough, extra = {}) => phys({ color, metalness: MET, roughness: rough, envMapIntensity: 1, ...E, ...extra });
+     const top = o => { const m = metal(o.color, 1, { map: o.t.map, roughnessMap: o.t.orm, metalnessMap: o.t.orm, normalMap: o.t.normal, normalScale: new THREE.Vector2(1, 1), anisotropy: SK.anisoTop, anisotropyMap: o.t.aniso, envMapIntensity: o.env, polygonOffset: true, polygonOffsetFactor: -1 }); return m; };
+     const gold = metal(GOLD_RIM, 0.13);
+-    const jadeBody = v => jadeGlow(phys({ map: jadeBodyTex(v), color: 0xffffff, metalness: 0, roughness: 0.4, clearcoat: 0.6, clearcoatRoughness: 0.16, sheen: 0.3, sheenColor: new THREE.Color(0xfff0d8), sheenRoughness: 0.5, emissive: 0x2a2012, emissiveIntensity: 0.25, envMapIntensity: 0.45, ...E }), 0xffcf8e, 0.04, 0.42);
+-    const jadeTop = v => { const t = jadeTopSet(v, SK.jade); return jadeGlow(phys({ map: t.map, normalMap: t.normal, ...(t.rough ? { roughnessMap: t.rough, roughness: 0.4 } : { roughness: 0.36 }), color: 0xffffff, metalness: 0, clearcoat: 0.55, clearcoatRoughness: 0.18, sheen: 0.3, sheenColor: new THREE.Color(0xfff2de), emissive: 0x2a2012, emissiveIntensity: 0.22, envMapIntensity: 0.4, polygonOffset: true, polygonOffsetFactor: -1, ...E }), 0xffd49a, 0.03, 0.24); };
++    const jadeBody = v => jadeGlow(phys({ map: jadeBodyTex(v), color: 0xffffff, metalness: 0, roughness: 0.4, clearcoat: 0.6, clearcoatRoughness: 0.16, sheen: 0.3, sheenColor: new THREE.Color(0xfff0d8), sheenRoughness: 0.5, emissive: JP ? JP.em : 0x2a2012, emissiveIntensity: 0.25, envMapIntensity: 0.45, ...E }), JP ? JP.glow : 0xffcf8e, JP ? JP.k[0] : 0.04, JP ? JP.k[1] : 0.42);
++    const jadeTop = v => { const t = jadeTopSet(v, SK.jade); return jadeGlow(phys({ map: t.map, normalMap: t.normal, ...(t.rough ? { roughnessMap: t.rough, roughness: 0.4 } : { roughness: 0.36 }), color: 0xffffff, metalness: 0, clearcoat: 0.55, clearcoatRoughness: 0.18, sheen: 0.3, sheenColor: new THREE.Color(0xfff2de), emissive: JP ? JP.em : 0x2a2012, emissiveIntensity: 0.22, envMapIntensity: 0.4, polygonOffset: true, polygonOffsetFactor: -1, ...E }), JP ? JP.glow : 0xffd49a, JP ? JP.k[0] * 0.8 : 0.03, JP ? JP.k[1] * 0.6 : 0.24); };
+     skins = {
+       2: {
+         body: metal(SILVER, 0.13),
