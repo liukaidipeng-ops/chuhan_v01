@@ -20,8 +20,8 @@
 | 数值部（Balance） | 规则数值、平衡、电脑（AI）训练 | session_01Gtcra5Sh6u7nQHPfESA3Sb | `claude/gallant-planck-rwr5az` | `source/tools/`（模拟、调权重、复盘）、`source/docs/collab/code-to-chat.md`、`decisions.md`、`advisors/handoff.md`、`advisors/numbers-to-advisors.md` | Balance拍板单 https://claude.ai/artifact/QaxqVmNF1p2XQiAx8MygEM |
 | 美术（Art，忙完结算动画后改名角色部） | 角色设计、建模、绑定、动画 | session_01NcqhjTJxdTrUxQtViN2iri | `model-lab` | 见 `MODEL-WORKFLOW.md` 第 1 节 | 审批台 https://claude.ai/artifact/79HGpeuQGk3jehJmHsJsfn |
 | 美术总监（朱墨） | 界面（UI）、棋盘、整体视觉方向 | session_01U1d5RrViuCEaT74h7UkG2M | `claude/art-director` | 交接后：`template.html` 的样式和页面结构（不动 `id`、`data-*`、`main.js`）、`face.js`、`merit.js`、`luozi.js`、`upfx.js`、`fonts/songhei-*`、`tools/songhei.py`、`tools/uishot*.py`、`docs/UI-DESIGN.md`（Ham 10-10 拍板单 ad-01、ad-02；正式接手等美术交完结算动画） | 自建审批台（待建） |
-| 顾问部 | 技能设计和方向建议（只写方案，不碰代码） | session_01PArjH8NToP8HANDN6f4JxG | `claude/advisors` | `source/docs/collab/advisors/advice.md` | 待建（顾问部拍板单） |
-| 声音部 | 配音、音效、音乐 | 待开 | 建议 `claude/sound`（另用 `voice-lab` 合成配音） | 草案见 `SOUND-WORKFLOW.md` 第 1 节，Ham 点头、TD 同意后生效 | 配音试听台 https://claude.ai/artifact/DGdGe1guoi1pB8UUNDfkS5 |
+| 顾问部 | 技能设计和方向建议（只写方案，不碰代码） | session_01PArjH8NToP8HANDN6f4JxG | `claude/advisors` | `source/docs/collab/advisors/advice.md`、`source/docs/collab/decisions-顾问部.md` | 顾问部拍板单 https://claude.ai/artifact/G3AvboWSGdEgqRYePb6Uer |
+| 声音部 | 配音、音效、音乐 | session_01VsbsKR759MUraiT41MaEAU（10-10 开） | `claude/sound`（另用 `voice-lab` 合成配音） | 草案见 `SOUND-WORKFLOW.md` 第 1 节，Ham 点头、TD 同意后生效 | 配音试听台 https://claude.ai/artifact/DGdGe1guoi1pB8UUNDfkS5 |
 | 只读数值部 | 旁观，不推分支、不排模拟 | session_01Qxpa47Er1bd8ntv9aw5DgN | — | — | — |
 
 以后开新部门（CG 组等），在这张表里加一行。
