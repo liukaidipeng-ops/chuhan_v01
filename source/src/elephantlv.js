@@ -1,5 +1,6 @@
 // 楚战象：和汉相一样按等级换造型（Ham 10-10：「不额外增加象的数量，楚战象每级的造型会有变化，越变越牛逼越帅！体型可能也会变大」）
-// 三个方案 a / b / c，各一到四级。底子是 Models.makeElephant，在它的 body / head / tower / 腿上加件。设计稿用，不进游戏。
+// 三个方案 a / b / c，各一到四级。底子是 Models.makeElephant，在它的 body / head / tower / 腿上加件。
+// Ham 选定方案 b「火象」（char-008 起，四级定稿 char-018）。对局里用 ElephantLV.make(side, { lv, plan: 'b' })；a / c 只留着对照。见 model-to-main.md M31。
 window.ElephantLV = (() => {
   const { P, G, inkedMerged, C } = Models, PI = Math.PI, V = (x, y, z) => new THREE.Vector3(x, y, z);
   const SCALE = [1, 1.1, 1.22, 1.36];   // 一级到四级，越来越大
@@ -208,26 +209,4 @@ window.ElephantLV = (() => {
     return el;
   }
   return { make, SCALE };
-})();
-// 摆台：同一方案一到四级并排
-window.ELD = (() => {
-  const V3 = THREE.Vector3, PI = Math.PI, EL = 0.22, root = () => Board.pieces.values().next().value.parent;
-  let items = [], S = null;
-  const hideNear = (p, r) => { for (const m of Board.pieces.values()) if (Math.hypot(m.position.x - p.x, m.position.z - p.z) < r) m.visible = false; };
-  function clear() { for (const x of items) x.parent && x.parent.remove(x); items = []; }
-  function lineup(plan, o = {}) {
-    clear();
-    const c = Board.pos(4, 4), gap = o.gap ?? 1.7, yaw = o.yaw ?? 0.52;   // 象头朝镜头右前方
-    for (const m of Board.pieces.values()) m.visible = false;
-    const els = [1, 2, 3, 4].map((lv, i) => { const e = ElephantLV.make('b', { lv, plan }); e.group.scale.setScalar(EL * e.lvScale); e.group.position.set(c.x + (i - 1.5) * gap, Board.TOP, c.z); e.group.rotation.y = yaw - PI / 2; root().add(e.group); items.push(e.group); e.fire = plan === 'b' ? 1 : 0; e.update(0.016); return e; });
-    S = { c, els };
-    return els.length;
-  }
-  function cam(o = {}) {
-    const c = S.c, d = o.d ?? 5.6, el = o.el ?? 0.32, az = o.az ?? 0;
-    const pos = new V3(c.x + (o.lx ?? 0) + Math.sin(az) * Math.cos(el) * d, Board.TOP + Math.sin(el) * d, c.z + Math.cos(az) * Math.cos(el) * d);
-    Core.Cam.cine = true; document.body.classList.add('cine');
-    return Core.Cam.to(pos, new V3(c.x + (o.lx ?? 0), Board.TOP + (o.lh ?? 0.55), c.z), 0.05);
-  }
-  return { lineup, cam };
 })();
