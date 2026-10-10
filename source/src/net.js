@@ -260,6 +260,7 @@ const Net = (() => {
     get connected() { return anyOk() && peerState === 'ok'; },
     get lineOk() { return anyOk(); },
     get peerState() { return peerState; },
+    get peerAge() { return peerSeen ? Date.now() - peerSeen : Infinity; },   // 对方上一次有音信到现在多少毫秒（信号格用）
     get role() { return role; }, get code() { return code; },
     custom: '',
   };

@@ -47,6 +47,116 @@ const Models = (() => {
     g.userData.geo = geo;
     return g;
   }
+
+  // ---------- 部件合并（Ham 10-09 审批台 td-002 选 A 的第二件：兵种模型的小零件合成一块画） ----------
+  //   一个「单元」（一匹马、一个车轮、一个骑士……会被单独甩飞、单独藏起的那一块）里所有标准卡通材质的零件，
+  //   合成一张蒙皮网格 + 一张描边网格。原来的零件原地留着当骨头（放到第 31 层，镜头和影子都不画它），
+  //   动画代码照旧转它们的组、挪它们、藏它们（visible），合成的网格每帧按它们摆——画面不变，几十次画变成两次。
+  //   子树里已经是单元的（userData.fuse）跳过，由它自己的合成网格画；甩飞、复制（四级车的分身）都靠这个边界。
+  //   网址带 ?fuse=0 关掉（对比用）
+  const FUSE_ON = !(typeof location !== 'undefined' && /[?&]fuse=0/.test(location.search));
+  const HIDE_LAYER = 31;
+  const _rel = new THREE.Matrix4(), _nm = new THREE.Matrix3(), _fs = new THREE.Vector3(), _zero = new THREE.Matrix4().set(0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0);
+  // 金色范围的颜色在 vcMat 上会按金属画；单色零件原来不是这样画的，合进去会变样，所以金色的单色零件不合
+  const goldish = c => { const r = Math.max(c.r, 1e-3), ss = (a, b, x) => { const t = Math.min(1, Math.max(0, (x - a) / (b - a))); return t * t * (3 - 2 * t); };
+    return ss(0.3, 0.42, c.r) * ss(0.42, 0.52, c.g / r) * (1 - ss(0.3, 0.42, c.b / r)) > 0.01; };
+  const plainToon = mt => mt && !Array.isArray(mt) && mt.isMeshToonMaterial && !mt.map && !mt.vertexColors && !mt.transparent && mt.opacity === 1 && !mt.alphaTest
+    && mt.side === THREE.FrontSide && mt.gradientMap === vcMat.gradientMap && (!mt.emissive || mt.emissive.getHex() === 0) && !mt.userData.noFuse
+    && mt.onBeforeCompile === THREE.Material.prototype.onBeforeCompile && !goldish(mt.color);
+  function fuse(root, opt = {}) {
+    root.userData.fuse = true;
+    if (!FUSE_ON) return root;
+    root.updateMatrixWorld(true);
+    const rootInv = new THREE.Matrix4().copy(root.matrixWorld).invert();
+    const main = [], ink = [];
+    const walk = o => {
+      for (const c of o.children) {
+        if (c.userData.fuse || c.userData.noFuse) continue;
+        if (c.isMesh && !c.isSkinnedMesh && !c.isInstancedMesh && c.geometry && c.geometry.attributes.position && c.layers.mask === 1) {
+          const mt = c.material;
+          if ((mt === vcMat || plainToon(mt)) && c.castShadow && !c.receiveShadow) main.push(c);   // 不投影子的零件不合（合进去会多出影子）
+          else if (mt === outlineShared) ink.push(c);
+        }
+        walk(c);
+      }
+    };
+    walk(root);
+    if (main.length < (opt.min || 3)) return root;
+    // 只合相对单元根是等比缩放的零件（描边的粗细按法线方向推，缩放不等比会变粗变细）
+    const ok = m => { _rel.multiplyMatrices(rootInv, m.matrixWorld); _fs.setFromMatrixScale(_rel); return Math.abs(_fs.x - _fs.y) < 0.02 * _fs.x && Math.abs(_fs.x - _fs.z) < 0.02 * _fs.x && Math.abs(_fs.x - 1) < 0.02; };
+    const mains = main.filter(ok), bones = [], boneOf = new Map();
+    for (const m of mains) { boneOf.set(m, bones.length); bones.push(m); }
+    // 描边：和主件同一份几何、同一个位置的，跟着主件那根骨头
+    const inks = [];
+    for (const o of ink) {
+      if (!ok(o)) continue;
+      const m = o.parent && o.parent.children.find(x => x !== o && x.geometry === o.geometry && boneOf.has(x));
+      if (m) inks.push([o, boneOf.get(m)]);
+      else { boneOf.set(o, bones.length); inks.push([o, bones.length]); bones.push(o); }
+    }
+    const build = (list, withColor) => {
+      let n = 0; const items = [];
+      for (const [m, bi] of list) { const g = m.geometry.index ? m.geometry.toNonIndexed() : m.geometry; items.push([m, bi, g]); n += g.attributes.position.count; }
+      const pos = new Float32Array(n * 3), nor = new Float32Array(n * 3), col = withColor ? new Float32Array(n * 3) : null, si = new Uint16Array(n * 4), sw = new Float32Array(n * 4);
+      let o = 0;
+      for (const [m, bi, g] of items) {
+        _rel.multiplyMatrices(rootInv, m.matrixWorld); _nm.getNormalMatrix(_rel);
+        const P = g.attributes.position, N = g.attributes.normal, C = g.attributes.color, v = new THREE.Vector3(), c = m.material.color;
+        for (let i = 0; i < P.count; i++, o++) {
+          v.fromBufferAttribute(P, i).applyMatrix4(_rel); pos[o * 3] = v.x; pos[o * 3 + 1] = v.y; pos[o * 3 + 2] = v.z;
+          if (N) { v.fromBufferAttribute(N, i).applyMatrix3(_nm).normalize(); nor[o * 3] = v.x; nor[o * 3 + 1] = v.y; nor[o * 3 + 2] = v.z; }
+          if (col) { if (m.material === vcMat && C) { col[o * 3] = C.getX(i); col[o * 3 + 1] = C.getY(i); col[o * 3 + 2] = C.getZ(i); } else { col[o * 3] = c.r; col[o * 3 + 1] = c.g; col[o * 3 + 2] = c.b; } }
+          si[o * 4] = bi; sw[o * 4] = 1;
+        }
+        if (g !== m.geometry) g.dispose();
+      }
+      const geo = new THREE.BufferGeometry();
+      geo.setAttribute('position', new THREE.BufferAttribute(pos, 3)); geo.setAttribute('normal', new THREE.BufferAttribute(nor, 3));
+      if (col) geo.setAttribute('color', new THREE.BufferAttribute(col, 3));
+      geo.setAttribute('skinIndex', new THREE.Uint16BufferAttribute(si, 4)); geo.setAttribute('skinWeight', new THREE.BufferAttribute(sw, 4));
+      return geo;
+    };
+    const skel = new THREE.Skeleton(bones);
+    skel.fuseRoot = root;
+    hideAware(skel);
+    const mk = (geo, mat, shadow) => {
+      const s = new THREE.SkinnedMesh(geo, mat); s.castShadow = shadow; s.userData.fused = true;
+      // 视锥剔除用摆好时的包围球放大一半（腿、轮、颈在单元里动不出这个范围；会甩飞的部件各是各的单元）
+      geo.computeBoundingSphere(); s.boundingSphere = geo.boundingSphere.clone(); s.boundingSphere.radius *= 1.5;
+      root.add(s); s.updateMatrixWorld(true); s.bind(skel, s.matrixWorld.clone());
+      return s;
+    };
+    mk(build(mains.map(m => [m, boneOf.get(m)]), true), vcMat, true);
+    if (inks.length) mk(build(inks, false), outlineShared, false);
+    for (const b of bones) b.layers.set(HIDE_LAYER);
+    root.userData.fusedN = bones.length;
+    return root;
+  }
+  // 骨头（原零件）或它往上到单元根之间哪一层藏起来了（visible = false），合成网格上这一块也不画（矩阵置零，面缩成一点）
+  function hideAware(skel) {
+    const up = THREE.Skeleton.prototype.update;
+    skel.update = function () {
+      up.call(this);
+      const bones = this.bones, bm = this.boneMatrices, root = this.fuseRoot;
+      for (let i = 0; i < bones.length; i++) {
+        let o = bones[i], show = true;
+        while (o && o !== root) { if (!o.visible) { show = false; break; } o = o.parent; }
+        if (!show) _zero.toArray(bm, i * 16);
+      }
+    };
+  }
+  // 复制出来的模型（四级车、象、炮的分身）：合成网格改绑到复制品自己的骨头上。a、b 是原件、复制品按同一顺序 traverse 的结果
+  function rebindClone(a, b) {
+    const map = new Map(); for (let i = 0; i < a.length && i < b.length; i++) map.set(a[i], b[i]);
+    const skels = new Map();
+    for (let i = 0; i < a.length && i < b.length; i++) {
+      if (!b[i].isSkinnedMesh || !a[i].skeleton) continue;
+      const s0 = a[i].skeleton;
+      let s1 = skels.get(s0);
+      if (!s1) { s1 = new THREE.Skeleton(s0.bones.map(x => map.get(x) || x), s0.boneInverses.map(m => m.clone())); s1.fuseRoot = map.get(s0.fuseRoot) || s0.fuseRoot; hideAware(s1); skels.set(s0, s1); }
+      b[i].bind(s1, a[i].bindMatrix.clone());
+    }
+  }
   const keep = g => { g.userData.keep = true; return g; };
   function jiShape() { // 戟的月牙刃
     const s = new THREE.Shape();
@@ -578,6 +688,7 @@ const Models = (() => {
         if (this.dead) { this.bodyPivot.rotation.x = this.deadSide * this.dead * 1.45; this.bodyPivot.position.y = this.dead * 0.2; }
       },
     };
+    fuse(g);   // 一匹马三十块合成两块（骑手、项羽之后才挂上去，各自另算）
     return horse;
   }
 
@@ -637,6 +748,8 @@ const Models = (() => {
       const w2 = new THREE.Group(); w2.position.y = -0.45; w2.add(hammer()); w2.rotation.x = 0.2; arm2.add(w2);
       arm2.rotation.x = 0.3; arm2.rotation.z = 0.9; g.add(arm2);
     }
+    head.userData.fuse = true;   // 头会被单独砍飞
+    fuse(g);
     return { group: g, arm, arm2, weapon, cape, head, torso };
   }
   function makeCavalry(side, heavy = true, weapon = 'dao', opt = {}) {
@@ -711,6 +824,9 @@ const Models = (() => {
       h.group.scale.setScalar(0.82);
       g.add(h.group); horses.push(h);
     }
+    for (const w of wheels) fuse(w);   // 车轮、车夫、甲士死时各自甩飞：各算一块
+    driver.userData.fuse = warrior.userData.fuse = true;
+    fuse(g);
     return {
       group: g, cab: cabG, axle, pole, wheels, horses, crew: [driver, warrior], speed: 0, t: 0,
       update(dt) {
@@ -762,6 +878,9 @@ const Models = (() => {
     const flame = new THREE.Sprite(new THREE.SpriteMaterial({ map: Core.Tex.spark, color: 0xffa040, blending: THREE.AdditiveBlending, depthWrite: false, transparent: true }));
     flame.position.set(0.2, 0.32, 0); flame.scale.setScalar(0.45); torch.add(flame);
     if (opts.torch !== false) g.add(torch);
+    fuse(barrel);   // 炮管死时滚落，单独一块；火药桶会藏起来（visible），合成网格会跟着藏
+    if (crew) crew.userData.fuse = true;
+    fuse(g);
     return { group: g, barrel, carriage, wheels, keg, crew, muzzle: new THREE.Vector3(1.3, 0, 0), torch, flame };
   }
 
@@ -869,6 +988,8 @@ const Models = (() => {
     const flame = new THREE.Sprite(new THREE.SpriteMaterial({ map: Core.Tex.spark, color: 0xff8a30, blending: THREE.AdditiveBlending, depthWrite: false, transparent: true }));
     flame.position.y = -0.1; flame.scale.setScalar(0.001); torch.add(flame);
     tail.rotation.z = 0.35;
+    archer.userData.fuse = true; fuse(tower);   // 塔（连象奴）死时整个坠落：单独一块
+    fuse(g);
     return {
       group: g, root, body, head, trunk, ears, legs, tail, torch, flame, tower, archer, mahout, banner,
       t: rnd() * 5, speed: 0, rearK: 0, trumpetK: 0, dead: 0, fire: 0,
@@ -1253,6 +1374,7 @@ const Models = (() => {
     const geo = new THREE.PlaneGeometry(1.2, 1.8, 10, 4); geo.translate(0.6, 0, 0);
     const flag = new THREE.Mesh(geo, new THREE.MeshToonMaterial({ map: tex, side: THREE.DoubleSide }));
     flag.position.set(0.03, 3.0, 0); g.add(flag);
+    g.userData.noFuse = true;   // 旗子另画（会随风改顶点）
     const base = geo.attributes.position.array.slice();
     let t = rnd() * 5;
     return {
@@ -1270,6 +1392,7 @@ const Models = (() => {
     SIDE, C, G, P, inkedMerged, soldierPartGeos, soldierStatic, Troop, Army: Troop, TroopBatch, PARTS, POSES,
     makeHorse, makeRider, makeCavalry, cavalryStaticGeo, makeChariot, makeCannon, makeElephant, makeAdvisorCart, makeBoat, makeBoatman,
     makeHero, makeXiangYu, makeWuzhui, makeLiuBang, makeBanner, vcMat, jiShape,
+    fuse, rebindClone, get FUSE() { return FUSE_ON; },
     soldierGeo: (side, kind) => soldierPartGeos(side, kind).body,
   };
 })();

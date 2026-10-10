@@ -102,6 +102,55 @@ const EndTunes = (() => {
           x.pad(1.0, ['D3', 'A3'], 2.8, 0.04); x.pad(3.7, ['F3', 'C4'], 2.8, 0.04); x.pad(6.4, ['D3', 'A3', 'D4'], 3.4, 0.045);
           march(x, 1.0, 20, 0.36, 0.38); x.shout(2.6, 14, 0.07, 1); x.gong(end - 0.4, 0.9);
         } },
+        // —— 第二批（Ham 10-10 08:31「楚胜结算曲你再编几个」）：上一批三首都没过；汉胜挑中的「礼乐」、楚败挑中的「乌江」都是弹拨、钟、鼓这类，
+        //   这批不用合成的铜管、唢呐、人声，改用古筝 / 琵琶轮指、编钟、真鼓、真锣，几首各有性子 ——
+        { name: '彭城', desc: '鼓点一路催上来，琵琶轮指奏一段昂扬的楚调，低音古琴压阵，最后三下重鼓、一声锣、远处将士齐呼', play(k) {
+          const x = I(k, 1.25), S = (id, t, vol, rate = 1, i) => k.smp(id, { t, vol, rate, rj: 0, pan: 0, dest: x.D, i });
+          let t = 0, g = 0.34; while (t < 1.45) { x.taiko(t, 0.35 + t * 0.3, 1); t += g; g = Math.max(0.1, g * 0.8); }
+          x.taiko(1.6, 1, 0.8); S('gong', 1.6, 0.5, 0.8, 0);
+          const end = seq([['D5', 0.8], ['C5', 0.4], ['A4', 0.4], ['G4', 0.4], ['A4', 0.4], ['C5', 0.4], ['D5', 0.4], ['F5', 0.8], ['D5', 0.4], ['C5', 0.4], ['A4', 1.2], ['G4', 0.4], ['A4', 0.4], ['C5', 0.4], ['A4', 0.4], ['D5', 1.6]], 1.6, (tt, f, d) => x.trem(tt, f, d, 0.12));
+          for (let i = 0; i < 12; i++) { const tt = 1.6 + i * 0.8; x.qin(tt, hz(['D3', 'A2', 'C3', 'A2'][i % 4]), 0.8, 0.28); x.taiko(tt, i % 2 ? 0.45 : 0.7, 0.85); x.shime(tt + 0.4, 0.09); }
+          [0, 0.2, 0.4].forEach(dt => x.taiko(end - 0.4 + dt, 1, 0.8)); S('gong', end + 0.05, 0.7, 0.75, 1); S('warcry', end + 0.1, 0.22, 0.92, 0);
+          x.bell(end + 0.05, hz('D4'), 0.08, 3); x.bell(end + 0.05, hz('A4'), 0.05, 2.6); x.pad(end - 1.6, ['D3', 'A3', 'D4'], 4, 0.035);
+        } },
+        { name: '乌骓', desc: '一声马嘶、马蹄奔来，古筝一串串往上扬，鼓点像马蹄一样三连，最后马蹄停住、一声钟', play(k) {
+          const x = I(k, 1.5), S = (id, t, vol, rate = 1, i) => k.smp(id, { t, vol, rate, rj: 0, pan: 0, dest: x.D, i });
+          S('neigha', 0, 0.45, 1, 0); S('hoofwar', 0.3, 0.4, 1, 0); S('hoofwar', 3.4, 0.32, 1, 0);
+          for (let i = 0; i < 16; i++) { const tt = 0.6 + i * 0.48; x.taiko(tt, i % 4 === 0 ? 0.6 : 0.32, 1.05); x.taiko(tt + 0.12, 0.2, 1.15); x.taiko(tt + 0.24, 0.26, 1.1); }
+          const run = (t0, ns, v = 0.2) => ns.forEach((n, i) => x.zheng(t0 + i * 0.08, hz(n), 0.3, v * (0.75 + 0.25 * i / ns.length)));
+          run(0.6, ['D4', 'F4', 'G4', 'A4', 'C5', 'D5']); run(2.52, ['G4', 'A4', 'C5', 'D5', 'F5', 'G5']); run(4.44, ['A4', 'C5', 'D5', 'F5', 'G5', 'A5']);
+          const end = seq([['D5', 0.48], ['C5', 0.24], ['D5', 0.24], ['F5', 0.48], ['G5', 0.48], ['A5', 0.72], ['G5', 0.24], ['F5', 0.24], ['D5', 0.24], ['C5', 0.48], ['D5', 1.6]], 5.4, (tt, f, d) => d >= 0.7 ? x.trem(tt, f, d, 0.12) : x.zheng(tt, f, d, 0.22));
+          for (let i = 0; i < 6; i++) x.qin(1.56 + i * 1.92, hz(['D3', 'C3', 'D3', 'A2', 'C3', 'D3'][i]), 1, 0.26);
+          S('neighm', end - 1.0, 0.3, 1, 0); x.taiko(end - 0.2, 0.9, 0.85); x.bell(end, hz('D5'), 0.09, 3); x.bell(end, hz('A4'), 0.06, 2.4); S('gong', end, 0.45, 0.85, 0);
+        } },
+        { name: '楚凯', desc: '编钟奏一段庄重的楚调（羽调，比汉的「礼乐」低沉），古筝拨和声，大鼓两下两下地打，一声深锣收住', play(k) {
+          const x = I(k, 1.85), S = (id, t, vol, rate = 1, i) => k.smp(id, { t, vol, rate, rj: 0, pan: 0, dest: x.D, i }); const b = 0.55;
+          x.taiko(0, 0.8, 0.8); S('gong', 0, 0.35, 0.7, 1);
+          // 最后一音（D5）拉长：钟声余韵 6 秒，下面低八度、五度的钟和一层长长的和声慢慢收（Ham 10-10 试听台：「结尾那一声收尾可以拉得再长一点，现在结束得非常硬」）
+          const end = seq([['D5', b * 2], ['A4', b], ['C5', b], ['D5', b * 2], ['F5', b], ['D5', b], ['C5', b * 2], ['A4', b * 2], ['G4', b], ['A4', b], ['D5', b * 4]], 0.5, (t, f, d) => x.bell(t, f, 0.11, d >= b * 4 ? 6.5 : Math.max(1.6, d * 1.4)));
+          for (let i = 0; i < 16; i++) x.zheng(0.5 + i * b, hz(['D3', 'A3', 'D4', 'F4', 'C3', 'G3', 'C4', 'G3'][i % 8]), b, 0.15);
+          for (let i = 0; i < 8; i++) { const tt = 0.5 + i * b * 2; x.taiko(tt, 0.6, 0.8); x.taiko(tt + 0.22, 0.35, 0.85); }
+          const last = end - b * 4;   // 最后一音落下的时刻
+          x.qin(0.5, hz('D2'), 1, 0.3); x.qin(0.5 + b * 8, hz('A2'), 1, 0.28); x.qin(last, hz('D2'), 1, 0.32); x.qin(last + 1.1, hz('A2'), 1, 0.16);
+          x.taiko(last, 0.95, 0.75); S('gong', last + 0.02, 0.6, 0.6, 0);   // 重鼓和锣落在最后一音上，不再在末尾补一下硬的
+          x.bell(last + 0.04, hz('D4'), 0.07, 7); x.bell(last + 0.06, hz('A3'), 0.05, 6.5); x.bell(end + 0.4, hz('A5'), 0.018, 4.5);   // 低钟托底；尾巴上极轻的一点泛音
+          x.zheng(last + 0.9, hz('A4'), 1, 0.08); x.zheng(last + 1.25, hz('D5'), 1, 0.07);
+          x.pad(last, ['D3', 'A3', 'D4'], 7, 0.028);
+        } },
+        { name: '霸王怒', desc: '低音古琴弹一段带脾气的重复短句，重鼓砸在句头，琵琶在高处嘶喊，越来越紧，最后将士一吼、三下重鼓、一声锣', play(k) {
+          const x = I(k, 1.1), S = (id, t, vol, rate = 1, i) => k.smp(id, { t, vol, rate, rj: 0, pan: 0, dest: x.D, i });
+          const riff = [['D3', 0.3], ['D3', 0.15], ['F3', 0.15], ['D3', 0.3], ['G3', 0.3], ['F3', 0.3], ['C3', 0.3], ['D3', 0.3]];   // 一句 2.1 秒
+          let t = 0.2;
+          for (let r = 0; r < 4; r++) {
+            x.taiko(t, 1, 0.75); x.taiko(t + 1.05, 0.7, 0.8); if (r >= 2) { x.taiko(t + 0.6, 0.45, 0.9); x.taiko(t + 1.65, 0.45, 0.9); }
+            seq(riff, t, (tt, f, d) => { x.qin(tt, f, d, 0.34); x.zheng(tt, f * 2, d, 0.06); });
+            t += 2.1;
+          }
+          seq([[null, 2.1], ['A5', 0.6], ['G5', 0.3], ['F5', 0.3], ['D5', 0.9], [null, 0.3], ['C6', 0.6], ['A5', 0.3], ['G5', 0.3], ['A5', 1.0], ['D6', 1.4]], 0.2, (tt, f, d) => x.trem(tt, f, d, 0.1));
+          const end = t;
+          S('warcry', end - 0.1, 0.4, 0.88, 1); [0, 0.18, 0.36].forEach(dt => x.taiko(end + dt, 1, 0.75)); S('gong', end + 0.4, 0.8, 0.7, 0);
+          x.qin(end + 0.4, hz('D2'), 1, 0.36); x.pad(end - 0.2, ['D2', 'A2', 'D3'], 2.6, 0.04);
+        } },
       ],
       lose: [
         { name: '垓下', desc: '二胡拉「力拔山兮」的悲歌，古琴低音垫底，最后一声沉沉的锣', play(k) {
@@ -126,11 +175,12 @@ const EndTunes = (() => {
   };
   // 挑定之前用原来那两首（Music.stinger 的老曲子）；PICK.r.win = 1 表示汉胜用第二个方案，以此类推
   //   Ham 10-09 21:38 试听台第二十八批：汉胜用方案三「礼乐」、楚败用方案三「乌江」；汉败留原曲，楚胜三个都没过，也先用原曲
-  const PICK = { r: { win: 2, lose: null }, b: { win: null, lose: 2 } };
+  //   Ham 10-10 试听台第三十批：楚胜挑了「乌骓」「楚凯」两首，随机放（数组 = 从里面随机挑一首）
+  const PICK = { r: { win: 2, lose: null }, b: { win: [4, 5], lose: 2 } };
   return {
     T, PICK,
     // 放一首：side 'r' / 'b'，kind 'win' / 'lose'；n 不给就用挑定的那个。挑定之前返回 false（调用的地方照旧放老曲子）
-    play(side, kind, n) { const L = (T[side] || {})[kind], i = n == null ? (PICK[side] || {})[kind] : n; if (!L || i == null || !L[i] || !Sfx.ctx) return false; Sfx.Music.stop(); L[i].play(Sfx.kit); return true; },
+    play(side, kind, n) { const L = (T[side] || {})[kind]; let i = n == null ? (PICK[side] || {})[kind] : n; if (Array.isArray(i)) i = i[Math.floor(Math.random() * i.length)]; if (!L || i == null || !L[i] || !Sfx.ctx) return false; Sfx.Music.stop(); L[i].play(Sfx.kit); return true; },
     // 出试听样：离线渲染一首，返回 16 位 WAV 的 base64（tools/tunes.py 调）
     async renderWav(side, kind, n, sec = 22) {
       const buf = await Sfx.renderOffline(() => { if (side === 'old') Sfx.Music.stinger(kind); else T[side][kind][n].play(Sfx.kit); }, sec);

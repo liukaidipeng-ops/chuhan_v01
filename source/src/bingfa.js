@@ -912,7 +912,14 @@
       CFG_CUR = this.cfg;
       const p = this.at(f, r), S = this.S;
       if (this.result || !p || p.s !== S.turn || p.t === 'k' || p.lv >= maxLv(p.t) || S.upgraded) return false;
-      return S.merit[p.s] >= upCost(p);
+      return S.merit[p.s] >= upCost(p) && this.upEscapes(f, r);
+    }
+    // 被将军、只有先升级才解得了将（upOnly）时，升这枚子能不能解将。Ham 10-10 审批台 td-017 选 B：解不了将的子不许升（不是升了判输）
+    upEscapes(f, r) {
+      CFG_CUR = this.cfg;
+      if (!this.status || !this.status.upOnly) return true;
+      const T = upgradeState(this.S, [f, r]);
+      return !!(T && hasAnyAction(T, true));
     }
     // 记录一条行动（升级或主行动）并执行；返回动画信息
     // 调试「无冷却」：每次行动后把全盘冷却清零
@@ -936,7 +943,10 @@
         p.xp = 0; // 甲片在升级时用掉
         S.upgraded = true;
         this.entries.push({ k: 'up', at: e.at.slice() }); this.sides.push(p.s); this.ends.push(0);
-        const info = { k: 'up', side: p.s, id: p.id, t: p.t, at: e.at.slice(), lv: p.lv, hp: p.hp, cost, usedXp: xp, nm: p.nm, ev: [], after: S };
+        // 被将军、只有升级才解得了将（status.upOnly）时升了级：重新判一次——升的不是能解将的那枚子、升完还是无路可走，就是将死
+        //   （不重判的话 status 还停在 upOnly、result 也没有，对局卡住：电脑给不出行动，人也没有着可走。数值部 2026-10-10）
+        if (this.status && this.status.upOnly) { const st = evaluate(S); this.status = st; if (st.result) this.result = st.result; }
+        const info = { k: 'up', side: p.s, id: p.id, t: p.t, at: e.at.slice(), lv: p.lv, hp: p.hp, cost, usedXp: xp, nm: p.nm, ev: [], after: S, result: this.result };
         this.last = info;
         return info;
       }
