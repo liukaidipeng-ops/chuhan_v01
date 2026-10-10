@@ -1,0 +1,160 @@
+{
+ "batch": "b38",
+ "key_present": true,
+ "key_len": 126,
+ "host": "https://api.minimax.cn",
+ "probe": [
+  {
+   "host": "https://api.minimax.cn",
+   "http": 200,
+   "code": 0,
+   "msg": "success"
+  }
+ ],
+ "jobs": [
+  {
+   "id": "sol_r_t1",
+   "voice": "Spanish_PowerfulSoldier",
+   "voice_id": "Spanish_PowerfulSoldier",
+   "voice_name": null,
+   "ok": true,
+   "ms": 2736,
+   "chars": 14
+  },
+  {
+   "id": "sol_r_t2",
+   "voice": "Spanish_PowerfulSoldier",
+   "voice_id": "Spanish_PowerfulSoldier",
+   "voice_name": null,
+   "ok": true,
+   "ms": 2844,
+   "chars": 18
+  },
+  {
+   "id": "sol_r_t3",
+   "voice": "Spanish_PowerfulSoldier",
+   "voice_id": "Spanish_PowerfulSoldier",
+   "voice_name": null,
+   "ok": true,
+   "ms": 2340,
+   "chars": 14
+  },
+  {
+   "id": "sol_r_f1",
+   "voice": "Spanish_PowerfulSoldier",
+   "voice_id": "Spanish_PowerfulSoldier",
+   "voice_name": null,
+   "ok": true,
+   "ms": 1260,
+   "chars": 6
+  },
+  {
+   "id": "sol_r_f2",
+   "voice": "Spanish_PowerfulSoldier",
+   "voice_id": "Spanish_PowerfulSoldier",
+   "voice_name": null,
+   "ok": true,
+   "ms": 1440,
+   "chars": 8
+  },
+  {
+   "id": "sol_r_f3",
+   "voice": "Spanish_PowerfulSoldier",
+   "voice_id": "Spanish_PowerfulSoldier",
+   "voice_name": null,
+   "ok": true,
+   "ms": 2664,
+   "chars": 15
+  },
+  {
+   "id": "sol_r_c1",
+   "voice": "Spanish_PowerfulSoldier",
+   "voice_id": "Spanish_PowerfulSoldier",
+   "voice_name": null,
+   "ok": true,
+   "ms": 2520,
+   "chars": 12
+  },
+  {
+   "id": "sol_r_c2",
+   "voice": "Spanish_PowerfulSoldier",
+   "voice_id": "Spanish_PowerfulSoldier",
+   "voice_name": null,
+   "ok": true,
+   "ms": 2016,
+   "chars": 10
+  },
+  {
+   "id": "sol_b_t1",
+   "voice": "Spanish_PowerfulVeteran",
+   "voice_id": "Spanish_PowerfulVeteran",
+   "voice_name": null,
+   "ok": true,
+   "ms": 3276,
+   "chars": 18
+  },
+  {
+   "id": "sol_b_t2",
+   "voice": "Spanish_PowerfulVeteran",
+   "voice_id": "Spanish_PowerfulVeteran",
+   "voice_name": null,
+   "ok": true,
+   "ms": 2988,
+   "chars": 18
+  },
+  {
+   "id": "sol_b_t3",
+   "voice": "Spanish_PowerfulVeteran",
+   "voice_id": "Spanish_PowerfulVeteran",
+   "voice_name": null,
+   "ok": true,
+   "ms": 3528,
+   "chars": 21
+  },
+  {
+   "id": "sol_b_f1",
+   "voice": "Spanish_PowerfulVeteran",
+   "voice_id": "Spanish_PowerfulVeteran",
+   "voice_name": null,
+   "ok": true,
+   "ms": 1260,
+   "chars": 6
+  },
+  {
+   "id": "sol_b_f2",
+   "voice": "Spanish_PowerfulVeteran",
+   "voice_id": "Spanish_PowerfulVeteran",
+   "voice_name": null,
+   "ok": true,
+   "ms": 1692,
+   "chars": 10
+  },
+  {
+   "id": "sol_b_f3",
+   "voice": "Spanish_PowerfulVeteran",
+   "voice_id": "Spanish_PowerfulVeteran",
+   "voice_name": null,
+   "ok": true,
+   "ms": 2232,
+   "chars": 13
+  },
+  {
+   "id": "sol_b_c1",
+   "voice": "Spanish_PowerfulVeteran",
+   "voice_id": "Spanish_PowerfulVeteran",
+   "voice_name": null,
+   "ok": true,
+   "ms": 3132,
+   "chars": 16
+  },
+  {
+   "id": "sol_b_c2",
+   "voice": "Spanish_PowerfulVeteran",
+   "voice_id": "Spanish_PowerfulVeteran",
+   "voice_name": null,
+   "ok": true,
+   "ms": 1944,
+   "chars": 10
+  }
+ ]
+}
