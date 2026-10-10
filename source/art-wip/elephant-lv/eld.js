@@ -2,7 +2,7 @@
 // 三个方案 a / b / c，各一到四级。底子是 Models.makeElephant，在它的 body / head / tower / 腿上加件。设计稿用，不进游戏。
 window.ElephantLV = (() => {
   const { P, G, inkedMerged, C } = Models, PI = Math.PI, V = (x, y, z) => new THREE.Vector3(x, y, z);
-  const SCALE = [1, 1.07, 1.16, 1.27];   // 一级到四级，越来越大
+  const SCALE = [1, 1.1, 1.22, 1.36];   // 一级到四级，越来越大
   const BR = 0x9a7a3c, BR2 = 0x6e5524, IRON = 0x3a3836, IRON2 = 0x55524d, GOLD = 0xd6a43e, GOLD2 = 0xf7dc8c, RED = 0x9e2418, LAC = 0x1e1a1a, OCHRE = 0xc69a3c;
   const add = (grp, parts, ink = 0.025) => { const m = inkedMerged(parts, ink); grp.add(m); return m; };
   const glowMat = c => new THREE.MeshBasicMaterial({ color: c, transparent: true, opacity: 0.9, blending: THREE.AdditiveBlending, depthWrite: false, toneMapped: false });
@@ -25,6 +25,7 @@ window.ElephantLV = (() => {
     if (lv >= 2) {
       add(el.head, [P(G.box(0.14, 0.82, 0.78), lv >= 4 ? GOLD : lv === 3 ? IRON : BR, 0.94, 0.18, 0, 0, 0, 0.35), P(G.box(0.16, 0.08, 0.8), lv >= 4 ? GOLD2 : BR2, 0.98, 0.55, 0, 0, 0, 0.35)]);
       add(el.head, tuskTips.map(([x, y, z]) => P(G.cone(0.075, 0.22, 6), lv >= 4 ? GOLD2 : BR, x + 0.05, y + 0.06, z, 0, 0, -PI / 2 - 0.5)));
+      if (lv === 2) add(el.body, [1, -1].flatMap(s => [P(G.box(2.3, 1.2, 0.05), RED, -0.1, 2.3, 1.0 * s), P(G.box(2.34, 0.1, 0.08), BR, -0.1, 1.72, 1.02 * s), P(G.box(2.34, 0.1, 0.08), BR, -0.1, 2.9, 1.02 * s)]));
       legRings(el, lv >= 4 ? GOLD2 : lv === 3 ? IRON2 : BR, lv >= 3 ? 3 : 2); trunkRings(el, lv >= 4 ? GOLD : lv === 3 ? IRON2 : BR, lv >= 3 ? 4 : 2);
     }
     if (lv >= 3) {
@@ -46,6 +47,7 @@ window.ElephantLV = (() => {
     if (lv >= 2) {
       for (const [x, z] of [[0.55, 0.45], [0.55, -0.45]].concat(lv >= 3 ? [[-0.55, 0.45], [-0.55, -0.45]] : [])) { add(el.tower, [P(G.cyl(0.13, 0.07, 0.14, 8), lv >= 4 ? GOLD : BR, x, 1.18, z), P(G.cyl(0.02, 0.02, 0.1, 5), BR2, x, 1.08, z)]); flame(el.tower, x, 1.22, z, 0.55 + lv * 0.08); }
       legRings(el, 0x2a1210, 1);
+      if (lv === 2) add(el.body, [1, -1].map(s => P(G.box(2.3, 1.2, 0.05), 0x5a1a12, -0.1, 2.3, 1.0 * s)));
     }
     if (lv >= 3) {   // 青铜兽面：两只弯角 + 獠牙口
       const mk = lv >= 4 ? GOLD : BR;
@@ -98,7 +100,7 @@ window.ELD = (() => {
   function clear() { for (const x of items) x.parent && x.parent.remove(x); items = []; }
   function lineup(plan, o = {}) {
     clear();
-    const c = Board.pos(4, 4), gap = o.gap ?? 1.45, yaw = o.yaw ?? -PI / 2 + 0.55;
+    const c = Board.pos(4, 4), gap = o.gap ?? 1.7, yaw = o.yaw ?? 0.52;   // 象头朝镜头右前方
     for (const m of Board.pieces.values()) m.visible = false;
     const els = [1, 2, 3, 4].map((lv, i) => { const e = ElephantLV.make('b', { lv, plan }); e.group.scale.setScalar(EL * e.lvScale); e.group.position.set(c.x + (i - 1.5) * gap, Board.TOP, c.z); e.group.rotation.y = yaw - PI / 2; root().add(e.group); items.push(e.group); e.fire = plan === 'b' ? 1 : 0; e.update(0.016); return e; });
     S = { c, els };
@@ -106,7 +108,7 @@ window.ELD = (() => {
   }
   function cam(o = {}) {
     const c = S.c, d = o.d ?? 5.6, el = o.el ?? 0.32, az = o.az ?? 0;
-    const pos = new V3(c.x + Math.sin(az) * Math.cos(el) * d, Board.TOP + Math.sin(el) * d, c.z + Math.cos(az) * Math.cos(el) * d);
+    const pos = new V3(c.x + (o.lx ?? 0) + Math.sin(az) * Math.cos(el) * d, Board.TOP + Math.sin(el) * d, c.z + Math.cos(az) * Math.cos(el) * d);
     Core.Cam.cine = true; document.body.classList.add('cine');
     return Core.Cam.to(pos, new V3(c.x + (o.lx ?? 0), Board.TOP + (o.lh ?? 0.55), c.z), 0.05);
   }
