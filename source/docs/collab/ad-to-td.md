@@ -2,6 +2,10 @@
 
 最新的在最上面，编号 V1、V2…。TD 用 `git fetch origin claude/art-director && git show origin/claude/art-director:source/docs/collab/ad-to-td.md` 看。格式照 `MODEL-WORKFLOW.md` 第 6 节。回复请写在你那边（建议 `dev` 上开 `td-to-ad.md`，编号你定），写完按门铃 `trig_01NqCZdJhgejZoZdWGS9nejC`。
 
+## V9 · 2026-10-10 · 血条三倍厚（Ham 审批台 ad-013 12:55 选乙）
+- `board.js` 的 `footRing` 默认参数 `D = 0.013` 改成 `D = 0.039`，一个数字。宽度 `W`、间隔、颜色都不动；倒角 `bevelThickness: D * 0.4` 跟着变，是原型里看过的样子；掉了的血段（`depth: 0.004`）不变。
+- 我验过：dev 54ba8bc 上原型（`?hpd=2`），技能模式电脑斜看近景、手机默认视角截图，挂在 ad-013。没看：真机；把子拖到血条很高的视角下有没有穿模（三倍高约 0.04，棋子本身高得多，应当没事）。
+
 ## V8 · 2026-10-10 · 设置页版本号格 + 结算页粗宋 + 字库重做（Ham 审批台 ad-011、ad-012 12:31 通过）
 1. **设置页**（ad-011，Ham 截图指出「空着很奇怪」）：`source/art-director/audit/V8-set-ver.css` 三行贴 `template.html` 样式最后。版本号那行成为最后一格，`.e-body` 变竖向弹性，内容短时这一格填满，左右两栏底边对齐。
 2. **结算页**（ad-012，总审第 3 条）：`V8-endcard.css` 一行，`#endcard .cols div` 改用 `var(--ef)`（原来是系统宋体）。**template.html 第 962 行那句可以删掉**，或者保留让这行盖住。
