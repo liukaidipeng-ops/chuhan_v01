@@ -1,0 +1,103 @@
+diff --git a/source/src/bfai.js b/source/src/bfai.js
+index f3eb9f4..ff700ad 100644
+--- a/source/src/bfai.js
++++ b/source/src/bfai.js
+@@ -499,14 +499,23 @@
+   }
+   const actOf = k => JSON.parse(JSON.stringify(k.up ? { up: k.up.at, ...k.a } : k.a));
+   // 根节点：返回一串要依次执行的行动（升级 → 拒马 → 主行动）
+-  async function think(S0, level, tick) {
++  // 拟人思考时间（C66，Ham 10-10：难走的局面多想、配语音，玩家可以催）
++  //   opt.worker：在 Worker 里跑、给了 tick 只是为了让出线程收“催促”消息——不按主线程的 1.4 秒限时
++  //   opt.ctl：调用方在思考途中改它——ctl.urges（玩家催了几次，只增不减）
++  //   opt.onEvent(ev)：{ type: 'long' } 想过了平时的时间还在想（配“哎哟，这该如何是好呀！”）；{ type: 'urge', ok } 催得恰当（少算一到两成）/ 催多了（回到最强）
++  //   think.last.mood：{ losing, drop } 快输了（分 ≤ −6，或比上一步掉 5 分以上；配“可恶，我怎么觉得不太对劲呀！”，每局说几次由界面定）
++  //   BFAI.mood.annoy：烦躁值（催多了 +1，每走一步 −0.5；≥ 2 时再催也不理）；新开一局调 BFAI.resetMood()
++  const MOOD = { annoy: 0, lastV: null };
++  async function think(S0, level, tick, opt) {
++    const O = opt || {};
+     const L0 = LEVELS[level] || LEVELS.mid, t0 = now(), me = S0.turn, seq = [];
+-    let L = tick ? { ...L0, budget: Math.min(L0.budget, 1400) } : L0;   // 在主线程里算（开不了 Worker）时少想一会儿，免得卡画面
++    let L = tick && !O.worker ? { ...L0, budget: Math.min(L0.budget, 1400) } : L0;   // 在主线程里算（开不了 Worker）时少想一会儿，免得卡画面
+     const TR = BFAI.trace ? { v: 1, level, side: me, round: { ...S0.cnt }, iter: [] } : null;   // 思考记录（C62 A）
+     upAll = !!L.upAll;
+     if (L.fixedDepth) L = { ...L, depth: L.fixedDepth };   // 裁判开关：固定层数，不看时间也不看节点
+     let S = S0, last = now();
+-    const breathe = async () => { if (tick && now() - last > 12) { await tick(); last = now(); } };
++    const breathe = async () => { if (tick && now() - last > 12) { await tick(); last = now(); } if (O.ctl) urgeCheck(); if (dynOn && !longSaid && !byNodes && now() - t0 > L.budget) { longSaid = true; ev({ type: 'long' }); } };   // 真的想过了平时的时间才说“哎哟”
++    const ev = e => { try { if (O.onEvent) O.onEvent(e); } catch (x) { } if (TR) (TR.ev || (TR.ev = [])).push({ ...e, ms: Math.round(now() - t0) }); };
+     lmrOn = L.depth > 3; kdMe = S0.turn; nodes = 0; qMax = L.q; hist.clear(); killers.length = 0; upPly = -1; pfPly = -1; pfCache.clear(); upCache.clear(); TTB.clear(); pfAlias.clear(); pfUp.clear(); deadline = Infinity; nodeCap = Infinity;
+     const fin0 = !!S0.final, chk0 = A.inCheck(S0, me);
+     if (PFD && me === 'r' && L.depth >= 3 && S0.cnt.b < (S0.fx.pf || 0)) L = { ...L, depth: L.depth + PFD };   // 楚方技能被封的反击窗口：多算一层
+@@ -578,19 +587,33 @@
+     kids.sort((x, y) => y.q - x.q);
+     let depthDone = 0, why = 'depth';
+     const n0 = nodes;
++    // 难走的局面多想（LEVELS.<档>.dyn 倍，只放宽一次）：基础预算用完时还没算过 3 层，或者最后一层最好的那步换了、分数掉了 1 分以上
++    let dynN = L.nodes, dynB = L.budget, urgeOk = 0, dynOn = false, longSaid = false, crit = false, prevBK = null, prevV = null, urgeSeen = O.ctl ? (O.ctl.urges | 0) : 0, urgeN = 0;
++    const dynX = L.dyn > 1 && L.depth > 3 && !L.fixedDepth ? L.dyn : 0;
++    const urgeCheck = () => {
++      const u = O.ctl.urges | 0; if (u <= urgeSeen) return;
++      urgeN += u - urgeSeen; urgeSeen = u;
++      if (byNodes || L.fixedDepth) return;
++      const el = now() - t0;
++      // Ham 10-10 定的：不催最强；催得恰当（想过了平时的时间、这一步第一次催、不烦）少算一到两成；催多了不再少算，回到最强（不额外加长）
++      if (el >= L.budget && urgeN <= 1 && MOOD.annoy < 2) { urgeOk = dynB; dynB = Math.max(el + 300, dynB * (L.urgeCut || 0.85)); if (TR) TR.urge = 'ok'; ev({ type: 'urge', ok: true }); }
++      else { MOOD.annoy += 1; if (urgeOk) dynB = urgeOk; if (TR) TR.urge = 'over'; ev({ type: 'urge', ok: false }); }
++    };
+     // 逐层加深：每一层都把上一层最好的着法排在最前面先算
+     for (let d = 1; d <= L.depth; d++) {
+-      const soft = t0 + L.budget;
++      const soft = t0 + dynB;
+       if (L.fixedDepth) { deadline = Infinity; nodeCap = Infinity; }
+       else if (byNodes) {
+         // 前两层一定算完（保证有着可走）；再往下每一层开始前看剩下的搜索量够不够，算到上限就停
+-        if (d > 2 && nodes - n0 > L.nodes * 0.5) { why = 'nodes'; break; }
+-        nodeCap = d <= 2 ? Infinity : n0 + L.nodes;
++        if (dynX && !dynOn && d > 2 && nodes - n0 > L.nodes * 0.5 && (crit || depthDone <= 3)) { dynOn = true; dynN = Math.round(L.nodes * dynX); if (TR) TR.dyn = true; }
++        if (d > 2 && nodes - n0 > dynN * 0.5) { why = 'nodes'; break; }
++        nodeCap = d <= 2 ? Infinity : n0 + dynN;
+       } else {
+         // 慢的设备上按时间收手会算得太浅：没搜够 minNodes 之前不因为时间到了就停（最多拖到 1.5 倍时间）
+         const thin = L.minNodes > 0 && nodes - n0 < L.minNodes;
+-        if (d > 3 && !thin && now() - t0 > L.budget * 0.3) { why = 'time'; break; }       // 剩下的时间不够再深一层了
+-        deadline = d < 3 ? Infinity : d === 3 ? t0 + L.budget * 2 : thin ? t0 + L.budget * 1.5 : soft + L.budget * 0.3;   // 第 3 层也设个兜底（两倍预算）：个别局面枚举破釜组合特别慢，慢手机上别让一步拖到十秒
++        if (dynX && !dynOn && d > 3 && now() - t0 > L.budget * 0.3 && (crit || depthDone <= 3)) { dynOn = true; dynB = Math.max(dynB, L.budget * dynX); if (TR) TR.dyn = true; }
++        if (d > 3 && !thin && now() - t0 > dynB * 0.3) { why = 'time'; break; }       // 剩下的时间不够再深一层了
++        deadline = d < 3 ? Infinity : d === 3 ? t0 + L.budget * 2 : thin ? t0 + L.budget * 1.5 : soft + dynB * 0.3;   // 第 3 层也设个兜底（两倍预算）：个别局面枚举破釜组合特别慢，慢手机上别让一步拖到十秒
+       }
+       let alpha = -INF, n = 0, cut = false;
+       const M = L.noise * 1.6 + 0.02;                          // 比当前最好的差不到 M 的着法也算出准确分数（最后要在它们之间挑）；更差的只要个上界
+@@ -615,7 +638,7 @@
+           if (k.nv > alpha) alpha = k.nv;
+           n++;
+           await breathe();
+-          if (!L.fixedDepth && !byNodes && d > 3 && now() > soft && (!(L.minNodes > 0 && nodes - n0 < L.minNodes) || now() > t0 + L.budget * 1.5)) { cut = true; break; }
++          if (!L.fixedDepth && !byNodes && d > 3 && now() > t0 + dynB && (!(L.minNodes > 0 && nodes - n0 < L.minNodes) || now() > t0 + L.budget * 1.5)) { cut = true; break; }
+         }
+       } catch (e) { if (e !== TIMEOUT) throw e; cut = true; }
+       deadline = Infinity; nodeCap = Infinity;
+@@ -639,6 +662,7 @@
+         kids.sort((x, y) => y.v - x.v);
+       }
+       depthDone = d;
++      { const bk = JSON.stringify(actOf(kids[0])); if (d >= 3 && ((prevBK && bk !== prevBK) || (prevV != null && kids[0].v < prevV - 1))) crit = true; prevBK = bk; prevV = kids[0].v; }   // 最好的那步换了、分数掉了：难走
+       if (TR) TR.iter.push({ d, best: actOf(kids[0]), v: +kids[0].v.toFixed(3), nodes: nodes - n0, ms: Math.round(now() - t0) });
+       if (kids[0].v > WIN / 2 || kids[0].v < -WIN / 2) { why = 'mate'; break; } // 已经看到杀棋 / 必败，不用再深
+     }
+@@ -714,6 +738,7 @@
+     }
+     seq.push(pick.a);
+     think.last = { nodes, ms: now() - t0, v: pick.v, n: kids.length, depth: depthDone, top: kids.slice(0, 5).map(k => [k.up ? { up: k.up.at, ...k.a } : k.a, +k.v.toFixed(2)]) };
++    { const v = pick.v, drop = MOOD.lastV != null && Math.abs(v) < WIN / 2 && Math.abs(MOOD.lastV) < WIN / 2 ? MOOD.lastV - v : 0; think.last.mood = { losing: v <= -6 || drop >= 5, drop: +drop.toFixed(2), annoy: MOOD.annoy, long: dynOn }; MOOD.lastV = v; MOOD.annoy = Math.max(0, MOOD.annoy - 0.5); }
+     if (TR) {
+       // 根上候选前 8 名：行动、分数、是不是准确分（和最好的差不到 M 才算准确，其余只是上界）、预想线
+       const Mw = (L.noise * 1.6 + 0.02) * 0.95;
+@@ -727,6 +752,6 @@
+   }
+   // apiVersion：这份电脑用到的 BF.ai 接口版本（BF.ai.version）；工具拉历史版本对打时拿它核对
+   // obsVersion：观察接口（trace 思考记录、scoreParts、裁判开关 upAll / rootUpAll / fixedDepth）的版本，复盘工具按它判断能不能用（C62 B4）
+-  const BFAI = { think, score, scoreParts, LEVELS, apiVersion: 1, obsVersion: 1, trace: false };
++  const BFAI = { think, score, scoreParts, LEVELS, apiVersion: 1, obsVersion: 1, trace: false, mood: MOOD, resetMood: () => { MOOD.annoy = 0; MOOD.lastV = null; } };
+   if (typeof module !== 'undefined' && module.exports) module.exports = BFAI; else global.BFAI = BFAI;
+ })(typeof window !== 'undefined' ? window : globalThis);

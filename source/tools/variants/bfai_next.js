@@ -8,6 +8,8 @@
 //   BFAI_RLMR=K：根上也少算——从第 K 个起，不吃子、不先升级、走完不将军、自己没被将军的走子，第 4 层起先少算一层，比门槛好才按原层数重算（只在霸王）。
 //     Ham 那局第 27 回合根上 90 个候选，10 万节点只算 2 层
 //   BFAI_UPESC=1：C63 电脑那一半（只有升级才解得了将时所有升法都试，不再给空行动）
+//   BFAI_DYN=X：难走的局面多想（Ham 10-10：语音 + 催促的拟人思考时间）——基础预算用完时还没算过 3 层、或者最后一层最好的那步换了 / 分数掉了 1 分以上，
+//     预算放宽到 X 倍（按节点数收手时节点上限 ×X；按时间时 3 秒 → 3X 秒）。只在霸王（最多层数 > 3）
 //   BFAI_CHKMUST=1：被将军时，相 / 象 / 兵升一级攻击变大的（象二级起攻击 2，H50；兵三级起攻击 2，r6）也算“保命的升级”（TD 在 H52 问的）
 'use strict';
 const fs = require('fs'), path = require('path'), os = require('os');
@@ -17,7 +19,7 @@ const src0 = execFileSync('git', ['show', rev + ':source/src/bfai.js'], { cwd: p
 function build(E, tag) {
   let s = src0;
   const rep = (a, b) => { const n = s.split(a).length - 1; if (n !== 1) throw new Error(`bfai_next：锚点出现 ${n} 次：${a.slice(0, 80)}`); s = s.replace(a, () => b); };
-  const LMR2 = +(E.BFAI_LMR2 || 0), NMP = +(E.BFAI_NMP || 0), CHKMUST = +(E.BFAI_CHKMUST || 0), ROOTREL = +(E.BFAI_ROOTREL || 0), ROOTATK = +(E.BFAI_ROOTATK || 0), RLMR = +(E.BFAI_RLMR || 0), UPESC = +(E.BFAI_UPESC || 0);
+  const LMR2 = +(E.BFAI_LMR2 || 0), NMP = +(E.BFAI_NMP || 0), CHKMUST = +(E.BFAI_CHKMUST || 0), ROOTREL = +(E.BFAI_ROOTREL || 0), ROOTATK = +(E.BFAI_ROOTATK || 0), RLMR = +(E.BFAI_RLMR || 0), UPESC = +(E.BFAI_UPESC || 0), DYN = +(E.BFAI_DYN || 0);
   if (LMR2) rep('{ v = -ab(r.S, depth - 2, -alpha - 0.01, -alpha, ply + 1, ext); if (v > alpha)', '{ v = -ab(r.S, depth - 2 - (mi > ' + LMR2 + ' && depth >= 4 ? 1 : 0), -alpha - 0.01, -alpha, ply + 1, ext); if (v > alpha)');
   if (NMP) {
     rep('    let best = -INF, legal = 0, bm = null;',
@@ -71,6 +73,18 @@ function build(E, tag) {
       "      if (TR && (kids.length || pofu.length)) TR.upEscape = true;\n" +
       "    }\n" +
       "    if (!kids.length) {\n      // 普通着法一步都没有（被将死的样子），但背水一战还能解：就用它");
+  }
+  if (DYN) {   // 难走的局面多想：基础预算用完时还没算过 3 层、或者最后一层最好的那步换了 / 分数掉了 1 分以上，预算放宽到 DYN 倍（只一次）
+    rep("    const n0 = nodes;\n    // 逐层加深", "    const n0 = nodes;\n    let dynN = L.nodes, dynB = L.budget, dynOn = false, crit = false, prevBK = null, prevV = null;   // 变体 next：难走的局面多想\n    // 逐层加深");
+    rep("      const soft = t0 + L.budget;", "      const soft = t0 + dynB;");
+    rep("        if (d > 2 && nodes - n0 > L.nodes * 0.5) { why = 'nodes'; break; }\n        nodeCap = d <= 2 ? Infinity : n0 + L.nodes;",
+      "        if (!dynOn && L.depth > 3 && d > 2 && nodes - n0 > L.nodes * 0.5 && (crit || depthDone <= 3)) { dynOn = true; dynN = Math.round(L.nodes * " + DYN + "); think.dyn = (think.dyn || 0) + 1; }\n" +
+      "        if (d > 2 && nodes - n0 > dynN * 0.5) { why = 'nodes'; break; }\n        nodeCap = d <= 2 ? Infinity : n0 + dynN;");
+    rep("        if (d > 3 && !thin && now() - t0 > L.budget * 0.3) { why = 'time'; break; }",
+      "        if (!dynOn && L.depth > 3 && d > 3 && now() - t0 > L.budget * 0.3 && (crit || depthDone <= 3)) { dynOn = true; dynB = L.budget * " + DYN + "; think.dyn = (think.dyn || 0) + 1; }\n" +
+      "        if (d > 3 && !thin && now() - t0 > dynB * 0.3) { why = 'time'; break; }");
+    rep("t0 + L.budget * 1.5 : soft + L.budget * 0.3;", "t0 + L.budget * 1.5 : soft + dynB * 0.3;");
+    rep("      depthDone = d;\n", "      depthDone = d;\n      { const bk = JSON.stringify(actOf(kids[0])); if (d >= 3 && ((prevBK && bk !== prevBK) || (prevV != null && kids[0].v < prevV - 1))) crit = true; prevBK = bk; prevV = kids[0].v; }   // 变体 next：最好的那步换了、分数掉了 → 难走\n");
   }
   if (tag === null) return s;
   const out = path.join(os.tmpdir(), `bfai_next_${rev}_${tag || 'env'}_${process.pid}.js`);
