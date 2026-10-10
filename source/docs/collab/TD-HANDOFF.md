@@ -9,7 +9,7 @@
 ## 1. 管什么
 
 **TD 管**：
-- 整合、打包、上线、测试、性能；
+- 整合、打包、上线、测试；性能由优化部量、出补丁，TD 合并上线；
 - 规则引擎和技能模式规则：`rules.js`、`engine.js`、`jq.js`、`bingfa.js`；
 - 游戏流程和界面逻辑：`main.js`、`net.js`；
 - 三维场景和演出的代码：`core.js`、`board.js`、`fx.js`、`squads.js`、`bfx.js`、`camp.js`、`spect.js`、`ending.js`、`turnglow.js`、`models.js`、`tiger.js`；
@@ -24,6 +24,7 @@
   - 美术总监要等美术交完结算动画交接后才正式接手。
 - **角色、模型、动画** → 美术（角色部），分支 `model-lab`。改法常写在 TD 的文件里（`squads.js`、`models.js`），由 TD 照着改。
 - **电脑（`bfai.js`）** → 数值部调。TD 照它交付单里的补丁打。
+- **性能**（卡顿、发热、加载慢）→ 优化部（10-10 开）：它量、出改法和补丁，TD 合并上线；会改画面的先过 Ham。
 
 **各部门交来的东西，接的时候查什么**：
 - **数值部（电脑补丁）**：
@@ -52,6 +53,7 @@
   | `claude/art-director` | 美术总监 |
   | `claude/sound` | 声音部 |
   | `claude/advisors` | 顾问部 |
+  | `claude/perf` | 优化部 |
   | `voice-lab` | 声音部用 MiniMax 合成配音，推送会触发 Actions |
 
 - **不要整个合并数值部的分支**：上面常有还没验收的电脑改动。只取它点名的文件（比如 `WORKFLOW.md`），或照交付单的补丁打。别的部门的分支合之前，先看 `git diff --stat origin/dev...<分支>`。
@@ -226,6 +228,7 @@ git commit -m "回滚到 abc1234 的线上版本：<原因>" && git push origin 
 | 美术总监 | `ad-to-td.md`（V 号，`claude/art-director`） | `td-to-ad.md`（T 号） | V4 / T4 | 无，V1～V4 全部上线 |
 | 声音部 | `sound-to-main.md`（S 号，`claude/sound`） | `main-to-sound.md`（H 号） | S1 / H1 | 等 S2 |
 | 顾问部 | `advisors/advice.md`（A 号），数值部回 | — | — | 无直接往来 |
+| 优化部 | `perf-to-main.md`（P 号，`claude/perf`） | `main-to-perf.md`（H 号，新开） | 还没有 | 10-10 开，还没交过 |
 
 ## 7. 正在做的和排着的
 
@@ -251,6 +254,7 @@ git commit -m "回滚到 abc1234 的线上版本：<原因>" && git push origin 
     2. 用 ArtifactData 在 `items` 里 `set` 一条，字段照抄 `td-026`：`id, dept:"TD", seq, kind:"approve"|"choice", status:"pending", createdAt, title, ask, points[], images[{cap,id,url}], options[]（choice 才要）, after`。
     3. 一次要出好几件，合成一批写。
   - **收结果**：`status` 变成 `approved` / `changes` / `chosen`，同时有 `choice`、`note`、`decidedAt`。照 `note` 做完，在那件上写 `ack: {at, text}` 当回执。
+  - **实测送得到**：10-10 两次——td-024（Ham 18:13 提交）和 td-026（19:05 提交），提醒都在约一分钟后进了老 TD 会话，运行记录是 SUCCEEDED。这条路对老 TD 是通的。美术总监那边送不到，是它的门铃（别人按的 `fire_trigger`），不是这张审批台。不过 WORKFLOW 第 3 节规定通知只认“发评论给 Claude”，新 TD 照规定改（下面的甲）。
   - **通知现在怎么走**：页面源码里写死了提醒编号（约第 109 行 `const NOTIFY = { '美术': 'trig_01FF1yaK8ZRBKWk3osCQKoAP', 'TD': 'trig_01Go7ZszLJ61ybdE1vBuCKLw' }`）。Ham 提交时，页面把那个提醒改成一分钟后响，提醒绑在老 TD 会话上。
   - **新 TD 接手第一件事**，二选一，做之前先告诉 Ham：
     - 甲（推荐，WORKFLOW 第 3 节）：把审批台改成“页面替 Ham 发评论给 Claude”的通知方式，评论发到新 TD 会话，照美术总监审批台的写法（源码在 `claude/art-director` 的 `source/art-director/pages/shenpi.html`）。
@@ -264,7 +268,9 @@ git commit -m "回滚到 abc1234 的线上版本：<原因>" && git push origin 
 | 编号 | 干什么 | 交接后 |
 |---|---|---|
 | `trig_01Go7ZszLJ61ybdE1vBuCKLw` | 审批台 TD 条目的通知（页面按钮触发；处理完要推回一年后） | 新 TD 换掉通知方式后停掉（`update_trigger enabled:false`） |
-| `trig_01W35STHBCavAc6wHcR1tsZ5` | 旧配音试听台的“提交”按钮 | 已不用（声音部改了通知），可以停掉 |
+| `trig_01W35STHBCavAc6wHcR1tsZ5` | 旧配音试听台的“提交”按钮 | 已不用：试听台交给声音部，它改了通知，又建了新试听台。新 TD 接住后由老 TD 停掉（`enabled:false`） |
+
+这两个就是老 TD 名下全部的提醒（10-10 用 `list_triggers` 核过）。
 
 **别的部门装的门铃**（`fire_trigger` 按，附一句话；正文以文件为准）：
 - 数值部 `trig_0171tqGyJSqcPNCKuoPgWADs`：实测能送到；
@@ -329,7 +335,12 @@ Code 窗口有 `send_message`，优先用它。按门铃前要 Ham 说“可以�
 
 ## 11. 交接以后
 
-- **老 TD 窗口**：只答疑，不再推 `main`、不再上线。新 TD 说“接住了”之前，上线仍由老 TD 做。
+- **过渡期**：新 TD 确认接住之前，上线仍由老 TD 做，新 TD 不推 `dev` / `main`，免得两边同时推。
+- **“接住了”以什么为准**：三件都做完，就在 `chat-to-code.md` 写一条 H“TD 接住了”，同时告诉 Ham。
+  1. 本地打包、测试全过；
+  2. 审批台通知换到自己，并出一件测试题请 Ham 点，自己收到了；
+  3. 各部门发了新会话号，部门总表 TD 一行改好。
+- **接住以后**：老 TD 窗口只答疑，不再推 `dev` / `main`、不再上线；停掉自己名下两个提醒。
 - **新 TD 第一周最该盯的三件**：
   1. 审批台通知换到自己（第 8 节），并在审批台出一件测试题，请 Ham 点一下，确认收得到。
   2. 接声音部 S2 和美术的兵卒对打（第 7 节第 1、2 条），盾挡声的时间点要和画面对上。
