@@ -1,0 +1,108 @@
+--- /home/claude/chuhan_v01/source/src/board.js	2026-10-10 01:41:52.073521514 +0000
++++ src/board.js	2026-10-10 03:32:24.487320865 +0000
+@@ -484,26 +484,16 @@
+     return g;
+   })();
+   const pieceWood = new THREE.MeshStandardMaterial({ map: Tex.wood, color: 0xf4dcbc, roughness: 0.45, metalness: 0.0 });
++  // 木棋子字面（美术 M21：审批台 078 宋体 + 072 年轮）：画法在 face.js。每颗子的年轮都不一样，所以按棋子 id 缓存；同一 id 换了兵种（揭棋翻出来）就在原画布上重画
+   const faceCache = {};
+-  // 木棋子字面（美术 M13，Ham 14:30「木棋子颜色太深了，移动端汉方看不清楚」→ 选「牙黄面加色边」）：牙黄面铺满，外粗内细两道色边，字粗楷不描边
+-  function faceTex(s, t) {
+-    const key = s + t;
+-    if (faceCache[key]) return faceCache[key];
+-    const ch = XQ.NAMES[s][t];
+-    const col = s === 'r' ? '#b3241a' : '#1a1714';   // 汉朱、楚墨
+-    return (faceCache[key] = canvasTex(512, 512, (g, w) => {
+-      g.clearRect(0, 0, w, w);
+-      const c = w / 2;
+-      const ring = (r, lw, color) => { g.strokeStyle = color; g.lineWidth = lw; g.beginPath(); g.arc(c, c, r, 0, 7); g.stroke(); };
+-      // 牙黄面：左上略亮，往外渐深
+-      const gr = g.createRadialGradient(c * 0.8, c * 0.75, 10, c, c, w * 0.48);
+-      gr.addColorStop(0, '#f1e4c0'); gr.addColorStop(1, '#e6d3a4');
+-      g.fillStyle = gr; g.beginPath(); g.arc(c, c, w * 0.47, 0, 7); g.fill();
+-      // 色边：外圈一道粗边 + 里面一道细圈，和字同色
+-      ring(w * 0.47, 14, col); ring(w * 0.452, 10, col); ring(w * 0.372, 5, col);
+-      g.font = `bold 310px ${FONT}`; g.textAlign = 'center'; g.textBaseline = 'middle';
+-      g.fillStyle = col; g.fillText(ch, c, c + 16);
+-    }));
++  function faceTex(s, t, id = 0) {
++    const key = s + (id | 0), ch = XQ.NAMES[s][t], hit = faceCache[key];
++    if (hit) {
++      if (hit.ch !== ch) { const cv = hit.tex.image; Face.wood(cv.getContext('2d'), cv.width, s, ch, id); hit.ch = ch; hit.tex.needsUpdate = true; }
++      return hit.tex;
++    }
++    const N = Core.quality === 'low' ? 384 : 512;
++    return (faceCache[key] = { ch, tex: canvasTex(N, N, (g, w) => Face.wood(g, w, s, ch, id)) }).tex;
+   }
+   // 揭棋暗子：漆面背（汉为朱漆、楚为黑漆），金边祥云，中间极淡地印着所在位置的兵种
+   const backCache = {};
+@@ -545,8 +535,7 @@
+         g.restore();
+       }
+       // 位置兵种：非常淡
+-      g.font = `bold 250px ${FONT}`; g.textAlign = 'center'; g.textBaseline = 'middle';
+-      g.fillStyle = red ? 'rgba(236,206,140,.075)' : 'rgba(236,206,140,.065)'; g.fillText(XQ.NAMES[s][pt], c, c + 14);
++      g.fillStyle = red ? 'rgba(236,206,140,.075)' : 'rgba(236,206,140,.065)'; g.fill(Face.path(XQ.NAMES[s][pt], w * 0.81, c, c));   // 和字面同一套宋体，小一圈
+     }));
+   }
+   const faceGeo = new THREE.CircleGeometry(0.4, 40); faceGeo.rotateX(-Math.PI / 2); faceGeo.userData.keep = true;
+@@ -555,7 +544,7 @@
+     const g = new THREE.Group();
+     const body = new THREE.Mesh(pieceGeo, pieceWood);
+     body.castShadow = true; body.receiveShadow = true;
+-    const face = new THREE.Mesh(faceGeo, new THREE.MeshStandardMaterial({ map: p.h ? backTex(p.s, p.pt) : faceTex(p.s, p.t), transparent: true, roughness: p.h ? 0.32 : 0.5, polygonOffset: true, polygonOffsetFactor: -2 }));
++    const face = new THREE.Mesh(faceGeo, new THREE.MeshStandardMaterial({ map: p.h ? backTex(p.s, p.pt) : faceTex(p.s, p.t, p.id), transparent: true, roughness: p.h ? 0.32 : 0.5, polygonOffset: true, polygonOffsetFactor: -2 }));
+     face.position.y = PH + 0.001;
+     const band = new THREE.Mesh(bandGeo, goldM); band.position.y = PH * 0.6;
+     g.add(body, face, band);
+@@ -569,7 +558,7 @@
+   function setFace(m, p) {
+     const face = m.children[1]; if (!face) return;
+     const std = m.userData.faceStd || face.material;
+-    std.map = p.h ? backTex(p.s, p.pt) : faceTex(p.s, p.t);
++    std.map = p.h ? backTex(p.s, p.pt) : faceTex(p.s, p.t, p.id);
+     std.roughness = p.h ? 0.32 : 0.5;
+     std.needsUpdate = true;
+     m.userData.t = p.h ? 'h' : p.t; m.userData.h = !!p.h;
+@@ -1108,14 +1097,18 @@
+   // ---- 升级后的字：掐丝珐琅（汉朱红、楚乌黑的釉面，金/银丝勾边，釉面有清漆般的光泽） ----
+   const enamelCache = new Map();
+   function enamelFace(s, t, wire) {
+-    const ch = XQ.NAMES[s][t], key = s + ch + wire;
++    const RS = window.__RING || '', ch = XQ.NAMES[s][t], key = s + ch + wire + RS;
+     if (enamelCache.has(key)) return enamelCache.get(key);
+-    const N = LOWQ() ? 256 : 384, c = N / 2, fs = Math.round(N * 0.6), dy = N * 0.03;
+-    const font = `bold ${fs}px ${FONT}`, lw = N * 0.028;
++    const N = LOWQ() ? 256 : 384, c = N / 2, lw = N * 0.028, gp = new Path2D(); gp.addPath(Face.path(ch, N));   // 字形和木棋子同一套宋体、同一大小同一位置（face.js）
++    // 色圈（试样）：和字同一套珐琅（汉朱、楚墨，金/银丝勾边）
++    const ann = (r0, r1) => { gp.moveTo(c + r1 * N, c); gp.arc(c, c, r1 * N, 0, Math.PI * 2); gp.moveTo(c + r0 * N, c); gp.arc(c, c, r0 * N, 0, Math.PI * 2, true); };
++    if (RS === 'A') ann(0.418, 0.442);
++    if (RS === 'B') { ann(0.432, 0.466); ann(0.386, 0.402); }
++    if (RS === 'C') ann(0.392, 0.466);
+     const shape = (g, strokeCol, fillCol) => {
+-      g.font = font; g.textAlign = 'center'; g.textBaseline = 'middle'; g.lineJoin = 'round';
+-      if (strokeCol) { g.strokeStyle = strokeCol; g.lineWidth = lw; g.strokeText(ch, c, c + dy); }
+-      if (fillCol) { g.fillStyle = fillCol; g.fillText(ch, c, c + dy); }
++      g.lineJoin = 'round';
++      if (strokeCol) { g.strokeStyle = strokeCol; g.lineWidth = lw; g.stroke(gp); }
++      if (fillCol) { g.fillStyle = fillCol; g.fill(gp); }
+     };
+     const map = sTex(mkCanvas(N, N, g => {
+       g.clearRect(0, 0, N, N);
+@@ -1123,7 +1116,7 @@
+       g.save(); g.translate(N * 0.006, N * 0.01); shape(g, 'rgba(30,18,8,.55)', 'rgba(30,18,8,.55)'); g.restore();
+       shape(g, wire === 'silver' ? '#e9ebf0' : '#ffd987', null);
+       // 釉面：上亮下深的渐变（像微微下凹的釉）
+-      const gr = g.createLinearGradient(0, c - fs * 0.5, 0, c + fs * 0.5);
++      const gk = RS ? 0.47 : 0.3, gr = g.createLinearGradient(0, c - N * gk, 0, c + N * gk);
+       if (s === 'r') { gr.addColorStop(0, '#c42a17'); gr.addColorStop(0.5, '#951709'); gr.addColorStop(1, '#640c04'); }
+       else { gr.addColorStop(0, '#2c2826'); gr.addColorStop(0.5, '#121010'); gr.addColorStop(1, '#060505'); }
+       shape(g, null, gr);
+@@ -1957,6 +1950,6 @@
+   return {
+     root, TOP, PH, HALF, X, Z, pos, setPosition, syncPosition, pieces, piecesRoot, makePiece, faceViewer,
+     showMoves, clearMoves, flashBad, hoverMark, showZone, showBad, showStep, setGlow, showLast, pick, meshAt, get hovered() { return hovered; }, ringTex, glowTex, wakes, water, waterMat, decal, flatGeo, pine, deco, FONT,
+-    viewSide: 'r', setSkin, dress, get lastGame() { return lastGame; }, skinTune, get SK() { return SK; }, pieceWood, RZ, BZ, BX, BRIDGE_X, faceTex, backTex, setFace, makeRiver, mtTex, decorate, decorateAll, reconcile, plateGeo, plateOn,
++    viewSide: 'r', setSkin, dress, get lastGame() { return lastGame; }, skinTune, get SK() { return SK; }, pieceWood, RZ, BZ, BX, BRIDGE_X, faceTex, backTex, setFace, decoOpts, makeRiver, mtTex, decorate, decorateAll, reconcile, plateGeo, plateOn,
+   };
+ })();

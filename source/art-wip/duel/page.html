@@ -1,0 +1,261 @@
+<title>兵卒对打 · 三条路</title>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Noto+Serif+SC:wght@600;900&family=Noto+Sans+SC:wght@400;500&display=swap">
+<style>
+/* 同一套对打编排，左边用游戏里现在的兵（腿、胳膊各一整块），右边给同一个兵加上膝、肘；下面是三条路的说明 */
+:root{--bg:#1b1a17;--fg:#f0e7d2;--dim:#a39b89;--line:#3a362f;--red:#c8432f;--card:#24221e;
+  --ef:"Noto Serif SC","Songti SC",serif;--es:"Noto Sans SC","PingFang SC",sans-serif;color-scheme:dark}
+body{background:var(--bg);color:var(--fg);font-family:var(--es);padding-block:28px 56px;padding-inline:16px;margin:0}
+.wrap{max-width:1180px;margin:0 auto;display:flex;flex-direction:column;gap:20px}
+h1{margin:0;font:900 30px/1.2 var(--ef);letter-spacing:.14em;text-wrap:balance}
+.lead{margin:0;color:var(--dim);font-size:14px;line-height:1.8;max-width:72ch}
+.ctl{display:flex;gap:8px;flex-wrap:wrap;align-items:center}
+.ctl span{color:var(--dim);font-size:13px;margin-right:4px}
+.ctl button{all:unset;cursor:pointer;border:1.5px solid var(--fg);padding:6px 14px;font:600 14px var(--ef);letter-spacing:.1em}
+.ctl button:focus-visible{outline:2px solid var(--fg);outline-offset:3px}
+.ctl button.on{background:var(--fg);color:var(--bg)}
+.stages{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,500px),1fr));gap:18px}
+figure{margin:0;display:flex;flex-direction:column;gap:8px;min-width:0}
+canvas{width:100%;max-width:100%;aspect-ratio:16/10;display:block;background:#2b2722;box-shadow:0 0 0 1px var(--line)}
+figcaption b{font:900 19px/1.3 var(--ef);letter-spacing:.12em}
+figcaption b i{font-style:normal;color:var(--red);margin-right:.4em}
+figcaption span{display:block;font-size:14px;line-height:1.7;color:var(--dim)}
+.cards{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,320px),1fr));gap:14px}
+.card{background:var(--card);border:1px solid var(--line);padding:16px 18px;display:flex;flex-direction:column;gap:8px;min-width:0}
+.card.rec{border-color:var(--red)}
+.card h3{margin:0;font:900 18px/1.3 var(--ef);letter-spacing:.1em}
+.card h3 small{font:500 12px var(--es);color:var(--red);letter-spacing:.05em;margin-left:.5em}
+.card p{margin:0;font-size:14px;line-height:1.75}
+.card ul{margin:0;padding-left:1.2em;font-size:13.5px;line-height:1.7;color:var(--dim)}
+.beat{font-size:13px;color:var(--dim);min-height:1.5em;font-variant-numeric:tabular-nums}
+</style>
+<div class="wrap">
+  <h1>兵卒对打 · 三条路</h1>
+  <p class="lead">同一段对打：汉兵突刺，楚卒同时反刺没刺中，被打退后摆出防守架势；只扣血时汉兵嘲讽，杀子时断肢飞出、汉兵庆祝。左边是游戏里现在的兵（腿、胳膊各是一整块），右边是同一个兵只加了膝盖和手肘。造型都没改，看的是动作能做到哪一步。</p>
+  <div class="ctl" role="group" aria-label="场面"><span>场面</span><button data-s="hurt" class="on">扣血 → 嘲讽</button><button data-s="kill">杀子 → 庆祝</button></div>
+  <div class="ctl" role="group" aria-label="速度"><span>速度</span><button data-r="1" class="on">正常</button><button data-r="0.35">慢放</button><button data-r="0">暂停</button></div>
+  <div class="beat" id="beat" aria-live="polite"></div>
+  <div class="stages">
+    <figure><canvas id="cA"></canvas><figcaption><b><i>甲</i>不动模型（现在的关节）</b><span>弓步时整条腿是直的，压低重心脚会陷进地里；手臂伸不直也弯不回，嘲讽、欢呼只能整条胳膊甩。</span></figcaption></figure>
+    <figure><canvas id="cB"></canvas><figcaption><b><i>乙</i>加膝、加肘（推荐）</b><span>同一个兵，腿和胳膊各拆成两节：弓步脚踩实、屈膝扎稳；突刺先收肘再送出去；招手嘲讽、举拳欢呼都做得出来；断肢可以只断小臂。</span></figcaption></figure>
+  </div>
+  <div class="cards">
+    <div class="card"><h3>甲 · 不动模型</h3><p>只加新动作和编排（突刺、反刺、被打退、防守架势、嘲讽、庆祝），模型和关节照旧。</p><ul><li>最快，几天的活，帧数不变</li><li>动作偏僵：弓步、屈膝、招手做不像</li></ul></div>
+    <div class="card rec"><h3>乙 · 加膝、加肘<small>我推荐</small></h3><p>腿、胳膊各拆两节，还是刚体拼装、还是一队兵共用实例网格，不上蒙皮；关节值从 16 个加到 20 个，动作表跟着扩。</p><ul><li>对打、嘲讽、庆祝都做得出来；脚不再陷地</li><li>帧数基本不变；断肢照旧，还能只断小臂</li><li>楚汉造型可以在这套拼装里直接换（冠盔、甲片、兵器、盾形、配色），不用重新绑定</li></ul></div>
+    <div class="card"><h3>丙 · 重做模型 + 骨骼蒙皮</h3><p>先重做汉兵、楚卒两套造型，再绑骨骼、做蒙皮动画。</p><ul><li>动作最像真人，衣甲会跟着弯</li><li>一队几十个兵都要蒙皮，手机上帧数会掉；工作量是乙的好几倍</li><li>棋盘这个尺寸上，比乙多出来的细节不太看得出</li></ul></div>
+  </div>
+</div>
+<script src="https://cdn.jsdelivr.net/npm/three@0.158.0/build/three.min.js"></script>
+<script>
+(() => {
+  const PI = Math.PI;
+  // ---------- 和游戏里一样的零件做法：几块基本体合成一块，带顶点色 ----------
+  const SIDE = { r: { cloth: 0xa8321f, cloth2: 0xc4553a, armor: 0x4d4541, trim: 0xc9a045, tassel: 0xc0412c }, b: { cloth: 0x2a292c, cloth2: 0x48464a, armor: 0x2f2e31, trim: 0x9c8a62, tassel: 0x7a2418 } };
+  const C = { skin: 0xd8bf98, pants: 0x2d2a27, wood: 0x6e4a2c, metal: 0xb8b4aa, dark: 0x1d1c1b, hair: 0x151413 };
+  const G = { box: (w, h, d) => new THREE.BoxGeometry(w, h, d), cyl: (a, b, h, s = 8) => new THREE.CylinderGeometry(a, b, h, s), sph: (r, s = 8) => new THREE.SphereGeometry(r, s, Math.max(4, s - 2)), cone: (r, h, s = 8) => new THREE.ConeGeometry(r, h, s) };
+  const M4 = (x, y, z, rx = 0, ry = 0, rz = 0, sx = 1, sy = sx, sz = sx) => new THREE.Matrix4().compose(new THREE.Vector3(x, y, z), new THREE.Quaternion().setFromEuler(new THREE.Euler(rx, ry, rz)), new THREE.Vector3(sx, sy, sz));
+  const P = (geo, color, x = 0, y = 0, z = 0, rx = 0, ry = 0, rz = 0, sx = 1, sy = sx, sz = sx) => ({ geo, color, m: M4(x, y, z, rx, ry, rz, sx, sy, sz) });
+  function mk(parts, piv) {
+    const pos = [], nor = [], col = [];
+    for (const p of parts) {
+      const g = (p.geo.index ? p.geo.toNonIndexed() : p.geo.clone()); g.applyMatrix4(p.m); if (piv) g.translate(-piv[0], -piv[1], -piv[2]);
+      const c = new THREE.Color(p.color), a = g.attributes.position, n = g.attributes.normal;
+      for (let i = 0; i < a.count; i++) { pos.push(a.getX(i), a.getY(i), a.getZ(i)); nor.push(n.getX(i), n.getY(i), n.getZ(i)); col.push(c.r, c.g, c.b); }
+    }
+    const g = new THREE.BufferGeometry(); g.setAttribute('position', new THREE.Float32BufferAttribute(pos, 3)); g.setAttribute('normal', new THREE.Float32BufferAttribute(nor, 3)); g.setAttribute('color', new THREE.Float32BufferAttribute(col, 3));
+    return g;
+  }
+  const grad = (() => { const t = new THREE.DataTexture(new Uint8Array([70, 70, 70, 255, 150, 150, 150, 255, 235, 235, 235, 255]), 3, 1, THREE.RGBAFormat); t.minFilter = t.magFilter = THREE.NearestFilter; t.needsUpdate = true; return t; })();
+  const vcMat = new THREE.MeshToonMaterial({ color: 0xffffff, vertexColors: true, gradientMap: grad });
+  const olMat = new THREE.MeshBasicMaterial({ color: 0x15120f, side: THREE.BackSide });
+  olMat.onBeforeCompile = sh => { sh.vertexShader = sh.vertexShader.replace('#include <begin_vertex>', 'vec3 transformed = position + normalize(normal) * 0.018;'); };
+  const inked = geo => { const g = new THREE.Group(); const m = new THREE.Mesh(geo, vcMat); m.castShadow = true; g.add(m, new THREE.Mesh(geo, olMat)); return g; };
+
+  // 长矛兵的零件（照 models.js 的 spear 兵）。split = true：腿拆成大腿 / 小腿，胳膊拆成上臂 / 小臂
+  function parts(side, split) {
+    const c = SIDE[side];
+    const helmet = [P(G.cyl(0.1, 0.14, 0.14, 8), c.armor, 0, 1.68, 0), P(G.cone(0.05, 0.12, 5), c.armor, 0, 1.8, 0), P(G.cone(0.05, 0.1, 5), c.tassel, 0, 1.86, -0.02, 0.4), P(G.box(0.03, 0.1, 0.1), c.armor, 0.12, 1.6, -0.01), P(G.box(0.03, 0.1, 0.1), c.armor, -0.12, 1.6, -0.01)];
+    const o = {
+      body: mk([P(G.cyl(0.21, 0.3, 0.36, 8), c.armor, 0, 0.86, 0), P(G.cyl(0.2, 0.19, 0.52, 8), c.cloth, 0, 1.22, 0), P(G.box(0.44, 0.36, 0.34), c.armor, 0, 1.26, 0), P(G.box(0.46, 0.05, 0.36), C.dark, 0, 1.05, 0), P(G.box(0.12, 0.12, 0.04), c.trim, 0, 1.3, 0.18), P(G.sph(0.1, 6), c.armor, 0.25, 1.42, 0, 0, 0, 0, 1, 0.8, 1), P(G.sph(0.1, 6), c.armor, -0.25, 1.42, 0, 0, 0, 0, 1, 0.8, 1), P(G.cyl(0.06, 0.07, 0.1, 6), C.skin, 0, 1.5, 0)], [0, 0.9, 0]),
+      head: mk([P(G.sph(0.12, 8), C.skin, 0, 1.6, 0), P(G.box(0.12, 0.02, 0.02), C.hair, 0, 1.62, 0.115), ...helmet], [0, 1.5, 0]),
+      weapon: mk([P(G.cyl(0.018, 0.02, 2.5, 5), C.wood, 0, 0.55, 0), P(G.cone(0.042, 0.26, 5), C.metal, 0, 1.93, 0), P(G.cone(0.06, 0.12, 6), c.tassel, 0, 1.76, 0, PI)]),
+      shield: mk([P(G.box(0.46, 0.72, 0.05), c.cloth2, 0, 0.08, 0.04), P(G.box(0.38, 0.62, 0.02), c.cloth, 0, 0.08, 0.072), P(G.sph(0.07, 6), C.metal, 0, 0.1, 0.07), P(G.box(0.46, 0.04, 0.07), c.trim, 0, 0.42, 0.04), P(G.box(0.46, 0.04, 0.07), c.trim, 0, -0.26, 0.04)]),
+    };
+    for (const [k, s] of [['L', 1], ['R', -1]]) {
+      const x = 0.1 * s;
+      if (!split) o['leg' + k] = mk([P(G.box(0.14, 0.8, 0.16), C.pants, x, 0.46, 0), P(G.cyl(0.085, 0.075, 0.3, 6), c.armor, x, 0.28, 0.01), P(G.box(0.16, 0.1, 0.26), C.dark, x, 0.05, 0.04)], [x, 0.86, 0]);
+      else {
+        o['thigh' + k] = mk([P(G.box(0.15, 0.42, 0.17), C.pants, x, 0.66, 0)], [x, 0.86, 0]);
+        o['shin' + k] = mk([P(G.box(0.13, 0.38, 0.15), C.pants, x, 0.27, 0), P(G.cyl(0.085, 0.075, 0.3, 6), c.armor, x, 0.28, 0.01), P(G.box(0.16, 0.1, 0.26), C.dark, x, 0.05, 0.04), P(G.sph(0.075, 6), C.pants, x, 0.46, 0)], [x, 0.46, 0]);
+      }
+    }
+    for (const [k, s] of [['W', 1], ['S', -1]]) {
+      const x = 0.28 * s;
+      if (!split) o['arm' + k] = mk([P(G.box(0.1, 0.5, 0.11), c.cloth, x, 1.17, 0), P(G.cyl(0.055, 0.05, 0.16, 6), c.armor, x, 1.03, 0), P(G.sph(0.055, 6), C.skin, x + 0.01 * s, 0.93, 0.02)], [0.27 * s, 1.42, 0]);
+      else {
+        o['uarm' + k] = mk([P(G.box(0.11, 0.27, 0.12), c.cloth, x, 1.3, 0)], [0.27 * s, 1.42, 0]);
+        o['farm' + k] = mk([P(G.box(0.095, 0.25, 0.105), c.cloth, x, 1.06, 0), P(G.cyl(0.055, 0.05, 0.16, 6), c.armor, x, 1.03, 0), P(G.sph(0.055, 6), C.skin, x + 0.01 * s, 0.93, 0.02), P(G.sph(0.058, 6), c.cloth, x, 1.17, 0)], [x, 1.17, 0]);
+      }
+    }
+    return o;
+  }
+
+  // ---------- 一个兵：按关节值摆 ----------
+  const _t = new THREE.Matrix4(), _r = new THREE.Matrix4(), _e = new THREE.Euler();
+  const tr = (m, x, y, z) => m.multiply(_t.makeTranslation(x, y, z)), rot = (m, x, y, z) => m.multiply(_r.makeRotationFromEuler(_e.set(x, y, z)));
+  const L1 = 0.4, L2 = 0.46;   // 大腿、小腿（到脚底）
+  // 两节腿的反解：髋在 (0, hy, 0)，脚底落在 (0, 0, fz)（这条腿自己的前后方向），返回大腿、膝的转角
+  function legIK(hy, fz, lift) {
+    const ty = hy - lift, d = Math.min(L1 + L2 - 0.002, Math.hypot(ty, fz)), phi = Math.atan2(fz, ty);
+    const a1 = Math.acos(Math.max(-1, Math.min(1, (L1 * L1 + d * d - L2 * L2) / (2 * L1 * d)))), a2 = Math.acos(Math.max(-1, Math.min(1, (L2 * L2 + d * d - L1 * L1) / (2 * L2 * d))));
+    const at = phi + a1, as = phi - a2;   // 离开竖直向下的角，朝前为正
+    return [-at, at - as];
+  }
+  class Soldier {
+    constructor(side, split) {
+      this.split = split; this.root = new THREE.Group(); this.p = {}; this.flown = {};
+      const geos = parts(side, split);
+      for (const k in geos) { const g = inked(geos[k]); g.matrixAutoUpdate = false; this.root.add(g); this.p[k] = g; }
+    }
+    // J：crouch 下蹲、lean 前倾、twist、hx 低头、hy 转头、fL / fR 两脚的前后（相对身子）、liftL / liftR 抬脚、
+    //    aW / aS 两肩前后、aWz / aSz 两肩外展、eW / eS 两肘、wAbs 矛的俯仰（世界里，π/2 = 平端朝前）、sAbs 盾、lL / lR（甲只用这两个：整条腿的转角）
+    pose(J) {
+      const m = {}, I = () => new THREE.Matrix4(), body = I(); tr(body, 0, 0.9 - J.crouch, 0); rot(body, J.lean, J.twist, 0);
+      m.body = body; m.head = body.clone(); tr(m.head, 0, 0.6, 0); rot(m.head, J.hx, J.hy, 0);
+      const hy = 0.86 - J.crouch;
+      for (const [k, s] of [['L', 1], ['R', -1]]) {
+        const fz = J['f' + k], lift = J['lift' + k] || 0;
+        if (!this.split) { const a = I(); tr(a, 0.1 * s, hy, 0); rot(a, -Math.atan2(fz, 0.86) , 0, 0.02 * s); m['leg' + k] = a; }   // 一整条腿：只能整根转，压低时脚陷进地里
+        else {
+          const [th, kn] = legIK(hy, fz, lift), a = I(); tr(a, 0.1 * s, hy, 0); rot(a, th, 0, 0.02 * s); m['thigh' + k] = a;
+          const b = a.clone(); tr(b, 0, -L1, 0); rot(b, kn, 0, 0); m['shin' + k] = b;
+        }
+      }
+      for (const [k, s] of [['W', 1], ['S', -1]]) {
+        const a = body.clone(); tr(a, 0.27 * s, 0.52, 0); rot(a, J['a' + k], 0, (J['a' + k + 'z'] || 0) * s);
+        const abs = k === 'W' ? J.wAbs : J.sAbs, hold = k === 'W' ? 'weapon' : 'shield';
+        let hand;
+        if (!this.split) { m['arm' + k] = a; hand = a.clone(); tr(hand, 0.02 * s, k === 'W' ? -0.49 : -0.46, k === 'W' ? 0.03 : 0.06); rot(hand, abs - J['a' + k] - J.lean, 0, 0); }
+        else {
+          m['uarm' + k] = a; const f = a.clone(); tr(f, 0.01 * s, -0.25, 0); rot(f, J['e' + k], 0, 0); m['farm' + k] = f;
+          hand = f.clone(); tr(hand, 0.01 * s, k === 'W' ? -0.24 : -0.21, k === 'W' ? 0.03 : 0.06); rot(hand, abs - J['a' + k] - J['e' + k] - J.lean, 0, 0);
+        }
+        m[hold] = hand;
+      }
+      for (const k in m) if (this.p[k] && !this.flown[k]) { this.p[k].matrix.copy(m[k]); }
+      this.mat = m;
+    }
+  }
+
+  // ---------- 编排：同一套关节目标，两边一起用 ----------
+  const sm = k => { k = Math.max(0, Math.min(1, k)); return k * k * (3 - 2 * k); };
+  const seg = (t, a, b) => sm((t - a) / (b - a));
+  const mix = (A, B, k) => { const o = {}; for (const key in A) o[key] = A[key] + ((B[key] ?? A[key]) - A[key]) * k; return o; };
+  const READY = { crouch: 0.08, lean: 0.15, twist: 0, hx: -0.1, hy: 0, fL: 0.18, fR: -0.18, liftL: 0, liftR: 0, aW: -1.15, aWz: 0.05, eW: -0.5, wAbs: PI / 2, aS: -1.0, aSz: -0.05, eS: -0.6, sAbs: 0.1, x: 0, y: 0, fall: 0 };
+  const T = 4.8;
+  function attacker(t, kill) {
+    let J = { ...READY };
+    J = mix(J, { crouch: 0.04, lean: -0.1, aW: -0.75, eW: -1.25, wAbs: PI / 2 + 0.05, fL: 0.1, fR: -0.3, twist: 0.25 }, seg(t, 0.45, 0.75));            // 收矛蓄力
+    J = mix(J, { crouch: 0.22, lean: 0.38, aW: -1.6, eW: 0, wAbs: PI / 2 - 0.05, fL: 0.62, fR: -0.42, twist: -0.2, x: 0.38, hx: -0.2 }, seg(t, 0.75, 0.98));   // 弓步突刺
+    J.liftL = Math.sin(seg(t, 0.75, 0.95) * PI) * 0.12;
+    J = mix(J, { ...READY, x: 0.25 }, seg(t, 1.15, 1.55));                                                                                          // 收回
+    if (!kill) {   // 嘲讽：立矛，盾手招两下，歪头、身子往后一靠
+      const k = seg(t, 1.7, 2.0) * (1 - seg(t, 3.4, 3.8)), wav = Math.sin((t - 2.0) * 9) * seg(t, 2.0, 2.2) * (1 - seg(t, 3.2, 3.4));
+      J = mix(J, { crouch: 0.02, lean: -0.15, hx: 0.15, hy: -0.35, aW: -0.25, eW: -0.25, wAbs: 0, aS: -1.35, aSz: 0.3, eS: -0.9, sAbs: 1.3, fL: 0.12, fR: -0.12, twist: -0.25, x: 0.25 }, k);
+      J.eS += wav * 0.7 * k; J.hy += Math.sin((t - 2.0) * 4.5) * 0.08 * k;
+    } else {       // 庆祝：矛举过头一下一下往上捅，屈膝蹦跳
+      const k = seg(t, 1.6, 1.9) * (1 - seg(t, 3.5, 3.9)), hop = Math.max(0, Math.sin((t - 1.9) * 7)) * seg(t, 1.9, 2.0) * (1 - seg(t, 3.2, 3.4));
+      J = mix(J, { crouch: 0.05, lean: -0.1, hx: 0.35, aW: -2.7, eW: -0.35, wAbs: 0.15, aS: -0.25, aSz: 0.3, eS: -0.35, sAbs: 0.05, fL: 0.15, fR: -0.15, x: 0.25, twist: 0 }, k);
+      J.crouch += (1 - hop) * 0.12 * k - hop * 0.02; J.y = hop * 0.22 * k; J.eW -= hop * 0.5 * k; J.aW += hop * 0.25 * k;
+    }
+    J = mix(J, READY, seg(t, 4.2, 4.6));
+    return J;
+  }
+  function defender(t, kill) {
+    let J = { ...READY };
+    J = mix(J, { crouch: 0.14, lean: 0.3, aW: -1.45, eW: -0.15, wAbs: PI / 2 + 0.08, fL: 0.42, fR: -0.3, x: 0.12 }, seg(t, 0.78, 0.98));                    // 同时反刺，差一点没够着
+    if (!kill) {
+      J = mix(J, { crouch: 0.1, lean: -0.45, hx: -0.5, aW: -0.4, aWz: 0.5, eW: -0.2, wAbs: PI / 2 + 0.6, aS: -0.2, aSz: 0.5, eS: -0.2, sAbs: 0.3, fL: 0.05, fR: -0.45, x: -0.5 }, seg(t, 1.0, 1.25));   // 被打退
+      J.liftL = Math.sin(seg(t, 1.05, 1.35) * PI) * 0.1; J.liftR = Math.sin(seg(t, 1.25, 1.55) * PI) * 0.08;
+      J = mix(J, { crouch: 0.26, lean: 0.12, hx: 0.05, aW: -0.95, aWz: 0.1, eW: -0.7, wAbs: PI / 2 - 0.15, aS: -1.5, aSz: 0.15, eS: -1.4, sAbs: 0.05, fL: 0.36, fR: -0.38, x: -0.62 }, seg(t, 1.35, 1.8));   // 防守架势：屈膝扎稳，盾挡在脸前，矛尖斜指来人
+      J.crouch += Math.sin(t * 3.2) * 0.012 * seg(t, 1.8, 2.0);
+      J = mix(J, READY, seg(t, 4.0, 4.6));
+    } else {
+      J = mix(J, { crouch: 0.12, lean: -0.6, hx: -0.8, aW: 0.3, aWz: 0.4, eW: 0, aS: 0.4, aSz: 0.7, eS: -0.1, fL: 0.25, fR: -0.35, x: -0.35 }, seg(t, 1.0, 1.2));
+      J.fall = seg(t, 1.15, 1.75);
+    }
+    return J;
+  }
+
+  // ---------- 舞台 ----------
+  function stage(canvas, split) {
+    const R = new THREE.WebGLRenderer({ canvas, antialias: true }); R.setPixelRatio(Math.min(2, devicePixelRatio)); R.shadowMap.enabled = true; R.outputColorSpace = THREE.SRGBColorSpace;
+    const S = new THREE.Scene(); S.background = new THREE.Color(0x2b2722);
+    const cam = new THREE.PerspectiveCamera(32, 1.6, 0.1, 60); cam.position.set(0.5, 1.9, 6.6); cam.lookAt(0.25, 1.05, 0);
+    S.add(new THREE.HemisphereLight(0xfff4e0, 0x5a4a38, 1.6));
+    const sun = new THREE.DirectionalLight(0xffffff, 1.6); sun.position.set(3, 6, 4); sun.castShadow = true; sun.shadow.mapSize.set(1024, 1024); Object.assign(sun.shadow.camera, { left: -4, right: 4, top: 4, bottom: -4 }); S.add(sun);
+    const ground = new THREE.Mesh(new THREE.CircleGeometry(6, 48), new THREE.MeshToonMaterial({ color: 0xd8b98a, gradientMap: grad })); ground.rotation.x = -PI / 2; ground.receiveShadow = true; S.add(ground);
+    const line = new THREE.Mesh(new THREE.PlaneGeometry(9, 0.04), new THREE.MeshBasicMaterial({ color: 0x5a3e22 })); line.rotation.x = -PI / 2; line.position.y = 0.002; S.add(line);
+    const A = new Soldier('r', split), D = new Soldier('b', split);
+    A.root.position.x = -1.15; A.root.rotation.y = PI / 2; D.root.position.x = 1.15; D.root.rotation.y = -PI / 2; S.add(A.root, D.root);
+    // 血：小球，打在胸口炸开，落地留成血点
+    const drops = [], dropGeo = new THREE.SphereGeometry(1, 6, 4), dropMat = new THREE.MeshBasicMaterial({ color: 0x8e1408 }), padGeo = new THREE.CircleGeometry(1, 10); padGeo.rotateX(-PI / 2);
+    const padMat = new THREE.MeshBasicMaterial({ color: 0x6e0f06, transparent: true, opacity: 0.85, depthWrite: false });
+    const mist = new THREE.Mesh(new THREE.SphereGeometry(1, 16, 10), new THREE.MeshBasicMaterial({ color: 0xa0180c, transparent: true, opacity: 0, depthWrite: false })); S.add(mist);
+    function burst(at, n, sp, dir) { for (let i = 0; i < n; i++) { const m = new THREE.Mesh(dropGeo, dropMat); m.scale.setScalar(0.015 + Math.random() * 0.025); m.position.copy(at); S.add(m); drops.push({ m, v: new THREE.Vector3(dir * (0.5 + Math.random() * sp), 0.6 + Math.random() * 2.2, (Math.random() - 0.5) * 1.6) }); } }
+    const fly = [];
+    function sever(sol, keys, v, w) {   // 把几个零件从身上拆下来甩飞（世界矩阵定格后自己飞）
+      for (const k of keys) { const g = sol.p[k]; sol.flown[k] = true; const wm = new THREE.Matrix4().multiplyMatrices(sol.root.matrixWorld, g.matrix); sol.root.remove(g); g.matrix.copy(wm); S.add(g); fly.push({ g, wm, v: v.clone(), w: w.clone(), t: 0 }); }
+    }
+    let state = {};
+    function reset() {
+      for (const d of drops) S.remove(d.m); drops.length = 0; for (const p of [...S.children]) if (p.userData.pad) S.remove(p);
+      for (const f of fly) { S.remove(f.g); } fly.length = 0;
+      for (const sol of [A, D]) for (const k in sol.flown) { sol.root.add(sol.p[k]); delete sol.flown[k]; }
+      state = {}; mist.material.opacity = 0;
+    }
+    function frame(t, dt, kill) {
+      if (t < state.last) reset(); state.last = t;
+      const ja = attacker(t, kill), jd = defender(t, kill);
+      A.root.position.set(-1.15 + ja.x, ja.y, 0); D.root.position.set(1.15 - jd.x, 0, 0);
+      D.root.rotation.set(0, -PI / 2, 0); if (jd.fall) { D.root.rotateX(-jd.fall * 1.45); D.root.position.y = Math.sin(jd.fall * PI) * 0.08; }
+      A.pose(ja); D.pose(jd); A.root.updateMatrixWorld(true); D.root.updateMatrixWorld(true);
+      const chest = new THREE.Vector3(D.root.position.x - 0.1, 1.25 - jd.crouch, 0);
+      if (t >= 1.0 && !state.hit) {
+        state.hit = 1; burst(chest, kill ? 70 : 26, kill ? 2.6 : 1.4, 1);
+        if (kill) { sever(D, split ? ['farmW', 'weapon'] : ['armW', 'weapon'], new THREE.Vector3(1.6, 3.2, 0.6), new THREE.Vector3(4, 7, 9)); sever(D, ['head'], new THREE.Vector3(1.1, 3.8, -0.4), new THREE.Vector3(-6, 3, 5)); }
+      }
+      if (kill && t >= 1.0) { const k = (t - 1.0) / 1.2; mist.position.copy(chest).add(new THREE.Vector3(0.3, 0.1, 0)); mist.scale.setScalar(0.25 + k * 0.9); mist.material.opacity = k < 1 ? 0.55 * (1 - k) : 0; }
+      for (const d of drops) {
+        if (d.done) continue; d.v.y -= 9 * dt; d.m.position.addScaledVector(d.v, dt);
+        if (d.m.position.y <= 0.01) { d.done = 1; S.remove(d.m); const p = new THREE.Mesh(padGeo, padMat); p.userData.pad = 1; p.position.set(d.m.position.x, 0.004 + Math.random() * 0.002, d.m.position.z); p.scale.setScalar(d.m.scale.x * (1.5 + Math.random() * 2)); S.add(p); }
+      }
+      for (const f of fly) {
+        f.t += dt; const tt = f.t, y0 = new THREE.Vector3().setFromMatrixPosition(f.wm).y, ty = y0 + f.v.y * tt - 4.9 * tt * tt;
+        const land = ty <= 0.06, tl = land ? (f.tl ??= tt) : tt;
+        const q = new THREE.Quaternion().setFromAxisAngle(f.w.clone().normalize(), f.w.length() * tl);
+        const pos = new THREE.Vector3().setFromMatrixPosition(f.wm).add(new THREE.Vector3(f.v.x * tl, 0, f.v.z * tl)); pos.y = Math.max(0.06, ty);
+        const base = new THREE.Matrix4().extractRotation(f.wm), rq = new THREE.Quaternion().setFromRotationMatrix(base).premultiply(q);
+        f.g.matrix.compose(pos, rq, new THREE.Vector3(1, 1, 1));
+        if (!land && Math.random() < 0.5) burst(pos, 1, 0.3, 1);
+      }
+      R.render(S, cam);
+    }
+    function size() { const w = canvas.clientWidth, h = canvas.clientHeight; if (canvas.width !== Math.round(w * R.getPixelRatio()) || canvas.height !== Math.round(h * R.getPixelRatio())) { R.setSize(w, h, false); cam.aspect = w / h; cam.updateProjectionMatrix(); } }
+    return { frame, size, reset };
+  }
+  const stA = stage(document.getElementById('cA'), false), stB = stage(document.getElementById('cB'), true);
+  let rate = 1, scen = 'hurt', t = 0, last = performance.now();
+  const beat = document.getElementById('beat');
+  const BEATS = { hurt: [[0, '对峙'], [0.45, '汉兵收矛蓄力'], [0.75, '弓步突刺 · 楚卒同时反刺'], [1.0, '刺中，扣一滴血，飙血'], [1.25, '楚卒被打退，屈膝摆出防守架势'], [1.7, '汉兵立矛招手，嘲讽'], [4.2, '回到对峙']], kill: [[0, '对峙'], [0.45, '汉兵收矛蓄力'], [0.75, '弓步突刺 · 楚卒同时反刺'], [1.0, '刺中要害：断臂、头盔连头飞出，血雾'], [1.15, '楚卒仰面倒下'], [1.6, '汉兵举矛振臂，蹦跳庆祝'], [4.2, '重来']] };
+  function loop(now) {
+    const dt = Math.min(0.05, (now - last) / 1000) * rate; last = now; t += dt; if (t >= T) { t = 0; stA.reset(); stB.reset(); }
+    stA.size(); stB.size(); stA.frame(t, dt, scen === 'kill'); stB.frame(t, dt, scen === 'kill');
+    let txt = ''; for (const [a, s] of BEATS[scen]) if (t >= a) txt = s; if (beat.textContent !== txt) beat.textContent = txt;
+    requestAnimationFrame(loop);
+  }
+  document.querySelectorAll('[data-s]').forEach(b => b.onclick = () => { document.querySelectorAll('[data-s]').forEach(x => x.classList.toggle('on', x === b)); scen = b.dataset.s; t = 0; stA.reset(); stB.reset(); });
+  document.querySelectorAll('[data-r]').forEach(b => b.onclick = () => { document.querySelectorAll('[data-r]').forEach(x => x.classList.toggle('on', x === b)); rate = +b.dataset.r; });
+  window.__step = d => { t += d; if (t >= T) { t = 0; stA.reset(); stB.reset(); } stA.frame(t, d, scen === 'kill'); stB.frame(t, d, scen === 'kill'); return t; };   // 自查用：一步一步走
+  requestAnimationFrame(loop);
+})();
+</script>
