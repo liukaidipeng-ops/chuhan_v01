@@ -52,9 +52,9 @@ const SK = {
            ['乙 · 战象虚影', '战象身后立起一头巨象的墨影，前蹄扬起再重重踏下，裂纹向四周爬开。'],
            ['丙 · 墨印踏地', '一枚巨大的象足墨印从天而降盖在落点，墨花溅开，周围一圈一格格亮红。']] },
   qishe: { name: '齐射', who: '汉 · 相（四级）', rule: '不动身，射斜线 1～2 格内的一个敌子，扣 1 点。',
-    opts: [['甲 · 箭雨', '七支箭从相身上划弧线飞出，错落落在目标周围，最后一支正中。'],
-           ['乙 · 巨弩', '相头顶浮出一架半透明巨弩，拉满、放箭，一支大箭拖着光直贯目标。'],
-           ['丙 · 万箭升空', '一排箭从相身上竖着升空，在天上排成扇面停一拍，再齐齐扎向目标。']] },
+    opts: [['甲 · 箭雨（保底）', '七支箭从相身上划弧线飞出，错落落在目标周围，最后一支正中。'],
+           ['乙 · 乱箭点落', '七八支箭乱着冲天、飞出画面；静一拍后一支支从天上直直扎下来，嗒、嗒嗒、嗒……时疏时密，全钉在目标身上。'],
+           ['丙 · 箭如骤雨', '三拨乱箭冲天消失；静一拍后先零星、再越落越密地直坠，落点先现小黑影，全扎在目标身上，最后一支粗箭正中。']] },
   hujia: { name: '护驾', who: '士（三级）', rule: '与帅（将）互换位置，可解将。',
     opts: [['甲 · 金盾换位', '士和帅一起腾起、交叉换位，帅的新位置前立起一面半透明金盾，一声铮响。'],
            ['乙 · 卫士虚影', '士身上走出一个持盾卫士的墨影，大步护到帅身前，两子换位后卫士单膝跪下散去。'],
@@ -192,6 +192,7 @@ function arrow(scale = 1, glow = false) {
   const sh = new THREE.Mesh(new THREE.CylinderGeometry(.025, .025, 1, 6), wood); sh.rotation.x = Math.PI / 2; g.add(sh);
   const hd = new THREE.Mesh(new THREE.ConeGeometry(.06, .18, 8), tip); hd.rotation.x = Math.PI / 2; hd.position.z = .58; g.add(hd);
   const fl = new THREE.Mesh(new THREE.PlaneGeometry(.12, .2), new THREE.MeshBasicMaterial({ color: C.zhu, side: THREE.DoubleSide })); fl.position.z = -.42; g.add(fl);
+  const st = new THREE.Mesh(new THREE.CylinderGeometry(.012, .03, 1.6, 6), new THREE.MeshBasicMaterial({ color: C.paper, transparent: true, opacity: .35, depthWrite: false })); st.rotation.x = Math.PI / 2; st.position.z = -1.25; st.visible = false; g.add(st); g.userData.streak = st;
   g.scale.setScalar(scale); g.visible = false; return add(g);
 }
 const aimAlong = (o, p, q) => { o.position.copy(p); o.lookAt(q); };
@@ -254,23 +255,47 @@ const FX = {
     const A = xi.position.clone().setY(.5), B = tg.position.clone().setY(.3), d = dmg(), rg = ring(C.zhu);
     let HIT; const arrows = [];
     if (o === 0) { for (let i = 0; i < 7; i++) arrows.push(arrow(1)); HIT = 1.6; }
-    if (o === 1) { arrows.push(arrow(2.2, true)); HIT = 1.5; }
-    if (o === 2) { for (let i = 0; i < 9; i++) arrows.push(arrow(.9)); HIT = 1.9; }
-    let bow, trail; if (o === 1) { bow = new THREE.Group(); const m = ghostMat(0x5a3a20, .5); const stock = new THREE.Mesh(new THREE.BoxGeometry(.18, .14, 1.8), m); bow.add(stock); for (const s of [1, -1]) { const limb = new THREE.Mesh(new THREE.BoxGeometry(1.1, .08, .1), m); limb.position.set(s * .55, 0, .7); limb.rotation.y = s * -.25; bow.add(limb); } add(bow); bow.visible = false;
-      trail = add(new THREE.Mesh(new THREE.CylinderGeometry(.05, .05, 1, 8), new THREE.MeshBasicMaterial({ color: 0xffd27e, transparent: true, depthWrite: false }))); trail.visible = false; }
+    // 乙丙：乱着冲天、飞出画面，空一拍，再从高处垂直直坠到目标身上；节奏不齐、落点随机（种子固定，每次一样）
+    let ups = [], downs = [], marks = [];
+    if (o > 0) {
+      const R = (sd => () => (sd = (sd * 16807) % 2147483647) / 2147483647)(o === 1 ? 11 : 29);
+      const nUp = o === 1 ? 8 : 12, launch = [];
+      if (o === 1) for (let i = 0; i < nUp; i++) launch.push(.25 + R() * .55);
+      else for (let b = 0; b < 3; b++) for (let i = 0; i < 4; i++) launch.push([.2, .45, .66][b] + R() * .12);
+      launch.sort((x, y) => x - y);
+      launch.forEach(t0 => { const az = R() * 6.283, tilt = .08 + R() * .35; ups.push({ a: arrow(.9), t0, v: 16 + R() * 10, dir: new THREE.Vector3(Math.cos(az) * Math.sin(tilt), Math.cos(tilt), Math.sin(az) * Math.sin(tilt)) }); });
+      // 落下的节奏：乙 有疏有密的固定拍子；丙 由疏到密，最后停一拍落一支粗箭
+      const gaps = o === 1 ? [0, .26, .09, .3, .22, .08, .08, .34] : (() => { const g = [0]; for (let i = 1; i < 15; i++) g.push(Math.max(.035, .2 - i * .012) * (.7 + R() * .6)); g.push(.3); return g; })();
+      let tl = 2.0; gaps.forEach((g, i) => { tl += g; const last = i === gaps.length - 1, rr = last ? 0 : (o === 1 ? .08 + R() * .24 : .05 + R() * .3), an = R() * 6.283, ox = Math.cos(an) * rr, oz = Math.sin(an) * rr;
+        downs.push({ a: arrow(last && o === 2 ? 1.6 : .9), t1: tl, ox, oz, on: rr < PR - .05, last, tilt: (R() - .5) * .12 }); });
+      if (o === 2) marks = downs.map(() => { const m = add(new THREE.Mesh(new THREE.CircleGeometry(.09, 16), new THREE.MeshBasicMaterial({ color: C.ink, transparent: true, depthWrite: false }))); m.rotation.x = -Math.PI / 2; m.visible = false; return m; });
+      HIT = downs[downs.length - 1].t1;
+    }
+    const FALL = .16, H = 18, puffs = downs.map(() => { const m = ring(C.paper); return m; });
     dur = HIT + 1.4;
     return t => {
       if (o === 0) arrows.forEach((a, i) => { const t0 = .3 + i * .12, k = seg(t, t0, t0 + .9); a.visible = k > 0 && k < 1.0001 && t < HIT + .9;
         const off = i === 6 ? [0, 0] : [Math.cos(i * 2.4) * .45, Math.sin(i * 2.4) * .45], end = B.clone().add(new THREE.Vector3(off[0], -.25, off[1]));
         const p = arc(A, end, 1.8, Math.min(k, 1)), q = arc(A, end, 1.8, Math.min(1, k + .02)); if (k < 1) aimAlong(a, p, q); else a.position.copy(end); });
-      if (o === 1) { const fi = seg(t, .2, .6), pull = seg(t, .6, 1.2), fo = seg(t, HIT + .2, HIT + .7); bow.visible = fi > 0 && fo < 1; bow.position.copy(A).add(new THREE.Vector3(0, 1.0, 0)); bow.scale.setScalar(1.3); bow.lookAt(B.clone().add(new THREE.Vector3(0, .5, 0)));
-        bow.traverse(n => n.material && (n.material.opacity = .5 * fi * (1 - fo))); const a = arrows[0], k = ease.in(seg(t, 1.2, HIT)); const p0 = bow.position.clone(), p = p0.clone().lerp(B, k); a.visible = t > .9 && t < HIT; aimAlong(a, p, B); if (t < 1.2) a.position.copy(p0).add(B.clone().sub(p0).normalize().multiplyScalar(-.3 * pull));
-        trail.visible = t > 1.2 && t < HIT + .3; const tl = p0.distanceTo(p) || .01; trail.scale.set(1, tl, 1); trail.position.copy(p0).lerp(p, .5); trail.lookAt(p); trail.rotateX(Math.PI / 2); trail.material.opacity = .7 * (1 - seg(t, HIT, HIT + .3)); }
-      if (o === 2) arrows.forEach((a, i) => { const ang = (i - 4) * .22, sky = A.clone().add(new THREE.Vector3(Math.sin(ang) * 1.6, 1.7 + Math.cos(ang) * .4, -.6)), rise = ease.out(seg(t, .2 + i * .04, .9 + i * .04)), dive = ease.in(seg(t, 1.25, HIT));
-        a.visible = t > .2 && t < HIT + .05; const end = B.clone().add(new THREE.Vector3((i - 4) * .06, -.2, 0));
-        if (dive <= 0) { const p = A.clone().lerp(sky, rise); a.position.copy(p); a.lookAt(p.clone().add(new THREE.Vector3(0, 1, 0))); } else { const p = sky.clone().lerp(end, dive); aimAlong(a, p, end); } });
-      hitFlash(tg, t, HIT); dmgAt(d, t, HIT + .05, tg); ringAt(rg, t, HIT, B.x, B.z, 1.2, .5);
-      shake = Math.max(0, 1 - Math.abs(t - HIT - .05) / .2) * .06;
+      if (o > 0) {
+        const fo = seg(t, dur - .6, dur - .1);
+        ups.forEach(u => { const dt = t - u.t0; u.a.visible = dt > 0 && dt < 1.2; if (!u.a.visible) return; const p = A.clone().addScaledVector(u.dir, u.v * dt * (.6 + .4 * Math.min(1, dt * 3))); aimAlong(u.a, p, p.clone().add(u.dir)); u.a.userData.streak.visible = dt > .08; });
+        downs.forEach((d, i) => { const k = seg(t, d.t1 - FALL, d.t1), tip = (d.on ? PH : 0) - .1, L = .67 * d.a.scale.x;
+          const base = new THREE.Vector3(tg.position.x + d.ox, 0, tg.position.z + d.oz);
+          d.a.visible = k > 0 && fo < 1; d.a.userData.streak.visible = k > 0 && k < 1;
+          if (k < 1) { const p = base.clone().setY(tip + L + H * (1 - k)); d.a.position.copy(p); d.a.lookAt(p.clone().add(new THREE.Vector3(0, -1, 0))); }
+          else { const w = Math.exp(-(t - d.t1) * 9) * Math.sin((t - d.t1) * 60) * .12; d.a.position.copy(base).setY(tip + L + (d.on ? tg.position.y : 0)); d.a.lookAt(d.a.position.clone().add(new THREE.Vector3(d.tilt + w, -1, 0))); }
+          d.a.traverse(n => n.material && n !== d.a.userData.streak && (n.material.transparent = true, n.material.opacity = 1 - fo));
+          ringAt(puffs[i], t, d.t1, base.x, base.z, d.last ? 1.2 : .45, .35);
+          if (marks[i]) { const mk = seg(t, d.t1 - .35, d.t1); marks[i].visible = mk > 0 && mk < 1; marks[i].position.set(base.x, .012 + (d.on ? PH : 0), base.z); marks[i].scale.setScalar(.4 + .8 * mk * (d.last ? 2.2 : 1)); marks[i].material.opacity = .65 * mk; }
+        });
+        // 每支扎中都让目标闪一下（短），最后一支是正式的 -1
+        let on = 0; downs.forEach(d => { if (d.on && !d.last) { const k = seg(t, d.t1, d.t1 + .18); if (k > 0 && k < 1) on = Math.max(on, .5 * Math.sin(k * Math.PI)); } });
+        if (t < HIT) tg.userData.body.material.forEach(m => { m.emissive = m.emissive || new THREE.Color(); m.emissive.setRGB(.65 * on, .08 * on, .05 * on); });
+      }
+      if (t >= HIT) hitFlash(tg, t, HIT); dmgAt(d, t, HIT + .05, tg); if (o > 0) { d.position.y += 1.7; d.scale.set(1.2, .6, 1); d.material.depthTest = false; d.renderOrder = 9; }   // 乙丙箭立在子上，-1 抬高、画在箭前面
+      if (o === 0) ringAt(rg, t, HIT, B.x, B.z, 1.2, .5);
+      shake = Math.max(0, 1 - Math.abs(t - HIT - .05) / .2) * (o === 2 ? .1 : .06);
     };
   },
   hujia(o) {   // 汉仕 (4,4) 与帅 (3,5) 互换；楚车在 (3,1) 将军
