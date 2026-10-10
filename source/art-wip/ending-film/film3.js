@@ -115,7 +115,7 @@
       let S; try { S = FILM[base](); } finally { WuZhui.make = wz; XY4.make = xy; Ferry.makeFerry = fy; }
       if (o.dust != null) hanDust(S.ctx, o.dust, o.dustAt);
       CG.cgify(S.ctx.S); CG.wind(S.ctx.S, { k: 0.8 });
-      const find = name => { let r = null; S.ctx.S.traverse(x => { if (!r && x.name === name && x.parent && (name !== 'head' || x.parent.name === 'neck')) r = x; }); return r; };
+      const find = name => { let r = null; S.ctx.S.traverse(x => { if (!r && x.name === name && x.parent && (name === 'head' ? x.parent.name === 'neck' && x.parent.parent && x.parent.parent.name === 'bp' : name !== 'neck' || x.parent.name === 'bp')) r = x; }); return r; };
       const t0 = o.t0 || 0, inner = S.update;
       return Object.assign(S, { dur: o.dur || S.dur,
         update(t, dt) { if (t === 0 && t0 > 0) { for (let x = 0; x < t0; x += 1 / 24) inner(x, 1 / 24); } inner(t + t0, dt); CG.tick(t + t0); if (o.cam) o.cam(S, t, find); } });
@@ -131,13 +131,15 @@
     const nk = find('neck'); if (!nk) return; const p = nk.localToWorld(V(0.25, 0.3, 0));
     S.cam.fov = 16; S.cam.updateProjectionMatrix(); S.cam.position.copy(p).add(V(-0.6 + 0.06 * t, 0.15, 2.3)); S.cam.lookAt(p); S.post.focus = 1.2; S.post.ap = 1.2; } });
   // W12b 马眼大特写：眨一下
-  FILM.W12b = upgraded('F4', { t0: 3.0, dur: 3, cam(S, t, find) {
-    const hd = find('head'); if (!hd) return; const e = hd.localToWorld(V(0.15, 0.06, -0.1));   // 马朝 -x，镜头这边（+z）是它的左眼
-    S.cam.fov = 18; S.cam.updateProjectionMatrix(); S.cam.position.copy(e).add(V(-0.35, 0.06, 0.85)); S.cam.lookAt(e); S.post.focus = S.cam.position.distanceTo(e); S.post.ap = 1.4; } });
+  // W12b（改）：乌骓低头蹭项王的胸口——近景双人，马头和他的胸、手在一个画面里（马眼特写在黑马身上读不出来，换掉）
+  FILM.W12b = upgraded('F4', { t0: 2.6, dur: 3, cam(S, t, find) {
+    const hd = find('head'); if (!hd) return; const hp = hd.getWorldPosition(V(0, 0, 0)), mid = hp.clone().lerp(V(-0.55, 1.45, 0.3), 0.5);
+    if (!S._lit) { S._lit = 1; SB.fill(S.ctx, [0.2, 0.4, 1], 0xffe0bc, 1.1); }
+    S.cam.fov = 22; S.cam.updateProjectionMatrix(); S.cam.position.copy(mid).add(V(0.35 - 0.05 * t, 0.08, 2.3)); S.cam.lookAt(mid); S.post.focus = S.cam.position.distanceTo(mid); S.post.ap = 1.0; } });
   // W12d 缰绳交手：原 F4 的 11–14 秒，插入近景，焦点从项王的手移到亭长的手
   FILM.W12d = upgraded('F4', { t0: 11.0, dur: 3, cam(S, t) {
     const a = V(-1.05, 1.12, 0.0), b = V(-1.45, 1.12, -0.18), k = sm((t - 0.8) / 1.2), f = a.clone().lerp(b, k);
-    S.cam.fov = 18; S.cam.updateProjectionMatrix(); S.cam.position.set(-0.95, 1.3, 1.25); S.cam.lookAt(V(-1.25, 1.1, -0.08)); S.post.focus = S.cam.position.distanceTo(f); S.post.ap = 1.3; } });
+    S.cam.fov = 26; S.cam.updateProjectionMatrix(); S.cam.position.set(-1.1, 1.05, 2.3); S.cam.lookAt(V(-1.2, 1.15, -0.05)); S.post.focus = S.cam.position.distanceTo(f); S.post.ap = 1.3; } });
 
   // —— 劝渡那场（W5、W6、W9、W10）：项王骑在乌骓上，亭长站在马前左侧仰头劝 ——
   function talk(o = {}) {
@@ -165,7 +167,7 @@
       R.H.earK = 0.5; R.step(dt); R.X.pose({ headRx: 0.28, headRy: -0.35, chestRy: -0.15 });
       const want = t < 1.2 ? 'bow' : 'offer'; if (F.pose !== want) F.setPose(want, 0.8); F.look(0, 0.3); F.update(dt); T.aimElder();
       const h = T.face(), e = T.eface(), back = h.clone().sub(e).setY(0).normalize(), side = V(-back.z, 0, back.x);
-      cam.position.copy(e).addScaledVector(back, 2.4).addScaledVector(side, 0.55).setY(e.y + 0.05); cam.lookAt(e.clone().add(V(0, -0.08, 0)));   // 机位放低到亭长眼平，前景是乌骓的肩和项王的腿（虚）
+      cam.position.copy(e).addScaledVector(back, 3.3).addScaledVector(side, 1.05).setY(e.y + 0.1); cam.lookAt(e.clone().add(V(0, -0.08, 0)));   // 机位放低到亭长眼平，前景是乌骓的肩和项王的腿（虚）
       post.focus = cam.position.distanceTo(e); } };
   };
   // W6 反打：亭长身后低机位往上看项王；他不说话，眼神往江东（画左）飘
@@ -178,7 +180,7 @@
       const k = sm((t - 1.2) / 2.2); R.X.pose({ headRx: lerp(0.22, 0.05, k), headRy: lerp(-0.3, 0.35, k), chestRy: lerp(-0.1, 0.05, k) });   // 先看着亭长，再慢慢望向江东
       F.setPose('offer', 0.01); F.look(0, 0.3); F.update(dt); T.aimElder();
       const h = T.face(), e = T.eface(), d = h.clone().sub(e).normalize(), side = V(-d.z, 0, d.x);
-      cam.position.copy(e).addScaledVector(d, -0.2).addScaledVector(side, -1.0).add(V(0, -0.1, 0)); cam.lookAt(h);   // 偏到亭长身侧，项王的视线从镜头旁边擦过去
+      cam.position.copy(h).addScaledVector(d, -1.5).addScaledVector(side, -1.3).setY(h.y - 0.55); cam.lookAt(h);   // 偏到亭长身侧，项王的视线从镜头旁边擦过去
       post.focus = cam.position.distanceTo(h); } };
   };
   // W9 近景：低头，自嘲（嘴角动不了，靠低头—停—抬眼的节奏），抬眼看亭长
@@ -215,20 +217,20 @@
     const ctx = stage({ seed: 23, sun: [0.55, 0.1, -0.8], fogD: 0.02 });
     const F = Ferry.makeFerry({ scale: 1.5, cg: true }); F.group.position.set(-3.6, 0, 0); F.group.rotation.y = -PI / 2; F.lanternOn(true); cg(F.group); ctx.add(SB.shadows(F.group)); F.update(0.1); F.group.updateMatrixWorld(true);
     const lamp = F.boat.lamp.getWorldPosition(V(0, 0, 0));
-    const cam = SB.cam(lamp.clone().add(V(2.2, -0.55, 1.4)).toArray(), lamp.clone().add(V(0, -0.35, 0)).toArray(), 20), c0 = cam.position.clone();
+    const cam = SB.cam(lamp.clone().add(V(-1.2, -1.3, 3.2)).toArray(), lamp.clone().add(V(0, -0.6, 0)).toArray(), 24), c0 = cam.position.clone();
     const post = { focus: cam.position.distanceTo(lamp), ap: 1.2, maxR: 16, exp: 0.95, gain: [1.08, 0.97, 0.86], sat: 0.9, vign: 0.55, grain: 0.06 };
     return { ctx, cam, post, dur: 2.5, update(t, dt) {
       const beat = Math.max(0, Math.sin(t * 2 * PI * 1.8)) ** 6;   // 马蹄一下下
       F.boat.glow.intensity = 1.4 * (0.75 + 0.25 * Math.sin(t * 31) * Math.sin(t * 7.7)) * (1 - 0.35 * beat); F.update(dt);
       F.group.position.y = 0.012 * beat; F.group.updateMatrixWorld(true);
-      cam.position.copy(c0).add(V(0, 0.004 * beat * Math.sin(t * 90), 0)); cam.lookAt(lamp.clone().add(V(0, -0.35, 0))); } };
+      cam.position.copy(c0).add(V(0, 0.004 * beat * Math.sin(t * 90), 0)); cam.lookAt(lamp.clone().add(V(0, -0.6, 0))); } };
   };
   // W7 插入：来路方向，尘线高了一截，旗尖在尘里一闪
   FILM.W7 = () => {
     const ctx = stage({ seed: 29, sun: [-0.25, 0.08, -1] });
-    hanDust(ctx, 0.6, [0, -110]);
+    hanDust(ctx, 0.75, [0, -110]); SB.dust(ctx, { n: 120, box: [-40, 40, 0, 6, -100, -80], s: [6, 14], op: [0.08, 0.18], col: 0xe0b890 });
     const flags = []; for (let i = 0; i < 9; i++) { const g = new THREE.Group(), pole = new THREE.Mesh(new THREE.CylinderGeometry(0.06, 0.07, 9, 6), new THREE.MeshStandardMaterial({ color: 0x2a2018 })); pole.position.y = 4.5; g.add(pole);
-      const f = new THREE.Mesh(new THREE.PlaneGeometry(2.2, 3, 8, 3), new THREE.MeshStandardMaterial({ color: 0xa8321f, side: THREE.DoubleSide, roughness: 0.9 })); f.position.set(1.1, 7.2, 0); g.add(f); g.position.set(-24 + i * 6 + SB.rr(-2, 2), -4.5, -70 + SB.rr(-5, 5)); ctx.add(g); flags.push(g); }
+      const f = new THREE.Mesh(new THREE.PlaneGeometry(1.3, 3.6, 4, 8), new THREE.MeshBasicMaterial({ color: 0x4a2418, side: THREE.DoubleSide, fog: false, transparent: true, opacity: 0.75 })); f.position.set(1.1, 7.2, 0); f.rotation.y = 0.5; g.add(f); g.position.set(-24 + i * 6 + SB.rr(-2, 2), -4.5, -70 + SB.rr(-5, 5)); ctx.add(g); flags.push(g); }
     const cam = SB.cam([0, 1.6, 20], [0, 3.5, -70], 7), post = { focus: 90, ap: 0.3, maxR: 8, exp: 1.0, gain: [1.06, 0.97, 0.88], sat: 0.88, vign: 0.5, grain: 0.06 };
     return { ctx, cam, post, dur: 2.5, update(t) { for (const [i, g] of flags.entries()) g.position.y = -4.5 + 2.2 * sm((t - 0.3 - i * 0.12) / 1.5); } };   // 旗子一面面从地平线后升起来
   };
