@@ -44,6 +44,9 @@ add('att2', 0); add('att4', 0); add('heavy', 0);
 add('art_r_open', 0); add('art_b_open', 0);
 // k_free：帅 / 将上下左右四格里，在自己九宫内、而且空着的格数（顾问部 A2 ③“九宫安全”的便宜版：只看有没有子占着，不算攻击；决战不算）
 add('k_free', 0);
+// 顾问部 A4（试验，权重默认 0，不改原公式）：九宫里分“谁占着”——k_pal_own 自己九宫里己方的子（帅以外）几枚、k_pal_foe 敌方的子几枚；
+//   k_upthreat：离我帅 2 格内（含斜）的敌子里，对方现在军功够升一级、升了以后血比我方帅 / 士的最大攻击还高（贴上来砍不死）的有几枚
+add('k_pal_own', 0); add('k_pal_foe', 0); add('k_upthreat', 0);
 const NAMES = Object.keys(W0);
 const IDX = Object.fromEntries(NAMES.map((k, i) => [k, i]));
 const N = NAMES.length;
@@ -88,7 +91,17 @@ function feats(S, A, CFG) {
     const e = (k, c) => { F[IDX[k]] += sg * c; };
     if (p.t === 'k') {
       if (fin) { const inside = f >= 3 && f <= 5 && adv >= 7; e('fixed', 6); e('fk_hp', p.hp); e('fk_adv', adv); if (inside) e('fk_in', 1); e('fk_off', Math.abs(f - 4)); }
-      else { e('k_adv', adv); if (f !== 4) e('k_off', 1); e('k_free', kFreeF(b, f, r, s)); }
+      else {
+        e('k_adv', adv); if (f !== 4) e('k_off', 1); e('k_free', kFreeF(b, f, r, s));
+        let own = 0, foe = 0, thr = 0; const o = other(s), myDef = s === 'r' ? dR : dB, mo = (S.merit && S.merit[o]) || 0;
+        for (let R = (s === 'r' ? 0 : 7); R <= (s === 'r' ? 2 : 9); R++) for (let C = 3; C <= 5; C++) { const q = b[R][C]; if (!q || q.t === 'k') continue; if (q.s === s) own++; else foe++; }
+        for (let R = Math.max(0, r - 2); R <= Math.min(9, r + 2); R++) for (let C = Math.max(0, f - 2); C <= Math.min(8, f + 2); C++) {
+          const q = b[R][C]; if (!q || q.s !== o || q.t === 'k' || q.lv >= 4 || !A.upCost) continue;
+          const cost = A.upCost(q); if (cost == null || !(cost <= mo)) continue;
+          const hp2 = BF0().hpOf(q.t, q.lv + 1); if (hp2 > myDef) thr++;
+        }
+        e('k_pal_own', own); e('k_pal_foe', foe); e('k_upthreat', thr);
+      }
       continue;
     }
     const h = Math.min(4, Math.max(1, p.hp)), heavy = s === 'r' ? hvB : hvR;
