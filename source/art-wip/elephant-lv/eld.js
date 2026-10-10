@@ -41,12 +41,32 @@ window.ElephantLV = (() => {
     }
   }
   // ---------------- 乙 · 火象：燧象（尾巴绑火把冲阵）的路子，火越烧越旺 ----------------
+  // 象背上的亭子（Ham char-006）：一级无顶盖一名弩手；二级有顶盖一名弩手；三级一名弩手带火；四级亭子变大、两名重弩手坐在象背两侧。
+  // 背上的人都是弩手（以后反击远程用），象头上的驾象人是近战。原来那座塔整个藏起来，按级另搭；立柱加高，人头碰不到顶。
+  function howdah(el, lv) {
+    const T = el.tower; T.children[0].visible = false; el.archer.visible = false; el.banner.group.visible = lv >= 2;
+    const big = lv >= 4, W = big ? 1.75 : 1.2, D = big ? 1.55 : 1.0, H = big ? 1.95 : 1.8, wood = 0x2a2420, lac = 0x1c1b1d, edge = big ? GOLD2 : 0x7a2418;
+    const ps = [P(G.box(W, 0.09, D), wood, 0, 0.045, 0)];
+    for (const s of [1, -1]) ps.push(P(G.box(W, 0.32, 0.04), lac, 0, 0.25, D / 2 * s), P(G.box(W + 0.02, 0.035, 0.06), edge, 0, 0.42, D / 2 * s));
+    ps.push(P(G.box(0.04, 0.32, D), lac, -W / 2, 0.25, 0), P(G.box(0.06, 0.035, D + 0.02), edge, -W / 2, 0.42, 0));
+    if (lv >= 2) {
+      for (const [x, z] of [[1, 1], [1, -1], [-1, 1], [-1, -1]]) ps.push(P(G.cyl(0.035, 0.035, H, 6), wood, x * (W / 2 - 0.04), H / 2, z * (D / 2 - 0.04)));
+      ps.push(P(G.box(W + 0.1, 0.06, D + 0.1), lac, 0, H, 0), P(new THREE.ConeGeometry(Math.max(W, D) * 0.8, 0.42, 4), big ? GOLD : lac, 0, H + 0.24, 0, 0, PI / 4, 0, 1, 1, D / W), P(G.box(W + 0.14, 0.03, 0.03), edge, 0, H - 0.02, (D / 2 + 0.06)), P(G.box(W + 0.14, 0.03, 0.03), edge, 0, H - 0.02, -(D / 2 + 0.06)));
+      if (big) ps.push(P(new THREE.ConeGeometry(0.55, 0.36, 4), lac, 0, H + 0.62, 0, 0, PI / 4), P(G.sph(0.08, 6), GOLD2, 0, H + 0.84, 0));
+    }
+    add(T, ps, 0.02);
+    // 弩手：坐着（盘腿、上身直），四级两名分坐两侧各朝外，一到三级一名坐中间朝前
+    const seat = { lL: -1.35, lR: -1.35, lLz: 0.55, lRz: 0.55, crouch: 0.42, aS: -1.3, aW: -1.25, aWz: 0.7, wAbs: 1.1 };
+    const kind = big ? 'xbowG' : 'xbow';
+    const spots = big ? [[-0.05, 0.42, 0], [-0.05, -0.42, PI]] : [[-0.1, 0, Math.PI / 2]];
+    for (const [x, z, ry] of spots) { const m = Models.soldierStatic('b', kind, seat); m.position.set(x, 0.09, z); m.rotation.y = ry; m.scale.setScalar(0.9); T.add(m); }
+    if (lv >= 3) for (const [x, z] of [[1, 1], [1, -1]].concat(big ? [[-1, 1], [-1, -1]] : [])) { add(T, [P(G.cyl(0.12, 0.07, 0.13, 8), big ? GOLD : BR, x * (W / 2 - 0.02), 0.5, z * (D / 2 - 0.02)), P(G.cyl(0.02, 0.02, 0.1, 5), BR2, x * (W / 2 - 0.02), 0.4, z * (D / 2 - 0.02))]); flame(T, x * (W / 2 - 0.02), 0.54, z * (D / 2 - 0.02), 0.6); }
+  }
   function planB(el, lv) {
     flame(el.torch, 0, -0.05, 0, 0.7 + lv * 0.18);
     // Ham char-005：象身上红色少一点，主要是黑色——额上只留一道暗红细纹；二级起披挂一律黑底、红只做细边
     add(el.head, [P(G.box(0.02, 0.04, 0.42), 0x6a1a12, 0.86, 0.32, 0, 0, 0, 0.2)]);
     if (lv >= 2) {
-      for (const [x, z] of [[0.55, 0.45], [0.55, -0.45]].concat(lv >= 3 ? [[-0.55, 0.45], [-0.55, -0.45]] : [])) { add(el.tower, [P(G.cyl(0.13, 0.07, 0.14, 8), lv >= 4 ? GOLD : BR, x, 1.18, z), P(G.cyl(0.02, 0.02, 0.1, 5), BR2, x, 1.08, z)]); flame(el.tower, x, 1.22, z, 0.55 + lv * 0.08); }
       legRings(el, 0x2a1210, 1);
       add(el.body, [1, -1].flatMap(s => [P(G.box(2.3, 1.22, 0.05), 0x1c1b1d, -0.1, 2.3, 1.0 * s), P(G.box(2.34, 0.035, 0.07), 0x7a2418, -0.1, 1.7, 1.02 * s), P(G.box(2.34, 0.035, 0.07), lv >= 4 ? GOLD2 : 0x7a2418, -0.1, 2.9, 1.02 * s)]), 0.02);
     }
@@ -56,10 +76,13 @@ window.ElephantLV = (() => {
       for (const [x, y, z] of tuskTips) flame(el.head, x + 0.05, y + 0.05, z, 0.45);
       barding(el, 0x1c1b1d, 0x2e2c2e, 3);
     }
-    if (lv >= 4) {   // 背上一道火鬃 + 塔顶大火盆
+    if (lv >= 4) {   // 背上一道火鬃
       for (let i = 0; i < 6; i++) flame(el.body, -1.0 + i * 0.38, 3.32, 0, 0.6 + Math.sin(i * 1.7) * 0.15);
-      add(el.tower, [P(G.cyl(0.32, 0.18, 0.22, 10), GOLD, 0, 1.62, 0), P(G.cyl(0.05, 0.05, 0.5, 6), GOLD2, 0, 1.3, 0)]);
-      flame(el.tower, 0, 1.7, 0, 1.6);
+    }
+    howdah(el, lv);
+    if (lv >= 4) {   // 四级驾象人：黑金相间的铠甲 + 金权杖（Ham char-006）
+      add(el.mahout, [P(G.box(0.46, 0.42, 0.36), 0x1c1b1d, 0, 1.12, 0), ...[0, 1, 2].map(i => P(G.box(0.47, 0.035, 0.37), GOLD2, 0, 0.95 + i * 0.14, 0)), ...[1, -1].map(s => P(G.sph(0.12, 7), GOLD, 0, 1.36, 0.24 * s, 0, 0, 0, 1, 0.7, 1)), P(G.cyl(0.13, 0.14, 0.1, 8), GOLD, 0, 1.62, 0)]);
+      add(el.mahout, [P(G.cyl(0.03, 0.03, 1.3, 6), GOLD, 0.05, 1.35, 0.42, 0.15, 0, 0), P(G.sph(0.1, 8), GOLD2, 0.05, 2.02, 0.52), P(G.cone(0.05, 0.2, 6), GOLD2, 0.05, 2.18, 0.55, 0.15, 0, 0)]);
     }
   }
   // ---------------- 丙 · 楚巫凤象：楚漆器的红黑、凤鸟、羽冠，越来越像神兽 ----------------
@@ -90,7 +113,6 @@ window.ElephantLV = (() => {
     PLANS[plan](el, lv);
     el.lvScale = SCALE[lv - 1];
     if (plan === 'b') { const k = 1 / el.lvScale; el.tower.scale.setScalar(k); el.mahout.scale.multiplyScalar(k); }   // Ham char-005：象变大，人不要变大
-    if (plan === 'b' && lv >= 4) add(el.mahout, [P(G.cyl(0.03, 0.03, 1.1, 6), GOLD, 0.15, 0.95, 0.42, 0.25, 0, 0), P(G.sph(0.09, 8), GOLD2, 0.15, 1.5, 0.56), P(G.cone(0.05, 0.18, 6), GOLD2, 0.15, 1.65, 0.6, 0.25, 0, 0)]);   // 四级象奴手里一根金权杖
     return el;
   }
   return { make, SCALE };
