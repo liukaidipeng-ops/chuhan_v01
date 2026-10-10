@@ -2,6 +2,47 @@
 
 最新的在最上面，编号接着往下排（M1、M2…）。格式见同目录 `MODEL-WORKFLOW.md` 第 6 节。TD 用 `git show origin/model-lab:source/docs/collab/model-to-main.md` 看。
 
+## M24 · 10-10 · 交付 · 模型 + 动作（汉相虎骑：一到四级造型各不相同；炮击炸碎、近战打飞、车冲撞散三种死法，文臣也断肢）
+
+- 提交：model-lab 上带这张交付单的那次提交。交付前合过 `origin/dev`（4ee062d），`node build.js` 能过，`test/*.test.js` 全过。
+- Ham 确认：10-09 23:18 在对话里说「相的升级造型需要做一下，目前前两级好像长得都一样。相被炮击后会被炸碎，被击杀后人会从老虎身上掉下来，死亡动画好好重新做一遍」；审批台 art-077（四级造型 + 死法分镜）通过（10-10 08:14）；art-080 退回（12:15）「被炮弹击中后也需要流血，有大量血雾。被普通近战攻击后角色也会被击飞，只是不会飞那么远，而被车从远距离冲锋，则会飞特别远，并且肢解；具体飞多远，交给实时结算」；art-086（改过的三段成片）退回（15:59）「基本上都OK了，文官也需要有断肢」；art-089（文臣也断肢）通过（18:17）。成片：https://claude.ai/artifact/4vs3chVLLr2tSEVbUPVD7W
+- 改了哪些文件：只有 `source/src/tiger.js`（美术管）。不改 squads.js 的话什么都不变（还是只分普通 / 四级金装、死法还是原来那样）。
+  - `TigerHD.make(side, { lv })`：`lv` 1–4。一级 黑鞍鞯、素辔头；二级 朱鞍鞯金回纹、青铜当胸和肩甲、朱带铜泡；三级 乌铁甲（肩、搭后、颈）；四级 金甲（原样）。不传 `lv` 时照旧看 `gold`。
+  - `make()` 返回的对象多了三个死法，都返回 Promise。`dir` = 来犯方向（世界里，水平；就是 `die` 收到的那个 `dir`），`power` = 劲多大（就是 `die` 收到的 `power`）：
+    - `m.blast({ dir, power })`（约 1.1 秒）：火光一闪，这一只熏黑，虎身掀翻，虎头、四条腿、尾巴、文臣、节杖各自飞出去，**文臣的头和两条胳膊也各自飞开**，碎屑二十几片，烟尘一团，**大片血雾、一路洒血**，地上一圈焦黑（`{ scorch: false }` 不画焦黑）。
+    - `m.rend({ dir, power })`（约 1.1 秒）：车冲撞死——不起火不熏黑，整只撞散，各件（文臣的头、两条胳膊也拆开）顺着 `dir` 飞出去，`power` 越大飞得越远越平，血雾、一路洒血。
+    - `m.fall({ dir, power })`（约 1.4 秒）：近战打死——整只顺着 `dir` 被打退一段（`0.35 × power` 个棋盘单位，先腾一下再落地），虎仰头一挫、往 `m.deadSide` 那边倒下；文臣被甩出去侧躺，**持杖那条胳膊被砍飞、一股血雾**，节杖另落一处。
+    - 文臣（`makeMinisterFigure`）的头、两条胳膊现在各是一组（`fhead` / `farmA` 持杖 / `farmB` 托虎符，支点在颈、肩），平时跟原来一模一样，多了两个合并网格。
+    - 拆下来的件挂在小队的 `group` 上（`TigerRider.group`），化墨（`setVis`）和 `dispose` 都跟着小队走。
+
+**需要 TD 做的**（`squads.js`，我在一份拷贝上照下面改完、构建、拍过成片）
+1. `TigerRider` 构造（约 447 行）：`TigerHD.make(side, { gold })` → `TigerHD.make(side, { lv: Math.max(1, Math.min(4, n || 1)) })`。`this.gold` 照留，弩手要用。
+2. `TigerRider.die`（约 533 行）：选 `deadSide` 那一段不动，从 `tween(0.25, k => { m.roarK = k; })` 那一行起到 `await gd;` 之前，换成：
+   ```js
+   snd('e', this.side).die();
+   if (hit === 'blast') {
+     // 炮击：炸碎，虎身、虎头、四肢、文臣、节杖四散飞出，大片血雾（美术 M24，Ham 审批台 077 / 080）
+     P.fire(c, 16, 0.7); P.blood(c, 24, 1.2, dir, 1.3); Cam.shake(0.25);
+     await m.blast({ dir, power });
+   } else if (hit === 'ram' && power >= 2) {
+     // 车远距离冲锋：整只撞散，顺着冲锋方向飞得特别远
+     P.blood(c, 30, 1.4, dir, 1.6); Cam.shake(0.3);
+     await m.rend({ dir, power });
+   } else {
+     // 近战：被打得往后退飞一段，虎仰头一挫、侧倒，文臣摔下
+     P.blood(c, 20, 1.0, dir, 1.1);
+     if (hit === 'bolts') for (let i = 0; i < 6; i++) { const b = new THREE.Mesh(boltGeo, Models.vcMat); b.position.copy(c).add(rv(0.22, 0.12, 0.22)); b.quaternion.setFromUnitVectors(new V3(0, 1, 0), dir.clone().negate().add(rv(0.3, 0.3, 0.3)).normalize()); this.group.add(b); }
+     const fall = m.fall({ dir, power });
+     await sleep(0.62);
+     Cam.shake(0.15); P.dust(this.center(0), 10, null, 0.3); Sfx.B.thud(0, 0.7);
+     Fx.Marks.blood(this.center(0).addScaledVector(dir, 0.1), 1.0, dir);
+     await fall;
+   }
+   ```
+3. **飞多远交给实时结算**：`Chariot.attack`（约 648 行）现在固定传 `die('ram', d, 1.4, B)`，请按冲锋距离给，例如 `const pw = 1 + start.distanceTo(B) * 0.45;`（隔两格以上冲过来就 ≥ 2，走撞散；贴脸撞是 1.4 左右，走打退）。别的近战照现在传的 `power`（1、1.2、1.3…）就是退飞的远近。
+   - 炮打死别的子时 fx.js 约 584 行那套焦痕和烟如果也会对虎骑放，会和 `m.blast()` 自己的焦痕叠一层；要去掉一份就 `m.blast({ dir, power, scorch: false })`。
+- 我看过的：本地对局棋盘上用真的 `TigerRider` 小队按固定步长逐帧拍：二级炸碎（`power` 1.6）、三级近战打退（`cut`，1.2）、四级车冲撞散（`ram`，3.0），三段都看过文臣断肢；四级并排造型（077 的图）。没看的：手机、低画质档、四级死时两侧弩手一起倒、兵种模型档里的整场演出。
+
 ## M26 · 10-10 · 转达 · 音效（兵卒对打里的盾牌格挡要配一声）
 
 - Ham 确认：审批台 art-085（兵卒对打第三版）备注 15:58「帮我给TD：因为现在有格挡，需要给盾牌格挡配音效」。
