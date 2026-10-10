@@ -1529,9 +1529,8 @@ const Board = (() => {
         const y0 = PH + 0.02, y1 = occ(m.to[0], m.to[1]) ? PH + 0.02 : 0.02;
         for (let i = 0; i <= n; i++) { const t = i / n; pts.push([A[0] + (B[0] - A[0]) * t, A[1] + (B[1] - A[1]) * t]); }
         const ux = (B[0] - A[0]) / (D || 1), uz = (B[1] - A[1]) / (D || 1), cr = new THREE.Vector3().setFromMatrixColumn(Core.camera.matrixWorld, 0);
-        // 斜多少看方向：横着跳 20°；顺着镜头方向（正对屏幕往里 / 往外）跳的，竖直的弧在屏幕上和直线叠在一起，斜到 50° 才看得出
-        const al = Math.abs(ux * cr.z - uz * cr.x), ang = 0.35 + 0.52 * al;
-        const sd = (-uz * cr.x + ux * cr.z) >= 0 ? 1 : -1, lx = -uz * sd, lz = ux * sd, LEAN = Math.sin(ang), UP = Math.cos(ang);
+        // 竖直的一道弧，从上往下看是直的（Ham 16:24：直着过去，不要往旁边斜）
+        const lx = 0, lz = 0, LEAN = 0, UP = 1;
         const tp = trimPath(pts, 0.2, occ(m.to[0], m.to[1]) ? 0.22 : 0.12).map(p => { const t = Math.hypot(p[0] - A[0], p[1] - A[1]) / (D || 1), h = H * 4 * t * (1 - t); return [p[0] + lx * h * LEAN, p[1] + lz * h * LEAN, y0 * (1 - t) + y1 * t + h * UP]; });
         out.push({ pts: tp, via: m.via || (m.skill ? 'skill' : ''), arc: true });
         continue;
