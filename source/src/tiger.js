@@ -354,7 +354,7 @@ const TigerHD = (() => {
   // ---------- 文臣 ----------
   // look: robe 上衣、skirt 下裳、edge 领袖缘、sash 大带
   function makeMinisterFigure(side, look) {
-    const c = SIDE[side], g = new THREE.Group(), parts = [], robeN = hex(look.robe), edgeN = hex(look.edge);
+    const c = SIDE[side], g = new THREE.Group(), parts = [], hp = [], ha = [], hb = [], robeN = hex(look.robe), edgeN = hex(look.edge);
     const nPleat = q(18, 12, 10, 8, 6, 0), pleat = (u, t) => nPleat ? 0.035 * Math.sin(u * 2 * PI * nPleat) * sstep(0.25, 0.9, t) : 0;
     // 下裳：罩住虎背往两边垂，带褶
     g.add(inked(loft([[0, 0.68, 0, 0.16, 0.16, 0.2], [0, 0.5, 0, 0.2, 0.2, 0.25], [0.02, 0.25, 0, 0.3, 0.3, 0.4], [0.03, 0, 0, 0.38, 0.4, 0.5], [0.03, -0.14, 0, 0.41, 0.43, 0.54], [0.03, -0.2, 0, 0.41, 0.43, 0.55]],
@@ -376,36 +376,41 @@ const TigerHD = (() => {
     if (upto(3)) { const js = q([8, 20], [3, 8], [3, 6]); parts.push(P(new THREE.TorusGeometry(0.05, 0.018, js[0], js[1]), 0xa8c8ae, 0.12, 0.36, 0.265, 0, PI / 2, 0)); }
     // 广袖：右臂前伸持杖，左臂收在胸前托虎符；袖口往下坠成一个兜
     const sleeve = pts => inked(loft(pts, { len: 30, rad: 28, seg: [[8, 10], [5, 8], [5, 8], [4, 6], [3, 5]] }), clothMat(look.robe, look.edge, look.line, 0.16, 10));
-    g.add(sleeve([[-0.02, 1.0, 0.24, 0.09, 0.09, 0.09], [0.08, 0.94, 0.34, 0.11, 0.14, 0.11], [0.22, 0.88, 0.42, 0.11, 0.26, 0.12], [0.33, 0.9, 0.46, 0.1, 0.36, 0.11], [0.37, 0.9, 0.47, 0.06, 0.3, 0.07]]));
-    g.add(sleeve([[-0.02, 1.0, -0.24, 0.09, 0.09, 0.09], [0.06, 0.9, -0.33, 0.11, 0.14, 0.11], [0.18, 0.8, -0.3, 0.11, 0.24, 0.12], [0.27, 0.8, -0.2, 0.1, 0.3, 0.11], [0.3, 0.8, -0.17, 0.06, 0.24, 0.07]]));
+    const slA = sleeve([[-0.02, 1.0, 0.24, 0.09, 0.09, 0.09], [0.08, 0.94, 0.34, 0.11, 0.14, 0.11], [0.22, 0.88, 0.42, 0.11, 0.26, 0.12], [0.33, 0.9, 0.46, 0.1, 0.36, 0.11], [0.37, 0.9, 0.47, 0.06, 0.3, 0.07]]);
+    const slB = sleeve([[-0.02, 1.0, -0.24, 0.09, 0.09, 0.09], [0.06, 0.9, -0.33, 0.11, 0.14, 0.11], [0.18, 0.8, -0.3, 0.11, 0.24, 0.12], [0.27, 0.8, -0.2, 0.1, 0.3, 0.11], [0.3, 0.8, -0.17, 0.06, 0.24, 0.07]]);
     const hand = q([12, 10], [5, 4], [5, 3], [4, 2]);
-    parts.push(P(SQ(0.05, hand), C.skin, 0.4, 0.92, 0.47, 0, 0, 0, 1.1, 1, 0.9), P(SQ(0.05, hand), C.skin, 0.33, 0.83, -0.15, 0, 0, 0, 1.1, 0.9, 1));
+    ha.push(P(SQ(0.05, hand), C.skin, 0.4, 0.92, 0.47, 0, 0, 0, 1.1, 1, 0.9)); hb.push(P(SQ(0.05, hand), C.skin, 0.33, 0.83, -0.15, 0, 0, 0, 1.1, 0.9, 1));
     // 虎符：左手托着的一枚小金虎
-    if (upto(4)) parts.push(P(SQ(0.05, q([12, 8], [5, 3], [4, 2])), 0xd6a43e, 0.37, 0.89, -0.14, 0, 0, 0, 1.5, 0.75, 0.6));
-    if (upto(2)) parts.push(P(SQ(0.03, q([10, 8], [5, 3], [4, 2])), 0xd6a43e, 0.44, 0.91, -0.14));
-    if (upto(1)) parts.push(P(YG(0.008, 0.008, 0.07, 6), 0xd6a43e, 0.3, 0.915, -0.14, 0, 0, 0.9));
+    if (upto(4)) hb.push(P(SQ(0.05, q([12, 8], [5, 3], [4, 2])), 0xd6a43e, 0.37, 0.89, -0.14, 0, 0, 0, 1.5, 0.75, 0.6));
+    if (upto(2)) hb.push(P(SQ(0.03, q([10, 8], [5, 3], [4, 2])), 0xd6a43e, 0.44, 0.91, -0.14));
+    if (upto(1)) hb.push(P(YG(0.008, 0.008, 0.07, 6), 0xd6a43e, 0.3, 0.915, -0.14, 0, 0, 0.9));
     // 头：面、鼻、眉眼、耳、三绺须
     const hy = 1.27;
-    parts.push(P(SQ(0.135, q([28, 20], [12, 8], [10, 6], [8, 5], [7, 4], [6, 3])), C.skin, 0, hy, 0, 0, 0, 0, 0.95, 1.1, 0.88));
-    if (upto(3)) parts.push(P(new THREE.ConeGeometry(0.022, 0.07, q(8, 4, 3), 1, !!LOD), C.skin, 0.125, hy - 0.005, 0, 0, 0, -0.25));
+    hp.push(P(SQ(0.135, q([28, 20], [12, 8], [10, 6], [8, 5], [7, 4], [6, 3])), C.skin, 0, hy, 0, 0, 0, 0, 0.95, 1.1, 0.88));
+    if (upto(3)) hp.push(P(new THREE.ConeGeometry(0.022, 0.07, q(8, 4, 3), 1, !!LOD), C.skin, 0.125, hy - 0.005, 0, 0, 0, -0.25));
     for (const s of [1, -1]) {
-      if (upto(3)) parts.push(P(SQ(0.014, q([8, 6], [5, 3], [4, 2])), 0x151413, 0.112, hy + 0.03, s * 0.05, 0, 0, 0, 0.6, 0.55, 1.6));
-      if (upto(2)) parts.push(P(new THREE.BoxGeometry(0.012, 0.01, 0.055), 0x151413, 0.108, hy + 0.058, s * 0.052, s * 0.2));
-      if (upto(2)) parts.push(P(SQ(0.03, q([10, 8], [5, 3], [4, 2])), C.skin, -0.005, hy, s * 0.118, 0, 0, 0, 0.7, 1.2, 0.5));
-      if (upto(3)) parts.push(LP([[0.118, hy - 0.045, s * 0.02, 0.008, 0.008, 0.012], [0.125, hy - 0.07, s * 0.06, 0.01, 0.01, 0.014], [0.11, hy - 0.17, s * 0.085, 0.004, 0.004, 0.006]], 0x151413, { len: 10, rad: 8, seg: [[3, 4], [3, 3], [2, 3]], side: V(1, 0, 0) })); // 髭
+      if (upto(3)) hp.push(P(SQ(0.014, q([8, 6], [5, 3], [4, 2])), 0x151413, 0.112, hy + 0.03, s * 0.05, 0, 0, 0, 0.6, 0.55, 1.6));
+      if (upto(2)) hp.push(P(new THREE.BoxGeometry(0.012, 0.01, 0.055), 0x151413, 0.108, hy + 0.058, s * 0.052, s * 0.2));
+      if (upto(2)) hp.push(P(SQ(0.03, q([10, 8], [5, 3], [4, 2])), C.skin, -0.005, hy, s * 0.118, 0, 0, 0, 0.7, 1.2, 0.5));
+      if (upto(3)) hp.push(LP([[0.118, hy - 0.045, s * 0.02, 0.008, 0.008, 0.012], [0.125, hy - 0.07, s * 0.06, 0.01, 0.01, 0.014], [0.11, hy - 0.17, s * 0.085, 0.004, 0.004, 0.006]], 0x151413, { len: 10, rad: 8, seg: [[3, 4], [3, 3], [2, 3]], side: V(1, 0, 0) })); // 髭
     }
-    parts.push(LP([[0.095, hy - 0.1, 0, 0.03, 0.03, 0.045], [0.115, hy - 0.2, 0, 0.03, 0.03, 0.04], [0.135, hy - 0.34, 0, 0.018, 0.018, 0.022], [0.14, hy - 0.44, 0, 0.004, 0.004, 0.005]], 0x151413, { len: 16, rad: 12, seg: [[5, 6], [4, 5], [3, 4], [3, 3], [2, 3]] })); // 长须
+    hp.push(LP([[0.095, hy - 0.1, 0, 0.03, 0.03, 0.045], [0.115, hy - 0.2, 0, 0.03, 0.03, 0.04], [0.135, hy - 0.34, 0, 0.018, 0.018, 0.022], [0.14, hy - 0.44, 0, 0.004, 0.004, 0.005]], 0x151413, { len: 16, rad: 12, seg: [[5, 6], [4, 5], [3, 4], [3, 3], [2, 3]] })); // 长须
     // 发、进贤冠（展筒前高后低）、簪、缨
-    parts.push(P(SQ(0.14, q([24, 16], [10, 7], [8, 5], [7, 4], [6, 3], [5, 3]), 0, PI * 2, 0, PI * 0.46), 0x151413, -0.018, hy + 0.012, 0, 0, 0, 0.6, 0.96, 1.08, 0.9));
-    if (upto(2)) parts.push(P(SQ(0.05, q([12, 10], [5, 4], [4, 2])), 0x151413, -0.03, hy + 0.17, 0));
+    hp.push(P(SQ(0.14, q([24, 16], [10, 7], [8, 5], [7, 4], [6, 3], [5, 3]), 0, PI * 2, 0, PI * 0.46), 0x151413, -0.018, hy + 0.012, 0, 0, 0, 0.6, 0.96, 1.08, 0.9));
+    if (upto(2)) hp.push(P(SQ(0.05, q([12, 10], [5, 4], [4, 2])), 0x151413, -0.03, hy + 0.17, 0));
     const cap = new THREE.Shape(); cap.moveTo(-0.11, 0); cap.lineTo(0.1, 0); cap.lineTo(0.115, 0.2); cap.lineTo(0.06, 0.23); cap.lineTo(-0.02, 0.12); cap.lineTo(-0.12, 0.09); cap.closePath();
     const capGeo = new THREE.ExtrudeGeometry(cap, LOD ? { depth: 0.124, bevelEnabled: false } : { depth: 0.1, bevelEnabled: true, bevelThickness: 0.012, bevelSize: 0.012, bevelSegments: 3 }); capGeo.translate(0, 0, LOD ? -0.062 : -0.05);
-    parts.push(P(capGeo, look.cap, -0.01, hy + 0.115, 0));
-    if (upto(2)) { const bs = q([8, 28], [3, 11], [3, 8]); parts.push(P(new THREE.TorusGeometry(0.105, 0.016, bs[0], bs[1]), look.capBand, -0.005, hy + 0.115, 0, PI / 2, 0, 0, 1, 0.92, 1)); }
-    if (upto(2)) parts.push(P(new THREE.CylinderGeometry(0.008, 0.008, 0.34, q(8, 4, 3), 1, LOD >= 2), c.trim, -0.03, hy + 0.17, 0, PI / 2));
-    if (upto(1)) parts.push(P(SG(0.016, 8, 6), c.trim, -0.03, hy + 0.17, 0.17));
-    if (upto(1)) for (const s of [1, -1]) parts.push(LP([[0.0, hy + 0.11, s * 0.105, 0.006, 0.006, 0.006], [0.04, hy - 0.04, s * 0.122, 0.006, 0.006, 0.006], [0.08, hy - 0.13, s * 0.06, 0.006, 0.006, 0.006], [0.09, hy - 0.15, 0, 0.006, 0.006, 0.006]], 0x8e2016, { len: 16, rad: 6, seg: [[6, 3], [4, 3]], side: V(1, 0, 0) }));
+    hp.push(P(capGeo, look.cap, -0.01, hy + 0.115, 0));
+    if (upto(2)) { const bs = q([8, 28], [3, 11], [3, 8]); hp.push(P(new THREE.TorusGeometry(0.105, 0.016, bs[0], bs[1]), look.capBand, -0.005, hy + 0.115, 0, PI / 2, 0, 0, 1, 0.92, 1)); }
+    if (upto(2)) hp.push(P(new THREE.CylinderGeometry(0.008, 0.008, 0.34, q(8, 4, 3), 1, LOD >= 2), c.trim, -0.03, hy + 0.17, 0, PI / 2));
+    if (upto(1)) hp.push(P(SG(0.016, 8, 6), c.trim, -0.03, hy + 0.17, 0.17));
+    if (upto(1)) for (const s of [1, -1]) hp.push(LP([[0.0, hy + 0.11, s * 0.105, 0.006, 0.006, 0.006], [0.04, hy - 0.04, s * 0.122, 0.006, 0.006, 0.006], [0.08, hy - 0.13, s * 0.06, 0.006, 0.006, 0.006], [0.09, hy - 0.15, 0, 0.006, 0.006, 0.006]], 0x8e2016, { len: 16, rad: 6, seg: [[6, 3], [4, 3]], side: V(1, 0, 0) }));
     g.add(inkedMerged(parts));
+    // 头、两条胳膊各成一组（支点在颈、肩），死的时候能单独飞出去（美术 M24，Ham 审批台 086「文官也需要有断肢」）
+    const limb = (name, pv, ms) => { const L = new THREE.Group(); L.name = name; L.position.set(pv[0], pv[1], pv[2]); for (const m of ms) { m.position.x -= pv[0]; m.position.y -= pv[1]; m.position.z -= pv[2]; L.add(m); } g.add(L); };
+    limb('fhead', [0, 1.15, 0], [inkedMerged(hp)]);
+    limb('farmA', [-0.02, 1.0, 0.24], [slA, inkedMerged(ha)]);   // 持杖那条
+    limb('farmB', [-0.02, 1.0, -0.24], [slB, inkedMerged(hb)]);  // 托虎符那条
     return g;
   }
 
@@ -458,21 +463,29 @@ const TigerHD = (() => {
     return m;
   }
   // 札甲的贴图：一排排上平下圆的甲片，上排压下排，每片一颗钉。画成可平铺的一小块
+  // 甲片的配色：gold 四级金甲；iron 三级乌铁甲（银钉、朱缘）；bronze 二级青铜小甲
+  const ARM = {
+    gold: { base: '#b8862e', a: '#d6a43e', b: '#cf9c38', line: '#5a3f12', hi: '#f7dc8c', rim: 0xb8862e, gild: true },
+    iron: { base: '#2e2c2b', a: '#46413d', b: '#3d3936', line: '#121110', hi: '#b9b4ab', rim: 0x2e2c2b, gild: false },
+    bronze: { base: '#6e4f22', a: '#9a7232', b: '#8c672c', line: '#2e200c', hi: '#d8b46a', rim: 0x6e4f22, gild: false },
+  };
+  let ARMK = 'gold';
   function armorMat() {
-    return once('armor', () => {
+    const A = ARM[ARMK];
+    return once('armor' + ARMK, () => {
       const t = canvasTex(256, 256, (g, w, h) => {
-        g.fillStyle = '#b8862e'; g.fillRect(0, 0, w, h);
+        g.fillStyle = A.base; g.fillRect(0, 0, w, h);
         const cw = w / 2, rh = h / 2;
         for (let r = 2; r >= -1; r--) for (let c = -1; c < 3; c++) {
           const x = c * cw + (r & 1 ? cw / 2 : 0), y = r * rh, b = y + rh * 1.16, m = y + rh * 0.6;
           g.beginPath(); g.moveTo(x + 3, y); g.lineTo(x + cw - 3, y); g.lineTo(x + cw - 3, m); g.quadraticCurveTo(x + cw - 3, b, x + cw / 2, b); g.quadraticCurveTo(x + 3, b, x + 3, m); g.closePath();
-          g.fillStyle = (r + c) & 1 ? '#d6a43e' : '#cf9c38'; g.fill(); g.lineWidth = 7; g.strokeStyle = '#5a3f12'; g.stroke();
-          g.beginPath(); g.moveTo(x + 13, m); g.quadraticCurveTo(x + 13, b - 12, x + cw / 2, b - 12); g.quadraticCurveTo(x + cw - 13, b - 12, x + cw - 13, m); g.lineWidth = 5; g.strokeStyle = '#f7dc8c'; g.stroke();   // 片缘一道亮边
-          g.fillStyle = '#5a3f12'; g.beginPath(); g.arc(x + cw / 2, y + rh * 0.3, 7, 0, 7); g.fill(); g.fillStyle = '#f7dc8c'; g.beginPath(); g.arc(x + cw / 2 - 2, y + rh * 0.3 - 2, 3, 0, 7); g.fill();   // 钉
+          g.fillStyle = (r + c) & 1 ? A.a : A.b; g.fill(); g.lineWidth = 7; g.strokeStyle = A.line; g.stroke();
+          g.beginPath(); g.moveTo(x + 13, m); g.quadraticCurveTo(x + 13, b - 12, x + cw / 2, b - 12); g.quadraticCurveTo(x + cw - 13, b - 12, x + cw - 13, m); g.lineWidth = 5; g.strokeStyle = A.hi; g.stroke();   // 片缘一道亮边
+          g.fillStyle = A.line; g.beginPath(); g.arc(x + cw / 2, y + rh * 0.3, 7, 0, 7); g.fill(); g.fillStyle = A.hi; g.beginPath(); g.arc(x + cw / 2 - 2, y + rh * 0.3 - 2, 3, 0, 7); g.fill();   // 钉
         }
       });
       t.wrapS = t.wrapT = THREE.RepeatWrapping;
-      return goldify(toon(0xffffff, { map: t, unique: true }));
+      return A.gild ? goldify(toon(0xffffff, { map: t, unique: true })) : toon(0xffffff, { map: t, unique: true });
     });
   }
   // 金甲：贴着放样曲面取几块，往外垫出厚度，合成一个网格；甲片从脊背往两侧一排排垂下去，四边有立沿，下摆压一道朱缘
@@ -501,7 +514,7 @@ const TigerHD = (() => {
     geo.setAttribute('position', new THREE.Float32BufferAttribute(pos, 3)); geo.setAttribute('normal', new THREE.Float32BufferAttribute(nor, 3)); geo.setAttribute('uv', new THREE.Float32BufferAttribute(uv, 2)); geo.setIndex(idx);
     const vc = (P3, N3, col) => { const gg = new THREE.BufferGeometry(); gg.setAttribute('position', new THREE.Float32BufferAttribute(P3, 3)); gg.setAttribute('normal', new THREE.Float32BufferAttribute(N3, 3)); return P(gg, col); };
     const hp = [], hn = []; for (const v of hems) { hp.push(v[0].x, v[0].y, v[0].z); hn.push(v[1].x, v[1].y, v[1].z); }
-    const g = inked(geo, armorMat()), rm = new THREE.Mesh(Core.merge([vc(rim[0], rim[1], 0xb8862e), vc(hp, hn, 0x8e1c12)]), Models.vcMat); rm.castShadow = true; g.add(rm);   // 立沿和朱缘不描边，省一个网格
+    const g = inked(geo, armorMat()), rm = new THREE.Mesh(Core.merge([vc(rim[0], rim[1], ARM[ARMK].rim), vc(hp, hn, 0x8e1c12)]), Models.vcMat); rm.castShadow = true; g.add(rm);   // 立沿和朱缘不描边，省一个网格
     return g;
   }
   // 鞍座的锦面。普通款：菱格纹，格点一颗小花，四周一圈镶边。
@@ -646,12 +659,28 @@ const TigerHD = (() => {
   const FACES = { 0: 85704, 1: 8216, 2: 4090, 3: 3200, 4: 2154, 5: 1091 }; // 普通款实测的三角面数（不含描边那一遍）
   const HAND = { x: 0.4, y: 0.92, z: 0.5 };                                // 文臣握杖的手（文臣坐标）
   function makeProwl(side = 'r', opt = {}) {
-    LOD = Math.max(0, Math.min(5, opt.lod | 0)); GOLD = !!opt.gold;
-    try { return buildProwl(side, GOLD); } finally { LOD = 0; GOLD = false; }
+    LOD = Math.max(0, Math.min(5, opt.lod | 0)); const lv = opt.lv || (opt.gold ? 4 : 1); GOLD = lv >= 4;
+    try { return buildProwl(side, lv); } finally { LOD = 0; GOLD = false; ARMK = 'gold'; }
   }
-  function buildProwl(side, gold) {
-    const c = SIDE[side], t = makeTiger({ tail: 'low' });
-    t.bodyPivot.add(saddleCloth(t, gold ? { base: '#c9962e', edge: '#8e1c12', line: '#f7dc8c', fringe: 0xb0301f, trim: 0xf7dc8c } : { base: '#2a2725', edge: '#1d1c1b', line: '#d9b45a', fringe: 0xb0301f, trim: c.trim }));
+  // 一级 汉军相：黑鞍鞯、黑带、素辔头。二级 驭虎长史：朱鞍鞯金回纹、朱带铜泡、青铜当胸、额前铜当卢。
+  // 三级 持节护军：乌铁甲（肩甲、搭后、颈甲）、朱鞍鞯、额带红缨。四级 白虎相国：金甲（原样）
+  function buildProwl(side, lv) {
+    const gold = lv >= 4, c = SIDE[side], t = makeTiger({ tail: 'low' });
+    const cloth = gold ? { base: '#c9962e', edge: '#8e1c12', line: '#f7dc8c', fringe: 0xb0301f, trim: 0xf7dc8c }
+      : lv >= 2 ? { base: '#8e2016', edge: '#1d1c1b', line: '#d9b45a', fringe: lv >= 3 ? 0x1d1c1b : 0xd6a43e, trim: 0xd6a43e }
+      : { base: '#2a2725', edge: '#1d1c1b', line: '#d9b45a', fringe: 0xb0301f, trim: c.trim };
+    t.bodyPivot.add(saddleCloth(t, cloth));
+    if (lv === 3) { ARMK = 'iron';
+      const nu = q(16, 10, 8, 8, 6, 6), nt = q(8, 5, 4, 3, 2, 2), off = 0.075, A = t.torsoAt;
+      t.bodyPivot.add(armor([[A, 0.2, 0.8, 0.08, 0.3, nu, nt, off, 13, 12], [A, 0.18, 0.82, 0.67, 0.87, nu, Math.max(2, nt - 1), off, 13, 12]]));
+      t.neck.add(armor([[t.neckAt, 0.16, 0.84, 0.12, 0.7, nu, Math.max(2, nt - 1), 0.055, 10, 4]]));
+      ARMK = 'gold';
+    } else if (lv === 2) { ARMK = 'bronze';
+      const nu = q(12, 8, 6, 6, 5, 4), A = t.torsoAt;
+      t.bodyPivot.add(armor([[A, -0.16, 0.16, 0.8, 0.95, Math.max(4, nu - 2), 2, 0.06, 13, 12], [A, 0.2, 0.8, 0.68, 0.86, nu, 3, 0.065, 13, 12]]));   // 当胸 + 肩甲：青铜
+      ARMK = 'gold';
+      if (upto(3)) t.bodyPivot.add(strap(t, 0.31, hex('#8e2016'), 0xd6a43e), strap(t, 0.84, hex('#8e2016'), 0xd6a43e));
+    }
     if (gold) { // 金甲：贴着虎身的三块合成一个网格，颈甲单独一个（跟着脖子动）
       const nu = q(16, 10, 8, 8, 6, 6), nt = q(8, 5, 4, 3, 2, 2), off = 0.085, A = t.torsoAt;
       t.bodyPivot.add(armor([
@@ -660,9 +689,9 @@ const TigerHD = (() => {
         [A, -0.2, 0.2, 0.79, 0.955, Math.max(4, nu - 2), 2, off * 0.8, 13, 12],        // 当胸：兜住前胸
       ]));
       t.neck.add(armor([[t.neckAt, 0.14, 0.86, 0.1, 0.78, nu, Math.max(2, nt - 1), 0.06, 10, 4]]));
-    } else if (upto(3)) t.bodyPivot.add(strap(t, 0.31, hex('#2a2725'), c.trim), strap(t, 0.84, hex('#2a2725'), c.trim));
+    } else if (lv === 1 && upto(3)) t.bodyPivot.add(strap(t, 0.31, hex('#2a2725'), c.trim), strap(t, 0.84, hex('#2a2725'), c.trim));
     t.bodyPivot.add(seat(t, gold ? { grand: true, base: '#8e1c12', edge: '#c9962e', line: '#e9c15c', bow: 0x8e1c12, rim: 0xd6a43e, hi: 0xf7dc8c, tassel: 0xb0301f, jewel: 0xa8c8ae, flame: 0xb0301f } : { base: '#8e2016', edge: '#1d1c1b', line: '#d9b45a', bow: 0x1d1c1b, rim: 0xc9a045, tassel: 0xb0301f }));   // 鞍座：朱锦褥、前后鞍桥。普通款黑漆鞍桥、朱穗
-    bridle(t, gold ? { ...c, cloth: 0x8e1c12, trim: 0xf7dc8c } : c, gold);
+    bridle(t, gold ? { ...c, cloth: 0x8e1c12, trim: 0xf7dc8c } : lv >= 2 ? { ...c, cloth: 0x8e2016, trim: 0xd6a43e } : c, lv >= 2);
     mount(t, side, LOOK.zhu, fig => { // 节杖挂在一个以手为支点的组上，扑击时杖随手前倾
       const grip = new THREE.Group(); grip.name = 'staff'; grip.position.set(HAND.x, HAND.y, HAND.z); fig.add(grip);
       const sf = makeStaff(side, 2.9, gold); sf.position.set(0.42 - HAND.x, -0.72 - HAND.y, 0); sf.rotation.z = -0.07; grip.add(sf);
@@ -675,11 +704,11 @@ const TigerHD = (() => {
   const QLOD = { high: 2, mid: 2, low: 4 };
   // 原型只造一次（放样、画贴图都在这一步），以后每次出场克隆一份：几何体、贴图全部共用
   const protos = {};
-  function proto(side, gold) {
-    const lod = QLOD[Core.quality] ?? 2, key = side + (gold ? 'G' : '') + lod;
+  function proto(side, lv) {
+    const lod = QLOD[Core.quality] ?? 2, key = side + 'L' + lv + ':' + lod;
     if (protos[key]) return protos[key];
     seed = 11;
-    const t = makeProwl(side, { gold, lod });
+    const t = makeProwl(side, { lv, lod });
     t.group.traverse(o => { if (o.geometry) o.geometry.userData.keep = true; });
     return (protos[key] = t.group);
   }
@@ -696,14 +725,18 @@ const TigerHD = (() => {
   // ---------- 动作 ----------
   // 给克隆出来的一份接上动作。状态量：speed 行走 / pounceK 扑击 / roarK 咆哮 / dead 倒地（deadSide 往哪侧倒）
   function make(side = 'r', opt = {}) {
-    const g = cloneTree(proto(side, !!opt.gold)), N = n => g.getObjectByName(n);
+    const g = cloneTree(proto(side, opt.lv || (opt.gold ? 4 : 1))), N = n => g.getObjectByName(n);
     const bp = N('bp'), neck = N('neck'), head = N('head'), jaw = N('jaw'), tail = N('tail'), fig = N('fig'), staff = N('staff');
     const legs = [0, 1, 2, 3].map(i => ({ hip: N('hip' + i), knee: N('knee' + i), hock: N('hock' + i) || null, foot: N('foot' + i), front: i < 2 }));
     const R = { bp, neck, head, jaw, tail, legs }, S = { t: 0, s: 0, sp: 0, pk: 0, rk: 0, dk: 0, side: 1 };
+    // 整只虎骑再包一层：中刀踉跄时挪这一层（外面那层的位置由小队每帧摆，不去抢）
+    const wrap = new THREE.Group(); wrap.name = 'wrap'; for (const c of [...g.children]) wrap.add(c); g.add(wrap);
     const o = {
       group: g, bodyPivot: bp, neck, head, jaw, tail, legs, rider: fig, staff,
       t: Core.rnd() * 5, speed: 0, pounceK: 0, roarK: 0, dead: 0, deadSide: 1, gaitK: 0,
+      frozen: false, figOff: false, staffOff: false,   // 死法里拆下来的件不再由动作摆
       update(dt) {
+        if (o.frozen) return;
         o.t += dt * (1 + o.speed);
         const sp = o.dead ? 0 : o.speed, want = Math.min(1, sp * 2);
         o.gaitK = dt > 0 ? o.gaitK + (want - o.gaitK) * Math.min(1, dt * 9) : want;      // 起步、收步有个过渡，不是一帧切过去
@@ -711,8 +744,8 @@ const TigerHD = (() => {
         const th = applyPose(R, S), s = S.s, ph = o.t * 5.4, pk = S.pk, d1 = sm(S.dk / 0.45);
         // 扑击、咆哮时文臣端坐：虎身俯仰他只跟一点（平时抵掉六成，攻击时抵掉九成），不像在打仗
         const act = o.dead ? 0 : sm(Math.min(1, Math.max(pk, S.rk) * 6));
-        if (fig) { fig.rotation.z = -(th - STANCE.pitch) * (0.6 + 0.3 * act) + s * Math.sin(ph * 2 + 0.6) * 0.014 + d1 * 0.12; fig.rotation.x = -s * Math.sin(ph) * 0.02; fig.position.y = FIG_Y + s * Math.abs(Math.sin(ph)) * 0.012; }
-        if (staff) {
+        if (fig && !o.figOff) { fig.rotation.z = -(th - STANCE.pitch) * (0.6 + 0.3 * act) + s * Math.sin(ph * 2 + 0.6) * 0.014 + d1 * 0.12; fig.rotation.x = -s * Math.sin(ph) * 0.02; fig.position.y = FIG_Y + s * Math.abs(Math.sin(ph)) * 0.012; }
+        if (staff && !o.staffOff) {
           staff.rotation.set(s * Math.sin(ph) * 0.03, 0, s * Math.sin(ph * 2) * 0.02 - d1 * 0.25);   // 行走时轻微晃动，倒地时跟着倒
           // 节杖不动（Ham 定的，H5）：扑击、咆哮时节杖在世界里的朝向和平时站着一样——虎怎么俯冲腾起都行，文臣不出手
           if (act > 0 && staff0) { relQ(staff.parent, qA).invert().multiply(staff0); staff.quaternion.slerp(qA, act); }
@@ -724,7 +757,132 @@ const TigerHD = (() => {
     let staff0 = null;
     o.update(0);
     if (staff) staff0 = relQ(staff, new THREE.Quaternion()).clone();
+    // 两种死法（美术 M24，Ham 审批台 077）：TD 在 TigerRider.die 里按挨打的方式调，都返回 Promise
+    //   o.blast({ dir, power })：炮击——一团火光，虎骑被掀翻，虎身、虎头、四条腿、尾巴、文臣、节杖四散飞出（都熏黑），碎屑落一地，大片血雾
+    //   o.rend({ dir, power })：车远距离冲锋撞死——不起火不熏黑，整只被撞散，各件顺着 dir 飞出去，power 越大飞得越远，血雾
+    //   o.fall({ dir, power })：近战打死——整只被打得往 dir 方向退飞一段（power 定多远），虎仰头一挫、侧倒；文臣被甩出去侧躺，节杖另落一处
+    //   dir = 来犯方向（世界里，水平），power = 多大的劲（1 是一般近战；TD 按实时结算给）。拆下来的件挂到小队的 group 上（g.parent），之后化墨、释放跟着小队走
+    o.blast = (opt = {}) => blastDeath(o, g, wrap, opt);
+    o.rend = (opt = {}) => blastDeath(o, g, wrap, { fire: false, ...opt });
+    o.fall = (opt = {}) => fallDeath(o, g, wrap, opt);
     return o;
+  }
+
+  // ---------- 死法用的小工具 ----------
+  const DG = 6.5, Q1 = new THREE.Quaternion();   // 抛物线的重力（棋盘单位 / 秒²）
+  const SOOT = new THREE.Color(0x2a221c);   // 熏黑的烟色
+  let DEB = null;
+  const debAssets = () => DEB || (DEB = (() => {
+    const box = new THREE.BoxGeometry(0.03, 0.02, 0.05), ball = new THREE.SphereGeometry(0.5, 20, 12); box.userData.keep = ball.userData.keep = true;
+    return { box, ball, mat: new THREE.MeshBasicMaterial({ color: 0x1d1a17 }) };
+  })());
+  const clamp01 = (t, a, b) => Math.max(0, Math.min(1, (t - a) / (b - a)));
+  // 虎骑在宿主（小队 group）里的位置、前方、右方、地面高度
+  function frameOf(g) {
+    const host = g.parent || g, q = g.getWorldQuaternion(new THREE.Quaternion());
+    const F = new THREE.Vector3(1, 0, 0).applyQuaternion(q).setY(0).normalize();
+    const c = host.worldToLocal(g.getWorldPosition(new THREE.Vector3()));
+    return { host, F, Rt: new THREE.Vector3(F.z, 0, -F.x), c, yg: c.y };
+  }
+  // 拆下一个件：挂到宿主上（世界里的位置、朝向不变），给初速度 v、角速度 w，落地时离地 rest
+  function detach(host, obj, v, w, rest) {
+    host.attach(obj);
+    return { obj, p0: obj.position.clone(), q0: obj.quaternion.clone(), v, axis: w.clone().normalize(), wl: w.length(), rest, qLand: null };
+  }
+  function fly(f, t, yg) {   // 抛物线；落地停转（文臣会摆成侧躺），再往前滑一小段
+    const y0 = yg + f.rest, tl = (f.v.y + Math.sqrt(f.v.y * f.v.y + 2 * DG * Math.max(0, f.p0.y - y0))) / DG, tt = Math.min(Math.max(0, t), tl);
+    f.obj.position.set(f.p0.x + f.v.x * tt, Math.max(y0, f.p0.y + f.v.y * tt - 0.5 * DG * tt * tt), f.p0.z + f.v.z * tt);
+    f.obj.quaternion.copy(f.q0).premultiply(Q1.setFromAxisAngle(f.axis, f.wl * tt));
+    if (t > tl) {
+      if (f.qLand) { const k = Math.min(1, (t - tl) / 0.25); f.obj.quaternion.slerp(f.qLand, k * k * (3 - 2 * k)); }
+      const s = Math.min(0.12, (t - tl) * 0.6) / 0.12; f.obj.position.x += f.v.x * 0.15 * s; f.obj.position.z += f.v.z * 0.15 * s;
+    }
+    return t > tl;
+  }
+  const puff = (p, o) => { try { Fx.spawn({ pos: p, tex: Core.Tex.puff, drag: 1.5, ...o }); } catch (e) {} };
+  // 一大团血雾 + 溅出去的血点 + 地上一摊血（dir：往哪边溅得多）
+  function bloodMist(p, dir, k = 1) {
+    const V3 = THREE.Vector3, rr = Math.random;
+    for (let i = 0; i < Math.round(14 * k); i++) { const a = rr() * 6.28, u = new V3(Math.cos(a) * 0.6, 0.35 + rr() * 0.6, Math.sin(a) * 0.6); if (dir) u.addScaledVector(dir, 0.7); puff(p.clone().add(new V3(Math.cos(a) * 0.12, 0.25 + rr() * 0.25, Math.sin(a) * 0.12)), { vel: u, color: rr() < 0.5 ? 0x9e180c : 0x6e0f06, size: 0.35, size2: 1.25 + rr() * 0.5, life: 0.8 + rr() * 0.6, op: 0.6, drag: 2.4 }); }
+    for (let i = 0; i < Math.round(24 * k); i++) { const a = rr() * 6.28, sp = 0.8 + rr() * 1.8, u = new V3(Math.cos(a) * sp, 0.6 + rr() * 1.6, Math.sin(a) * sp); if (dir) u.addScaledVector(dir, 1.2); puff(p.clone().setY(p.y + 0.3), { vel: u, color: 0x8e1408, size: 0.06, size2: 0.03, life: 0.4 + rr() * 0.3, op: 1, drag: 0.6 }); }
+    try { Fx.Marks.blood(p.clone(), 1.1 * k, dir || new V3(1, 0, 0)); } catch (e) {}
+  }
+  function blastDeath(o, g, wrap, opt) {
+    const { host, F, Rt, c, yg } = frameOf(g), A = debAssets(), V3 = THREE.Vector3, rr = () => Math.random(), fire = opt.fire !== false;
+    const pw = Math.max(0.3, opt.power ?? 1), D = opt.dir ? opt.dir.clone().setY(0).normalize() : null;
+    // 各件的初速度：炮击四散；有来犯方向时整体顺着它飞（劲越大越远、越平）
+    const push = fire ? 0.5 : 1.6, v = (fw, up, sd) => { const u = F.clone().multiplyScalar(fw).add(new V3(0, up, 0)).addScaledVector(Rt, sd); if (D) { u.multiplyScalar(fire ? 1 : 0.55); u.addScaledVector(D, push * pw * (0.8 + rr() * 0.5)); u.y *= fire ? 1 : Math.min(1.3, 0.75 + 0.15 * pw); } return u; };
+    // 熏黑（只有炮击）：这一只的材质换成副本再压暗，别的虎骑不受影响
+    if (fire) g.traverse(x => { if (!x.material) return; x.material = Array.isArray(x.material) ? x.material.map(m => m.clone()) : x.material.clone(); for (const m of [].concat(x.material)) if (m.color) m.color.multiplyScalar(0.3).lerp(SOOT, 0.12); });
+    o.frozen = o.figOff = o.staffOff = true;
+    const N = n => g.getObjectByName(n), fl = [], staff = N('staff'), fig = N('fig'), neck = N('neck'), tail = N('tail');
+    if (staff) fl.push(detach(host, staff, v(-0.4, 3.2, 1.4), new V3(5, 2, 7), 0.02));
+    if (fig) { const f = detach(host, fig, v(-0.7, 2.4, -1.1), F.clone().multiplyScalar(1.2), 0.06); f.qLand = f.q0.clone().premultiply(new THREE.Quaternion().setFromAxisAngle(F, Math.PI / 2)); fl.push(f); }
+    // 文臣也断肢：头、两条胳膊各自飞出去（Ham 审批台 086）
+    if (fig) { const lb = (n, u, w) => { const x = fig.getObjectByName(n); if (x) fl.push(detach(host, x, u, w, 0.05)); };
+      lb('fhead', v(0.7, 2.3, 0.9), new V3(6, 3, -4)); lb('farmA', v(1.0, 1.9, 1.5), new V3(-5, 7, 3)); lb('farmB', v(-0.2, 1.8, -1.3), new V3(4, -6, 5)); }   // 飞得低一点，落在镜头里看得见
+    if (neck) fl.push(detach(host, neck, v(1.4, 2.2, 0.6), new V3(3, 6, -5), 0.08));
+    if (tail) fl.push(detach(host, tail, v(-1.6, 1.6, 0.4), new V3(2, -7, 3), 0.02));
+    for (let i = 0; i < 4; i++) { const h = N('hip' + i); if (h) fl.push(detach(host, h, v((i < 2 ? 1 : -1) * (0.6 + rr()), 1.8 + rr() * 1.2, (i % 2 ? 1 : -1) * (0.8 + rr())), new V3(rr() * 8 - 4, rr() * 8 - 4, rr() * 8 - 4), 0.03)); }
+    // 剩下的虎身整个掀翻：包进一个和虎骑根一样位置的新组里飞
+    const body = new THREE.Group(); host.add(body); g.updateWorldMatrix(true, false);
+    new THREE.Matrix4().copy(host.matrixWorld).invert().multiply(g.matrixWorld).decompose(body.position, body.quaternion, body.scale);
+    body.attach(wrap); fl.push(detach(host, body, v(0.1, 1.3, 0.9), F.clone().multiplyScalar(4).add(new V3(0, 0.5, 0)), 0));
+    // 火光、碎屑、烟（炮击）；血雾、血迹（两种都有）
+    const flash = new THREE.Mesh(A.ball, new THREE.MeshBasicMaterial({ color: 0xfff1c0, transparent: true, opacity: fire ? 0.85 : 0, blending: THREE.AdditiveBlending, depthWrite: false, toneMapped: false }));
+    flash.position.set(c.x, yg + 0.4, c.z); host.add(flash);
+    const deb = fire ? [...Array(26)].map(() => { const m = new THREE.Mesh(A.box, A.mat); host.add(m); const a = rr() * Math.PI * 2; return { m, a, sp: 1.2 + rr() * 2.2, up: 1.5 + rr() * 2.5, r: [rr() * 9, 7, 5] }; }) : [];
+    const wp = host.localToWorld(c.clone());
+    if (fire) {
+      for (let i = 0; i < 7; i++) { const a = rr() * 6.28; puff(wp.clone().add(new V3(Math.cos(a) * 0.12, 0.25 + rr() * 0.2, Math.sin(a) * 0.12)), { vel: new V3(Math.cos(a) * 0.8, 0.9 + rr() * 0.6, Math.sin(a) * 0.8), add: true, color: 0xff9a3a, size: 0.25, size2: 0.6, life: 0.25 + rr() * 0.15, op: 0.95 }); }
+      for (let i = 0; i < 16; i++) { const a = rr() * 6.28; puff(wp.clone().add(new V3(Math.cos(a) * 0.2, 0.2 + rr() * 0.25, Math.sin(a) * 0.2)), { vel: new V3(Math.cos(a) * 0.7, 0.5 + rr() * 0.5, Math.sin(a) * 0.7), color: 0x5e5248, size: 0.45, size2: 1.4, life: 0.9 + rr() * 0.5, op: 0.7, drag: 2.2 }); }   // 烟尘
+      if (opt.scorch !== false) { try { Fx.Marks.scorch(wp.clone().setY(wp.y + 0.004), 1.1); } catch (e) {} }
+    }
+    bloodMist(wp, D, 1 + 0.25 * pw);
+    let bleed = 0;
+    let t = 0;
+    return new Promise(res => {
+      const off = Core.onFrame(dt => {
+        t += dt; const tt = t * 1.7;
+        for (const f of fl) fly(f, tt, yg);
+        bleed += dt; if (bleed > 0.05 && t < 0.7) { bleed = 0; for (const f of fl) if (rr() < 0.5) puff(host.localToWorld(f.obj.position.clone()), { vel: new V3(0, -0.2, 0), color: 0x8e1408, size: 0.07, size2: 0.16, life: 0.35, op: 0.8 }); }   // 飞出去的件一路洒血
+        flash.material.opacity = 0.85 * Math.exp(-t * 28); flash.scale.setScalar(0.4 + 1.3 * clamp01(t, 0, 0.08));
+        for (const d of deb) {
+          const y0 = yg + 0.01, tl = (d.up + Math.sqrt(d.up * d.up + 2 * DG * 0.3)) / DG, ta = Math.min(tt, tl);
+          d.m.position.set(c.x + Math.cos(d.a) * d.sp * ta, Math.max(y0, yg + 0.3 + d.up * ta - 0.5 * DG * ta * ta), c.z + Math.sin(d.a) * d.sp * ta); d.m.rotation.set(ta * d.r[0], ta * d.r[1], ta * d.r[2]);
+        }
+        if (t > 1.1) { off(); host.remove(flash); flash.material.dispose(); res(); }
+      });
+    });
+  }
+  function fallDeath(o, g, wrap, opt) {
+    const { host, F, Rt, yg } = frameOf(g), ds = o.deadSide || 1, V3 = THREE.Vector3, N = n => g.getObjectByName(n);
+    const fig = N('fig'), staff = N('staff'), k = 1 / (g.scale.x || 1);
+    // 被打飞：顺着来犯方向退飞一段（劲越大越远），先腾一下再落地
+    const pw = Math.max(0, opt.power ?? 1), D = opt.dir ? opt.dir.clone().setY(0).normalize() : new V3(), far = 0.35 * pw, kx = D.dot(F), kz = -D.dot(Rt);
+    let t = 0, ff = null, fs = null, fa = null, dust1 = false, dust2 = false;
+    return new Promise(res => {
+      const off = Core.onFrame(dt => {
+        t += dt;
+        o.roarK = 1 - (1 - Math.min(1, t / 0.08)) ** 2; o.roarK *= 1 - sm(clamp01(t, 0.2, 0.35));   // 仰头一挫
+        o.dead = sm(clamp01(t, 0.18, 0.62));                                                        // 先腿软伏下，再侧翻
+        const st = sm(clamp01(t, 0, 0.3)), kb = 1 - (1 - clamp01(t, 0, 0.4)) ** 2, hop = Math.sin(clamp01(t, 0, 0.4) * Math.PI) * 0.1 * Math.min(2, pw);
+        wrap.position.set((0.12 * st + far * kb * kx) * k, hop * k, (0.1 * st * ds + far * kb * kz) * k);  // 往前踉跄、往倒的那边歪，再加上被打退的那一段（虎骑自己的坐标：+x 前，+z 左）
+        if (t >= 0.1 && !ff) {   // 文臣被颠出去，摔向虎倒下的另一边；节杖脱手
+          if (fig) { ff = detach(host, fig, F.clone().multiplyScalar(0.15).add(new V3(0, 0.9 + 0.2 * pw, 0)).addScaledVector(Rt, ds * 0.5).addScaledVector(D, 1.1 * pw), F.clone().multiplyScalar(-2 * ds), 0.05); ff.qLand = ff.q0.clone().premultiply(new THREE.Quaternion().setFromAxisAngle(F, -Math.PI / 2 * ds)); o.figOff = true; }
+          // 持杖那条胳膊被砍飞，一股血（Ham 审批台 086「文官也需要有断肢」）
+          const arm = fig && fig.getObjectByName('farmA');
+          if (arm) { fa = detach(host, arm, F.clone().multiplyScalar(0.3).add(new V3(0, 1.7, 0)).addScaledVector(Rt, -ds * 0.6).addScaledVector(D, 1.4 * pw), new V3(5, -4, 6), 0.04); bloodMist(host.localToWorld(fa.obj.position.clone()), D, 0.5); }
+          if (staff) { fs = detach(host, staff, F.clone().multiplyScalar(0.6).add(new V3(0, 1.2, 0)).addScaledVector(Rt, ds * 0.7).addScaledVector(D, 1.3 * pw), F.clone().multiplyScalar(-1.8 * ds).add(new V3(0, 1.2, 0)), 0.015); o.staffOff = true; }
+          if (!ff) ff = {};
+        }
+        if (ff && ff.obj && fly(ff, (t - 0.1) * 1.5, yg) && !dust1) { dust1 = true; puff(host.localToWorld(ff.obj.position.clone()), { vel: new V3(0, 0.25, 0), color: 0xc9b896, size: 0.3, size2: 0.8, life: 0.5, op: 0.6 }); }
+        if (fs && fs.obj) fly(fs, (t - 0.1) * 1.35, yg);
+        if (fa) { fly(fa, (t - 0.1) * 1.5, yg); if (t < 0.75 && Math.random() < 0.45) puff(host.localToWorld(fa.obj.position.clone()), { vel: new V3(0, -0.2, 0), color: 0x8e1408, size: 0.07, size2: 0.16, life: 0.35, op: 0.8 }); }
+        if (t > 0.55 && !dust2) { dust2 = true; const p = g.localToWorld(new V3(0, 0, 0.5 * k * ds)); for (let i = 0; i < 3; i++) puff(p.clone().add(new V3((Math.random() - 0.5) * 0.3, 0.06, (Math.random() - 0.5) * 0.3)), { vel: new V3(0, 0.2, 0), color: 0xc9b896, size: 0.3, size2: 0.8, life: 0.5, op: 0.6 }); }
+        if (t > 1.4) { off(); res(); }
+      });
+    });
   }
   return { make, makeTiger, makeProwl, loft, STANCE, FACES, QLOD };
 })();

@@ -64,7 +64,7 @@ const Squads = (() => {
       this.dead = false;
     }
     center(h = 0.2) { const c = this.anchor.clone(); c.y = gy(c) + h; return c; }
-    dispose() { this.off(); Core.disposeTree(this.group); }
+    dispose() { this.off(); if (this.wall) { this.wall.dispose(); this.wall = null; } Core.disposeTree(this.group); }
     // 出场 / 消失：每个模型在自己的位置原地缩放（小队的 group 在世界原点，直接缩放 group 会让模型滑向棋盘中心）
     setVis(k) {
       k = Math.max(0.001, k);
@@ -173,7 +173,7 @@ const Squads = (() => {
       });
     }
     get units() { return this.troop.units; }
-    setVis(k) { k = Math.max(0.001, Math.min(1, k)); for (const u of this.troop.units) if (!u.dead) u.vis = k; }
+    setVis(k) { k = Math.max(0.001, Math.min(1, k)); for (const u of this.troop.units) if (!u.dead) u.vis = k; if (this.wall) this.wall.group.scale.setScalar(k); }   // 拒马路障跟着化墨（M28）
     alive() { return this.troop.units.filter(u => !u.dead); }
     appear() {
       this.place(1);
@@ -194,6 +194,7 @@ const Squads = (() => {
     die(hit, dir, power = 1, center) {
       const c = center || this.center(0);
       const units = this.alive();
+      if (this.wall) this.wall.shatter(dir, Math.max(1.3, power * 1.3));   // 拒马兵被打死：路障彻底碎掉（美术 M28，Ham 审批台 090 / 093）
       const ps = [];
       units.forEach((u, idx) => {
         const i = u.i;
@@ -444,7 +445,7 @@ const Squads = (() => {
       super('e', side, anchor, yaw);
       this.role = role;
       const gold = this.gold = n >= 4;
-      this.m = TigerHD.make(side, { gold }); this.m.group.scale.setScalar(TG);   // 美术的精修模型（tiger.js），各画质档它自己按 Core.quality 选面数
+      this.m = TigerHD.make(side, { lv: Math.max(1, Math.min(4, n || 1)) }); this.m.group.scale.setScalar(TG);   // 美术的精修模型（tiger.js），一到四级造型各不相同（M24），各画质档它自己按 Core.quality 选面数
       this.group.add(this.m.group);
       this.guard = n >= 3 ? new TroopSquad('e', side, anchor, yaw, gold ? 'xbowG' : 'xbow', [[0.4, -0.02], [-0.4, -0.02]], SC * (gold ? 1.08 : 1)) : null;
       // 随护弩手平时不在场（棋盘上清爽）：只在行进和攻击时出列，走完、打完就退下。gk 是出列程度，别处照常调 guard.setVis 也不会把他们叫出来
@@ -536,14 +537,25 @@ const Squads = (() => {
       // 倒地时文臣和节杖倒向一侧（deadSide = 1 是倒向行进方向的左手边）：挑旁边那格没有子的一侧
       { const R0 = rightOf(this.yaw), busy = sd => { const q = this.anchor.clone().addScaledVector(R0, -sd); for (const x of Board.pieces.values()) if (x.parent && Math.hypot(x.position.x - q.x, x.position.z - q.z) < 0.6) return true; return false; };
         const sd = Math.random() < 0.5 ? 1 : -1; m.deadSide = !busy(sd) ? sd : !busy(-sd) ? -sd : sd; }
-      tween(0.25, k => { m.roarK = k; }); snd('e', this.side).die();
-      P.blood(c, 20, 1.0, dir, 1.1);
-      if (hit === 'blast') P.fire(c, 16, 0.7);
-      if (hit === 'bolts') for (let i = 0; i < 6; i++) { const b = new THREE.Mesh(boltGeo, Models.vcMat); b.position.copy(c).add(rv(0.22, 0.12, 0.22)); b.quaternion.setFromUnitVectors(new V3(0, 1, 0), dir.clone().negate().add(rv(0.3, 0.3, 0.3)).normalize()); this.group.add(b); }
-      await sleep(0.15);
-      await tween(0.8, k => { m.dead = k; m.roarK = 1 - k; }, ease.in);
-      Cam.shake(0.15); P.dust(this.center(0), 10, null, 0.3); Sfx.B.thud(0, 0.7);
-      Fx.Marks.blood(this.center(0).addScaledVector(dir, 0.1), 1.0, dir);
+      snd('e', this.side).die();
+      if (hit === 'blast') {
+        // 炮击：炸碎，虎身、虎头、四肢、文臣、节杖四散飞出，大片血雾（美术 M24，Ham 审批台 077 / 080）
+        P.fire(c, 16, 0.7); P.blood(c, 24, 1.2, dir, 1.3); Cam.shake(0.25);
+        await m.blast({ dir, power });
+      } else if (hit === 'ram' && power >= 2) {
+        // 车远距离冲锋：整只撞散，顺着冲锋方向飞得特别远
+        P.blood(c, 30, 1.4, dir, 1.6); Cam.shake(0.3);
+        await m.rend({ dir, power });
+      } else {
+        // 近战：被打得往后退飞一段，虎仰头一挫、侧倒，文臣摔下（文臣也断肢，审批台 086 / 089）
+        P.blood(c, 20, 1.0, dir, 1.1);
+        if (hit === 'bolts') for (let i = 0; i < 6; i++) { const b = new THREE.Mesh(boltGeo, Models.vcMat); b.position.copy(c).add(rv(0.22, 0.12, 0.22)); b.quaternion.setFromUnitVectors(new V3(0, 1, 0), dir.clone().negate().add(rv(0.3, 0.3, 0.3)).normalize()); this.group.add(b); }
+        const fall = m.fall({ dir, power });
+        await sleep(0.62);
+        Cam.shake(0.15); P.dust(this.center(0), 10, null, 0.3); Sfx.B.thud(0, 0.7);
+        Fx.Marks.blood(this.center(0).addScaledVector(dir, 0.1), 1.0, dir);
+        await fall;
+      }
       await gd;
     }
   }
@@ -645,7 +657,8 @@ const Squads = (() => {
         if (!hit && start.distanceTo(this.anchor) >= hitAt) {
           hit = true; Cam.shake(0.3); snd('r', this.side).impact(); Fx.slowmo(0.25, 0.14);
           P.dust(B, 12, d.clone().negate(), 0.35); Fx.ring(B, 2.0, 0.6, 0x5a4a38);
-          dead = target.die('ram', d, 1.4, B);
+          // 虎骑飞多远按冲锋距离（美术 M24，Ham 审批台 080：交给实时结算）；别的兵种照旧 1.4，免得步兵被撞出棋盘
+          dead = target.die('ram', d, target instanceof TigerRider ? Math.min(3.5, 1 + start.distanceTo(B) * 0.45) : 1.4, B);
         }
       }, ease.in);
       this.m.speed = 0.3;
@@ -1250,7 +1263,7 @@ const Squads = (() => {
       await backOff(att, B.clone().addScaledVector(d, -Math.min(1.7, Math.max(1.25, A.distanceTo(B)))));
       drip();
       if (ring) ring.done();
-      jmForm(def, false);
+      jmForm(def, false, 'ready', true);   // 阵形收了，路障留着：接下来被打死就碎掉
       await sleep(0.15);
     }
     if (c.survive) def.die = (hit, dir, power, center) => hurtSquad(def, hit, dir, power, center);
@@ -1307,8 +1320,14 @@ const Squads = (() => {
   // ---------- 兵法·拒马（美术 M20）----------
   // 守方阵形：二级两人并排、四级三名斩马刀手一字排开（照 lineUp）；三级改成前二后一，后排那人站高一点，矛从前排两人中间伸出去（审批台 art-073 选 A）
   const JM_STACK = [[-0.15, 0.1], [0.15, 0.1], [0, -0.16]];
-  function jmForm(sq, on, offPose = 'ready') {
+  function jmForm(sq, on, offPose = 'ready', keepWall = false) {
     if (!sq || !sq.troop || sq.t !== 'p') return;
+    // 拒马路障（美术 M28，Ham 审批台 090 / 093）：摆阵时架起来，撤阵时收掉；keepWall 时留着，等这一队被打死时碎掉
+    if (on && !sq.wall && window.JumaWall) {
+      sq.wall = JumaWall.make(sq.side, sq.elite ? 4 : Math.max(2, sq.troop.count)); sq.group.add(sq.wall.group);
+      const g = sq.wall.group; g.scale.setScalar(Math.max(0.001, Math.min(1, (() => { const u = sq.troop.units.find(u => !u.dead); return u && u.vis != null ? u.vis : 1; })())));
+      sq.updaters.push(sq.wallUp = dt => { if (!sq.wall) return; const g = sq.wall.group; g.position.copy(sq.anchor); g.position.y = gy(sq.anchor); g.rotation.y = sq.yaw; sq.wall.update(dt); });
+    } else if (!on && sq.wall && !keepWall) { sq.group.remove(sq.wall.group); sq.wall.dispose(); sq.wall = null; }
     if (!sq.off0) sq.off0 = sq.offsets.map(o => o.slice());
     const stack = on && !sq.elite && sq.troop.count === 3;
     sq.offsets = (stack ? JM_STACK : sq.off0).map(o => o.slice());
@@ -1378,6 +1397,7 @@ const Squads = (() => {
   function hurtSquad(sq, hit, dir, power = 1, center) {
     const c = sq.center(0.3);
     if (sq.troop) {
+      if (sq.wall) sq.wall.shake(dir, 1.2);   // 只掉血：路障不碎，往后一挫晃两晃（M28）
       const alive = sq.alive(), n = Math.max(1, Math.round(alive.length / 3));
       alive.slice(0, n).forEach(u => killUnit(sq.troop, u.i, hit === 'bolts' ? 'bolts' : hit === 'blast' ? 'blast' : 'stab', dir, power * 0.8, center || c));
       alive.slice(n).forEach(u => sq.troop.act(u.i, 'hit', 0.35, Math.random() * 0.2));
