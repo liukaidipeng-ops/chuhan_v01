@@ -301,12 +301,12 @@ const XY3 = (() => {
     for (const s of [-1, 1]) { const e = gridGeo(24, 8, (u, v) => { const a = u * TAU, r = 0.02 * (1 - 0.45 * v); return [s * (0.002 + v * 0.01), Math.cos(a) * r * 1.5, Math.sin(a) * r]; }); const em = put(head, e, M(C.skin), 0.004); em.position.set(s * SX * 0.97, HY - 0.004, -0.012); }
     // 络腮短须：贴着下巴、两腮一层短胡子（一绺绺短锥），八字须
     const B = []; seed = 41;
-    for (let k = 0; k < (cg ? 520 : 170); k++) {
+    for (let k = 0; k < (cg ? 380 : 170); k++) {
       const a = (rnd() - 0.5) * 2.5, yy = -0.4 - rnd() * 0.52, cy = Math.cos(a), sa = Math.sin(a);
       const r0 = V(sa * SX * tab(WF, yy) * 0.98, HY + yy * SY, Math.max(0.01, cy * faceZ(yy) * 0.98));
       if (Math.abs(sa) < 0.18 && yy > -0.6) continue;   // 嘴下面留空
       const n = r0.clone().sub(V(0, HY + yy * SY * 0.6, -0.01)).normalize(), l = (0.012 + rnd() * 0.012 + (yy < -0.78 ? 0.012 : 0)) * (cg ? 0.72 : 1);   // cg：短须，别像一挂门帘
-      B.push({ geo: taper([r0.clone().addScaledVector(n, -0.002), r0.clone().addScaledVector(n, l * 0.35).add(V(0, -l * 0.45, 0)), r0.clone().addScaledVector(n, l * 0.3).add(V(0, -l, 0))], cg ? 0.0045 : 0.009, cg ? 0.0008 : 0.002, cg ? 4 : 5, 6), color: cg && rnd() < 0.25 ? 0x2a2018 : C.hair, m: new THREE.Matrix4() });
+      B.push({ geo: taper([r0.clone().addScaledVector(n, -0.002), r0.clone().addScaledVector(n, l * 0.35).add(V(0, -l * 0.45, 0)), r0.clone().addScaledVector(n, l * 0.3).add(V(0, -l, 0))], cg ? 0.0045 : 0.009, cg ? 0.0008 : 0.002, cg ? 4 : 5, 6), color: cg ? (rnd() < 0.45 ? 0x3a2c22 : 0x1e1612) : C.hair, m: new THREE.Matrix4() });
     }
     for (const s of [-1, 1]) for (let k = 0; k < 3; k++) { const z = faceZ(-0.35) + 0.008; B.push({ geo: taper([V(s * 0.005, HY - SY * 0.33 - k * 0.002, z), V(s * 0.026, HY - SY * 0.37, z - 0.006), V(s * 0.04, HY - SY * 0.45, z - 0.016)], 0.0065, 0.0015, 6, 8), color: C.hair, m: new THREE.Matrix4() }); }
     // 第三阶段：没盔，发髻 + 散下来的几绺
@@ -420,7 +420,8 @@ const XY3 = (() => {
     put(H, new THREE.ConeGeometry(0.018, 0.09, 12), M(C.gold), 0.004).position.y = 0.235;
     put(H, new THREE.CylinderGeometry(0.024, 0.03, 0.03, 16), M(C.plume), 0.004).position.y = 0.19;
     // 护颈：从盔沿垂到肩，绕后脑和两腮（正面留出脸）
-    put(H, gridGeo(48, 8, (u, v) => { const a = PI + (u - 0.5) * 2 * 2.15, y = 0.065 - v * 0.17, front = sstep(1.3, 2.15, Math.abs(a - PI)), r = (0.105 + 0.016 * v) * (1 - 0.12 * front * v); return [Math.sin(a) * r * 0.98, y, Math.cos(a) * r * 1.06 - 0.004]; }, false), (() => { const m = lamMat(5, 2); m.side = THREE.DoubleSide; return m; })(), 0.005);
+    put(H, gridGeo(48, 8, (u, v) => { const a = PI + (u - 0.5) * 2 * 2.15, y = 0.065 - v * 0.17,   // 护颈照原样（短了会露出脑后画的发际线色块）
+       front = sstep(1.3, 2.15, Math.abs(a - PI)), r = (0.105 + 0.016 * v) * (1 - 0.12 * front * v); return [Math.sin(a) * r * 0.98, y, Math.cos(a) * r * 1.06 - 0.004]; }, false), (() => { const m = lamMat(5, 2); m.side = THREE.DoubleSide; return m; })(), 0.005);
     // 雉尾：长、窄、带横纹，往两边弯；第二阶段折了一根
     const FT = featherTex();
     for (const s of [-1, 1]) {
