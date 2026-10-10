@@ -1366,6 +1366,23 @@ html:has(#endcard:not(.hidden)),html:has(#endcard:not(.hidden)) body,html:has(#e
 #mSet .e-body>.note span{opacity:.7}
 #endcard .cols div{font-family:var(--ef);font-weight:900}
 #lobby #bShare.btn.solid,#lobby .e-body #bShare.btn.solid{background:none;color:var(--c);border:2px solid var(--c);box-shadow:none}
+/* 第二轮总审 3：对方喊话气泡在时，提示条让到气泡下面 */
+body:has(#bubOpp.on) #toast{top:calc(var(--below-status,30%) + 92px)}
+/* 4：确认框弹出时，下面的暂停卡先藏起来 */
+body:has(#mAsk:not(.hidden)) #pauseOv .pz{visibility:hidden}
+/* 7：加载页大字不再忽明忽暗（原来最暗到 55% 还带模糊，在朱底上像没加载出来），只留进度条在动 */
+#loading .big{animation:none}
+
+/* 第二轮总审 8：电脑对局里右下的技能按钮放大一档，和右边一列圆按钮拉开 */
+@media (min-width:641px){
+  #bfBar.col{translate:-14px 0}
+  #bfBar.col .sk{min-width:140px;min-height:58px;font-size:calc(18px * var(--fs,1))}
+  #bfBar.col .sk small{font-size:calc(12px * var(--fs,1))}
+}
+/* 9：复盘 0 步时，分析面板写一句话（面板高度不变） */
+#ana.v3:has(#anaList:empty) #anaChart{display:none}
+#ana.v3 #anaList:empty{min-height:0;padding:4px 0}
+#ana.v3 #anaList:empty::before{content:"这局没有走子，没有可分析的。";font-size:13px;color:rgba(240,231,210,.75)}
 </style>
 </head>
 <body>
